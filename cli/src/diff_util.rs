@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use std::cmp::max;
-use std::collections::VecDeque;
+use std::collections::{HashSet, VecDeque};
 use std::ops::Range;
 use std::path::{Path, PathBuf};
 use std::{io, mem};
@@ -272,7 +272,7 @@ impl<'a> DiffRenderer<'a> {
         from_tree: &MergedTree,
         to_tree: &MergedTree,
         matcher: &dyn Matcher,
-        _copy_records: &CopyRecords,
+        copy_records: &CopyRecords,
         width: usize,
     ) -> Result<(), DiffRenderError> {
         let store = self.repo.store();
@@ -280,9 +280,8 @@ impl<'a> DiffRenderer<'a> {
         for format in &self.formats {
             match format {
                 DiffFormat::Summary => {
-                    let no_copy_tracking = Default::default();
-                    let tree_diff = from_tree.diff_stream(to_tree, matcher, &no_copy_tracking);
-                    show_diff_summary(formatter, tree_diff, path_converter)?;
+                    let tree_diff = from_tree.diff_stream(to_tree, matcher, copy_records);
+                    show_diff_summary(formatter, tree_diff, path_converter, copy_records, to_tree)?;
                 }
                 DiffFormat::Stat => {
                     let no_copy_tracking = Default::default();
@@ -305,8 +304,7 @@ impl<'a> DiffRenderer<'a> {
                     show_git_diff(formatter, store, tree_diff, *context)?;
                 }
                 DiffFormat::ColorWords { context } => {
-                    let no_copy_tracking = Default::default();
-                    let tree_diff = from_tree.diff_stream(to_tree, matcher, &no_copy_tracking);
+                    let tree_diff = from_tree.diff_stream(to_tree, matcher, copy_records);
                     show_color_words_diff(formatter, store, tree_diff, path_converter, *context)?;
                 }
                 DiffFormat::Tool(tool) => {
@@ -580,20 +578,28 @@ pub fn show_color_words_diff(
     let mut diff_stream = materialized_diff_stream(store, tree_diff);
     async {
         while let Some(MaterializedTreeDiffEntry {
-            source: _, // TODO handle copy tracking
-            target: path,
+            source: left_path,
+            target: right_path,
             value: diff,
         }) = diff_stream.next().await
         {
-            let ui_path = path_converter.format_file_path(&path);
+            let left_ui_path = path_converter.format_file_path(&left_path);
+            let right_ui_path = path_converter.format_file_path(&right_path);
             let (left_value, right_value) = diff?;
 
             match (&left_value, &right_value) {
-                (_, MaterializedTreeValue::AccessDenied(source))
-                | (MaterializedTreeValue::AccessDenied(source), _) => {
+                (MaterializedTreeValue::AccessDenied(source), _) => {
                     write!(
                         formatter.labeled("access-denied"),
-                        "Access denied to {ui_path}:"
+                        "Access denied to {left_ui_path}:"
+                    )?;
+                    writeln!(formatter, " {source}")?;
+                    continue;
+                }
+                (_, MaterializedTreeValue::AccessDenied(source)) => {
+                    write!(
+                        formatter.labeled("access-denied"),
+                        "Access denied to {right_ui_path}:"
                     )?;
                     writeln!(formatter, " {source}")?;
                     continue;
@@ -604,9 +610,9 @@ pub fn show_color_words_diff(
                 let description = basic_diff_file_type(&right_value);
                 writeln!(
                     formatter.labeled("header"),
-                    "Added {description} {ui_path}:"
+                    "Added {description} {right_ui_path}:"
                 )?;
-                let right_content = diff_content(&path, right_value)?;
+                let right_content = diff_content(&right_path, right_value)?;
                 if right_content.is_empty() {
                     writeln!(formatter.labeled("empty"), "    (empty)")?;
                 } else if right_content.is_binary {
@@ -667,9 +673,19 @@ pub fn show_color_words_diff(
                         )
                     }
                 };
-                let left_content = diff_content(&path, left_value)?;
-                let right_content = diff_content(&path, right_value)?;
-                writeln!(formatter.labeled("header"), "{description} {ui_path}:")?;
+                let left_content = diff_content(&left_path, left_value)?;
+                let right_content = diff_content(&right_path, right_value)?;
+                if left_path == right_path {
+                    writeln!(
+                        formatter.labeled("header"),
+                        "{description} {right_ui_path}:"
+                    )?;
+                } else {
+                    writeln!(
+                        formatter.labeled("header"),
+                        "{description} {right_ui_path} ({left_ui_path} => {right_ui_path}):"
+                    )?;
+                }
                 if left_content.is_binary || right_content.is_binary {
                     writeln!(formatter.labeled("binary"), "    (binary)")?;
                 } else {
@@ -684,9 +700,9 @@ pub fn show_color_words_diff(
                 let description = basic_diff_file_type(&left_value);
                 writeln!(
                     formatter.labeled("header"),
-                    "Removed {description} {ui_path}:"
+                    "Removed {description} {right_ui_path}:"
                 )?;
-                let left_content = diff_content(&path, left_value)?;
+                let left_content = diff_content(&left_path, left_value)?;
                 if left_content.is_empty() {
                     writeln!(formatter.labeled("empty"), "    (empty)")?;
                 } else if left_content.is_binary {
@@ -1130,33 +1146,60 @@ pub fn show_git_diff(
     .block_on()
 }
 
+// TODO rework this signature to pass both from_tree and to_tree explicitly
 #[instrument(skip_all)]
 pub fn show_diff_summary(
     formatter: &mut dyn Formatter,
     mut tree_diff: TreeDiffStream,
     path_converter: &RepoPathUiConverter,
+    copy_records: &CopyRecords,
+    to_tree: &MergedTree,
 ) -> io::Result<()> {
+    let copied_sources: HashSet<&RepoPath> = copy_records
+        .iter()
+        .map(|record| record.source.as_ref())
+        .collect();
+
     async {
         while let Some(TreeDiffEntry {
-            source: _, // TODO handle copy tracking
-            target: repo_path,
+            source: before_path,
+            target: after_path,
             value: diff,
         }) = tree_diff.next().await
         {
             let (before, after) = diff.unwrap();
-            let ui_path = path_converter.format_file_path(&repo_path);
-            if before.is_present() && after.is_present() {
-                writeln!(formatter.labeled("modified"), "M {ui_path}")?;
-            } else if before.is_absent() {
-                writeln!(formatter.labeled("added"), "A {ui_path}")?;
+            let after_ui_path = path_converter.format_file_path(&after_path);
+            if before_path != after_path {
+                let before_ui_path = path_converter.format_file_path(&before_path);
+                if to_tree.path_value(&before_path).unwrap().is_absent() {
+                    writeln!(
+                        formatter.labeled("renamed"),
+                        "R {before_ui_path} => {after_ui_path}"
+                    )?
+                } else {
+                    writeln!(
+                        formatter.labeled("copied"),
+                        "C {before_ui_path} => {after_ui_path}"
+                    )?
+                }
             } else {
-                // `R` could be interpreted as "renamed"
-                writeln!(formatter.labeled("removed"), "D {ui_path}")?;
+                let path = after_ui_path;
+                match (before.is_present(), after.is_present()) {
+                    (true, true) => writeln!(formatter.labeled("modified"), "M {path}")?,
+                    (false, true) => writeln!(formatter.labeled("added"), "A {path}")?,
+                    (true, false) => {
+                        if !copied_sources.contains(before_path.as_ref()) {
+                            writeln!(formatter.labeled("removed"), "D {path}")?;
+                        }
+                    }
+                    (false, false) => unreachable!(),
+                }
             }
         }
-        Ok(())
+        Ok::<(), io::Error>(())
     }
-    .block_on()
+    .block_on()?;
+    Ok(())
 }
 
 struct DiffStat {

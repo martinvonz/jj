@@ -37,8 +37,7 @@ fn test_diff_basic() {
        1    1: foo
             2: bar
        2    3: baz quxquux
-    Added regular file file3:
-            1: foo
+    Modified regular file file3 (file1 => file3):
     "###);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "--context=0"]);
@@ -49,8 +48,7 @@ fn test_diff_basic() {
        1    1: foo
             2: bar
        2    3: baz quxquux
-    Added regular file file3:
-            1: foo
+    Modified regular file file3 (file1 => file3):
     "###);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "--color=debug"]);
@@ -61,15 +59,13 @@ fn test_diff_basic() {
     [38;5;1m<<diff removed line_number::   1>>[39m<<diff:: >>[38;5;2m<<diff added line_number::   1>>[39m<<diff::: foo>>
     <<diff::     >>[38;5;2m<<diff added line_number::   2>>[39m<<diff::: >>[4m[38;5;2m<<diff added token::bar>>[24m[39m
     [38;5;1m<<diff removed line_number::   2>>[39m<<diff:: >>[38;5;2m<<diff added line_number::   3>>[39m<<diff::: baz >>[4m[38;5;1m<<diff removed token::qux>>[38;5;2m<<diff added token::quux>>[24m[39m<<diff::>>
-    [38;5;3m<<diff header::Added regular file file3:>>[39m
-    <<diff::     >>[38;5;2m<<diff added line_number::   1>>[39m<<diff::: >>[4m[38;5;2m<<diff added token::foo>>[24m[39m
+    [38;5;3m<<diff header::Modified regular file file3 (file1 => file3):>>[39m
     "###);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
     insta::assert_snapshot!(stdout, @r###"
-    D file1
     M file2
-    A file3
+    R file1 => file3
     "###);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "--types"]);
@@ -161,9 +157,8 @@ fn test_diff_basic() {
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s", "--git"]);
     insta::assert_snapshot!(stdout, @r###"
-    D file1
     M file2
-    A file3
+    R file1 => file3
     diff --git a/file1 b/file1
     deleted file mode 100644
     index 257cc5642c..0000000000
@@ -200,7 +195,6 @@ fn test_diff_basic() {
     // Filter by glob pattern
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s", "glob:file[12]"]);
     insta::assert_snapshot!(stdout, @r###"
-    D file1
     M file2
     "###);
 
@@ -218,9 +212,8 @@ fn test_diff_basic() {
         ],
     );
     insta::assert_snapshot!(stdout.replace('\\', "/"), @r###"
-    D repo/file1
     M repo/file2
-    A repo/file3
+    R repo/file1 => repo/file3
     "###);
     insta::assert_snapshot!(stderr.replace('\\', "/"), @r###"
     Warning: No matching entries for paths: repo/x, repo/y/z
@@ -1253,12 +1246,12 @@ fn test_diff_external_file_by_file_tool() {
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
 
-    std::fs::write(repo_path.join("file1"), "foo\n").unwrap();
-    std::fs::write(repo_path.join("file2"), "foo\n").unwrap();
+    std::fs::write(repo_path.join("file1"), "file1\n").unwrap();
+    std::fs::write(repo_path.join("file2"), "file2\n").unwrap();
     test_env.jj_cmd_ok(&repo_path, &["new"]);
     std::fs::remove_file(repo_path.join("file1")).unwrap();
-    std::fs::write(repo_path.join("file2"), "foo\nbar\n").unwrap();
-    std::fs::write(repo_path.join("file3"), "foo\n").unwrap();
+    std::fs::write(repo_path.join("file2"), "file2\nfile2\n").unwrap();
+    std::fs::write(repo_path.join("file3"), "file3\n").unwrap();
 
     let edit_script = test_env.set_up_fake_diff_editor();
     std::fs::write(
@@ -1299,7 +1292,7 @@ fn test_diff_external_file_by_file_tool() {
 
     insta::assert_snapshot!(
         test_env.jj_cmd_success(&repo_path, &["log", "-p", config]), @r###"
-    @  rlvkpnrz test.user@example.com 2001-02-03 08:05:09 39d9055d
+    @  rlvkpnrz test.user@example.com 2001-02-03 08:05:09 f12f62fb
     │  (no description set)
     │  ==
     │  file1
@@ -1313,7 +1306,7 @@ fn test_diff_external_file_by_file_tool() {
     │  file3
     │  --
     │  file3
-    ○  qpvuntsm test.user@example.com 2001-02-03 08:05:08 0ad4ef22
+    ○  qpvuntsm test.user@example.com 2001-02-03 08:05:08 6e485984
     │  (no description set)
     │  ==
     │  file1
@@ -1328,7 +1321,7 @@ fn test_diff_external_file_by_file_tool() {
 
     insta::assert_snapshot!(
         test_env.jj_cmd_success(&repo_path, &["show", config]), @r###"
-    Commit ID: 39d9055d70873099fd924b9af218289d5663eac8
+    Commit ID: f12f62fb1d73629c1b44abd4d5bbb500d7f8b86c
     Change ID: rlvkpnrzqnoowoytxnquwvuryrwnrmlp
     Author: Test User <test.user@example.com> (2001-02-03 08:05:09)
     Committer: Test User <test.user@example.com> (2001-02-03 08:05:09)

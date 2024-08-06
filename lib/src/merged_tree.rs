@@ -29,7 +29,7 @@ use futures::{Stream, TryStreamExt};
 use itertools::{EitherOrBoth, Itertools};
 
 use crate::backend;
-use crate::backend::{BackendResult, CopyRecords, MergedTreeId, TreeId, TreeValue};
+use crate::backend::{BackendResult, CopyRecord, CopyRecords, MergedTreeId, TreeId, TreeValue};
 use crate::matchers::{EverythingMatcher, Matcher};
 use crate::merge::{Merge, MergeBuilder, MergedTreeValue};
 use crate::repo_path::{RepoPath, RepoPathBuf, RepoPathComponent};
@@ -334,6 +334,28 @@ pub struct TreeDiffEntry {
     pub value: BackendResult<(MergedTreeValue, MergedTreeValue)>,
 }
 
+impl TreeDiffEntry {
+    fn adjust_for_copy_tracking(
+        self,
+        source_tree: &MergedTree,
+        copy_records: &CopyRecords,
+    ) -> TreeDiffEntry {
+        let Some(CopyRecord { source, .. }) = copy_records.for_target(&self.target) else {
+            return self;
+        };
+
+        Self {
+            source: source.clone(),
+            target: self.target,
+            value: self.value.and_then(|(_, target_value)| {
+                source_tree
+                    .path_value(source)
+                    .map(|source_value| (source_value, target_value))
+            }),
+        }
+    }
+}
+
 /// Type alias for the result from `MergedTree::diff_stream()`. We use a
 /// `Stream` instead of an `Iterator` so high-latency backends (e.g. cloud-based
 /// ones) can fetch trees asynchronously.
@@ -612,7 +634,9 @@ impl Iterator for ConflictIterator {
 pub struct TreeDiffIterator<'matcher> {
     store: Arc<Store>,
     stack: Vec<TreeDiffItem>,
+    source: MergedTree,
     matcher: &'matcher dyn Matcher,
+    copy_records: &'matcher CopyRecords,
 }
 
 struct TreeDiffDirItem {
@@ -634,7 +658,7 @@ impl<'matcher> TreeDiffIterator<'matcher> {
         trees1: &Merge<Tree>,
         trees2: &Merge<Tree>,
         matcher: &'matcher dyn Matcher,
-        _copy_records: &'matcher CopyRecords,
+        copy_records: &'matcher CopyRecords,
     ) -> Self {
         assert!(Arc::ptr_eq(trees1.first().store(), trees2.first().store()));
         let root_dir = RepoPath::root();
@@ -647,7 +671,9 @@ impl<'matcher> TreeDiffIterator<'matcher> {
         Self {
             store: trees1.first().store().clone(),
             stack,
+            source: MergedTree::new(trees1.clone()),
             matcher,
+            copy_records,
         }
     }
 
@@ -789,12 +815,15 @@ impl Iterator for TreeDiffIterator<'_> {
 
     fn next(&mut self) -> Option<Self::Item> {
         self.next_impl()
+            .map(|diff_entry| diff_entry.adjust_for_copy_tracking(&self.source, self.copy_records))
     }
 }
 
 /// Stream of differences between two trees.
 pub struct TreeDiffStreamImpl<'matcher> {
     matcher: &'matcher dyn Matcher,
+    copy_records: &'matcher CopyRecords,
+    source_tree: MergedTree,
     /// Pairs of tree values that may or may not be ready to emit, sorted in the
     /// order we want to emit them. If either side is a tree, there will be
     /// a corresponding entry in `pending_trees`.
@@ -869,11 +898,13 @@ impl<'matcher> TreeDiffStreamImpl<'matcher> {
         tree1: MergedTree,
         tree2: MergedTree,
         matcher: &'matcher dyn Matcher,
-        _copy_records: &'matcher CopyRecords,
+        copy_records: &'matcher CopyRecords,
         max_concurrent_reads: usize,
     ) -> Self {
         let mut stream = Self {
             matcher,
+            copy_records,
+            source_tree: tree1.clone(),
             items: BTreeMap::new(),
             pending_trees: VecDeque::new(),
             max_concurrent_reads,
@@ -1061,7 +1092,11 @@ impl Stream for TreeDiffStreamImpl<'_> {
     type Item = TreeDiffEntry;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        self.as_mut().poll_next_impl(cx)
+        self.as_mut().poll_next_impl(cx).map(|option| {
+            option.map(|diff_entry| {
+                diff_entry.adjust_for_copy_tracking(&self.source_tree, self.copy_records)
+            })
+        })
     }
 }
 
