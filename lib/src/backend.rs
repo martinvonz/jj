@@ -217,6 +217,11 @@ impl CopyRecords {
     pub fn for_target(&self, target: &RepoPath) -> Option<&CopyRecord> {
         self.targets.get(target).and_then(|&i| self.records.get(i))
     }
+
+    /// Gets all copy records.
+    pub fn iter(&self) -> impl Iterator<Item = &CopyRecord> + '_ {
+        self.records.iter()
+    }
 }
 
 /// Error that may occur during backend initialization.

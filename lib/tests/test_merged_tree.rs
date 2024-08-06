@@ -14,7 +14,7 @@
 
 use futures::StreamExt;
 use itertools::Itertools;
-use jj_lib::backend::{FileId, MergedTreeId, TreeValue};
+use jj_lib::backend::{CommitId, CopyRecord, CopyRecords, FileId, MergedTreeId, TreeValue};
 use jj_lib::files::MergeResult;
 use jj_lib::matchers::{EverythingMatcher, FilesMatcher, Matcher, PrefixMatcher};
 use jj_lib::merge::{Merge, MergeBuilder, MergedTreeValue};
@@ -39,21 +39,25 @@ fn diff_entry_tuple(diff: TreeDiffEntry) -> (RepoPathBuf, (MergedTreeValue, Merg
     (diff.target, diff.value.unwrap())
 }
 
-fn diff_stream_equals_iter(tree1: &MergedTree, tree2: &MergedTree, matcher: &dyn Matcher) {
-    let copy_records = Default::default();
+fn diff_stream_equals_iter(
+    tree1: &MergedTree,
+    tree2: &MergedTree,
+    matcher: &dyn Matcher,
+    copy_records: &CopyRecords,
+) {
     let iter_diff: Vec<_> =
-        TreeDiffIterator::new(tree1.as_merge(), tree2.as_merge(), matcher, &copy_records)
-            .map(diff_entry_tuple)
+        TreeDiffIterator::new(tree1.as_merge(), tree2.as_merge(), matcher, copy_records)
+            .map(|diff| (diff.source, diff.target, diff.value.unwrap()))
             .collect();
     let max_concurrent_reads = 10;
     let stream_diff: Vec<_> = TreeDiffStreamImpl::new(
         tree1.clone(),
         tree2.clone(),
         matcher,
-        &copy_records,
+        copy_records,
         max_concurrent_reads,
     )
-    .map(diff_entry_tuple)
+    .map(|diff| (diff.source, diff.target, diff.value.unwrap()))
     .collect()
     .block_on();
     assert_eq!(stream_diff, iter_diff);
@@ -794,7 +798,122 @@ fn test_diff_resolved() {
             ),
         )
     );
-    diff_stream_equals_iter(&before_merged, &after_merged, &EverythingMatcher);
+    diff_stream_equals_iter(
+        &before_merged,
+        &after_merged,
+        &EverythingMatcher,
+        &CopyRecords::default(),
+    );
+}
+
+fn create_copy_records(paths: &[(&RepoPath, &RepoPath)]) -> CopyRecords {
+    let mut copy_records = CopyRecords::default();
+    copy_records
+        .add_records(Box::pin(futures::stream::iter(paths.iter().map(
+            |&(source, target)| {
+                Ok(CopyRecord {
+                    source: source.to_owned(),
+                    target: target.to_owned(),
+                    target_commit: CommitId::new(vec![]),
+                    source_commit: CommitId::new(vec![]),
+                    source_file: FileId::new(vec![]),
+                })
+            },
+        ))))
+        .unwrap();
+    copy_records
+}
+
+/// Diff two resolved trees
+#[test]
+fn test_diff_copy_tracing() {
+    let test_repo = TestRepo::init();
+    let repo = &test_repo.repo;
+
+    let clean_path = RepoPath::from_internal_string("1/clean/path");
+    let modified_path = RepoPath::from_internal_string("2/modified/path");
+    let copied_path = RepoPath::from_internal_string("3/copied/path");
+    let removed_path = RepoPath::from_internal_string("4/removed/path");
+    let added_path = RepoPath::from_internal_string("5/added/path");
+    let before = create_single_tree(
+        repo,
+        &[
+            (clean_path, "clean"),
+            (modified_path, "before"),
+            (removed_path, "before"),
+        ],
+    );
+    let after = create_single_tree(
+        repo,
+        &[
+            (clean_path, "clean"),
+            (modified_path, "after"),
+            (copied_path, "after"),
+            (added_path, "after"),
+        ],
+    );
+    let before_merged = MergedTree::new(Merge::resolved(before.clone()));
+    let after_merged = MergedTree::new(Merge::resolved(after.clone()));
+
+    let copy_records =
+        create_copy_records(&[(removed_path, added_path), (modified_path, copied_path)]);
+
+    let diff: Vec<_> = before_merged
+        .diff_stream(&after_merged, &EverythingMatcher, &copy_records)
+        .map(|diff| (diff.source, diff.target, diff.value.unwrap()))
+        .collect()
+        .block_on();
+    assert_eq!(diff.len(), 4);
+    assert_eq!(
+        diff[0].clone(),
+        (
+            modified_path.to_owned(),
+            modified_path.to_owned(),
+            (
+                Merge::resolved(before.path_value(modified_path).unwrap()),
+                Merge::resolved(after.path_value(modified_path).unwrap())
+            ),
+        )
+    );
+    assert_eq!(
+        diff[1].clone(),
+        (
+            modified_path.to_owned(),
+            copied_path.to_owned(),
+            (
+                Merge::resolved(before.path_value(modified_path).unwrap()),
+                Merge::resolved(after.path_value(copied_path).unwrap()),
+            ),
+        )
+    );
+    assert_eq!(
+        diff[2].clone(),
+        (
+            removed_path.to_owned(),
+            removed_path.to_owned(),
+            (
+                Merge::resolved(before.path_value(removed_path).unwrap()),
+                Merge::absent()
+            ),
+        )
+    );
+    assert_eq!(
+        diff[3].clone(),
+        (
+            removed_path.to_owned(),
+            added_path.to_owned(),
+            (
+                Merge::resolved(before.path_value(removed_path).unwrap()),
+                Merge::resolved(after.path_value(added_path).unwrap())
+            ),
+        )
+    );
+    diff_stream_equals_iter(
+        &before_merged,
+        &after_merged,
+        &EverythingMatcher,
+        &copy_records,
+    );
 }
 
 /// Diff two conflicted trees
@@ -886,7 +1005,12 @@ fn test_diff_conflicted() {
         })
         .collect_vec();
     assert_eq!(actual_diff, expected_diff);
-    diff_stream_equals_iter(&left_merged, &right_merged, &EverythingMatcher);
+    diff_stream_equals_iter(
+        &left_merged,
+        &right_merged,
+        &EverythingMatcher,
+        &CopyRecords::default(),
+    );
     // Test the reverse diff
     let actual_diff: Vec<_> = right_merged
         .diff_stream(&left_merged, &EverythingMatcher, &Default::default())
@@ -906,7 +1030,12 @@ fn test_diff_conflicted() {
         })
         .collect_vec();
     assert_eq!(actual_diff, expected_diff);
-    diff_stream_equals_iter(&right_merged, &left_merged, &EverythingMatcher);
+    diff_stream_equals_iter(
+        &right_merged,
+        &left_merged,
+        &EverythingMatcher,
+        &CopyRecords::default(),
+    );
 }
 
 #[test]
@@ -1046,7 +1175,12 @@ fn test_diff_dir_file() {
             (path6.to_owned(), (Merge::absent(), right_value(path6))),
         ];
         assert_eq!(actual_diff, expected_diff);
-        diff_stream_equals_iter(&left_merged, &right_merged, &EverythingMatcher);
+        diff_stream_equals_iter(
+            &left_merged,
+            &right_merged,
+            &EverythingMatcher,
+            &CopyRecords::default(),
+        );
     }
 
     // Test the reverse diff
@@ -1091,7 +1225,12 @@ fn test_diff_dir_file() {
             ),
         ];
         assert_eq!(actual_diff, expected_diff);
-        diff_stream_equals_iter(&right_merged, &left_merged, &EverythingMatcher);
+        diff_stream_equals_iter(
+            &right_merged,
+            &left_merged,
+            &EverythingMatcher,
+            &CopyRecords::default(),
+        );
     }
 
     // Diff while filtering by `path1` (file1 -> directory1) as a file
@@ -1107,7 +1246,12 @@ fn test_diff_dir_file() {
             (path1.to_owned(), (left_value(path1), Merge::absent())),
         ];
         assert_eq!(actual_diff, expected_diff);
-        diff_stream_equals_iter(&left_merged, &right_merged, &matcher);
+        diff_stream_equals_iter(
+            &left_merged,
+            &right_merged,
+            &matcher,
+            &CopyRecords::default(),
+        );
     }
 
     // Diff while filtering by `path1/file` (file1 -> directory1) as a file
@@ -1126,7 +1270,12 @@ fn test_diff_dir_file() {
             ),
         ];
         assert_eq!(actual_diff, expected_diff);
-        diff_stream_equals_iter(&left_merged, &right_merged, &matcher);
+        diff_stream_equals_iter(
+            &left_merged,
+            &right_merged,
+            &matcher,
+            &CopyRecords::default(),
+        );
     }
 
     // Diff while filtering by `path1` (file1 -> directory1) as a prefix
@@ -1145,7 +1294,12 @@ fn test_diff_dir_file() {
             ),
         ];
         assert_eq!(actual_diff, expected_diff);
-        diff_stream_equals_iter(&left_merged, &right_merged, &matcher);
+        diff_stream_equals_iter(
+            &left_merged,
+            &right_merged,
+            &matcher,
+            &CopyRecords::default(),
+        );
     }
 
     // Diff while filtering by `path6` (directory1 -> file1+(directory1-absent)) as
@@ -1161,7 +1315,12 @@ fn test_diff_dir_file() {
             .block_on();
         let expected_diff = vec![(path6.to_owned(), (Merge::absent(), right_value(path6)))];
         assert_eq!(actual_diff, expected_diff);
-        diff_stream_equals_iter(&left_merged, &right_merged, &matcher);
+        diff_stream_equals_iter(
+            &left_merged,
+            &right_merged,
+            &matcher,
+            &CopyRecords::default(),
+        );
     }
 }
 
