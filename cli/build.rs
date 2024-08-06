@@ -63,6 +63,7 @@ fn get_git_hash() -> Option<String> {
             "--color=never",
             "log",
             "--no-graph",
+            "--limit=1",
             "-r=@-",
             "-T=commit_id",
         ])
