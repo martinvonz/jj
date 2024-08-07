@@ -124,6 +124,15 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 * `jj branch rename` no longer shows a warning in colocated repos.
 
+* Conflicts involving non-empty files that do not end in a newline no longer
+  look broken when materialized.
+  [#3968](https://github.com/martinvonz/jj/issues/3968)
+
+* Conflicts involving sides that themselves contain conflict markers can now be
+  materialized in a way that `jj` can parse correctly.
+  [#3975](https://github.com/martinvonz/jj/issues/3968)
+
+
 ## [0.19.0] - 2024-07-03
 
 ### Breaking changes

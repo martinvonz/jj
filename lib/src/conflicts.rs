@@ -17,6 +17,7 @@
 use std::io::{Read, Write};
 use std::iter::zip;
 
+use bstr::ByteVec;
 use futures::{try_join, Stream, StreamExt, TryStreamExt};
 use itertools::Itertools;
 use regex::bytes::{Regex, RegexBuilder};
@@ -48,6 +49,12 @@ const CONFLICT_PLUS_LINE_CHAR: u8 = CONFLICT_PLUS_LINE[0];
 // markers inside the text of the conflicts.
 static CONFLICT_MARKER_REGEX: once_cell::sync::Lazy<Regex> = once_cell::sync::Lazy::new(|| {
     RegexBuilder::new(r"^(<{7}|>{7}|%{7}|\-{7}|\+{7})( .*)?$")
+        .multi_line(true)
+        .build()
+        .unwrap()
+});
+static DIRECTIVE_LINE_REGEX: once_cell::sync::Lazy<Regex> = once_cell::sync::Lazy::new(|| {
+    RegexBuilder::new(r"^\\JJ")
         .multi_line(true)
         .build()
         .unwrap()
@@ -191,7 +198,7 @@ async fn materialize_tree_value_no_access_denied(
             if let Some(file_merge) = conflict.to_file_merge() {
                 let file_merge = file_merge.simplify();
                 let content = extract_as_single_hunk(&file_merge, store, path).await?;
-                materialize_merge_result(&content, &mut contents)
+                materialize_merge_result(content, &mut contents)
                     .expect("Failed to materialize conflict to in-memory buffer");
             } else {
                 // Unless all terms are regular files, we can't do much better than to try to
@@ -215,10 +222,16 @@ async fn materialize_tree_value_no_access_denied(
 }
 
 pub fn materialize_merge_result(
-    single_hunk: &Merge<ContentHunk>,
+    single_hunk: Merge<ContentHunk>,
     output: &mut dyn Write,
 ) -> std::io::Result<()> {
-    let merge_result = files::merge(single_hunk);
+    let single_hunk: Merge<ContentHunk> = single_hunk
+        .map_owned(|ContentHunk(side)| ContentHunk(encode_unmaterializeable_lines(side)));
+
+    // From now on, we assume some invariants guaranteed by the encoding function
+    // above. See its docstring for details.
+
+    let merge_result = files::merge(&single_hunk);
     match merge_result {
         MergeResult::Resolved(content) => {
             output.write_all(&content.0)?;
@@ -355,7 +368,33 @@ pub fn materialized_diff_stream<'a>(
 /// invalid if they don't have the expected arity.
 // TODO: "parse" is not usually the opposite of "materialize", so maybe we
 // should rename them to "serialize" and "deserialize"?
-pub fn parse_conflict(input: &[u8], num_sides: usize) -> Option<Vec<Merge<ContentHunk>>> {
+pub fn parse_merge_result(input: &[u8], num_sides: usize) -> Option<Merge<ContentHunk>> {
+    let hunks = parse_conflict_into_list_of_hunks(input, num_sides)?;
+    let mut result: Merge<Vec<u8>> = Merge::from_vec(vec![vec![]; num_sides * 2 - 1]);
+
+    for hunk in hunks {
+        if let Some(slice) = hunk.as_resolved() {
+            for content in result.iter_mut() {
+                content.extend_from_slice(&slice.0);
+            }
+        } else {
+            for (content, slice) in zip(result.iter_mut(), hunk.into_iter()) {
+                content.extend(slice.0);
+            }
+        }
+    }
+
+    Some(
+        result
+            .map_owned(decode_materialized_side)
+            .map_owned(ContentHunk),
+    )
+}
+
+fn parse_conflict_into_list_of_hunks(
+    input: &[u8],
+    num_sides: usize,
+) -> Option<Vec<Merge<ContentHunk>>> {
     if input.is_empty() {
         return None;
     }
@@ -479,7 +518,7 @@ pub async fn update_from_content(
     // copy.
     let mut old_content = Vec::with_capacity(content.len());
     let merge_hunk = extract_as_single_hunk(simplified_file_ids, store, path).await?;
-    materialize_merge_result(&merge_hunk, &mut old_content).unwrap();
+    materialize_merge_result(merge_hunk, &mut old_content).unwrap();
     if content == old_content {
         return Ok(file_ids.clone());
     }
@@ -488,13 +527,13 @@ pub async fn update_from_content(
     // conflicts initially. If unsuccessful, attempt to parse conflicts from with
     // the arity of the unsimplified conflicts since such a conflict may be
     // present in the working copy if written by an earlier version of jj.
-    let (used_file_ids, hunks) = 'hunks: {
-        if let Some(hunks) = parse_conflict(content, simplified_file_ids.num_sides()) {
-            break 'hunks (simplified_file_ids, hunks);
+    let (used_file_ids, contents) = 'hunks: {
+        if let Some(contents) = parse_merge_result(content, simplified_file_ids.num_sides()) {
+            break 'hunks (simplified_file_ids, contents);
         };
         if simplified_file_ids.num_sides() != file_ids.num_sides() {
-            if let Some(hunks) = parse_conflict(content, file_ids.num_sides()) {
-                break 'hunks (file_ids, hunks);
+            if let Some(contents) = parse_merge_result(content, file_ids.num_sides()) {
+                break 'hunks (file_ids, contents);
             };
         };
         // Either there are no markers or they don't have the expected arity
@@ -502,23 +541,10 @@ pub async fn update_from_content(
         return Ok(Merge::normal(file_id));
     };
 
-    let mut contents = used_file_ids.map(|_| vec![]);
-    for hunk in hunks {
-        if let Some(slice) = hunk.as_resolved() {
-            for content in contents.iter_mut() {
-                content.extend_from_slice(&slice.0);
-            }
-        } else {
-            for (content, slice) in zip(contents.iter_mut(), hunk.into_iter()) {
-                content.extend(slice.0);
-            }
-        }
-    }
-
     // If the user edited the empty placeholder for an absent side, we consider the
     // conflict resolved.
     if zip(contents.iter(), used_file_ids.iter())
-        .any(|(content, file_id)| file_id.is_none() && !content.is_empty())
+        .any(|(ContentHunk(content), file_id)| file_id.is_none() && !content.is_empty())
     {
         let file_id = store.write_file(path, &mut &content[..])?;
         return Ok(Merge::normal(file_id));
@@ -527,19 +553,21 @@ pub async fn update_from_content(
     // Now write the new files contents we found by parsing the file with conflict
     // markers.
     let new_file_ids: Vec<Option<FileId>> = zip(contents.iter(), used_file_ids.iter())
-        .map(|(content, file_id)| -> BackendResult<Option<FileId>> {
-            match file_id {
-                Some(_) => {
-                    let file_id = store.write_file(path, &mut content.as_slice())?;
-                    Ok(Some(file_id))
+        .map(
+            |(ContentHunk(content), file_id)| -> BackendResult<Option<FileId>> {
+                match file_id {
+                    Some(_) => {
+                        let file_id = store.write_file(path, &mut content.as_slice())?;
+                        Ok(Some(file_id))
+                    }
+                    None => {
+                        // The missing side of a conflict is still represented by
+                        // the empty string we materialized it as
+                        Ok(None)
+                    }
                 }
-                None => {
-                    // The missing side of a conflict is still represented by
-                    // the empty string we materialized it as
-                    Ok(None)
-                }
-            }
-        })
+            },
+        )
         .try_collect()?;
 
     // If the conflict was simplified, expand the conflict to the original
@@ -552,4 +580,115 @@ pub async fn update_from_content(
         Merge::from_vec(new_file_ids)
     };
     Ok(new_file_ids)
+}
+
+const JJ_NO_NEWLINE_AT_EOF: &[u8] = b"\n\\JJ: No newline at the end of file\n";
+const JJ_VERBATIM_LINE: &str = "\\JJ Verbatim Line:";
+static JJ_VERBATIM_LINE_REPLACEMENT: once_cell::sync::Lazy<Vec<u8>> =
+    once_cell::sync::Lazy::new(|| format!("{JJ_VERBATIM_LINE}$0").into_bytes());
+static VERBATIM_LINE_REGEX: once_cell::sync::Lazy<Regex> = once_cell::sync::Lazy::new(|| {
+    RegexBuilder::new(&format!("^{}", regex::escape(JJ_VERBATIM_LINE)))
+        .multi_line(true)
+        .build()
+        .unwrap()
+});
+
+/// Encode a side of a conflict to satisfy some invariants
+///
+/// - The result will not contain any conflict markers
+/// - The result will contain 0 or more newline-terminated lines. In other
+///   words, it is either empty or ends in a newline.
+///
+/// This transformation is reversible and it is hoped that the result is
+/// human-readable. See the tests below for examples.
+fn encode_unmaterializeable_lines(mut side: Vec<u8>) -> Vec<u8> {
+    replace_all_avoid_cloning(
+        &DIRECTIVE_LINE_REGEX,
+        &mut side,
+        JJ_VERBATIM_LINE_REPLACEMENT.as_slice(),
+    );
+    replace_all_avoid_cloning(
+        &CONFLICT_MARKER_REGEX,
+        &mut side,
+        JJ_VERBATIM_LINE_REPLACEMENT.as_slice(),
+    );
+    if !side.is_empty() && !side.ends_with(b"\n") {
+        side.push_str(JJ_NO_NEWLINE_AT_EOF);
+    }
+    side
+}
+
+/// Undo the transformation done by `encode_unmaterializeable_lines`
+fn decode_materialized_side(mut side: Vec<u8>) -> Vec<u8> {
+    if side.ends_with(JJ_NO_NEWLINE_AT_EOF) {
+        side.truncate(side.len() - JJ_NO_NEWLINE_AT_EOF.len());
+    }
+    replace_all_avoid_cloning(&VERBATIM_LINE_REGEX, &mut side, b"");
+    side
+}
+
+fn replace_all_avoid_cloning(regex: &Regex, side: &mut Vec<u8>, replacement: &[u8]) {
+    // TODO(ilyagr): The optimization to avoid the clone in the common case
+    // might be premature. See also
+    // https://github.com/rust-lang/regex/issues/676 for other options. I like
+    // my proposal there in theory, but it would take work that I haven't done
+    // to make sure it works, and ideally it would be a crate.
+    if regex.is_match(side) {
+        *side = regex.replace_all(side, replacement).to_vec();
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use bstr::BString;
+    use indoc::indoc;
+
+    use super::{decode_materialized_side, encode_unmaterializeable_lines};
+
+    #[test]
+    fn test_conflict_side_encoding_and_decoding() {
+        let initial_text: BString = indoc! {br"
+        <<<<<<<
+        blahblah"}
+        .into();
+
+        let encoded_text: BString = encode_unmaterializeable_lines(initial_text.to_vec()).into();
+        insta::assert_snapshot!(encoded_text, @r###"
+        \JJ Verbatim Line:<<<<<<<
+        blahblah
+        \JJ: No newline at the end of file
+        "###);
+        assert_eq!(
+            BString::from(decode_materialized_side(encoded_text.clone().into())),
+            initial_text
+        );
+
+        let doubly_encoded_text: BString =
+            encode_unmaterializeable_lines(encoded_text.clone().into()).into();
+        insta::assert_snapshot!(doubly_encoded_text, @r###"
+        \JJ Verbatim Line:\JJ Verbatim Line:<<<<<<<
+        blahblah
+        \JJ Verbatim Line:\JJ: No newline at the end of file
+        "###);
+        // The above should (and does) decode to a file with a newline at the end
+        assert_eq!(
+            BString::from(decode_materialized_side(doubly_encoded_text.into())),
+            encoded_text
+        );
+    }
+
+    #[test]
+    fn test_conflict_side_encoding_and_decoding2() {
+        let initial_text = br"\JJ: No newline at the end of file";
+
+        let encoded_text: BString = encode_unmaterializeable_lines(initial_text.to_vec()).into();
+        insta::assert_snapshot!(encoded_text, @r###"
+        \JJ Verbatim Line:\JJ: No newline at the end of file
+        \JJ: No newline at the end of file
+        "###);
+        assert_eq!(
+            BString::from(decode_materialized_side(encoded_text.clone().into())),
+            BString::from(initial_text)
+        );
+    }
 }

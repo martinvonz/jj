@@ -346,6 +346,12 @@ impl<T> Merge<T> {
     }
 
     /// Creates a new merge by applying `f` to each remove and add.
+    pub fn map_owned<U>(self, f: impl FnMut(T) -> U) -> Merge<U> {
+        let values = self.values.into_iter().map(f).collect();
+        Merge { values }
+    }
+
+    /// Creates a new merge by applying `f` to each remove and add.
     pub fn map<'a, U>(&'a self, f: impl FnMut(&'a T) -> U) -> Merge<U> {
         let values = self.values.iter().map(f).collect();
         Merge { values }

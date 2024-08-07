@@ -144,7 +144,7 @@ pub fn run_mergetool_external(
 ) -> Result<MergedTreeId, ConflictResolveError> {
     let initial_output_content: Vec<u8> = if editor.merge_tool_edits_conflict_markers {
         let mut materialized_conflict = vec![];
-        materialize_merge_result(&content, &mut materialized_conflict)
+        materialize_merge_result(content.clone(), &mut materialized_conflict)
             .expect("Writing to an in-memory buffer should never fail");
         materialized_conflict
     } else {

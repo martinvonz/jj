@@ -15,7 +15,7 @@
 use indoc::indoc;
 use jj_lib::backend::FileId;
 use jj_lib::conflicts::{
-    extract_as_single_hunk, materialize_merge_result, parse_conflict, update_from_content,
+    extract_as_single_hunk, materialize_merge_result, parse_merge_result, update_from_content,
 };
 use jj_lib::merge::Merge;
 use jj_lib::repo::Repo;
@@ -312,30 +312,111 @@ fn test_materialize_parse_roundtrip() {
 
     // The first add should always be from the left side
     insta::assert_debug_snapshot!(
-        parse_conflict(materialized.as_bytes(), conflict.num_sides()),
+        parse_merge_result(materialized.as_bytes(), conflict.num_sides()),
         @r###"
     Some(
-        [
-            Conflicted(
-                [
-                    "line 1 left\nline 2 left\n",
-                    "line 1\nline 2\n",
-                    "line 1 right\nline 2\n",
-                ],
-            ),
-            Resolved(
-                "line 3\n",
-            ),
-            Conflicted(
-                [
-                    "line 4\nline 5 left\n",
-                    "line 4\nline 5\n",
-                    "line 4 right\nline 5 right\n",
-                ],
-            ),
-        ],
+        Conflicted(
+            [
+                "line 1 left\nline 2 left\nline 3\nline 4\nline 5 left\n",
+                "line 1\nline 2\nline 3\nline 4\nline 5\n",
+                "line 1 right\nline 2\nline 3\nline 4 right\nline 5 right\n",
+            ],
+        ),
     )
     "###);
+}
+
+// Important TODO (maybe not for this file): add a test of what happens when the
+// user removes conflict markers and runs `jj diff`
+
+#[test]
+fn test_materialize_parse_roundtrip_tricky() {
+    let test_repo = TestRepo::init();
+    let store = test_repo.repo.store();
+
+    let path = RepoPath::from_internal_string("file");
+    let base_id = testutils::write_file(
+        store,
+        path,
+        indoc! {"
+            \\JJ Verbatim Line: fake verbatim line
+            line 1
+            line 2 <<<<<<<
+            <<<<<<< line 3
+            line 4
+            line 5"},
+    );
+    let left_id = testutils::write_file(
+        store,
+        path,
+        indoc! {"
+            \\JJ Verbatim Line: fake verbatim line
+            line 1 left
+            line 2 left
+            <<<<<<<< line 3
+            line 4
+            line 5 left"},
+    );
+    let right_id = testutils::write_file(
+        store,
+        path,
+        indoc! {"
+            \\JJ Verbatim Line: fake verbatim line
+            line 1 right
+            line 2
+            line 3
+            line 4 right
+            line 5 right
+        "},
+    );
+
+    let conflict = Merge::from_removes_adds(
+        vec![Some(base_id.clone())],
+        vec![Some(left_id.clone()), Some(right_id.clone())],
+    );
+    let materialized = materialize_conflict_string(store, path, &conflict);
+    insta::assert_snapshot!(
+        materialized,
+        @r###"
+    \JJ Verbatim Line:\JJ Verbatim Line: fake verbatim line
+    <<<<<<< Conflict 1 of 1
+    %%%%%%% Changes from base to side #1
+    -line 1
+    -line 2 <<<<<<<
+    -\JJ Verbatim Line:<<<<<<< line 3
+    +line 1 left
+    +line 2 left
+    +<<<<<<<< line 3
+     line 4
+    -line 5
+    +line 5 left
+     \JJ: No newline at the end of file
+    +++++++ Contents of side #2
+    line 1 right
+    line 2
+    line 3
+    line 4 right
+    line 5 right
+    >>>>>>> Conflict 1 of 1 ends
+    "###
+    );
+
+    // The first add should always be from the left side
+    insta::assert_debug_snapshot!(
+        parse_merge_result(materialized.as_bytes(), conflict.num_sides()),
+        @r###"
+    Some(
+        Conflicted(
+            [
+                "\\JJ Verbatim Line: fake verbatim line\nline 1 left\nline 2 left\n<<<<<<<< line 3\nline 4\nline 5 left",
+                "\\JJ Verbatim Line: fake verbatim line\nline 1\nline 2 <<<<<<<\n<<<<<<< line 3\nline 4\nline 5",
+                "\\JJ Verbatim Line: fake verbatim line\nline 1 right\nline 2\nline 3\nline 4 right\nline 5 right\n",
+            ],
+        ),
+    )
+    "###);
+
+    // TODO: update_from_conflict?
 }
 
 #[test]
@@ -356,16 +437,29 @@ fn test_materialize_conflict_no_newlines_at_eof() {
     insta::assert_snapshot!(materialized,
         @r###"
     <<<<<<< Conflict 1 of 1
-    %%%%%%% Changes from base to side #1
-    -base+++++++ Contents of side #2
-    right>>>>>>> Conflict 1 of 1 ends
+    +++++++ Contents of side #1
+    %%%%%%% Changes from base to side #2
+    -base
+    +right
+     \JJ: No newline at the end of file
+    >>>>>>> Conflict 1 of 1 ends
     "###
     );
-    // BUG(#3968): These conflict markers cannot be parsed
-    insta::assert_debug_snapshot!(parse_conflict(
+    // These conflict markers can be parsed (issue #3968)
+    insta::assert_debug_snapshot!(parse_merge_result(
         materialized.as_bytes(),
         conflict.num_sides()
-    ),@"None");
+    ),@r###"
+    Some(
+        Conflicted(
+            [
+                "",
+                "base",
+                "right",
+            ],
+        ),
+    )
+    "###);
 }
 
 #[test]
@@ -523,7 +617,7 @@ fn test_materialize_conflict_two_forward_diffs() {
 #[test]
 fn test_parse_conflict_resolved() {
     assert_eq!(
-        parse_conflict(
+        parse_merge_result(
             indoc! {b"
             line 1
 line 2
@@ -540,7 +634,7 @@ line 5
 #[test]
 fn test_parse_conflict_simple() {
     insta::assert_debug_snapshot!(
-        parse_conflict(indoc! {b"
+        parse_merge_result(indoc! {b"
             line 1
             <<<<<<<
             %%%%%%%
@@ -557,26 +651,18 @@ fn test_parse_conflict_simple() {
         ),
         @r###"
     Some(
-        [
-            Resolved(
-                "line 1\n",
-            ),
-            Conflicted(
-                [
-                    "line 2\nleft\nline 4\n",
-                    "line 2\nline 3\nline 4\n",
-                    "right\n",
-                ],
-            ),
-            Resolved(
-                "line 5\n",
-            ),
-        ],
+        Conflicted(
+            [
+                "line 1\nline 2\nleft\nline 4\nline 5\n",
+                "line 1\nline 2\nline 3\nline 4\nline 5\n",
+                "line 1\nright\nline 5\n",
+            ],
+        ),
     )
     "###
     );
     insta::assert_debug_snapshot!(
-        parse_conflict(indoc! {b"
+        parse_merge_result(indoc! {b"
             line 1
             <<<<<<< Text
             %%%%%%% Different text 
@@ -593,28 +679,20 @@ fn test_parse_conflict_simple() {
         ),
         @r###"
     Some(
-        [
-            Resolved(
-                "line 1\n",
-            ),
-            Conflicted(
-                [
-                    "line 2\nleft\nline 4\n",
-                    "line 2\nline 3\nline 4\n",
-                    "right\n",
-                ],
-            ),
-            Resolved(
-                "line 5\n",
-            ),
-        ],
+        Conflicted(
+            [
+                "line 1\nline 2\nleft\nline 4\nline 5\n",
+                "line 1\nline 2\nline 3\nline 4\nline 5\n",
+                "line 1\nright\nline 5\n",
+            ],
+        ),
     )
     "###
     );
     // The conflict markers are too long and shouldn't parse (though we may
     // decide to change this in the future)
     insta::assert_debug_snapshot!(
-        parse_conflict(indoc! {b"
+        parse_merge_result(indoc! {b"
             line 1
             <<<<<<<<<<<
             %%%%%%%%%%%
@@ -636,7 +714,7 @@ fn test_parse_conflict_simple() {
 #[test]
 fn test_parse_conflict_multi_way() {
     insta::assert_debug_snapshot!(
-        parse_conflict(
+        parse_merge_result(
             indoc! {b"
                 line 1
                 <<<<<<<
@@ -659,28 +737,20 @@ fn test_parse_conflict_multi_way() {
         ),
         @r###"
     Some(
-        [
-            Resolved(
-                "line 1\n",
-            ),
-            Conflicted(
-                [
-                    "line 2\nleft\nline 4\n",
-                    "line 2\nline 3\nline 4\n",
-                    "right\n",
-                    "line 2\nline 3\nline 4\n",
-                    "line 2\nforward\nline 3\nline 4\n",
-                ],
-            ),
-            Resolved(
-                "line 5\n",
-            ),
-        ],
+        Conflicted(
+            [
+                "line 1\nline 2\nleft\nline 4\nline 5\n",
+                "line 1\nline 2\nline 3\nline 4\nline 5\n",
+                "line 1\nright\nline 5\n",
+                "line 1\nline 2\nline 3\nline 4\nline 5\n",
+                "line 1\nline 2\nforward\nline 3\nline 4\nline 5\n",
+            ],
+        ),
     )
     "###
     );
     insta::assert_debug_snapshot!(
-        parse_conflict(indoc! {b"
+        parse_merge_result(indoc! {b"
             line 1
             <<<<<<< Random text
             %%%%%%% Random text
@@ -702,23 +772,15 @@ fn test_parse_conflict_multi_way() {
         ),
         @r###"
     Some(
-        [
-            Resolved(
-                "line 1\n",
-            ),
-            Conflicted(
-                [
-                    "line 2\nleft\nline 4\n",
-                    "line 2\nline 3\nline 4\n",
-                    "right\n",
-                    "line 2\nline 3\nline 4\n",
-                    "line 2\nforward\nline 3\nline 4\n",
-                ],
-            ),
-            Resolved(
-                "line 5\n",
-            ),
-        ],
+        Conflicted(
+            [
+                "line 1\nline 2\nleft\nline 4\nline 5\n",
+                "line 1\nline 2\nline 3\nline 4\nline 5\n",
+                "line 1\nright\nline 5\n",
+                "line 1\nline 2\nline 3\nline 4\nline 5\n",
+                "line 1\nline 2\nforward\nline 3\nline 4\nline 5\n",
+            ],
+        ),
     )
     "###
     );
@@ -727,7 +789,7 @@ fn test_parse_conflict_multi_way() {
 #[test]
 fn test_parse_conflict_different_wrong_arity() {
     assert_eq!(
-        parse_conflict(
+        parse_merge_result(
             indoc! {b"
             line 1
             <<<<<<<
@@ -751,7 +813,7 @@ fn test_parse_conflict_different_wrong_arity() {
 fn test_parse_conflict_malformed_marker() {
     // The conflict marker is missing `%%%%%%%`
     assert_eq!(
-        parse_conflict(
+        parse_merge_result(
             indoc! {b"
             line 1
             <<<<<<<
@@ -774,7 +836,7 @@ fn test_parse_conflict_malformed_marker() {
 fn test_parse_conflict_malformed_diff() {
     // The diff part is invalid (missing space before "line 4")
     assert_eq!(
-        parse_conflict(
+        parse_merge_result(
             indoc! {b"
             line 1
             <<<<<<<
@@ -1044,6 +1106,6 @@ fn materialize_conflict_string(
     let contents = extract_as_single_hunk(conflict, store, path)
         .block_on()
         .unwrap();
-    materialize_merge_result(&contents, &mut result).unwrap();
+    materialize_merge_result(contents, &mut result).unwrap();
     String::from_utf8(result).unwrap()
 }
