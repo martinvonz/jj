@@ -95,9 +95,33 @@ brew install jj
 
 ### Mac
 
-#### From Source
+#### From Source, Vendored OpenSSL
 
-You may need to run some or all of these:
+You may need to run:
+
+```shell
+xcode-select --install
+```
+
+Now run either:
+
+```shell
+# To install the *prerelease* version from the main branch
+cargo install --git https://github.com/martinvonz/jj.git \
+     --features vendored-openssl --locked --bin jj jj-cli
+```
+
+or:
+
+```shell
+# To install the latest release
+cargo install --features vendored-openssl -locked --bin jj jj-cli
+```
+
+#### From Source, Homebrew OpenSSL
+
+You will need [Homebrew](https://brew.sh/) installed. You may then need to run
+some or all of these:
 
 ```shell
 xcode-select --install
