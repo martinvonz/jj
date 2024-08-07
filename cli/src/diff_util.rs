@@ -1403,20 +1403,28 @@ fn show_unified_diff_hunks(
             hunk.right_line_range.start,
             hunk.right_line_range.len()
         )?;
-        for (line_type, tokens) in &hunk.lines {
-            let (label, sigil) = match line_type {
-                DiffLineType::Context => ("context", " "),
-                DiffLineType::Removed => ("removed", "-"),
-                DiffLineType::Added => ("added", "+"),
-            };
-            formatter.with_label(label, |formatter| {
-                write!(formatter, "{sigil}")?;
-                show_diff_line_tokens(formatter, tokens)
-            })?;
-            let (_, content) = tokens.last().expect("hunk line must not be empty");
-            if !content.ends_with(b"\n") {
-                write!(formatter, "\n\\ No newline at end of file\n")?;
-            }
+        show_unified_diff_hunk_lines(formatter, &hunk.lines)?;
+    }
+    Ok(())
+}
+
+fn show_unified_diff_hunk_lines<'content>(
+    formatter: &mut dyn Formatter,
+    lines: &'content [(DiffLineType, DiffTokenVec<'content>)],
+) -> io::Result<()> {
+    for (line_type, tokens) in lines {
+        let (label, sigil) = match line_type {
+            DiffLineType::Context => ("context", " "),
+            DiffLineType::Removed => ("removed", "-"),
+            DiffLineType::Added => ("added", "+"),
+        };
+        formatter.with_label(label, |formatter| {
+            write!(formatter, "{sigil}")?;
+            show_diff_line_tokens(formatter, tokens)
+        })?;
+        let (_, content) = tokens.last().expect("hunk line must not be empty");
+        if !content.ends_with(b"\n") {
+            write!(formatter, "\n\\ No newline at end of file\n")?;
         }
     }
     Ok(())
