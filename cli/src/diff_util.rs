@@ -1195,6 +1195,27 @@ fn show_structured_conflict_diff_hunks(
                 text = BString::new(print_context(formatter, text.into(), false)?);
             }
             last_hunk_unmodified_text = Some(Some(text.into()));
+        } else if let [DiffExplanationAtom::ChangedConflictAdd {
+            left_version,
+            right_version,
+        }] = explained_hunk.as_slice()
+        {
+            // This is a simple diff
+            if let Some(Some(text)) = last_hunk_unmodified_text {
+                print_context(formatter, text, true)?;
+            }
+            last_hunk_unmodified_text = Some(None);
+            // TODO: These headers would not be necessary if we could indent both the
+            // context before the diff *and* the context after by a space.
+            writeln!(
+                formatter.labeled("hunk_header"),
+                "<<<<<<<<<<<<< Unconflicted diff BEGIN"
+            )?;
+            show_diff(formatter, left_version, right_version)?;
+            writeln!(
+                formatter.labeled("hunk_header"),
+                ">>>>>>>>>>>>> Unconflicted diff END"
+            )?;
         } else {
             if let Some(Some(text)) = last_hunk_unmodified_text {
                 print_context(formatter, text, true)?;
