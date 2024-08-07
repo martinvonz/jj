@@ -8,6 +8,16 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Breaking changes
+
+### Deprecations
+
+### New features
+
+### Fixed bugs
+
+## [0.20.0] - 2024-08-07
+
 ### Note to packagers
 
 * `jj` now links `libgit2` statically by default. To use dynamic linking, you
@@ -123,6 +133,35 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * On quit, the builtin pager no longer waits for all outputs to be discarded.
 
 * `jj branch rename` no longer shows a warning in colocated repos.
+
+### Contributors
+
+Thanks to the people who made this release happen!
+
+* Anton Älgmyr (@algmyr)
+* Austin Seipp (@thoughtpolice)
+* Benjamin Tan (@bnjmnt4n)
+* Daniel Ploch (@torquestomp)
+* Danny Hooper (@hooper)
+* Emily (@emilazy)
+* Essien Ita Essien (@essiene)
+* Fedor Sheremetyev (@sheremetyev)
+* Ilya Grigoriev (@ilyagr)
+* Jonathan Tan (@jonathantanmy)
+* Julien Vincent (@julienvincent)
+* Martin von Zweigbergk (@martinvonz)
+* Matt Kulukundis (@fowles)
+* Matt Stark (@matts1)
+* mlcui (@mlcui-corp)
+* Philip Metzger (@PhilipMetzger)
+* Scott Taylor (@scott2000)
+* Skyler Grey (@Minion3665)
+* Stephen Jennings (@jennings)
+* Tim Janik (@tim-janik)
+* Vincent Ging Ho Yim (@cenviity)
+* Vladimír Čunát (@vcunat)
+* Vladimir (@0xdeafbeef)
+* Yuya Nishihara (@yuja)
 
 ## [0.19.0] - 2024-07-03
 
