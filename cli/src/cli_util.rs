@@ -801,9 +801,9 @@ impl WorkspaceCommandHelper {
     #[instrument(skip_all)]
     pub fn base_ignores(&self) -> Result<Arc<GitIgnoreFile>, GitIgnoreError> {
         fn get_excludes_file_path(config: &gix::config::File) -> Option<PathBuf> {
-            // TODO: maybe use path_by_key() and interpolate(), which can process non-utf-8
+            // TODO: maybe use path() and interpolate(), which can process non-utf-8
             // path on Unix.
-            if let Some(value) = config.string_by_key("core.excludesFile") {
+            if let Some(value) = config.string("core.excludesFile") {
                 str::from_utf8(&value)
                     .ok()
                     .map(crate::git_util::expand_git_path)
