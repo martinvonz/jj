@@ -18,11 +18,12 @@ use std::borrow::Cow;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::default::Default;
 use std::io::Read;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::{fmt, str};
 
 use git2::Oid;
 use itertools::Itertools;
+use path_slash::PathBufExt;
 use tempfile::NamedTempFile;
 use thiserror::Error;
 
@@ -1143,10 +1144,43 @@ pub fn rename_remote(
     Ok(())
 }
 
+fn looks_like_a_path_to_git(source: &str) -> bool {
+    source.chars().nth(1) == Some(':') || // Looks like a Windows C:... path
+    // Match Git's behavior, the URL syntax [is only recognized if there are no
+    // slashes before the first
+    // colon](https://git-scm.com/docs/git-clone#_git_urls)
+    !source
+        .split_once("/")  
+        .map_or(source, |(first, _)| first)
+        .contains(":")
+}
+
+pub fn sanitize_git_url_if_path(cwd: &Path, source: &str) -> String {
+    // Git appears to turn URL-like source to absolute path if local git directory
+    // exits, and fails because '$PWD/https' is unsupported protocol. Since it would
+    // be tedious to copy the exact git (or libgit2) behavior, we simply assume a
+    // source containing ':' is a URL, SSH remote, or absolute path with Windows
+    // drive letter.
+    if looks_like_a_path_to_git(source) && Path::new(source).exists() {
+        // TODO: This won't work for Windows UNC path or (less importantly) if the
+        // original source is a non-UTF Windows path. For Windows UNC paths, we
+        // could use dunce, though see also https://gitlab.com/kornelski/dunce/-/issues/7
+        // TODO: double-check about UNC paths; what does Git do?
+        cwd.join(source).to_slash().map_or_else(
+            // It's less likely that cwd isn't utf-8, so just fall back to original source.
+            || source.to_owned(),
+            |s| s.to_string(),
+        )
+    } else {
+        source.to_owned()
+    }
+}
+
 pub fn set_remote_url(
     git_repo: &git2::Repository,
     remote_name: &str,
     new_remote_url: &str,
+    cwd: &Path,
 ) -> Result<(), GitRemoteManagementError> {
     if remote_name == REMOTE_NAME_FOR_LOCAL_GIT_REPO {
         return Err(GitRemoteManagementError::RemoteReservedForLocalGitRepo);
@@ -1164,7 +1198,7 @@ pub fn set_remote_url(
     })?;
 
     git_repo
-        .remote_set_url(remote_name, new_remote_url)
+        .remote_set_url(remote_name, &sanitize_git_url_if_path(cwd, new_remote_url))
         .map_err(GitRemoteManagementError::InternalGitError)?;
     Ok(())
 }
