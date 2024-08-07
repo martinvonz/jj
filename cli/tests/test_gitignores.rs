@@ -65,6 +65,37 @@ fn test_gitignores() {
 }
 
 #[test]
+fn test_gitignores_relative_excludes_file_path() {
+    let test_env = TestEnvironment::default();
+    let workspace_root = test_env.env_root().join("repo");
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "--colocate", "repo"]);
+
+    let mut file = std::fs::OpenOptions::new()
+        .append(true)
+        .open(workspace_root.join(".git").join("config"))
+        .unwrap();
+    file.write_all(b"[core]\nexcludesFile=../my-ignores\n")
+        .unwrap();
+    drop(file);
+    std::fs::write(test_env.env_root().join("my-ignores"), "ignored\n").unwrap();
+
+    std::fs::write(workspace_root.join("ignored"), "").unwrap();
+    std::fs::write(workspace_root.join("not-ignored"), "").unwrap();
+
+    // core.excludesFile should be resolved relative to the workspace root, not
+    // to the cwd.
+    std::fs::create_dir(workspace_root.join("sub")).unwrap();
+    let stdout = test_env.jj_cmd_success(&workspace_root.join("sub"), &["diff", "-s"]);
+    insta::assert_snapshot!(stdout.replace('\\', "/"), @r###"
+    A ../not-ignored
+    "###);
+    let stdout = test_env.jj_cmd_success(test_env.env_root(), &["-Rrepo", "diff", "-s"]);
+    insta::assert_snapshot!(stdout.replace('\\', "/"), @r###"
+    A repo/not-ignored
+    "###);
+}
+
+#[test]
 fn test_gitignores_ignored_file_in_target_commit() {
     let test_env = TestEnvironment::default();
     let workspace_root = test_env.env_root().join("repo");
