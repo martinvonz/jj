@@ -800,17 +800,20 @@ impl WorkspaceCommandHelper {
 
     #[instrument(skip_all)]
     pub fn base_ignores(&self) -> Result<Arc<GitIgnoreFile>, GitIgnoreError> {
-        fn get_excludes_file_path(config: &gix::config::File) -> Option<PathBuf> {
+        let get_excludes_file_path = |config: &gix::config::File| -> Option<PathBuf> {
             // TODO: maybe use path() and interpolate(), which can process non-utf-8
             // path on Unix.
             if let Some(value) = config.string("core.excludesFile") {
-                str::from_utf8(&value)
+                let path = str::from_utf8(&value)
                     .ok()
-                    .map(crate::git_util::expand_git_path)
+                    .map(crate::git_util::expand_git_path)?;
+                // The configured path is usually absolute, but if it's relative,
+                // the "git" command would read the file at the work-tree directory.
+                Some(self.workspace_root().join(path))
             } else {
                 xdg_config_home().ok().map(|x| x.join("git").join("ignore"))
             }
-        }
+        };
 
         fn xdg_config_home() -> Result<PathBuf, VarError> {
             if let Ok(x) = std::env::var("XDG_CONFIG_HOME") {
