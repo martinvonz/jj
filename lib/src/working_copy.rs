@@ -152,17 +152,10 @@ pub enum SnapshotError {
     /// Reading or writing from the commit backend failed.
     #[error(transparent)]
     BackendError(#[from] BackendError),
-    /// A file was larger than the specified maximum file size for new
+    #[error("New file too large")]
+    /// Files were larger than the specified maximum file size for new
     /// (previously untracked) files.
-    #[error("New file {path} of size ~{size} exceeds snapshot.max-new-file-size ({max_size})")]
-    NewFileTooLarge {
-        /// The path of the large file.
-        path: PathBuf,
-        /// The size of the large file.
-        size: HumanByteSize,
-        /// The maximum allowed size.
-        max_size: HumanByteSize,
-    },
+    NewFileTooLarge(Vec<NewFileTooLarge>),
     /// Checking path with ignore patterns failed.
     #[error(transparent)]
     GitIgnoreError(#[from] GitIgnoreError),
@@ -175,6 +168,19 @@ pub enum SnapshotError {
         #[source]
         err: Box<dyn std::error::Error + Send + Sync>,
     },
+}
+
+#[derive(Debug, Error)]
+/// A file was larger than the specified maximum file size for new
+/// (previously untracked) files.
+#[error("New file {path} of size ~{size} exceeds snapshot.max-new-file-size ({max_size})")]
+pub struct NewFileTooLarge {
+    /// The path of the large file.
+    pub path: PathBuf,
+    /// The size of the large file.
+    pub size: HumanByteSize,
+    /// The maximum allowed size.
+    pub max_size: HumanByteSize,
 }
 
 /// Options used when snapshotting the working copy. Some of them may be ignored
