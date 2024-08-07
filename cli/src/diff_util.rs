@@ -77,6 +77,7 @@ use tracing::instrument;
 use unicode_width::UnicodeWidthStr as _;
 
 use crate::config::CommandNameAndArgs;
+use crate::formatter::FormatRecorder;
 use crate::formatter::Formatter;
 use crate::merge_tools;
 use crate::merge_tools::generate_diff;
@@ -1104,6 +1105,17 @@ pub fn show_structured_conflicts_diff(
     .block_on()
 }
 
+/// TODO: Rename, refactor, move?
+fn print_indented(
+    formatter: &mut dyn Formatter,
+    write_prefix: impl FnMut(&mut dyn Formatter) -> io::Result<()>,
+    mut write_contents: impl FnMut(&mut dyn Formatter) -> io::Result<()>,
+) -> io::Result<()> {
+    let mut recorder = FormatRecorder::new();
+    write_contents(&mut recorder)?;
+    text_util::write_indented(formatter, &recorder, write_prefix)
+}
+
 fn show_structured_conflict_diff_hunks(
     formatter: &mut dyn Formatter,
     left: Merge<BString>,
@@ -1141,6 +1153,8 @@ fn show_structured_conflict_diff_hunks(
                 None
             }
         };
+    // TODO: print_header with custom character, use +- for added/removed diffs
+    // or maybe *% for something.
     let print_header = |formatter: &mut dyn Formatter, header: &str| {
         writeln!(formatter.labeled("hunk_header"), "=========== {header}")
     };
@@ -1166,6 +1180,7 @@ fn show_structured_conflict_diff_hunks(
             }
             Ok(())
         };
+
     // Some(None) means that last hunk was something other than unmodified
     // text.
     let mut last_hunk_unmodified_text: Option<Option<Vec<u8>>> = None;
@@ -1194,16 +1209,28 @@ fn show_structured_conflict_diff_hunks(
                         conflict_remove,
                     } => {
                         print_header(formatter, "Added Diff")?;
-                        // TODO: Indent by `+`
-                        show_diff(formatter, conflict_remove, conflict_add)?;
+                        print_indented(
+                            formatter,
+                            |formatter| {
+                                formatter.with_label("added", |f| f.write_all(b"+"))?;
+                                formatter.with_label("separator", |f| f.write_all(b"| "))
+                            },
+                            |formatter| show_diff(formatter, conflict_remove, conflict_add),
+                        )?;
                     }
                     DiffExplanationAtom::RemovedConflictDiff {
                         conflict_add,
                         conflict_remove,
                     } => {
                         print_header(formatter, "Removed Diff")?;
-                        // TODO: Indent by `-`
-                        show_diff(formatter, conflict_remove, conflict_add)?;
+                        print_indented(
+                            formatter,
+                            |formatter| {
+                                formatter.with_label("removed", |f| f.write_all(b"-"))?;
+                                formatter.with_label("separator", |f| f.write_all(b"| "))
+                            },
+                            |formatter| show_diff(formatter, conflict_remove, conflict_add),
+                        )?;
                     }
                     DiffExplanationAtom::ChangedConflictAdd {
                         left_version,
