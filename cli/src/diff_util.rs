@@ -22,6 +22,8 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use bstr::BStr;
+use bstr::BString;
+use bstr::ByteSlice;
 use futures::executor::block_on_stream;
 use futures::stream::BoxStream;
 use futures::StreamExt;
@@ -32,7 +34,10 @@ use jj_lib::backend::CommitId;
 use jj_lib::backend::CopyRecord;
 use jj_lib::backend::TreeValue;
 use jj_lib::commit::Commit;
+use jj_lib::conflicts::explain_textual_diff_of_merges;
+use jj_lib::conflicts::extract_as_single_hunk;
 use jj_lib::conflicts::materialize_merge_result_to_bytes;
+use jj_lib::conflicts::materialize_tree_value;
 use jj_lib::conflicts::materialized_diff_stream;
 use jj_lib::conflicts::MaterializedTreeDiffEntry;
 use jj_lib::conflicts::MaterializedTreeValue;
@@ -50,9 +55,14 @@ use jj_lib::diff::DiffHunkKind;
 use jj_lib::files::DiffLineHunkSide;
 use jj_lib::files::DiffLineIterator;
 use jj_lib::files::DiffLineNumber;
+use jj_lib::files::{self};
 use jj_lib::matchers::Matcher;
+use jj_lib::merge::DiffExplanationAtom;
+use jj_lib::merge::Merge;
 use jj_lib::merge::MergedTreeValue;
 use jj_lib::merged_tree::MergedTree;
+use jj_lib::merged_tree::TreeDiffEntry;
+use jj_lib::merged_tree::TreeDiffStream;
 use jj_lib::object_id::ObjectId;
 use jj_lib::repo::Repo;
 use jj_lib::repo_path::InvalidRepoPathError;
@@ -113,6 +123,9 @@ pub struct DiffFormatArgs {
     /// Show a word-level diff with changes indicated only by color
     #[arg(long)]
     pub color_words: bool,
+    /// Show a diff of conflict sides when sides are conflicted (EXPERIMENTAL)
+    #[arg(long, visible_alias = "conflicts")]
+    pub structured_conflicts: bool,
     /// Generate diff by external command
     #[arg(long)]
     pub tool: Option<String>,
@@ -138,6 +151,7 @@ pub enum DiffFormat {
     NameOnly,
     Git(Box<UnifiedDiffOptions>),
     ColorWords(Box<ColorWordsDiffOptions>),
+    StructuredConflicts { context: usize },
     Tool(Box<ExternalMergeTool>),
 }
 
@@ -183,6 +197,10 @@ fn diff_formats_from_args(
     }
     if args.name_only {
         formats.push(DiffFormat::NameOnly);
+    }
+    if args.structured_conflicts {
+        let context = args.context.unwrap_or(DEFAULT_CONTEXT_LINES);
+        formats.push(DiffFormat::StructuredConflicts { context });
     }
     if args.git {
         let options = UnifiedDiffOptions::from_settings_and_args(settings, args)?;
@@ -242,6 +260,9 @@ fn default_diff_format(
             let options = DiffStatOptions::from_args(args);
             Ok(DiffFormat::Stat(Box::new(options)))
         }
+        "structured-conflicts" | "conflicts" => Ok(DiffFormat::StructuredConflicts {
+            context: args.context.unwrap_or(DEFAULT_CONTEXT_LINES),
+        }),
         _ => Err(config::ConfigError::Message(format!(
             "invalid diff format: {name}"
         ))),
@@ -355,6 +376,17 @@ impl<'a> DiffRenderer<'a> {
                         from_tree.diff_stream_with_copies(to_tree, matcher, copy_records);
                     show_color_words_diff(formatter, store, tree_diff, path_converter, options)?;
                 }
+                DiffFormat::StructuredConflicts { context } => {
+                    // TODO: Add copy records
+                    let tree_diff = from_tree.diff_stream(to_tree, matcher);
+                    show_structured_conflicts_diff(
+                        formatter,
+                        store,
+                        tree_diff,
+                        path_converter,
+                        *context,
+                    )?;
+                }
                 DiffFormat::Tool(tool) => {
                     match tool.diff_invocation_mode {
                         DiffToolMode::FileByFile => {
@@ -447,7 +479,7 @@ pub fn get_copy_records<'a>(
     Ok(block_on_stream(stream).filter_ok(|record| matcher.matches(&record.target)))
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Default)]
 pub struct LineDiffOptions {
     /// How equivalence of lines is tested.
     pub compare_mode: LineCompareMode,
@@ -467,9 +499,10 @@ impl LineDiffOptions {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Default)]
 pub enum LineCompareMode {
     /// Compares lines literally.
+    #[default]
     Exact,
     /// Compares lines ignoring any whitespace occurrences.
     IgnoreAllSpace,
@@ -898,6 +931,314 @@ fn basic_diff_file_type(value: &MaterializedTreeValue) -> &'static str {
     }
 }
 
+pub fn show_structured_conflicts_diff(
+    formatter: &mut dyn Formatter,
+    store: &Store,
+    mut tree_diff: TreeDiffStream,
+    path_converter: &RepoPathUiConverter,
+    num_context_lines: usize,
+) -> Result<(), DiffRenderError> {
+    async {
+        while let Some(TreeDiffEntry { path, values: diff }) = tree_diff.next().await {
+            // TODO: Convert to async function? Or return a Stream?
+            let to_single_hunk =
+                |value: Merge<Option<TreeValue>>| -> BackendResult<Option<Merge<BString>>> {
+                    let Some(file_merge) = value.to_file_merge() else {
+                        return Ok(None);
+                    };
+                    let file_merge = file_merge.simplify();
+                    async {
+                        Ok(Some(
+                            extract_as_single_hunk(&file_merge, store, &path).await?,
+                        ))
+                    }
+                    .block_on()
+                };
+
+            let ui_path = path_converter.format_file_path(&path);
+            let (left_tree_value, right_tree_value) = diff?;
+            let left_value = materialize_tree_value(store, &path, left_tree_value.clone()).await?;
+            let right_value =
+                materialize_tree_value(store, &path, right_tree_value.clone()).await?;
+            match (&left_value, &right_value) {
+                (_, MaterializedTreeValue::AccessDenied(source))
+                | (MaterializedTreeValue::AccessDenied(source), _) => {
+                    write!(
+                        formatter.labeled("access-denied"),
+                        "Access denied to {ui_path}:"
+                    )?;
+                    writeln!(formatter, " {source}")?;
+                    continue;
+                }
+                _ => {}
+            }
+            if left_value.is_absent() {
+                let description = basic_diff_file_type(&right_value);
+                writeln!(
+                    formatter.labeled("header"),
+                    "Added {description} {ui_path}:"
+                )?;
+                let right_content = diff_content(&path, right_value)?;
+                if right_content.is_empty() {
+                    writeln!(formatter.labeled("empty"), "    (empty)")?;
+                } else if right_content.is_binary {
+                    writeln!(formatter.labeled("binary"), "    (binary)")?;
+                } else {
+                    show_color_words_diff_hunks(
+                        formatter,
+                        &[],
+                        &right_content.contents,
+                        &ColorWordsDiffOptions {
+                            context: num_context_lines,
+                            line_diff: LineDiffOptions::default(), // TODO
+                            max_inline_alternation: None,          // TODO
+                        },
+                    )?;
+                }
+            } else if right_value.is_present() {
+                let description = match (&left_value, &right_value) {
+                    (
+                        MaterializedTreeValue::File {
+                            executable: left_executable,
+                            ..
+                        },
+                        MaterializedTreeValue::File {
+                            executable: right_executable,
+                            ..
+                        },
+                    ) => {
+                        if *left_executable && *right_executable {
+                            "Modified executable file".to_string()
+                        } else if *left_executable {
+                            "Executable file became non-executable at".to_string()
+                        } else if *right_executable {
+                            "Non-executable file became executable at".to_string()
+                        } else {
+                            "Modified regular file".to_string()
+                        }
+                    }
+                    (
+                        MaterializedTreeValue::FileConflict { .. }
+                        | MaterializedTreeValue::OtherConflict { .. },
+                        MaterializedTreeValue::FileConflict { .. }
+                        | MaterializedTreeValue::OtherConflict { .. },
+                    ) => "Modified conflict in".to_string(),
+                    (
+                        MaterializedTreeValue::FileConflict { .. }
+                        | MaterializedTreeValue::OtherConflict { .. },
+                        _,
+                    ) => "Resolved conflict in".to_string(),
+                    (
+                        _,
+                        MaterializedTreeValue::FileConflict { .. }
+                        | MaterializedTreeValue::OtherConflict { .. },
+                    ) => "Created conflict in".to_string(),
+                    (
+                        MaterializedTreeValue::Symlink { .. },
+                        MaterializedTreeValue::Symlink { .. },
+                    ) => "Symlink target changed at".to_string(),
+                    (_, _) => {
+                        let left_type = basic_diff_file_type(&left_value);
+                        let right_type = basic_diff_file_type(&right_value);
+                        let (first, rest) = left_type.split_at(1);
+                        format!(
+                            "{}{} became {} at",
+                            first.to_ascii_uppercase(),
+                            rest,
+                            right_type
+                        )
+                    }
+                };
+                let left_content = diff_content(&path, left_value)?;
+                let right_content = diff_content(&path, right_value)?;
+                writeln!(formatter.labeled("header"), "{description} {ui_path}:")?;
+                if left_content.is_binary || right_content.is_binary {
+                    writeln!(formatter.labeled("binary"), "    (binary)")?;
+                } else if let (Some(left_file_merge), Some(right_file_merge)) = (
+                    to_single_hunk(left_tree_value)?,
+                    to_single_hunk(right_tree_value)?,
+                ) {
+                    show_structured_conflict_diff_hunks(
+                        formatter,
+                        left_file_merge,
+                        right_file_merge,
+                        num_context_lines,
+                    )?;
+                } else {
+                    show_unified_diff_hunks(
+                        formatter,
+                        &left_content.contents,
+                        &right_content.contents,
+                        &UnifiedDiffOptions {
+                            context: num_context_lines,
+                            line_diff: LineDiffOptions::default(),
+                        },
+                    )?;
+                }
+            } else {
+                let description = basic_diff_file_type(&left_value);
+                writeln!(
+                    formatter.labeled("header"),
+                    "Removed {description} {ui_path}:"
+                )?;
+                let left_content = diff_content(&path, left_value)?;
+                if left_content.is_empty() {
+                    writeln!(formatter.labeled("empty"), "    (empty)")?;
+                } else if left_content.is_binary {
+                    writeln!(formatter.labeled("binary"), "    (binary)")?;
+                } else {
+                    show_color_words_diff_hunks(
+                        formatter,
+                        &left_content.contents,
+                        &[],
+                        &ColorWordsDiffOptions {
+                            context: num_context_lines,
+                            max_inline_alternation: None, // TODO
+                            line_diff: LineDiffOptions::default(), // TODO
+                        },
+                    )?;
+                }
+            }
+        }
+        Ok(())
+    }
+    .block_on()
+}
+
+fn show_structured_conflict_diff_hunks(
+    formatter: &mut dyn Formatter,
+    left: Merge<BString>,
+    right: Merge<BString>,
+    num_context_lines: usize,
+) -> io::Result<()> {
+    let print_context = |formatter: &mut dyn Formatter,
+                         content: Vec<u8>,
+                         print_last_lines: bool|
+     -> std::io::Result<Vec<u8>> {
+        if print_last_lines {
+            if !content.is_empty() {
+                formatter.with_label("separator", |f| writeln!(f, "        ..."))?;
+                for line in content.lines_with_terminator().tail(num_context_lines) {
+                    formatter.write_all(line)?;
+                }
+            }
+            Ok(vec![])
+        } else {
+            let mut len = 0;
+            for line in content.lines_with_terminator().take(num_context_lines) {
+                formatter.write_all(line)?;
+                len += line.len();
+            }
+            // Could optimize this by using VecDeque, but then iterating over lines is a bit
+            // uglier.
+            Ok(content[len..].to_vec())
+        }
+    };
+    let as_unchanged_hunk =
+        |explained_hunk: &Vec<DiffExplanationAtom<BString>>| -> Option<BString> {
+            if let [DiffExplanationAtom::UnchangedConflictAdd(text)] = explained_hunk.as_slice() {
+                Some(text.clone()) // TODO: Lifetime horror
+            } else {
+                None
+            }
+        };
+    let print_header = |formatter: &mut dyn Formatter, header: &str| {
+        writeln!(formatter.labeled("hunk_header"), "=========== {header}")
+    };
+    let show_diff =
+        |formatter: &mut dyn Formatter, left: &BString, right: &BString| -> io::Result<()> {
+            // The context is infinite because when a diff is added/removed to/from a
+            // conflict, unchanged lines in that diff are significant. They become lines in
+            // the add/removes of the conflict.
+            // TODO(ilyagr): See if we can be more flexible in special situations, e.g.
+            // unconflicted diffs.
+            // TODO(ilyagr): It would be nice if the diff algorithm was more likely to
+            // interleave corresponding lines as opposed to printing a long chunk of
+            // `+` lines followed by a long chunk of `-` lines.
+            for hunk in unified_diff_hunks(
+                left.as_slice(),
+                right.as_slice(),
+                &UnifiedDiffOptions {
+                    context: usize::MAX,
+                    line_diff: LineDiffOptions::default(),
+                },
+            ) {
+                show_unified_diff_hunk_lines(formatter, &hunk.lines)?;
+            }
+            Ok(())
+        };
+    // Some(None) means that last hunk was something other than unmodified
+    // text.
+    let mut last_hunk_unmodified_text: Option<Option<Vec<u8>>> = None;
+
+    let hunks = files::split_merge_into_hunks([&left, &right]);
+    for [left, right] in hunks {
+        let explained_hunk = explain_textual_diff_of_merges(left, right);
+        if let Some(mut text) = as_unchanged_hunk(&explained_hunk) {
+            if let Some(None) = last_hunk_unmodified_text {
+                text = BString::new(print_context(formatter, text.into(), false)?);
+            }
+            last_hunk_unmodified_text = Some(Some(text.into()));
+        } else {
+            if let Some(Some(text)) = last_hunk_unmodified_text {
+                print_context(formatter, text, true)?;
+            }
+            last_hunk_unmodified_text = Some(None);
+            writeln!(
+                formatter.labeled("hunk_header"),
+                "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< BEGIN CONFLICT DIFF"
+            )?;
+            for hunk_piece in &explained_hunk {
+                match hunk_piece {
+                    DiffExplanationAtom::AddedConflictDiff {
+                        conflict_add,
+                        conflict_remove,
+                    } => {
+                        print_header(formatter, "Added Diff")?;
+                        // TODO: Indent by `+`
+                        show_diff(formatter, conflict_remove, conflict_add)?;
+                    }
+                    DiffExplanationAtom::RemovedConflictDiff {
+                        conflict_add,
+                        conflict_remove,
+                    } => {
+                        print_header(formatter, "Removed Diff")?;
+                        // TODO: Indent by `-`
+                        show_diff(formatter, conflict_remove, conflict_add)?;
+                    }
+                    DiffExplanationAtom::ChangedConflictAdd {
+                        left_version,
+                        right_version,
+                    } => {
+                        print_header(formatter, "Changed Add")?;
+                        show_diff(formatter, left_version, right_version)?;
+                    }
+                    DiffExplanationAtom::ChangedConflictRemove {
+                        left_version,
+                        right_version,
+                    } => {
+                        print_header(formatter, "Changed Remove")?;
+                        show_diff(formatter, left_version, right_version)?;
+                    }
+                    DiffExplanationAtom::UnchangedConflictAdd(text) => {
+                        print_header(formatter, "Unchanged Conflict Add")?;
+                        formatter.write_all(text)?;
+                    }
+                    DiffExplanationAtom::UnchangedConflictRemove(text) => {
+                        print_header(formatter, "Unchanged Conflict Remove")?;
+                        formatter.write_all(text)?;
+                    }
+                };
+            }
+            writeln!(
+                formatter.labeled("hunk_header"),
+                ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>   END CONFLICT DIFF"
+            )?;
+        }
+    }
+    Ok(())
+}
+
 pub fn show_color_words_diff(
     formatter: &mut dyn Formatter,
     store: &Store,
@@ -1040,7 +1381,7 @@ pub fn show_color_words_diff(
                 }
             }
         }
-        Ok(())
+        Ok::<(), DiffRenderError>(())
     }
     .block_on()
 }

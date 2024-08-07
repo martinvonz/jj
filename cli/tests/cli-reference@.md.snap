@@ -702,6 +702,7 @@ With the `--from` and/or `--to` options, shows the difference from/to the given 
    Typically useful for shell commands like: `jj diff -r @- --name_only | xargs perl -pi -e's/OLD/NEW/g`
 * `--git` — Show a Git-format diff
 * `--color-words` — Show a word-level diff with changes indicated only by color
+* `--structured-conflicts` — Show a diff of conflict sides when sides are conflicted (EXPERIMENTAL)
 * `--tool <TOOL>` — Generate diff by external command
 * `--context <CONTEXT>` — Number of lines of context to show
 * `-w`, `--ignore-all-space` — Ignore whitespace when comparing lines
@@ -814,6 +815,7 @@ Lists the previous commits which a change has pointed to. The current commit of 
    Typically useful for shell commands like: `jj diff -r @- --name_only | xargs perl -pi -e's/OLD/NEW/g`
 * `--git` — Show a Git-format diff
 * `--color-words` — Show a word-level diff with changes indicated only by color
+* `--structured-conflicts` — Show a diff of conflict sides when sides are conflicted (EXPERIMENTAL)
 * `--tool <TOOL>` — Generate diff by external command
 * `--context <CONTEXT>` — Number of lines of context to show
 * `--ignore-all-space` — Ignore whitespace when comparing lines
@@ -1329,6 +1331,7 @@ This excludes changes from other commits by temporarily rebasing `--from` onto `
    Typically useful for shell commands like: `jj diff -r @- --name_only | xargs perl -pi -e's/OLD/NEW/g`
 * `--git` — Show a Git-format diff
 * `--color-words` — Show a word-level diff with changes indicated only by color
+* `--structured-conflicts` — Show a diff of conflict sides when sides are conflicted (EXPERIMENTAL)
 * `--tool <TOOL>` — Generate diff by external command
 * `--context <CONTEXT>` — Number of lines of context to show
 * `-w`, `--ignore-all-space` — Ignore whitespace when comparing lines
@@ -1380,6 +1383,7 @@ The working-copy commit is indicated by a `@` symbol in the graph. Immutable rev
    Typically useful for shell commands like: `jj diff -r @- --name_only | xargs perl -pi -e's/OLD/NEW/g`
 * `--git` — Show a Git-format diff
 * `--color-words` — Show a word-level diff with changes indicated only by color
+* `--structured-conflicts` — Show a diff of conflict sides when sides are conflicted (EXPERIMENTAL)
 * `--tool <TOOL>` — Generate diff by external command
 * `--context <CONTEXT>` — Number of lines of context to show
 * `--ignore-all-space` — Ignore whitespace when comparing lines
@@ -1527,6 +1531,7 @@ Compare changes to the repository between two operations
    Typically useful for shell commands like: `jj diff -r @- --name_only | xargs perl -pi -e's/OLD/NEW/g`
 * `--git` — Show a Git-format diff
 * `--color-words` — Show a word-level diff with changes indicated only by color
+* `--structured-conflicts` — Show a diff of conflict sides when sides are conflicted (EXPERIMENTAL)
 * `--tool <TOOL>` — Generate diff by external command
 * `--context <CONTEXT>` — Number of lines of context to show
 * `--ignore-all-space` — Ignore whitespace when comparing lines
@@ -1563,6 +1568,7 @@ Like other commands, `jj op log` snapshots the current working-copy changes and 
    Typically useful for shell commands like: `jj diff -r @- --name_only | xargs perl -pi -e's/OLD/NEW/g`
 * `--git` — Show a Git-format diff
 * `--color-words` — Show a word-level diff with changes indicated only by color
+* `--structured-conflicts` — Show a diff of conflict sides when sides are conflicted (EXPERIMENTAL)
 * `--tool <TOOL>` — Generate diff by external command
 * `--context <CONTEXT>` — Number of lines of context to show
 * `--ignore-all-space` — Ignore whitespace when comparing lines
@@ -1629,6 +1635,7 @@ Show changes to the repository in an operation
    Typically useful for shell commands like: `jj diff -r @- --name_only | xargs perl -pi -e's/OLD/NEW/g`
 * `--git` — Show a Git-format diff
 * `--color-words` — Show a word-level diff with changes indicated only by color
+* `--structured-conflicts` — Show a diff of conflict sides when sides are conflicted (EXPERIMENTAL)
 * `--tool <TOOL>` — Generate diff by external command
 * `--context <CONTEXT>` — Number of lines of context to show
 * `--ignore-all-space` — Ignore whitespace when comparing lines
@@ -1960,6 +1967,7 @@ Show commit description and changes in a revision
    Typically useful for shell commands like: `jj diff -r @- --name_only | xargs perl -pi -e's/OLD/NEW/g`
 * `--git` — Show a Git-format diff
 * `--color-words` — Show a word-level diff with changes indicated only by color
+* `--structured-conflicts` — Show a diff of conflict sides when sides are conflicted (EXPERIMENTAL)
 * `--tool <TOOL>` — Generate diff by external command
 * `--context <CONTEXT>` — Number of lines of context to show
 * `--ignore-all-space` — Ignore whitespace when comparing lines
