@@ -1195,6 +1195,19 @@ fn show_structured_conflict_diff_hunks(
                 text = BString::new(print_context(formatter, text.into(), false)?);
             }
             last_hunk_unmodified_text = Some(Some(text.into()));
+        } else if explained_hunk.iter().all(|elt| {
+            matches!(
+                elt,
+                DiffExplanationAtom::UnchangedConflictAdd(_)
+                    | DiffExplanationAtom::UnchangedConflictRemove(_)
+            )
+        }) {
+            // The conflict wasn't modified.
+            // TODO: Is there a better way to present the unmodified conflict in the
+            // context?
+            last_hunk_unmodified_text = Some(Some(
+                b"<<<<<<< Unmodified conflict (omitted) >>>>>>>".to_vec(),
+            ));
         } else if let [DiffExplanationAtom::ChangedConflictAdd {
             left_version,
             right_version,
