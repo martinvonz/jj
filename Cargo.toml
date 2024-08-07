@@ -59,7 +59,7 @@ git2 = { version = "0.18.3", features = [
     # https://github.com/rust-lang/git2-rs/commit/3cef4119f
     "vendored-libgit2"
 ] }
-gix = { version = "0.63.0", default-features = false, features = [
+gix = { version = "0.64.0", default-features = false, features = [
     "index",
     "max-performance-safe",
     "blob-diff",
