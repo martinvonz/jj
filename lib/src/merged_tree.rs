@@ -122,6 +122,11 @@ impl MergedTree {
         })
     }
 
+    /// Returns the underlying `Merge<Tree>`.
+    pub fn as_merge(&self) -> &Merge<Tree> {
+        &self.trees
+    }
+
     /// Extracts the underlying `Merge<Tree>`.
     pub fn take(self) -> Merge<Tree> {
         self.trees
@@ -281,7 +286,9 @@ impl MergedTree {
         let concurrency = self.store().concurrency();
         if concurrency <= 1 {
             Box::pin(futures::stream::iter(TreeDiffIterator::new(
-                self, other, matcher,
+                &self.trees,
+                &other.trees,
+                matcher,
             )))
         } else {
             Box::pin(TreeDiffStreamImpl::new(
@@ -327,8 +334,8 @@ fn all_tree_basenames(trees: &Merge<Tree>) -> impl Iterator<Item = &RepoPathComp
 }
 
 fn merged_tree_basenames<'a>(
-    tree1: &'a MergedTree,
-    tree2: &'a MergedTree,
+    trees1: &'a Merge<Tree>,
+    trees2: &'a Merge<Tree>,
 ) -> Box<dyn Iterator<Item = &'a RepoPathComponent> + 'a> {
     fn merge_iters<'a>(
         iter1: impl Iterator<Item = &'a RepoPathComponent> + 'a,
@@ -336,19 +343,16 @@ fn merged_tree_basenames<'a>(
     ) -> Box<dyn Iterator<Item = &'a RepoPathComponent> + 'a> {
         Box::new(iter1.merge(iter2).dedup())
     }
-    merge_iters(
-        all_tree_basenames(&tree1.trees),
-        all_tree_basenames(&tree2.trees),
-    )
+    merge_iters(all_tree_basenames(trees1), all_tree_basenames(trees2))
 }
 
 fn merged_tree_entry_diff<'a>(
-    before: &'a MergedTree,
-    after: &'a MergedTree,
+    before: &'a Merge<Tree>,
+    after: &'a Merge<Tree>,
 ) -> impl Iterator<Item = (&'a RepoPathComponent, MergedTreeVal<'a>, MergedTreeVal<'a>)> {
     merged_tree_basenames(before, after).filter_map(|basename| {
-        let value_before = before.value(basename);
-        let value_after = after.value(basename);
+        let value_before = trees_value(before, basename);
+        let value_after = trees_value(after, basename);
         (value_after != value_before).then_some((basename, value_before, value_after))
     })
 }
@@ -602,17 +606,17 @@ enum TreeDiffItem {
 impl<'matcher> TreeDiffIterator<'matcher> {
     /// Creates a iterator over the differences between two trees. Generally
     /// prefer `MergedTree::diff()` of calling this directly.
-    pub fn new(tree1: &MergedTree, tree2: &MergedTree, matcher: &'matcher dyn Matcher) -> Self {
-        assert!(Arc::ptr_eq(tree1.store(), tree2.store()));
+    pub fn new(trees1: &Merge<Tree>, trees2: &Merge<Tree>, matcher: &'matcher dyn Matcher) -> Self {
+        assert!(Arc::ptr_eq(trees1.first().store(), trees2.first().store()));
         let root_dir = RepoPath::root();
         let mut stack = Vec::new();
         if !matcher.visit(root_dir).is_nothing() {
             stack.push(TreeDiffItem::Dir(TreeDiffDirItem::from_trees(
-                root_dir, tree1, tree2, matcher,
+                root_dir, trees1, trees2, matcher,
             )));
         };
         Self {
-            store: tree1.store().clone(),
+            store: trees1.first().store().clone(),
             stack,
             matcher,
         }
@@ -630,29 +634,28 @@ impl<'matcher> TreeDiffIterator<'matcher> {
     }
 
     /// Gets the given tree if `value` is a tree, otherwise an empty tree.
-    fn tree(
+    fn trees(
         store: &Arc<Store>,
         dir: &RepoPath,
         values: &MergedTreeValue,
-    ) -> BackendResult<MergedTree> {
-        let trees = if values.is_tree() {
-            values.try_map(|value| Self::single_tree(store, dir, value.as_ref()))?
+    ) -> BackendResult<Merge<Tree>> {
+        if values.is_tree() {
+            values.try_map(|value| Self::single_tree(store, dir, value.as_ref()))
         } else {
-            Merge::resolved(Tree::null(store.clone(), dir.to_owned()))
-        };
-        Ok(MergedTree { trees })
+            Ok(Merge::resolved(Tree::null(store.clone(), dir.to_owned())))
+        }
     }
 }
 
 impl TreeDiffDirItem {
     fn from_trees(
         dir: &RepoPath,
-        tree1: &MergedTree,
-        tree2: &MergedTree,
+        trees1: &Merge<Tree>,
+        trees2: &Merge<Tree>,
         matcher: &dyn Matcher,
     ) -> Self {
         let mut entries = vec![];
-        for (name, before, after) in merged_tree_entry_diff(tree1, tree2) {
+        for (name, before, after) in merged_tree_entry_diff(trees1, trees2) {
             let path = dir.join(name);
             let before = before.to_merge();
             let after = after.to_merge();
@@ -712,11 +715,11 @@ impl Iterator for TreeDiffIterator<'_> {
             let tree_before = before.is_tree();
             let tree_after = after.is_tree();
             let post_subdir = if tree_before || tree_after {
-                let before_tree = match Self::tree(&self.store, &path, &before) {
+                let before_tree = match Self::trees(&self.store, &path, &before) {
                     Ok(tree) => tree,
                     Err(err) => return Some((path, Err(err))),
                 };
-                let after_tree = match Self::tree(&self.store, &path, &after) {
+                let after_tree = match Self::trees(&self.store, &path, &after) {
                     Ok(tree) => tree,
                     Err(err) => return Some((path, Err(err))),
                 };
@@ -878,7 +881,9 @@ impl<'matcher> TreeDiffStreamImpl<'matcher> {
             }
         };
 
-        for (basename, value_before, value_after) in merged_tree_entry_diff(&tree1, &tree2) {
+        for (basename, value_before, value_after) in
+            merged_tree_entry_diff(&tree1.trees, &tree2.trees)
+        {
             let path = dir.join(basename);
             let before = value_before.to_merge();
             let after = value_after.to_merge();
