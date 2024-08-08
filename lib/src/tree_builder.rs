@@ -136,7 +136,7 @@ impl TreeBuilder {
             let (parent, basename) = dir.split().expect("root must be populated");
             let tree = populate_trees(tree_cache, store, parent)?
                 .sub_tree(basename)?
-                .unwrap_or_else(|| Tree::null(store.clone(), dir.to_owned()));
+                .unwrap_or_else(|| Tree::empty(store.clone(), dir.to_owned()));
             Ok(tree_cache.entry(dir.to_owned()).or_insert(tree))
         }
 

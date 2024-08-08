@@ -76,11 +76,12 @@ impl Tree {
         }
     }
 
-    pub fn null(store: Arc<Store>, dir: RepoPathBuf) -> Self {
+    pub fn empty(store: Arc<Store>, dir: RepoPathBuf) -> Self {
+        let id = store.empty_tree_id().clone();
         Tree {
             store,
             dir,
-            id: TreeId::new(vec![]),
+            id,
             data: Arc::new(backend::Tree::default()),
         }
     }
