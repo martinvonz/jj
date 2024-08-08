@@ -35,7 +35,7 @@ fn file_value(file_id: &FileId) -> TreeValue {
 }
 
 fn diff_stream_equals_iter(tree1: &MergedTree, tree2: &MergedTree, matcher: &dyn Matcher) {
-    let iter_diff: Vec<_> = TreeDiffIterator::new(tree1.clone(), tree2.clone(), matcher)
+    let iter_diff: Vec<_> = TreeDiffIterator::new(tree1, tree2, matcher)
         .map(|(path, diff)| (path, diff.unwrap()))
         .collect();
     let max_concurrent_reads = 10;
