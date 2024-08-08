@@ -371,6 +371,11 @@ fn test_acl() {
         &default_working_copy_factories(),
     )
     .unwrap();
+    // Reload commits from the store associated with the workspace
+    let repo = ws.repo_loader().load_at(repo.operation()).unwrap();
+    let commit1 = repo.store().get_commit(commit1.id()).unwrap();
+    let commit2 = repo.store().get_commit(commit2.id()).unwrap();
+
     ws.check_out(repo.op_id().clone(), None, &commit1).unwrap();
     assert!(!secret_modified_path.to_fs_path(&workspace_root).is_file());
     assert!(!secret_added_path.to_fs_path(&workspace_root).is_file());
