@@ -258,7 +258,7 @@ impl MergedTree {
     /// conflict), then the entry for `foo` itself will be emitted, but no
     /// entries from inside `foo/` from either of the trees will be.
     pub fn entries(&self) -> TreeEntriesIterator<'static> {
-        TreeEntriesIterator::new(self.clone(), &EverythingMatcher)
+        self.entries_matching(&EverythingMatcher)
     }
 
     /// Like `entries()` but restricted by a matcher.
@@ -266,7 +266,7 @@ impl MergedTree {
         &self,
         matcher: &'matcher dyn Matcher,
     ) -> TreeEntriesIterator<'matcher> {
-        TreeEntriesIterator::new(self.clone(), matcher)
+        TreeEntriesIterator::new(self, matcher)
     }
 
     /// Stream of the differences between this tree and another tree.
@@ -452,17 +452,17 @@ fn merge_tree_values(
 
 /// Recursive iterator over the entries in a tree.
 pub struct TreeEntriesIterator<'matcher> {
+    store: Arc<Store>,
     stack: Vec<TreeEntriesDirItem>,
     matcher: &'matcher dyn Matcher,
 }
 
 struct TreeEntriesDirItem {
-    tree: MergedTree,
     entries: Vec<(RepoPathBuf, MergedTreeValue)>,
 }
 
 impl TreeEntriesDirItem {
-    fn new(tree: MergedTree, matcher: &dyn Matcher) -> Self {
+    fn new(tree: &MergedTree, matcher: &dyn Matcher) -> Self {
         let mut entries = vec![];
         let dir = tree.dir();
         for name in tree.names() {
@@ -479,13 +479,14 @@ impl TreeEntriesDirItem {
             entries.push((path, value));
         }
         entries.reverse();
-        TreeEntriesDirItem { tree, entries }
+        TreeEntriesDirItem { entries }
     }
 }
 
 impl<'matcher> TreeEntriesIterator<'matcher> {
-    fn new(tree: MergedTree, matcher: &'matcher dyn Matcher) -> Self {
+    fn new(tree: &MergedTree, matcher: &'matcher dyn Matcher) -> Self {
         Self {
+            store: tree.store().clone(),
             stack: vec![TreeEntriesDirItem::new(tree, matcher)],
             matcher,
         }
@@ -499,13 +500,13 @@ impl Iterator for TreeEntriesIterator<'_> {
         while let Some(top) = self.stack.last_mut() {
             if let Some((path, value)) = top.entries.pop() {
                 if value.is_tree() {
-                    let trees: Merge<Tree> = match value.to_tree_merge(top.tree.store(), &path) {
+                    let trees: Merge<Tree> = match value.to_tree_merge(&self.store, &path) {
                         Ok(trees) => trees.unwrap(),
                         Err(err) => return Some((path, Err(err))),
                     };
                     let merged_tree = MergedTree { trees };
                     self.stack
-                        .push(TreeEntriesDirItem::new(merged_tree, self.matcher));
+                        .push(TreeEntriesDirItem::new(&merged_tree, self.matcher));
                 } else {
                     return Some((path, Ok(value)));
                 }
