@@ -20,7 +20,7 @@ run_command_output_redacted() {
   echo "\$ $@"
   # `bash` often resets $COLUMNS, so we also
   # allow $RUN_COMMAND_COLUMNS
-  eval "$@" > /dev/null
+  eval "$@" > /dev/null 2>&1
   echo -e "\033[0;90m... (output redacted) ...\033[0m"
 }
 

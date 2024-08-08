@@ -25,7 +25,7 @@ run_command "jj diff -r second"
 run_command "jj diff -r third"
 
 comment "Let's reorder the second and third commits:"
-run_command "jj rebase -s third -d first"
+run_command_output_redacted "jj rebase -s third -d first"
 run_command "jj rebase -s second -d third"
 run_command "jj log"
 comment "The commit labeled \"third\" has a conflict, as expected. What's more
