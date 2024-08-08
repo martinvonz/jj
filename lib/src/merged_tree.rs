@@ -622,25 +622,14 @@ impl<'matcher> TreeDiffIterator<'matcher> {
         }
     }
 
-    fn single_tree(
-        store: &Arc<Store>,
-        dir: &RepoPath,
-        value: Option<&TreeValue>,
-    ) -> BackendResult<Tree> {
-        match value {
-            Some(TreeValue::Tree(tree_id)) => store.get_tree(dir, tree_id),
-            _ => Ok(Tree::null(store.clone(), dir.to_owned())),
-        }
-    }
-
     /// Gets the given tree if `value` is a tree, otherwise an empty tree.
     fn trees(
         store: &Arc<Store>,
         dir: &RepoPath,
         values: &MergedTreeValue,
     ) -> BackendResult<Merge<Tree>> {
-        if values.is_tree() {
-            values.try_map(|value| Self::single_tree(store, dir, value.as_ref()))
+        if let Some(trees) = values.to_tree_merge(store, dir)? {
+            Ok(trees)
         } else {
             Ok(Merge::resolved(Tree::null(store.clone(), dir.to_owned())))
         }
