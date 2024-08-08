@@ -6,9 +6,9 @@ new_tmp_dir
 {
     jj git clone https://github.com/octocat/Hello-World 
     cd Hello-World
-    jj abandon test
+    jj abandon --ignore-immutable test@origin
     jj branch forget test
-} > /dev/null
+} > /dev/null 2>&1
 
 comment "We are on the master branch of the
 octocat/Hello-World repo:"

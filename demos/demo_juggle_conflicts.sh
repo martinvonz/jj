@@ -14,7 +14,7 @@ new_tmp_dir
     echo "third" > file
     jj branch create third
     jj commit -m 'third'
-) >/dev/null
+) >/dev/null 2>&1
 
 comment "We are in a repo with three commits, all
 editing the same line:"
@@ -33,13 +33,13 @@ interesting is that the top commit has no conflict! That's because it
 has the changes from all three commits applied to it.
 
 Let's verify that by looking at its contents:"
-run_command "jj co second"
+run_command "jj new second"
 run_command "cat file"
 
 comment "Let's now instead make \"second\" and \"third\"
 sibling and merge them:"
 run_command "jj rebase -s second -d first"
-run_command "jj merge second third -m merged"
+run_command "jj new second third -m merged"
 run_command "jj log"
 comment "Again, because the merge commit has the
 changes from all three commits, it has no

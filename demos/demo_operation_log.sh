@@ -6,9 +6,10 @@ new_tmp_dir
 {
     jj git clone https://github.com/octocat/Hello-World
     cd Hello-World
-    jj abandon octocat-patch-1
+    jj abandon --ignore-immutable octocat-patch-1@origin
     jj branch forget octocat-patch-1
-} > /dev/null
+    jj branch track test@origin
+} > /dev/null 2>&1
 
 comment "We are in the octocat/Hello-World repo.
 The \"operation log\" shows the operations
@@ -24,7 +25,7 @@ run_command "jj rebase -d test"
 
 comment "We are now going to make another change off of
 master:"
-run_command "jj co master"
+run_command "jj new master"
 run_command "jj describe -m \"other stuff\""
 
 comment "The repo now looks like this:"
