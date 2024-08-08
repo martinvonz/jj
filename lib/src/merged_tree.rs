@@ -499,11 +499,11 @@ impl Iterator for TreeEntriesIterator<'_> {
     fn next(&mut self) -> Option<Self::Item> {
         while let Some(top) = self.stack.last_mut() {
             if let Some((path, value)) = top.entries.pop() {
-                if value.is_tree() {
-                    let trees: Merge<Tree> = match value.to_tree_merge(&self.store, &path) {
-                        Ok(trees) => trees.unwrap(),
-                        Err(err) => return Some((path, Err(err))),
-                    };
+                let maybe_trees = match value.to_tree_merge(&self.store, &path) {
+                    Ok(maybe_trees) => maybe_trees,
+                    Err(err) => return Some((path, Err(err))),
+                };
+                if let Some(trees) = maybe_trees {
                     self.stack
                         .push(TreeEntriesDirItem::new(&trees, self.matcher));
                 } else {
