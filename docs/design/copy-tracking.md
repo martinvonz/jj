@@ -28,17 +28,20 @@ below, as well as a new field on Commit objects for backends that support copy
 tracking:
 
 ```rust
-/// An individual copy source.
-pub struct CopySource {
+/// An individual copy event, from file A -> B.
+pub struct CopyRecord {
+    /// The destination of the copy, B.
+    pub target: RepoPathBuf,
+    /// The CommitId where the copy took place.
+    pub target_commit: CommitId,
     /// The source path a target was copied from.
     ///
     /// It is not required that the source path is different than the target
     /// path. A custom backend may choose to represent 'rollbacks' as copies
     /// from a file unto itself, from a specific prior commit.
-    path: RepoPathBuf,
-    file: FileId,
-    /// The source commit the target was copied from. If not specified, then the
-    /// parent of the target commit is the source commit. Backends may use this
+    pub source: RepoPathBuf,
+    pub source_file: FileId,
+    /// The source commit the target was copied from. Backends may use this
     /// field to implement 'integration' logic, where a source may be
     /// periodically merged into a target, similar to a branch, but the
     /// branching occurs at the file level rather than the repository level. It
@@ -46,53 +49,52 @@ pub struct CopySource {
     /// commit should avoid copy propagation on rebasing, which is desirable
     /// for 'fork' style copies.
     ///
-    /// If specified, it is required that the commit id is an ancestor of the
-    /// commit with which this copy source is associated.
-    commit: Option<CommitId>,
+    /// It is required that the commit id is an ancestor of the commit with
+    /// which this copy source is associated.
+    pub source_commit: CommitId,
 }
-
-pub enum CopySources {
-    Resolved(CopySource),
-    Conflict(HashSet<CopySource>),
-}
-
-/// An individual copy event, from file A -> B.
-pub struct CopyRecord {
-    /// The destination of the copy, B.
-    target: RepoPathBuf,
-    /// The CommitId where the copy took place.
-    id: CommitId,
-    /// The source of the copy, A.
-    sources: CopySources,
-}
-
-/// Backend options for fetching copy records.
-pub struct CopyRecordOpts {
-    // TODO: Probably something for git similarity detection
-}
-
-pub type CopyRecordStream = BoxStream<BackendResult<CopyRecord>>;
 
 pub trait Backend {
-    /// Get all copy records for `paths` in the dag range `roots..heads`.
-    /// 
+    /// Get copy records for the dag range `root..head`.  If `paths` is empty
+    /// include all paths, otherwise restrict to only `paths`.
+    ///
     /// The exact order these are returned is unspecified, but it is guaranteed
     /// to be reverse-topological. That is, for any two copy records with
     /// different commit ids A and B, if A is an ancestor of B, A is streamed
     /// after B.
-    /// 
+    ///
     /// Streaming by design to better support large backends which may have very
     /// large single-file histories. This also allows more iterative algorithms
     /// like blame/annotate to short-circuit after a point without wasting
     /// unnecessary resources.
-    async fn get_copy_records(&self, paths: &[RepoPathBuf], roots: &[CommitId], heads: &[CommitId]) -> CopyRecordStream;
+    fn get_copy_records(
+         &self,
+         paths: &[RepoPathBuf],
+         root: &CommitId,
+         head: &CommitId,
+    ) -> BackendResult<BoxStream<BackendResult<CopyRecord>>>;
 }
 ```
 
-Obtaining copy records for a single commit requires first computing the files
-list for that commit, then calling get_copy_records with `heads = [id]` and
-`roots = parents()`. This enables commands like `jj diff` to produce better
-diffs that take copy sources into account.
+In addition to the low-level API for directly listing `CopyRecord`s,
+`CopyrecordMap` provides a higher-level API with convenient functions for
+accessing `CopyRecord`s.  Conflicts between multiple copies during a merge will
+be surfaced at this level of API.
+
+```rust
+/// A collection of CopyRecords.
+#[derive(Default, Debug)]
+pub struct CopyRecordMap { ... }
+
+impl CopyRecordMap {
+    /// Adds information about a stream of CopyRecords to `self`.  A target with
+    /// multiple conflicts is discarded and treated as not having an origin.
+    pub fn add_records(&mut self, stream: BoxStream<BackendResult<CopyRecord>>);
+
+    /// Gets any copy record associated with a target path.
+    pub fn for_target(&self, target: &RepoPath) -> Option<&CopyRecord>;
+}
+```
 
 ### Write API
 
