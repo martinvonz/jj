@@ -118,6 +118,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 * `jj describe` can now update the description of multiple commits.
 
+* When reconfiguring the author, warn that the working copy won't be updated
+
 ### Fixed bugs
 
 * `jj status` will show different messages in a conflicted tree, depending
