@@ -9,17 +9,17 @@ set -euo pipefail
 # look at the other one.
 #
 # AnsiToImg can also generate PNGs, but that is currently harder to setup than
-# `convert`. `convert` supports different backends. I do not completely
+# `magick`. `magick` supports different backends. I do not completely
 # understand them. On Debian, it did not work well without `sudo apt install
-# inkscape`. It's unclear to me whether `convert` used Inkscape or one of its
+# inkscape`. It's unclear to me whether `magick` used Inkscape or one of its
 # dependencies. Inkscape can be also used manually for SVG -> PNG conversion.
 which term-transcript > /dev/null \
   || (echo '`term-transcript` must be installed with e.g.'\
            '`cargo binstall term-transcript-cli`.' \
            'See also https://github.com/slowli/term-transcript' >&2;
       false)
-which convert > /dev/null \
-  || echo '`convert` from ImageMagick needs to be installed to create pngs.' \
+which magick > /dev/null \
+  || echo '`magick` from ImageMagick needs to be installed to create pngs.' \
           'Only svgs will be created.' >&2
 
 echo "jj --version: (set PATH to change)"
@@ -61,12 +61,13 @@ for script in "$@"; do
   #
   # `-background black` is important because the SVGs use transparency to make
   # rounded corners, and the transparent portion becomes white by default.
-  # TODO(ilyagr): Figure out if `convert` can make PNGs have transparency.
+  # TODO(ilyagr): Figure out if `magick` can make PNGs have transparency.
   #
   # `-resize 100%` is a no-op. `-resize 700x10000`` would make the width 700 px
   # and preserve aspect ratio.
-  which convert > /dev/null \
-    && convert  -colors 63 -background black -resize 100%  \
-            "$script_base".svg "$script_base".png \
+  which magick > /dev/null \
+    && magick "$script_base".svg \
+            -colors 63 -background black -resize 100%  \
+            "$script_base".png \
     || true
 done
