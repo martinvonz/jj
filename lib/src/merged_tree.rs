@@ -209,7 +209,7 @@ impl MergedTree {
                     }
                     _ => {
                         let subdir = self.dir().join(name);
-                        Ok(Tree::null(self.store().clone(), subdir.clone()))
+                        Ok(Tree::empty(self.store().clone(), subdir.clone()))
                     }
                 })?;
                 Ok(Some(MergedTree { trees }))
@@ -642,7 +642,7 @@ impl<'matcher> TreeDiffIterator<'matcher> {
         if let Some(trees) = values.to_tree_merge(store, dir)? {
             Ok(trees)
         } else {
-            Ok(Merge::resolved(Tree::null(store.clone(), dir.to_owned())))
+            Ok(Merge::resolved(Tree::empty(store.clone(), dir.to_owned())))
         }
     }
 }
@@ -846,7 +846,7 @@ impl<'matcher> TreeDiffStreamImpl<'matcher> {
     ) -> BackendResult<Tree> {
         match value {
             Some(TreeValue::Tree(tree_id)) => store.get_tree_async(dir, tree_id).await,
-            _ => Ok(Tree::null(store.clone(), dir.to_owned())),
+            _ => Ok(Tree::empty(store.clone(), dir.to_owned())),
         }
     }
 
@@ -863,7 +863,7 @@ impl<'matcher> TreeDiffStreamImpl<'matcher> {
                 .await?;
             builder.build()
         } else {
-            Merge::resolved(Tree::null(store, dir.clone()))
+            Merge::resolved(Tree::empty(store, dir.clone()))
         };
         Ok(MergedTree { trees })
     }

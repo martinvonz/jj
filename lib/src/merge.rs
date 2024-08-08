@@ -625,7 +625,7 @@ where
                 if let Some(id) = id {
                     store.get_tree(dir, id)
                 } else {
-                    Ok(Tree::null(store.clone(), dir.to_owned()))
+                    Ok(Tree::empty(store.clone(), dir.to_owned()))
                 }
             };
             Ok(Some(tree_id_merge.try_map(get_tree)?))

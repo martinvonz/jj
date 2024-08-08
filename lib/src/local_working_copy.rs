@@ -1315,7 +1315,7 @@ impl TreeState {
         let new_matcher = PrefixMatcher::new(&sparse_patterns);
         let added_matcher = DifferenceMatcher::new(&new_matcher, &old_matcher);
         let removed_matcher = DifferenceMatcher::new(&old_matcher, &new_matcher);
-        let empty_tree = MergedTree::resolved(Tree::null(self.store.clone(), RepoPathBuf::root()));
+        let empty_tree = MergedTree::resolved(Tree::empty(self.store.clone(), RepoPathBuf::root()));
         let added_stats = self.update(&empty_tree, &tree, &added_matcher).block_on()?;
         let removed_stats = self
             .update(&tree, &empty_tree, &removed_matcher)
