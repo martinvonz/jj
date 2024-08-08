@@ -177,6 +177,7 @@ pub enum ConfigSource {
     User,
     Repo,
     CommandArg,
+    Builtin,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -197,6 +198,7 @@ pub struct AnnotatedValue {
 /// 5. TODO: Workspace config `.jj/config.toml`
 /// 6. Override environment variables
 /// 7. Command-line arguments `--config-toml`
+/// 8. Builtins
 #[derive(Clone, Debug)]
 pub struct LayeredConfigs {
     default: config::Config,
@@ -205,6 +207,7 @@ pub struct LayeredConfigs {
     repo: Option<config::Config>,
     env_overrides: config::Config,
     arg_overrides: Option<config::Config>,
+    builtin_overrides: config::Config,
 }
 
 impl LayeredConfigs {
@@ -217,6 +220,7 @@ impl LayeredConfigs {
             repo: None,
             env_overrides: env_overrides(),
             arg_overrides: None,
+            builtin_overrides: builtin_overrides(),
         }
     }
 
@@ -273,6 +277,7 @@ impl LayeredConfigs {
             (ConfigSource::Repo, self.repo.as_ref()),
             (ConfigSource::Env, Some(&self.env_overrides)),
             (ConfigSource::CommandArg, self.arg_overrides.as_ref()),
+            (ConfigSource::Builtin, Some(&self.builtin_overrides)),
         ];
         config_sources
             .into_iter()
@@ -486,6 +491,17 @@ pub fn default_config() -> config::Config {
         builder = builder.add_source(from_toml!("config/windows.toml"))
     }
     builder.build().unwrap()
+}
+
+/// Builtin overrides that override all other values.
+pub fn builtin_overrides() -> config::Config {
+    config::Config::builder()
+        .add_source(config::File::from_str(
+            include_str!("config/builtins.toml"),
+            config::FileFormat::Toml,
+        ))
+        .build()
+        .unwrap()
 }
 
 /// Environment variables that override config values
@@ -880,8 +896,9 @@ mod tests {
             env_base: empty_config.to_owned(),
             user: None,
             repo: None,
-            env_overrides: empty_config,
+            env_overrides: empty_config.to_owned(),
             arg_overrides: None,
+            builtin_overrides: empty_config.to_owned(),
         };
         assert_eq!(
             layered_configs
@@ -911,8 +928,9 @@ mod tests {
             env_base: env_base_config,
             user: None,
             repo: Some(repo_config),
-            env_overrides: empty_config,
+            env_overrides: empty_config.to_owned(),
             arg_overrides: None,
+            builtin_overrides: empty_config.to_owned(),
         };
         // Note: "email" is alphabetized, before "name" from same layer.
         insta::assert_debug_snapshot!(
@@ -1034,8 +1052,9 @@ mod tests {
             env_base: empty_config.to_owned(),
             user: Some(user_config),
             repo: Some(repo_config),
-            env_overrides: empty_config,
+            env_overrides: empty_config.to_owned(),
             arg_overrides: None,
+            builtin_overrides: empty_config.to_owned(),
         };
         insta::assert_debug_snapshot!(
             layered_configs

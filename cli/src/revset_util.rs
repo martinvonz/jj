@@ -31,7 +31,7 @@ use jj_lib::settings::ConfigResultExt as _;
 use thiserror::Error;
 
 use crate::command_error::{user_error, CommandError};
-use crate::config::LayeredConfigs;
+use crate::config::{ConfigSource, LayeredConfigs};
 use crate::formatter::Formatter;
 use crate::templater::TemplateRenderer;
 use crate::ui::Ui;
@@ -115,17 +115,36 @@ pub fn load_revset_aliases(
     let mut aliases_map = RevsetAliasesMap::new();
     // Load from all config layers in order. 'f(x)' in default layer should be
     // overridden by 'f(a)' in user.
-    for (_, config) in layered_configs.sources() {
+    for (source, config) in layered_configs.sources() {
         let table = if let Some(table) = config.get_table(TABLE_KEY).optional()? {
             table
         } else {
             continue;
         };
         for (decl, value) in table.into_iter().sorted_by(|a, b| a.0.cmp(&b.0)) {
+            match source {
+                ConfigSource::Default
+                | ConfigSource::Env
+                | ConfigSource::User
+                | ConfigSource::Repo
+                | ConfigSource::CommandArg => {
+                    if decl.starts_with("builtin") {
+                        writeln!(
+                            ui.warning_default(),
+                            "`revset-aliases.{}` may be overridden; aliases starting with \
+                             `builtin` are reserved",
+                            &decl
+                        )?;
+                    }
+                }
+                ConfigSource::Builtin => (),
+            }
+
             let r = value
                 .into_string()
                 .map_err(|e| e.to_string())
                 .and_then(|v| aliases_map.insert(&decl, v).map_err(|e| e.to_string()));
+
             if let Err(s) = r {
                 writeln!(
                     ui.warning_default(),
