@@ -22,10 +22,11 @@ use std::sync::Arc;
 use std::task::{Context, Poll};
 use std::{iter, vec};
 
+use either::Either;
 use futures::future::BoxFuture;
 use futures::stream::{BoxStream, StreamExt};
 use futures::{Stream, TryStreamExt};
-use itertools::Itertools;
+use itertools::{EitherOrBoth, Itertools};
 
 use crate::backend;
 use crate::backend::{BackendResult, MergedTreeId, TreeId, TreeValue};
@@ -333,28 +334,36 @@ fn all_tree_basenames(trees: &Merge<Tree>) -> impl Iterator<Item = &RepoPathComp
         .dedup()
 }
 
-fn merged_tree_basenames<'a>(
-    trees1: &'a Merge<Tree>,
-    trees2: &'a Merge<Tree>,
-) -> Box<dyn Iterator<Item = &'a RepoPathComponent> + 'a> {
-    fn merge_iters<'a>(
-        iter1: impl Iterator<Item = &'a RepoPathComponent> + 'a,
-        iter2: impl Iterator<Item = &'a RepoPathComponent> + 'a,
-    ) -> Box<dyn Iterator<Item = &'a RepoPathComponent> + 'a> {
-        Box::new(iter1.merge(iter2).dedup())
+fn all_tree_entries(
+    trees: &Merge<Tree>,
+) -> impl Iterator<Item = (&RepoPathComponent, MergedTreeVal<'_>)> {
+    if let Some(tree) = trees.as_resolved() {
+        let iter = tree
+            .entries_non_recursive()
+            .map(|entry| (entry.name(), MergedTreeVal::Resolved(Some(entry.value()))));
+        Either::Left(iter)
+    } else {
+        // TODO: reimplement as entries iterator?
+        let iter = all_tree_basenames(trees).map(|name| (name, trees_value(trees, name)));
+        Either::Right(iter)
     }
-    merge_iters(all_tree_basenames(trees1), all_tree_basenames(trees2))
 }
 
 fn merged_tree_entry_diff<'a>(
-    before: &'a Merge<Tree>,
-    after: &'a Merge<Tree>,
+    trees1: &'a Merge<Tree>,
+    trees2: &'a Merge<Tree>,
 ) -> impl Iterator<Item = (&'a RepoPathComponent, MergedTreeVal<'a>, MergedTreeVal<'a>)> {
-    merged_tree_basenames(before, after).filter_map(|basename| {
-        let value_before = trees_value(before, basename);
-        let value_after = trees_value(after, basename);
-        (value_after != value_before).then_some((basename, value_before, value_after))
+    itertools::merge_join_by(
+        all_tree_entries(trees1),
+        all_tree_entries(trees2),
+        |(name1, _), (name2, _)| name1.cmp(name2),
+    )
+    .map(|entry| match entry {
+        EitherOrBoth::Both((name, value1), (_, value2)) => (name, value1, value2),
+        EitherOrBoth::Left((name, value1)) => (name, value1, MergedTreeVal::Resolved(None)),
+        EitherOrBoth::Right((name, value2)) => (name, MergedTreeVal::Resolved(None), value2),
     })
+    .filter(|(_, value1, value2)| value1 != value2)
 }
 
 fn trees_value<'a>(trees: &'a Merge<Tree>, basename: &RepoPathComponent) -> MergedTreeVal<'a> {
@@ -383,6 +392,8 @@ fn merge_trees(merge: &Merge<Tree>) -> BackendResult<Merge<Tree>> {
     // any conflicts.
     let mut new_tree = backend::Tree::default();
     let mut conflicts = vec![];
+    // TODO: add all_tree_entries()-like function that doesn't change the arity
+    // of conflicts?
     for basename in all_tree_basenames(merge) {
         let path_merge = merge.map(|tree| tree.value(basename).cloned());
         let path = dir.join(basename);
@@ -467,9 +478,9 @@ impl TreeEntriesDirItem {
     fn new(trees: &Merge<Tree>, matcher: &dyn Matcher) -> Self {
         let mut entries = vec![];
         let dir = trees.first().dir();
-        for name in all_tree_basenames(trees) {
+        for (name, value) in all_tree_entries(trees) {
             let path = dir.join(name);
-            let value = trees_value(trees, name).to_merge();
+            let value = value.to_merge();
             if value.is_tree() {
                 // TODO: Handle the other cases (specific files and trees)
                 if matcher.visit(&path).is_nothing() {
@@ -533,8 +544,8 @@ impl From<&Merge<Tree>> for ConflictsDirItem {
         }
 
         let mut entries = vec![];
-        for basename in all_tree_basenames(trees) {
-            match trees_value(trees, basename) {
+        for (basename, value) in all_tree_entries(trees) {
+            match value {
                 MergedTreeVal::Resolved(_) => {}
                 MergedTreeVal::Conflict(tree_values) => {
                     entries.push((dir.join(basename), tree_values));
