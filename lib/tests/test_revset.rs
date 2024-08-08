@@ -3316,6 +3316,80 @@ fn test_evaluate_expression_diff_contains() {
 }
 
 #[test]
+fn test_evaluate_expression_file_merged_parents() {
+    let settings = testutils::user_settings();
+    let test_workspace = TestWorkspace::init(&settings);
+    let repo = &test_workspace.repo;
+
+    let mut tx = repo.start_transaction(&settings);
+    let mut_repo = tx.mut_repo();
+
+    // file2 can be merged automatically, file1 can't.
+    let file_path1 = RepoPath::from_internal_string("file1");
+    let file_path2 = RepoPath::from_internal_string("file2");
+    let tree1 = create_tree(repo, &[(file_path1, "1\n"), (file_path2, "1\n")]);
+    let tree2 = create_tree(repo, &[(file_path1, "1\n2\n"), (file_path2, "2\n1\n")]);
+    let tree3 = create_tree(repo, &[(file_path1, "1\n3\n"), (file_path2, "1\n3\n")]);
+    let tree4 = create_tree(repo, &[(file_path1, "1\n4\n"), (file_path2, "2\n1\n3\n")]);
+
+    let mut create_commit = |parent_ids, tree_id| {
+        mut_repo
+            .new_commit(&settings, parent_ids, tree_id)
+            .write()
+            .unwrap()
+    };
+    let commit1 = create_commit(vec![repo.store().root_commit_id().clone()], tree1.id());
+    let commit2 = create_commit(vec![commit1.id().clone()], tree2.id());
+    let commit3 = create_commit(vec![commit1.id().clone()], tree3.id());
+    let commit4 = create_commit(vec![commit2.id().clone(), commit3.id().clone()], tree4.id());
+
+    let query = |revset_str: &str| {
+        resolve_commit_ids_in_workspace(
+            mut_repo,
+            revset_str,
+            &test_workspace.workspace,
+            Some(test_workspace.workspace.workspace_root()),
+        )
+    };
+
+    assert_eq!(
+        query("file('file1')"),
+        vec![
+            commit4.id().clone(),
+            commit3.id().clone(),
+            commit2.id().clone(),
+            commit1.id().clone(),
+        ]
+    );
+    assert_eq!(
+        query("file('file2')"),
+        vec![
+            commit3.id().clone(),
+            commit2.id().clone(),
+            commit1.id().clone(),
+        ]
+    );
+
+    assert_eq!(
+        query("diff_contains(regex:'[1234]', 'file1')"),
+        vec![
+            commit4.id().clone(),
+            commit3.id().clone(),
+            commit2.id().clone(),
+            commit1.id().clone(),
+        ]
+    );
+    assert_eq!(
+        query("diff_contains(regex:'[1234]', 'file2')"),
+        vec![
+            commit3.id().clone(),
+            commit2.id().clone(),
+            commit1.id().clone(),
+        ]
+    );
+}
+
+#[test]
 fn test_evaluate_expression_conflict() {
     let settings = testutils::user_settings();
     let test_workspace = TestWorkspace::init(&settings);
