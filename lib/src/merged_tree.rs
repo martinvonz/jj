@@ -301,17 +301,23 @@ impl MergedTree {
         }
     }
 
-    /// Merges this tree with `other`, using `base` as base.
+    /// Merges this tree with `other`, using `base` as base. Any conflicts will
+    /// be resolved recursively if possible.
     pub fn merge(&self, base: &MergedTree, other: &MergedTree) -> BackendResult<MergedTree> {
+        self.merge_no_resolve(base, other).resolve()
+    }
+
+    /// Merges this tree with `other`, using `base` as base, without attempting
+    /// to resolve file conflicts.
+    pub fn merge_no_resolve(&self, base: &MergedTree, other: &MergedTree) -> MergedTree {
         let nested = Merge::from_vec(vec![
             self.trees.clone(),
             base.trees.clone(),
             other.trees.clone(),
         ]);
-        let flattened = MergedTree {
+        MergedTree {
             trees: nested.flatten().simplify(),
-        };
-        flattened.resolve()
+        }
     }
 }
 
