@@ -266,7 +266,7 @@ impl MergedTree {
         &self,
         matcher: &'matcher dyn Matcher,
     ) -> TreeEntriesIterator<'matcher> {
-        TreeEntriesIterator::new(self, matcher)
+        TreeEntriesIterator::new(&self.trees, matcher)
     }
 
     /// Stream of the differences between this tree and another tree.
@@ -462,12 +462,12 @@ struct TreeEntriesDirItem {
 }
 
 impl TreeEntriesDirItem {
-    fn new(tree: &MergedTree, matcher: &dyn Matcher) -> Self {
+    fn new(trees: &Merge<Tree>, matcher: &dyn Matcher) -> Self {
         let mut entries = vec![];
-        let dir = tree.dir();
-        for name in tree.names() {
+        let dir = trees.first().dir();
+        for name in all_tree_basenames(trees) {
             let path = dir.join(name);
-            let value = tree.value(name).to_merge();
+            let value = trees_value(trees, name).to_merge();
             if value.is_tree() {
                 // TODO: Handle the other cases (specific files and trees)
                 if matcher.visit(&path).is_nothing() {
@@ -484,10 +484,10 @@ impl TreeEntriesDirItem {
 }
 
 impl<'matcher> TreeEntriesIterator<'matcher> {
-    fn new(tree: &MergedTree, matcher: &'matcher dyn Matcher) -> Self {
+    fn new(trees: &Merge<Tree>, matcher: &'matcher dyn Matcher) -> Self {
         Self {
-            store: tree.store().clone(),
-            stack: vec![TreeEntriesDirItem::new(tree, matcher)],
+            store: trees.first().store().clone(),
+            stack: vec![TreeEntriesDirItem::new(trees, matcher)],
             matcher,
         }
     }
@@ -504,9 +504,8 @@ impl Iterator for TreeEntriesIterator<'_> {
                         Ok(trees) => trees.unwrap(),
                         Err(err) => return Some((path, Err(err))),
                     };
-                    let merged_tree = MergedTree { trees };
                     self.stack
-                        .push(TreeEntriesDirItem::new(&merged_tree, self.matcher));
+                        .push(TreeEntriesDirItem::new(&trees, self.matcher));
                 } else {
                     return Some((path, Ok(value)));
                 }
