@@ -1142,7 +1142,8 @@ fn has_diff_from_parent(
             return Ok(false);
         }
     }
-    let from_tree = rewrite::merge_commit_trees_without_repo(store, &index, &parents)?;
+    let from_tree =
+        rewrite::merge_commit_trees_no_resolve_without_repo(store, &index, &parents)?.resolve()?;
     let to_tree = commit.tree()?;
     let mut tree_diff = from_tree.diff_stream(&to_tree, matcher);
     async {
@@ -1163,7 +1164,8 @@ fn matches_diff_from_parent(
     files_matcher: &dyn Matcher,
 ) -> BackendResult<bool> {
     let parents: Vec<_> = commit.parents().try_collect()?;
-    let from_tree = rewrite::merge_commit_trees_without_repo(store, &index, &parents)?;
+    let from_tree =
+        rewrite::merge_commit_trees_no_resolve_without_repo(store, &index, &parents)?.resolve()?;
     let to_tree = commit.tree()?;
     let tree_diff = from_tree.diff_stream(&to_tree, files_matcher);
     // Conflicts are compared in materialized form. Alternatively, conflict

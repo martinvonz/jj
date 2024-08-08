@@ -33,13 +33,19 @@ use crate::repo_path::RepoPath;
 use crate::settings::UserSettings;
 use crate::store::Store;
 
+/// Merges `commits` and tries to resolve any conflicts recursively.
 #[instrument(skip(repo))]
 pub fn merge_commit_trees(repo: &dyn Repo, commits: &[Commit]) -> BackendResult<MergedTree> {
-    merge_commit_trees_without_repo(repo.store(), repo.index(), commits)
+    if let [commit] = commits {
+        commit.tree()
+    } else {
+        merge_commit_trees_no_resolve_without_repo(repo.store(), repo.index(), commits)?.resolve()
+    }
 }
 
+/// Merges `commits` without attempting to resolve file conflicts.
 #[instrument(skip(index))]
-pub fn merge_commit_trees_without_repo(
+pub fn merge_commit_trees_no_resolve_without_repo(
     store: &Arc<Store>,
     index: &dyn Index,
     commits: &[Commit],
@@ -58,9 +64,10 @@ pub fn merge_commit_trees_without_repo(
                 .iter()
                 .map(|id| store.get_commit(id))
                 .try_collect()?;
-            let ancestor_tree = merge_commit_trees_without_repo(store, index, &ancestors)?;
+            let ancestor_tree =
+                merge_commit_trees_no_resolve_without_repo(store, index, &ancestors)?;
             let other_tree = other_commit.tree()?;
-            new_tree = new_tree.merge(&ancestor_tree, &other_tree)?;
+            new_tree = new_tree.merge_no_resolve(&ancestor_tree, &other_tree);
         }
         Ok(new_tree)
     }
