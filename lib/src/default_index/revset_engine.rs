@@ -34,7 +34,7 @@ use crate::conflicts::{materialize_tree_value, MaterializedTreeValue};
 use crate::default_index::{AsCompositeIndex, CompositeIndex, IndexPosition};
 use crate::graph::GraphEdge;
 use crate::matchers::{Matcher, Visit};
-use crate::merged_tree::TreeDiffEntry;
+use crate::merged_tree::resolve_file_values;
 use crate::repo_path::RepoPath;
 use crate::revset::{
     ResolvedExpression, ResolvedPredicateExpression, Revset, RevsetEvaluationError,
@@ -1143,19 +1143,22 @@ fn has_diff_from_parent(
             return Ok(false);
         }
     }
-    let from_tree =
-        rewrite::merge_commit_trees_no_resolve_without_repo(store, &index, &parents)?.resolve()?;
+
+    // Conflict resolution is expensive, try that only for matched files.
+    let from_tree = rewrite::merge_commit_trees_no_resolve_without_repo(store, &index, &parents)?;
     let to_tree = commit.tree()?;
     let copy_records = Default::default();
     let mut tree_diff = from_tree.diff_stream(&to_tree, matcher, &copy_records);
     async {
-        match tree_diff.next().await {
-            Some(TreeDiffEntry { value: Ok(_), .. }) => Ok(true),
-            Some(TreeDiffEntry {
-                value: Err(err), ..
-            }) => Err(err),
-            None => Ok(false),
+        while let Some(entry) = tree_diff.next().await {
+            let (from_value, to_value) = entry.value?;
+            let from_value = resolve_file_values(store, &entry.source, from_value)?;
+            if from_value == to_value {
+                continue;
+            }
+            return Ok(true);
         }
+        Ok(false)
     }
     .block_on()
 }
@@ -1169,13 +1172,17 @@ fn matches_diff_from_parent(
 ) -> BackendResult<bool> {
     let copy_records = Default::default(); // TODO handle copy tracking
     let parents: Vec<_> = commit.parents().try_collect()?;
-    let from_tree =
-        rewrite::merge_commit_trees_no_resolve_without_repo(store, &index, &parents)?.resolve()?;
+    // Conflict resolution is expensive, try that only for matched files.
+    let from_tree = rewrite::merge_commit_trees_no_resolve_without_repo(store, &index, &parents)?;
     let to_tree = commit.tree()?;
     let mut tree_diff = from_tree.diff_stream(&to_tree, files_matcher, &copy_records);
     async {
         while let Some(entry) = tree_diff.next().await {
             let (left_value, right_value) = entry.value?;
+            let left_value = resolve_file_values(store, &entry.source, left_value)?;
+            if left_value == right_value {
+                continue;
+            }
             // Conflicts are compared in materialized form. Alternatively,
             // conflict pairs can be compared one by one. #4062
             let left_future = materialize_tree_value(store, &entry.source, left_value);
