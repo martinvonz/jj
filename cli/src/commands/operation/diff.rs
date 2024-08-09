@@ -567,6 +567,7 @@ fn show_change_diff(
                 &predecessor_tree,
                 &tree,
                 &EverythingMatcher,
+                &Default::default(),
                 width,
             )?;
         }

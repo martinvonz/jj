@@ -85,11 +85,11 @@ impl Store {
 
     pub fn get_copy_records(
         &self,
-        paths: &[RepoPathBuf],
-        roots: &[CommitId],
-        heads: &[CommitId],
+        paths: Option<&[RepoPathBuf]>,
+        root: &CommitId,
+        head: &CommitId,
     ) -> BackendResult<BoxStream<BackendResult<CopyRecord>>> {
-        self.backend.get_copy_records(paths, roots, heads)
+        self.backend.get_copy_records(paths, root, head)
     }
 
     pub fn commit_id_length(&self) -> usize {

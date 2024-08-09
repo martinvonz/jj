@@ -15,12 +15,13 @@
 #![allow(missing_docs)]
 
 use std::any::Any;
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, HashMap};
 use std::fmt::Debug;
 use std::io::Read;
 use std::time::SystemTime;
 
 use async_trait::async_trait;
+use futures::executor::block_on_stream;
 use futures::stream::BoxStream;
 use thiserror::Error;
 
@@ -153,18 +154,21 @@ pub struct Conflict {
     pub adds: Vec<ConflictTerm>,
 }
 
-/// An individual copy source.
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
-pub struct CopySource {
+/// An individual copy event, from file A -> B.
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct CopyRecord {
+    /// The destination of the copy, B.
+    pub target: RepoPathBuf,
+    /// The CommitId where the copy took place.
+    pub target_commit: CommitId,
     /// The source path a target was copied from.
     ///
     /// It is not required that the source path is different than the target
     /// path. A custom backend may choose to represent 'rollbacks' as copies
     /// from a file unto itself, from a specific prior commit.
-    pub path: RepoPathBuf,
-    pub file: FileId,
-    /// The source commit the target was copied from. If not specified, then the
-    /// parent of the target commit is the source commit. Backends may use this
+    pub source: RepoPathBuf,
+    pub source_file: FileId,
+    /// The source commit the target was copied from. Backends may use this
     /// field to implement 'integration' logic, where a source may be
     /// periodically merged into a target, similar to a branch, but the
     /// branching occurs at the file level rather than the repository level. It
@@ -172,26 +176,47 @@ pub struct CopySource {
     /// commit should avoid copy propagation on rebasing, which is desirable
     /// for 'fork' style copies.
     ///
-    /// If specified, it is required that the commit id is an ancestor of the
-    /// commit with which this copy source is associated.
-    pub commit: Option<CommitId>,
+    /// It is required that the commit id is an ancestor of the commit with
+    /// which this copy source is associated.
+    pub source_commit: CommitId,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub enum CopySources {
-    Resolved(CopySource),
-    Conflict(HashSet<CopySource>),
+/// A collection of CopyRecords.
+#[derive(Default, Debug)]
+pub struct CopyRecords {
+    records: Vec<CopyRecord>,
+    // Maps from `target` to the index of the target in `records`.  Conflicts
+    // are excluded by keeping an out of range value.
+    targets: HashMap<RepoPathBuf, usize>,
 }
 
-/// An individual copy event, from file A -> B.
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct CopyRecord {
-    /// The destination of the copy, B.
-    pub target: RepoPathBuf,
-    /// The CommitId where the copy took place.
-    pub id: CommitId,
-    /// The source of the copy, A.
-    pub sources: CopySources,
+impl CopyRecords {
+    /// Adds information about a stream of CopyRecords to `self`.  A target with
+    /// multiple conflicts is discarded and treated as not having an origin.
+    pub fn add_records(
+        &mut self,
+        stream: BoxStream<BackendResult<CopyRecord>>,
+    ) -> BackendResult<()> {
+        for record in block_on_stream(stream) {
+            let r = record?;
+            let value = self
+                .targets
+                .entry(r.target.clone())
+                .or_insert(self.records.len());
+
+            if *value != self.records.len() {
+                // TODO: handle conflicts instead of ignoring both sides.
+                *value = usize::MAX;
+            }
+            self.records.push(r);
+        }
+        Ok(())
+    }
+
+    /// Gets any copy record associated with a target path.
+    pub fn for_target(&self, target: &RepoPath) -> Option<&CopyRecord> {
+        self.targets.get(target).and_then(|&i| self.records.get(i))
+    }
 }
 
 /// Error that may occur during backend initialization.
@@ -458,7 +483,8 @@ pub trait Backend: Send + Sync + Debug {
         sign_with: Option<&mut SigningFn>,
     ) -> BackendResult<(CommitId, Commit)>;
 
-    /// Get all copy records for `paths` in the dag range `roots..heads`.
+    /// Get copy records for the dag range `root..head`.  If `paths` is empty
+    /// include all paths, otherwise restrict to only `paths`.
     ///
     /// The exact order these are returned is unspecified, but it is guaranteed
     /// to be reverse-topological. That is, for any two copy records with
@@ -471,9 +497,9 @@ pub trait Backend: Send + Sync + Debug {
     /// unnecessary resources.
     fn get_copy_records(
         &self,
-        paths: &[RepoPathBuf],
-        roots: &[CommitId],
-        heads: &[CommitId],
+        paths: Option<&[RepoPathBuf]>,
+        root: &CommitId,
+        head: &CommitId,
     ) -> BackendResult<BoxStream<BackendResult<CopyRecord>>>;
 
     /// Perform garbage collection.

@@ -56,7 +56,7 @@ use crate::matchers::{
     DifferenceMatcher, EverythingMatcher, FilesMatcher, IntersectionMatcher, Matcher, PrefixMatcher,
 };
 use crate::merge::{Merge, MergeBuilder, MergedTreeValue};
-use crate::merged_tree::{MergedTree, MergedTreeBuilder};
+use crate::merged_tree::{MergedTree, MergedTreeBuilder, TreeDiffEntry};
 use crate::object_id::ObjectId;
 use crate::op_store::{OperationId, WorkspaceId};
 use crate::repo_path::{RepoPath, RepoPathBuf, RepoPathComponent};
@@ -1340,6 +1340,7 @@ impl TreeState {
         new_tree: &MergedTree,
         matcher: &dyn Matcher,
     ) -> Result<CheckoutStats, CheckoutError> {
+        let copy_records = Default::default();
         // TODO: maybe it's better not include the skipped counts in the "intended"
         // counts
         let mut stats = CheckoutStats {
@@ -1352,16 +1353,23 @@ impl TreeState {
         let mut deleted_files = HashSet::new();
         let mut diff_stream = Box::pin(
             old_tree
-                .diff_stream(new_tree, matcher)
-                .map(|(path, diff)| async {
-                    match diff {
-                        Ok((before, after)) => {
-                            let result = materialize_tree_value(&self.store, &path, after).await;
-                            (path, result.map(|value| (before.is_present(), value)))
+                .diff_stream(new_tree, matcher, &copy_records)
+                .map(
+                    |TreeDiffEntry {
+                         source: _, // TODO handle copy tracking
+                         target: path,
+                         value: diff,
+                     }| async {
+                        match diff {
+                            Ok((before, after)) => {
+                                let result =
+                                    materialize_tree_value(&self.store, &path, after).await;
+                                (path, result.map(|value| (before.is_present(), value)))
+                            }
+                            Err(err) => (path, Err(err)),
                         }
-                        Err(err) => (path, Err(err)),
-                    }
-                })
+                    },
+                )
                 .buffered(self.store.concurrency().max(1)),
         );
         while let Some((path, data)) = diff_stream.next().await {
@@ -1444,10 +1452,16 @@ impl TreeState {
         })?;
 
         let matcher = self.sparse_matcher();
+        let copy_records = Default::default();
         let mut changed_file_states = Vec::new();
         let mut deleted_files = HashSet::new();
-        let mut diff_stream = old_tree.diff_stream(new_tree, matcher.as_ref());
-        while let Some((path, diff)) = diff_stream.next().await {
+        let mut diff_stream = old_tree.diff_stream(new_tree, matcher.as_ref(), &copy_records);
+        while let Some(TreeDiffEntry {
+            source: _, // TODO handle copy tracking
+            target: path,
+            value: diff,
+        }) = diff_stream.next().await
+        {
             let (_before, after) = diff?;
             if after.is_absent() {
                 deleted_files.insert(path);

@@ -26,7 +26,7 @@ use crate::diff::{Diff, DiffHunk};
 use crate::files;
 use crate::files::{ContentHunk, MergeResult};
 use crate::merge::{Merge, MergeBuilder, MergedTreeValue};
-use crate::merged_tree::TreeDiffStream;
+use crate::merged_tree::{TreeDiffEntry, TreeDiffStream};
 use crate::repo_path::{RepoPath, RepoPathBuf};
 use crate::store::Store;
 
@@ -325,27 +325,42 @@ fn diff_size(hunks: &[DiffHunk]) -> usize {
         .sum()
 }
 
+pub struct MaterializedTreeDiffEntry {
+    pub source: RepoPathBuf,
+    pub target: RepoPathBuf,
+    pub value: BackendResult<(MaterializedTreeValue, MaterializedTreeValue)>,
+}
+
 pub fn materialized_diff_stream<'a>(
     store: &'a Store,
     tree_diff: TreeDiffStream<'a>,
-) -> impl Stream<
-    Item = (
-        RepoPathBuf,
-        BackendResult<(MaterializedTreeValue, MaterializedTreeValue)>,
-    ),
-> + 'a {
+) -> impl Stream<Item = MaterializedTreeDiffEntry> + 'a {
     tree_diff
-        .map(|(path, diff)| async {
-            match diff {
-                Err(err) => (path, Err(err)),
-                Ok((before, after)) => {
-                    let before_future = materialize_tree_value(store, &path, before);
-                    let after_future = materialize_tree_value(store, &path, after);
-                    let values = try_join!(before_future, after_future);
-                    (path, values)
+        .map(
+            |TreeDiffEntry {
+                 source,
+                 target,
+                 value,
+             }| async {
+                match value {
+                    Err(err) => MaterializedTreeDiffEntry {
+                        source,
+                        target,
+                        value: Err(err),
+                    },
+                    Ok((before, after)) => {
+                        let before_future = materialize_tree_value(store, &source, before);
+                        let after_future = materialize_tree_value(store, &target, after);
+                        let values = try_join!(before_future, after_future);
+                        MaterializedTreeDiffEntry {
+                            source,
+                            target,
+                            value: values,
+                        }
+                    }
                 }
-            }
-        })
+            },
+        )
         .buffered((store.concurrency() / 2).max(1))
 }
 
