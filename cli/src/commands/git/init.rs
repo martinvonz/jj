@@ -238,7 +238,7 @@ pub fn maybe_set_repository_level_trunk_alias(
                 let config_path = repo.repo_path().join("config.toml");
                 write_config_value_to_file(
                     &ConfigNamePathBuf::from_iter(["revset-aliases", "trunk()"]),
-                    &format!("{default_branch}@origin"),
+                    format!("{default_branch}@origin").into(),
                     &config_path,
                 )?;
                 writeln!(

@@ -149,7 +149,7 @@ pub fn cmd_git_clone(
         let config_path = workspace_command.repo().repo_path().join("config.toml");
         write_config_value_to_file(
             &ConfigNamePathBuf::from_iter(["revset-aliases", "trunk()"]),
-            &format!("{default_branch}@{remote_name}"),
+            format!("{default_branch}@{remote_name}").into(),
             &config_path,
         )?;
         writeln!(

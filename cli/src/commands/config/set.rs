@@ -17,7 +17,9 @@ use tracing::instrument;
 use super::ConfigLevelArgs;
 use crate::cli_util::{get_new_config_file_path, CommandHelper};
 use crate::command_error::{user_error, CommandError};
-use crate::config::{write_config_value_to_file, ConfigNamePathBuf};
+use crate::config::{
+    parse_toml_value_or_bare_string, write_config_value_to_file, ConfigNamePathBuf,
+};
 use crate::ui::Ui;
 
 /// Update config file to set the given option to a given value.
@@ -44,5 +46,7 @@ pub fn cmd_config_set(
             path = config_path.display()
         )));
     }
-    write_config_value_to_file(&args.name, &args.value, &config_path)
+    // TODO(#531): Infer types based on schema (w/ --type arg to override).
+    let value = parse_toml_value_or_bare_string(&args.value);
+    write_config_value_to_file(&args.name, value, &config_path)
 }
