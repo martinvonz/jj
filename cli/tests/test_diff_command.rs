@@ -65,7 +65,7 @@ fn test_diff_basic() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
     insta::assert_snapshot!(stdout, @r###"
     M file2
-    R file1 => file3
+    R {file1 => file3}
     "###);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "--types"]);
@@ -158,7 +158,7 @@ fn test_diff_basic() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s", "--git"]);
     insta::assert_snapshot!(stdout, @r###"
     M file2
-    R file1 => file3
+    R {file1 => file3}
     diff --git a/file1 b/file1
     deleted file mode 100644
     index 257cc5642c..0000000000
@@ -186,15 +186,15 @@ fn test_diff_basic() {
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "--stat"]);
     insta::assert_snapshot!(stdout, @r###"
-    file1 | 1 -
-    file2 | 3 ++-
-    file3 | 1 +
-    3 files changed, 3 insertions(+), 2 deletions(-)
+    file2            | 3 ++-
+    {file1 => file3} | 0
+    2 files changed, 2 insertions(+), 1 deletion(-)
     "###);
 
     // Filter by glob pattern
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s", "glob:file[12]"]);
     insta::assert_snapshot!(stdout, @r###"
+    D file1
     M file2
     "###);
 
@@ -213,7 +213,7 @@ fn test_diff_basic() {
     );
     insta::assert_snapshot!(stdout.replace('\\', "/"), @r###"
     M repo/file2
-    R repo/file1 => repo/file3
+    R repo/{file1 => file3}
     "###);
     insta::assert_snapshot!(stderr.replace('\\', "/"), @r###"
     Warning: No matching entries for paths: repo/x, repo/y/z

@@ -280,12 +280,17 @@ impl<'a> DiffRenderer<'a> {
         for format in &self.formats {
             match format {
                 DiffFormat::Summary => {
-                    let tree_diff = from_tree.diff_stream(to_tree, matcher, copy_records);
-                    show_diff_summary(formatter, tree_diff, path_converter, copy_records, to_tree)?;
+                    show_diff_summary(
+                        formatter,
+                        path_converter,
+                        from_tree,
+                        to_tree,
+                        matcher,
+                        copy_records,
+                    )?;
                 }
                 DiffFormat::Stat => {
-                    let no_copy_tracking = Default::default();
-                    let tree_diff = from_tree.diff_stream(to_tree, matcher, &no_copy_tracking);
+                    let tree_diff = from_tree.diff_stream(to_tree, matcher, copy_records);
                     show_diff_stat(formatter, store, tree_diff, path_converter, width)?;
                 }
                 DiffFormat::Types => {
@@ -1146,18 +1151,26 @@ pub fn show_git_diff(
     .block_on()
 }
 
-// TODO rework this signature to pass both from_tree and to_tree explicitly
 #[instrument(skip_all)]
 pub fn show_diff_summary(
     formatter: &mut dyn Formatter,
-    mut tree_diff: TreeDiffStream,
     path_converter: &RepoPathUiConverter,
-    copy_records: &CopyRecords,
+    from_tree: &MergedTree,
     to_tree: &MergedTree,
+    matcher: &dyn Matcher,
+    copy_records: &CopyRecords,
 ) -> io::Result<()> {
+    let mut tree_diff = from_tree.diff_stream(to_tree, matcher, copy_records);
+
     let copied_sources: HashSet<&RepoPath> = copy_records
         .iter()
-        .map(|record| record.source.as_ref())
+        .filter_map(|record| {
+            if matcher.matches(&record.target) {
+                Some(record.source.as_ref())
+            } else {
+                None
+            }
+        })
         .collect();
 
     async {
@@ -1168,22 +1181,15 @@ pub fn show_diff_summary(
         }) = tree_diff.next().await
         {
             let (before, after) = diff.unwrap();
-            let after_ui_path = path_converter.format_file_path(&after_path);
             if before_path != after_path {
-                let before_ui_path = path_converter.format_file_path(&before_path);
+                let path = path_converter.format_copied_path(&before_path, &after_path);
                 if to_tree.path_value(&before_path).unwrap().is_absent() {
-                    writeln!(
-                        formatter.labeled("renamed"),
-                        "R {before_ui_path} => {after_ui_path}"
-                    )?
+                    writeln!(formatter.labeled("renamed"), "R {path}")?
                 } else {
-                    writeln!(
-                        formatter.labeled("copied"),
-                        "C {before_ui_path} => {after_ui_path}"
-                    )?
+                    writeln!(formatter.labeled("copied"), "C {path}")?
                 }
             } else {
-                let path = after_ui_path;
+                let path = path_converter.format_file_path(&after_path);
                 match (before.is_present(), after.is_present()) {
                     (true, true) => writeln!(formatter.labeled("modified"), "M {path}")?,
                     (false, true) => writeln!(formatter.labeled("added"), "A {path}")?,
@@ -1206,6 +1212,7 @@ struct DiffStat {
     path: String,
     added: usize,
     removed: usize,
+    is_deletion: bool,
 }
 
 fn get_diff_stat(
@@ -1233,6 +1240,7 @@ fn get_diff_stat(
         path,
         added,
         removed,
+        is_deletion: right_content.contents.is_empty(),
     }
 }
 
@@ -1244,21 +1252,29 @@ pub fn show_diff_stat(
     display_width: usize,
 ) -> Result<(), DiffRenderError> {
     let mut stats: Vec<DiffStat> = vec![];
+    let mut unresolved_renames = HashSet::new();
     let mut max_path_width = 0;
     let mut max_diffs = 0;
 
     let mut diff_stream = materialized_diff_stream(store, tree_diff);
     async {
         while let Some(MaterializedTreeDiffEntry {
-            source: _, // TODO handle copy tracking
-            target: repo_path,
+            source: left_path,
+            target: right_path,
             value: diff,
         }) = diff_stream.next().await
         {
             let (left, right) = diff?;
-            let path = path_converter.format_file_path(&repo_path);
-            let left_content = diff_content(&repo_path, left)?;
-            let right_content = diff_content(&repo_path, right)?;
+            let left_content = diff_content(&left_path, left)?;
+            let right_content = diff_content(&right_path, right)?;
+
+            let left_ui_path = path_converter.format_file_path(&left_path);
+            let path = if left_path == right_path {
+                left_ui_path
+            } else {
+                unresolved_renames.insert(left_ui_path);
+                path_converter.format_copied_path(&left_path, &right_path)
+            };
             max_path_width = max(max_path_width, path.width());
             let stat = get_diff_stat(path, &left_content, &right_content);
             max_diffs = max(max_diffs, stat.added + stat.removed);
@@ -1283,10 +1299,15 @@ pub fn show_diff_stat(
 
     let mut total_added = 0;
     let mut total_removed = 0;
-    let total_files = stats.len();
+    let mut total_files = 0;
     for stat in &stats {
+        if stat.is_deletion && unresolved_renames.contains(&stat.path) {
+            continue;
+        }
+
         total_added += stat.added;
         total_removed += stat.removed;
+        total_files += 1;
         let bar_added = (stat.added as f64 * factor).ceil() as usize;
         let bar_removed = (stat.removed as f64 * factor).ceil() as usize;
         // replace start of path with ellipsis if the path is too long

@@ -1394,14 +1394,18 @@ fn builtin_tree_diff_methods<'repo>() -> CommitTemplateBuildMethodFnMap<'repo, T
             let path_converter = language.path_converter;
             let template = self_property
                 .map(move |diff| {
+                    // TODO: don't pass separate copies of from_tree/to_tree/matcher
+                    let from_tree = diff.from_tree.clone();
                     let to_tree = diff.to_tree.clone();
-                    diff.into_formatted(move |formatter, _store, tree_diff| {
+                    let matcher = diff.matcher.clone();
+                    diff.into_formatted(move |formatter, _store, _tree_diff| {
                         diff_util::show_diff_summary(
                             formatter,
-                            tree_diff,
                             path_converter,
-                            &Default::default(),
+                            &from_tree,
                             &to_tree,
+                            matcher.as_ref(),
+                            &Default::default(),
                         )
                     })
                 })

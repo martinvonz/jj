@@ -15,7 +15,7 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### New features
 
 * The following diff formats now include information about copies and moves:
-  `--color-words`, `--summary`
+  `--color-words`, `--stat`, `--summary`
 
 * A tilde (`~`) at the start of the path will now be expanded to the user's home
   directory when configuring a `signing.key` for SSH commit signing.

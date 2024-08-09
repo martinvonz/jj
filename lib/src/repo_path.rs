@@ -21,6 +21,7 @@ use std::iter::FusedIterator;
 use std::ops::Deref;
 use std::path::{Component, Path, PathBuf};
 
+use itertools::Itertools;
 use ref_cast::{ref_cast_custom, RefCastCustom};
 use thiserror::Error;
 
@@ -502,6 +503,75 @@ impl RepoPathUiConverter {
         }
     }
 
+    /// Format a copy from `source` to `target` for display in the UI by
+    /// extracting common components and producing something like
+    /// "common/prefix/{source => target}/common/suffix".
+    ///
+    /// If `source == target`, returns `format_file_path(source)`.
+    pub fn format_copied_path(&self, source: &RepoPath, target: &RepoPath) -> String {
+        if source == target {
+            return self.format_file_path(source);
+        }
+        let mut formatted = String::new();
+        match self {
+            RepoPathUiConverter::Fs { cwd, base } => {
+                let source_path = file_util::relative_path(cwd, &source.to_fs_path(base));
+                let target_path = file_util::relative_path(cwd, &target.to_fs_path(base));
+
+                let source_components = source_path.components().collect_vec();
+                let target_components = target_path.components().collect_vec();
+
+                let prefix_count = source_components
+                    .iter()
+                    .zip(target_components.iter())
+                    .take_while(|(source_component, target_component)| {
+                        source_component == target_component
+                    })
+                    .count()
+                    .min(source_components.len().saturating_sub(1))
+                    .min(target_components.len().saturating_sub(1));
+
+                let suffix_count = source_components
+                    .iter()
+                    .rev()
+                    .zip(target_components.iter().rev())
+                    .take_while(|(source_component, target_component)| {
+                        source_component == target_component
+                    })
+                    .count()
+                    .min(source_components.len().saturating_sub(1))
+                    .min(target_components.len().saturating_sub(1));
+
+                fn format_components(c: &[std::path::Component]) -> String {
+                    c.iter().collect::<PathBuf>().to_str().unwrap().to_owned()
+                }
+
+                if prefix_count > 0 {
+                    formatted.push_str(&format_components(&source_components[0..prefix_count]));
+                    formatted.push_str(std::path::MAIN_SEPARATOR_STR);
+                }
+                formatted.push('{');
+                formatted.push_str(&format_components(
+                    &source_components
+                        [prefix_count..(source_components.len() - suffix_count).max(prefix_count)],
+                ));
+                formatted.push_str(" => ");
+                formatted.push_str(&format_components(
+                    &target_components
+                        [prefix_count..(target_components.len() - suffix_count).max(prefix_count)],
+                ));
+                formatted.push('}');
+                if suffix_count > 0 {
+                    formatted.push_str(std::path::MAIN_SEPARATOR_STR);
+                    formatted.push_str(&format_components(
+                        &source_components[source_components.len() - suffix_count..],
+                    ));
+                }
+            }
+        }
+        formatted
+    }
+
     /// Parses a path from the UI.
     ///
     /// It's up to the implementation whether absolute paths are allowed, and
@@ -857,5 +927,39 @@ mod tests {
             RepoPathBuf::parse_fs_path(&cwd_path, &wc_path, "repo/dir/file").as_deref(),
             Ok(repo_path("dir/file"))
         );
+    }
+
+    #[test]
+    fn test_format_copied_path() {
+        let ui = RepoPathUiConverter::Fs {
+            cwd: PathBuf::from("."),
+            base: PathBuf::from("."),
+        };
+
+        let format = |before, after| {
+            ui.format_copied_path(repo_path(before), repo_path(after))
+                .replace("\\", "/")
+        };
+
+        assert_eq!(format("one/two/three", "one/two/three"), "one/two/three");
+        assert_eq!(format("one/two", "one/two/three"), "one/{two => two/three}");
+        assert_eq!(format("one/two", "zero/one/two"), "{one => zero/one}/two");
+        assert_eq!(format("one/two/three", "one/two"), "one/{two/three => two}");
+        assert_eq!(format("zero/one/two", "one/two"), "{zero/one => one}/two");
+        assert_eq!(
+            format("one/two", "one/two/three/one/two"),
+            "one/{ => two/three/one}/two"
+        );
+
+        assert_eq!(format("two/three", "four/three"), "{two => four}/three");
+        assert_eq!(
+            format("one/two/three", "one/four/three"),
+            "one/{two => four}/three"
+        );
+        assert_eq!(format("one/two/three", "one/three"), "one/{two => }/three");
+        assert_eq!(format("one/two", "one/four"), "one/{two => four}");
+        assert_eq!(format("two", "four"), "{two => four}");
+        assert_eq!(format("file1", "file2"), "{file1 => file2}");
+        assert_eq!(format("file-1", "file-2"), "{file-1 => file-2}");
     }
 }
