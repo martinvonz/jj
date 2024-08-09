@@ -51,3 +51,9 @@ merge-args = ["--wait", "--merge", "$left", "$right", "$base", "$output"]
 # markers. Unfortunately, it does not seem to be able to output conflict markers when
 # the user only resolves some of the conflicts.
 merge-tool-edits-conflict-markers = true
+
+[merge-tools.vscodium]
+program = "codium"
+merge-args = ["--wait", "--merge", "$left", "$right", "$base", "$output"]
+merge-tool-edits-conflict-markers = true
+
