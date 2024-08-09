@@ -29,7 +29,7 @@ use futures::{Stream, TryStreamExt};
 use itertools::{EitherOrBoth, Itertools};
 
 use crate::backend;
-use crate::backend::{BackendResult, MergedTreeId, TreeId, TreeValue};
+use crate::backend::{BackendResult, CopyRecord, CopyRecords, MergedTreeId, TreeId, TreeValue};
 use crate::matchers::{EverythingMatcher, Matcher};
 use crate::merge::{Merge, MergeBuilder, MergedTreeValue};
 use crate::repo_path::{RepoPath, RepoPathBuf, RepoPathComponent};
@@ -283,6 +283,7 @@ impl MergedTree {
         &self,
         other: &MergedTree,
         matcher: &'matcher dyn Matcher,
+        copy_records: &'matcher CopyRecords,
     ) -> TreeDiffStream<'matcher> {
         let concurrency = self.store().concurrency();
         if concurrency <= 1 {
@@ -290,12 +291,14 @@ impl MergedTree {
                 &self.trees,
                 &other.trees,
                 matcher,
+                copy_records,
             )))
         } else {
             Box::pin(TreeDiffStreamImpl::new(
                 self.clone(),
                 other.clone(),
                 matcher,
+                copy_records,
                 concurrency,
             ))
         }
@@ -315,16 +318,43 @@ impl MergedTree {
     }
 }
 
+/// A single entry in a tree diff.
+pub struct TreeDiffEntry {
+    /// The source path.
+    pub source: RepoPathBuf,
+    /// The target path.
+    pub target: RepoPathBuf,
+    /// The resolved tree values if available.
+    pub value: BackendResult<(MergedTreeValue, MergedTreeValue)>,
+}
+
+impl TreeDiffEntry {
+    fn adjust_for_copy_tracking(
+        self,
+        source_tree: &MergedTree,
+        copy_records: &CopyRecords,
+    ) -> TreeDiffEntry {
+        let Some(CopyRecord { source, .. }) = copy_records.for_target(&self.target) else {
+            return self;
+        };
+
+        Self {
+            source: source.clone(),
+            target: self.target,
+            value: match self.value {
+                Ok((_, target_value)) => source_tree
+                    .path_value(source)
+                    .map(|source_value| (source_value, target_value)),
+                Err(e) => Err(e),
+            },
+        }
+    }
+}
+
 /// Type alias for the result from `MergedTree::diff_stream()`. We use a
 /// `Stream` instead of an `Iterator` so high-latency backends (e.g. cloud-based
 /// ones) can fetch trees asynchronously.
-pub type TreeDiffStream<'matcher> = BoxStream<
-    'matcher,
-    (
-        RepoPathBuf,
-        BackendResult<(MergedTreeValue, MergedTreeValue)>,
-    ),
->;
+pub type TreeDiffStream<'matcher> = BoxStream<'matcher, TreeDiffEntry>;
 
 fn all_tree_basenames(trees: &Merge<Tree>) -> impl Iterator<Item = &RepoPathComponent> {
     trees
@@ -599,11 +629,13 @@ impl Iterator for ConflictIterator {
 pub struct TreeDiffIterator<'matcher> {
     store: Arc<Store>,
     stack: Vec<TreeDiffItem>,
+    source: MergedTree,
     matcher: &'matcher dyn Matcher,
+    copy_records: &'matcher CopyRecords,
 }
 
 struct TreeDiffDirItem {
-    entries: Vec<(RepoPathBuf, MergedTreeValue, MergedTreeValue)>,
+    entries: Vec<TreeDiffEntry>,
 }
 
 enum TreeDiffItem {
@@ -617,7 +649,12 @@ enum TreeDiffItem {
 impl<'matcher> TreeDiffIterator<'matcher> {
     /// Creates a iterator over the differences between two trees. Generally
     /// prefer `MergedTree::diff()` of calling this directly.
-    pub fn new(trees1: &Merge<Tree>, trees2: &Merge<Tree>, matcher: &'matcher dyn Matcher) -> Self {
+    pub fn new(
+        trees1: &Merge<Tree>,
+        trees2: &Merge<Tree>,
+        matcher: &'matcher dyn Matcher,
+        copy_records: &'matcher CopyRecords,
+    ) -> Self {
         assert!(Arc::ptr_eq(trees1.first().store(), trees2.first().store()));
         let root_dir = RepoPath::root();
         let mut stack = Vec::new();
@@ -629,7 +666,9 @@ impl<'matcher> TreeDiffIterator<'matcher> {
         Self {
             store: trees1.first().store().clone(),
             stack,
+            source: MergedTree::new(trees1.clone()),
             matcher,
+            copy_records,
         }
     }
 
@@ -644,6 +683,88 @@ impl<'matcher> TreeDiffIterator<'matcher> {
         } else {
             Ok(Merge::resolved(Tree::null(store.clone(), dir.to_owned())))
         }
+    }
+
+    fn next_impl(&mut self) -> Option<TreeDiffEntry> {
+        while let Some(top) = self.stack.last_mut() {
+            let entry = match top {
+                TreeDiffItem::Dir(dir) => match dir.entries.pop() {
+                    Some(entry) => entry,
+                    None => {
+                        self.stack.pop().unwrap();
+                        continue;
+                    }
+                },
+                TreeDiffItem::File(..) => {
+                    if let TreeDiffItem::File(path, before, after) = self.stack.pop().unwrap() {
+                        return Some(TreeDiffEntry {
+                            source: path.clone(),
+                            target: path,
+                            value: Ok((before, after)),
+                        });
+                    } else {
+                        unreachable!();
+                    }
+                }
+            };
+
+            let path = entry.target;
+            let (before, after) = entry.value.unwrap();
+
+            let tree_before = before.is_tree();
+            let tree_after = after.is_tree();
+            let post_subdir = if tree_before || tree_after {
+                let (before_tree, after_tree) = match (
+                    Self::trees(&self.store, &path, &before),
+                    Self::trees(&self.store, &path, &after),
+                ) {
+                    (Ok(before_tree), Ok(after_tree)) => (before_tree, after_tree),
+                    (Err(before_err), _) => {
+                        return Some(TreeDiffEntry {
+                            source: path.clone(),
+                            target: path,
+                            value: Err(before_err),
+                        })
+                    }
+                    (_, Err(after_err)) => {
+                        return Some(TreeDiffEntry {
+                            source: path.clone(),
+                            target: path,
+                            value: Err(after_err),
+                        })
+                    }
+                };
+                let subdir =
+                    TreeDiffDirItem::from_trees(&path, &before_tree, &after_tree, self.matcher);
+                self.stack.push(TreeDiffItem::Dir(subdir));
+                self.stack.len() - 1
+            } else {
+                self.stack.len()
+            };
+            if !tree_before && tree_after {
+                if before.is_present() {
+                    return Some(TreeDiffEntry {
+                        source: path.clone(),
+                        target: path,
+                        value: Ok((before, Merge::absent())),
+                    });
+                }
+            } else if tree_before && !tree_after {
+                if after.is_present() {
+                    self.stack.insert(
+                        post_subdir,
+                        TreeDiffItem::File(path, Merge::absent(), after),
+                    );
+                }
+            } else if !tree_before && !tree_after {
+                return Some(TreeDiffEntry {
+                    source: path.clone(),
+                    target: path,
+                    value: Ok((before, after)),
+                });
+            }
+        }
+        None
     }
 }
 
@@ -680,7 +801,11 @@ impl TreeDiffDirItem {
             if before.is_absent() && after.is_absent() {
                 continue;
             }
-            entries.push((path, before, after));
+            entries.push(TreeDiffEntry {
+                source: path.clone(),
+                target: path,
+                value: Ok((before, after)),
+            });
         }
         entries.reverse();
         Self { entries }
@@ -688,70 +813,19 @@ impl TreeDiffDirItem {
 }
 
 impl Iterator for TreeDiffIterator<'_> {
-    type Item = (
-        RepoPathBuf,
-        BackendResult<(MergedTreeValue, MergedTreeValue)>,
-    );
+    type Item = TreeDiffEntry;
 
     fn next(&mut self) -> Option<Self::Item> {
-        while let Some(top) = self.stack.last_mut() {
-            let (path, before, after) = match top {
-                TreeDiffItem::Dir(dir) => match dir.entries.pop() {
-                    Some(entry) => entry,
-                    None => {
-                        self.stack.pop().unwrap();
-                        continue;
-                    }
-                },
-                TreeDiffItem::File(..) => {
-                    if let TreeDiffItem::File(path, before, after) = self.stack.pop().unwrap() {
-                        return Some((path, Ok((before, after))));
-                    } else {
-                        unreachable!();
-                    }
-                }
-            };
-
-            let tree_before = before.is_tree();
-            let tree_after = after.is_tree();
-            let post_subdir = if tree_before || tree_after {
-                let before_tree = match Self::trees(&self.store, &path, &before) {
-                    Ok(tree) => tree,
-                    Err(err) => return Some((path, Err(err))),
-                };
-                let after_tree = match Self::trees(&self.store, &path, &after) {
-                    Ok(tree) => tree,
-                    Err(err) => return Some((path, Err(err))),
-                };
-                let subdir =
-                    TreeDiffDirItem::from_trees(&path, &before_tree, &after_tree, self.matcher);
-                self.stack.push(TreeDiffItem::Dir(subdir));
-                self.stack.len() - 1
-            } else {
-                self.stack.len()
-            };
-            if !tree_before && tree_after {
-                if before.is_present() {
-                    return Some((path, Ok((before, Merge::absent()))));
-                }
-            } else if tree_before && !tree_after {
-                if after.is_present() {
-                    self.stack.insert(
-                        post_subdir,
-                        TreeDiffItem::File(path, Merge::absent(), after),
-                    );
-                }
-            } else if !tree_before && !tree_after {
-                return Some((path, Ok((before, after))));
-            }
-        }
-        None
+        self.next_impl()
+            .map(|diff_entry| diff_entry.adjust_for_copy_tracking(&self.source, self.copy_records))
     }
 }
 
 /// Stream of differences between two trees.
 pub struct TreeDiffStreamImpl<'matcher> {
     matcher: &'matcher dyn Matcher,
+    copy_records: &'matcher CopyRecords,
+    source_tree: MergedTree,
     /// Pairs of tree values that may or may not be ready to emit, sorted in the
     /// order we want to emit them. If either side is a tree, there will be
     /// a corresponding entry in `pending_trees`.
@@ -826,10 +900,13 @@ impl<'matcher> TreeDiffStreamImpl<'matcher> {
         tree1: MergedTree,
         tree2: MergedTree,
         matcher: &'matcher dyn Matcher,
+        copy_records: &'matcher CopyRecords,
         max_concurrent_reads: usize,
     ) -> Self {
         let mut stream = Self {
             matcher,
+            copy_records,
+            source_tree: tree1.clone(),
             items: BTreeMap::new(),
             pending_trees: VecDeque::new(),
             max_concurrent_reads,
@@ -957,15 +1034,11 @@ impl<'matcher> TreeDiffStreamImpl<'matcher> {
             }
         }
     }
-}
 
-impl Stream for TreeDiffStreamImpl<'_> {
-    type Item = (
-        RepoPathBuf,
-        BackendResult<(MergedTreeValue, MergedTreeValue)>,
-    );
-
-    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+    fn poll_next_impl(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Option<TreeDiffEntry>> {
         // Go through all pending tree futures and poll them.
         self.poll_tree_futures(cx);
 
@@ -975,12 +1048,34 @@ impl Stream for TreeDiffStreamImpl<'_> {
                 Err(_) => {
                     // File or tree with error
                     let (key, result) = entry.remove_entry();
-                    Poll::Ready(Some((key.path, result)))
+                    Poll::Ready(Some(match result {
+                        Err(err) => TreeDiffEntry {
+                            source: key.path.clone(),
+                            target: key.path,
+                            value: Err(err),
+                        },
+                        Ok((before, after)) => TreeDiffEntry {
+                            source: key.path.clone(),
+                            target: key.path,
+                            value: Ok((before, after)),
+                        },
+                    }))
                 }
                 Ok((before, after)) if !before.is_tree() && !after.is_tree() => {
                     // A diff with no trees involved
                     let (key, result) = entry.remove_entry();
-                    Poll::Ready(Some((key.path, result)))
+                    Poll::Ready(Some(match result {
+                        Err(err) => TreeDiffEntry {
+                            source: key.path.clone(),
+                            target: key.path,
+                            value: Err(err),
+                        },
+                        Ok((before, after)) => TreeDiffEntry {
+                            source: key.path.clone(),
+                            target: key.path,
+                            value: Ok((before, after)),
+                        },
+                    }))
                 }
                 _ => {
                     // The first entry has a tree on at least one side (before or after). We need to
@@ -992,6 +1087,18 @@ impl Stream for TreeDiffStreamImpl<'_> {
         } else {
             Poll::Ready(None)
         }
+    }
+}
+
+impl Stream for TreeDiffStreamImpl<'_> {
+    type Item = TreeDiffEntry;
+
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        self.as_mut().poll_next_impl(cx).map(|option| {
+            option.map(|diff_entry| {
+                diff_entry.adjust_for_copy_tracking(&self.source_tree, self.copy_records)
+            })
+        })
     }
 }
 

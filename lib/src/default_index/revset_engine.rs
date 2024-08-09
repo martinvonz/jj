@@ -30,10 +30,13 @@ use super::rev_walk::{EagerRevWalk, PeekableRevWalk, RevWalk, RevWalkBuilder};
 use super::revset_graph_iterator::RevsetGraphWalk;
 use crate::backend::{BackendError, BackendResult, ChangeId, CommitId, MillisSinceEpoch};
 use crate::commit::Commit;
-use crate::conflicts::{materialized_diff_stream, MaterializedTreeValue};
+use crate::conflicts::{
+    materialized_diff_stream, MaterializedTreeDiffEntry, MaterializedTreeValue,
+};
 use crate::default_index::{AsCompositeIndex, CompositeIndex, IndexPosition};
 use crate::graph::GraphEdge;
 use crate::matchers::{Matcher, Visit};
+use crate::merged_tree::TreeDiffEntry;
 use crate::repo_path::RepoPath;
 use crate::revset::{
     ResolvedExpression, ResolvedPredicateExpression, Revset, RevsetEvaluationError,
@@ -1144,11 +1147,14 @@ fn has_diff_from_parent(
     }
     let from_tree = rewrite::merge_commit_trees_without_repo(store, &index, &parents)?;
     let to_tree = commit.tree()?;
-    let mut tree_diff = from_tree.diff_stream(&to_tree, matcher);
+    let copy_records = Default::default();
+    let mut tree_diff = from_tree.diff_stream(&to_tree, matcher, &copy_records);
     async {
         match tree_diff.next().await {
-            Some((_, Ok(_))) => Ok(true),
-            Some((_, Err(err))) => Err(err),
+            Some(TreeDiffEntry { value: Ok(_), .. }) => Ok(true),
+            Some(TreeDiffEntry {
+                value: Err(err), ..
+            }) => Err(err),
             None => Ok(false),
         }
     }
@@ -1162,15 +1168,21 @@ fn matches_diff_from_parent(
     text_pattern: &StringPattern,
     files_matcher: &dyn Matcher,
 ) -> BackendResult<bool> {
+    let copy_records = Default::default();
     let parents: Vec<_> = commit.parents().try_collect()?;
     let from_tree = rewrite::merge_commit_trees_without_repo(store, &index, &parents)?;
     let to_tree = commit.tree()?;
-    let tree_diff = from_tree.diff_stream(&to_tree, files_matcher);
+    let tree_diff = from_tree.diff_stream(&to_tree, files_matcher, &copy_records);
     // Conflicts are compared in materialized form. Alternatively, conflict
     // pairs can be compared one by one. #4062
     let mut diff_stream = materialized_diff_stream(store, tree_diff);
     async {
-        while let Some((path, diff)) = diff_stream.next().await {
+        while let Some(MaterializedTreeDiffEntry {
+            source: _,
+            target: path,
+            value: diff,
+        }) = diff_stream.next().await
+        {
             let (left_value, right_value) = diff?;
             let left_content = to_file_content(&path, left_value)?;
             let right_content = to_file_content(&path, right_value)?;

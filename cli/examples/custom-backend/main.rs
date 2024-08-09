@@ -177,11 +177,11 @@ impl Backend for JitBackend {
 
     fn get_copy_records(
         &self,
-        paths: &[RepoPathBuf],
-        roots: &[CommitId],
-        heads: &[CommitId],
+        paths: Option<&[RepoPathBuf]>,
+        root: &CommitId,
+        head: &CommitId,
     ) -> BackendResult<BoxStream<BackendResult<CopyRecord>>> {
-        self.inner.get_copy_records(paths, roots, heads)
+        self.inner.get_copy_records(paths, root, head)
     }
 
     fn gc(&self, index: &dyn Index, keep_newer: SystemTime) -> BackendResult<()> {

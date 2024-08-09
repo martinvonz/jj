@@ -12,9 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use itertools::Itertools;
+use jj_lib::backend::CopyRecords;
+use jj_lib::commit::Commit;
+use jj_lib::repo::Repo;
+use jj_lib::rewrite::merge_commit_trees;
 use tracing::instrument;
 
-use crate::cli_util::{print_unmatched_explicit_paths, CommandHelper, RevisionArg};
+use crate::cli_util::{
+    print_unmatched_explicit_paths, CommandHelper, RevisionArg, WorkspaceCommandHelper,
+};
 use crate::command_error::CommandError;
 use crate::diff_util::DiffFormatArgs;
 use crate::ui::Ui;
@@ -52,6 +59,13 @@ pub(crate) struct DiffArgs {
     format: DiffFormatArgs,
 }
 
+fn resolve_revision(
+    workspace_command: &WorkspaceCommandHelper,
+    r: &Option<RevisionArg>,
+) -> Result<Commit, CommandError> {
+    workspace_command.resolve_single_rev(r.as_ref().unwrap_or(&RevisionArg::AT))
+}
+
 #[instrument(skip_all)]
 pub(crate) fn cmd_diff(
     ui: &mut Ui,
@@ -59,31 +73,48 @@ pub(crate) fn cmd_diff(
     args: &DiffArgs,
 ) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
-    let from_tree;
-    let to_tree;
-    if args.from.is_some() || args.to.is_some() {
-        let from =
-            workspace_command.resolve_single_rev(args.from.as_ref().unwrap_or(&RevisionArg::AT))?;
-        from_tree = from.tree()?;
-        let to =
-            workspace_command.resolve_single_rev(args.to.as_ref().unwrap_or(&RevisionArg::AT))?;
-        to_tree = to.tree()?;
-    } else {
-        let commit = workspace_command
-            .resolve_single_rev(args.revision.as_ref().unwrap_or(&RevisionArg::AT))?;
-        from_tree = commit.parent_tree(workspace_command.repo().as_ref())?;
-        to_tree = commit.tree()?
-    }
+    let diff_renderer = workspace_command.diff_renderer_for(&args.format)?;
     let fileset_expression = workspace_command.parse_file_patterns(&args.paths)?;
     let matcher = fileset_expression.to_matcher();
-    let diff_renderer = workspace_command.diff_renderer_for(&args.format)?;
+
+    let from_tree;
+    let to_tree;
+    let mut copy_records = CopyRecords::default();
+
+    if args.from.is_some() || args.to.is_some() {
+        let from = resolve_revision(&workspace_command, &args.from)?;
+        let to = resolve_revision(&workspace_command, &args.to)?;
+        from_tree = from.tree()?;
+        to_tree = to.tree()?;
+
+        copy_records.add_records(workspace_command.repo().store().get_copy_records(
+            None,
+            from.id(),
+            to.id(),
+        )?)?;
+    } else {
+        let to = resolve_revision(&workspace_command, &args.revision)?;
+        let parents: Vec<_> = to.parents().try_collect()?;
+        from_tree = merge_commit_trees(workspace_command.repo().as_ref(), &parents)?;
+        to_tree = to.tree()?;
+
+        for p in &parents {
+            copy_records.add_records(workspace_command.repo().store().get_copy_records(
+                None,
+                p.id(),
+                to.id(),
+            )?)?;
+        }
+    }
+
     ui.request_pager();
     diff_renderer.show_diff(
         ui,
         ui.stdout_formatter().as_mut(),
         &from_tree,
         &to_tree,
-        matcher.as_ref(),
+        &matcher,
+        &copy_records,
         ui.term_width(),
     )?;
     print_unmatched_explicit_paths(

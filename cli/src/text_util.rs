@@ -15,6 +15,8 @@
 use std::borrow::Cow;
 use std::{cmp, io};
 
+use itertools::Itertools;
+use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthChar as _;
 
 use crate::formatter::{FormatRecorder, Formatter};
@@ -33,6 +35,33 @@ pub fn split_email(email: &str) -> (&str, Option<&str>) {
     } else {
         (email, None)
     }
+}
+
+pub fn render_copied_path(source: &str, target: &str) -> String {
+    if source == target {
+        return target.into();
+    }
+    let prefix = UnicodeSegmentation::split_word_bound_indices(source)
+        .zip(UnicodeSegmentation::split_word_bound_indices(target))
+        .take_while_inclusive(|((_, s), (_, t))| s == t)
+        .last()
+        .map(|((s, _), (t, _))| (s, t))
+        .unwrap_or((0, 0));
+    let suffix = UnicodeSegmentation::split_word_bound_indices(source)
+        .rev()
+        .zip(UnicodeSegmentation::split_word_bound_indices(target).rev())
+        .take_while(|((_, s), (_, t))| s == t)
+        .last()
+        .map(|((s, _), (t, _))| (s, t))
+        .unwrap_or((source.len(), target.len()));
+
+    format!(
+        "{}{{{} => {}}}{}",
+        &source[0..prefix.0],
+        &source[prefix.0..suffix.0.max(prefix.0)],
+        &target[prefix.1..suffix.1.max(prefix.1)],
+        &source[suffix.0..]
+    )
 }
 
 /// Shortens `text` to `max_width` by removing leading characters. `ellipsis` is
@@ -628,5 +657,31 @@ mod tests {
             format_plain_text(|formatter| write_wrapped(formatter, &recorder, 10)),
             "foo\n",
         );
+    }
+
+    #[test]
+    fn test_render_copied_path() {
+        assert_eq!(
+            render_copied_path("one/two/three", "one/two/three"),
+            "one/two/three"
+        );
+        assert_eq!(
+            render_copied_path("two/three", "four/three"),
+            "{two => four}/three"
+        );
+        assert_eq!(
+            render_copied_path("one/two/three", "one/four/three"),
+            "one/{two => four}/three"
+        );
+        assert_eq!(
+            render_copied_path("one/two/three", "one/three"),
+            "one/{two => }/three"
+        );
+        assert_eq!(
+            render_copied_path("one/two", "one/four"),
+            "one/{two => four}"
+        );
+        assert_eq!(render_copied_path("two", "four"), "{two => four}");
+        assert_eq!(render_copied_path("file1", "file2"), "{file1 => file2}");
     }
 }

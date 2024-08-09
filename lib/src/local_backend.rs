@@ -304,9 +304,9 @@ impl Backend for LocalBackend {
 
     fn get_copy_records(
         &self,
-        _paths: &[RepoPathBuf],
-        _roots: &[CommitId],
-        _heads: &[CommitId],
+        _paths: Option<&[RepoPathBuf]>,
+        _root: &CommitId,
+        _head: &CommitId,
     ) -> BackendResult<BoxStream<BackendResult<CopyRecord>>> {
         Err(BackendError::Unsupported("get_copy_records".into()))
     }

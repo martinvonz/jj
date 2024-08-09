@@ -199,6 +199,7 @@ fn show_predecessor_patch(
         &predecessor_tree,
         &tree,
         &EverythingMatcher,
+        &Default::default(),
         width,
     )?;
     Ok(())

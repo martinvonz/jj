@@ -197,11 +197,11 @@ fn test_sparse_commit() {
     // tree.
     let modified_tree = test_workspace.snapshot().unwrap();
     let diff: Vec<_> = tree
-        .diff_stream(&modified_tree, &EverythingMatcher)
+        .diff_stream(&modified_tree, &EverythingMatcher, &Default::default())
         .collect()
         .block_on();
     assert_eq!(diff.len(), 1);
-    assert_eq!(diff[0].0.as_ref(), dir1_file1_path);
+    assert_eq!(diff[0].target.as_ref(), dir1_file1_path);
 
     // Set sparse patterns to also include dir2/
     let mut locked_ws = test_workspace
@@ -219,12 +219,12 @@ fn test_sparse_commit() {
     // updated in the tree.
     let modified_tree = test_workspace.snapshot().unwrap();
     let diff: Vec<_> = tree
-        .diff_stream(&modified_tree, &EverythingMatcher)
+        .diff_stream(&modified_tree, &EverythingMatcher, &Default::default())
         .collect()
         .block_on();
     assert_eq!(diff.len(), 2);
-    assert_eq!(diff[0].0.as_ref(), dir1_file1_path);
-    assert_eq!(diff[1].0.as_ref(), dir2_file1_path);
+    assert_eq!(diff[0].target.as_ref(), dir1_file1_path);
+    assert_eq!(diff[1].target.as_ref(), dir2_file1_path);
 }
 
 #[test]
