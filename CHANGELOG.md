@@ -23,6 +23,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed bugs
 
+* Release binaries for Intel Macs have been restored. They were previously
+  broken due to using a sunset version of GitHub's macOS runners (but nobody had
+  previously complained.)
+
 ## [0.20.0] - 2024-08-07
 
 ### Note to packagers
