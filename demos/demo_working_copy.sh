@@ -6,11 +6,11 @@ new_tmp_dir
 {
     jj git clone https://github.com/octocat/Hello-World
     cd Hello-World
-    jj abandon test
+    jj abandon --ignore-immutable test@origin
     jj branch forget test
-    jj abandon octocat-patch-1
+    jj abandon --ignore-immutable octocat-patch-1@origin
     jj branch forget octocat-patch-1
-}> /dev/null
+}> /dev/null 2>&1
 
 comment "We are in the octocat/Hello-World repo.
 We have an empty working copy on top of master:"
@@ -31,7 +31,7 @@ run_command "jj branch create goodbye"
 run_command "jj log"
 
 comment "Start working on a new change off of master:"
-run_command "jj co master"
+run_command "jj new master"
 comment "Note that we were told the working copy is now empty (AKA clean). The
 \"goodbye\" change stayed in its own commit:"
 

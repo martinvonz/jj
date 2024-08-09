@@ -203,8 +203,9 @@ add functionality that cannot easily be added to the Git backend.
 
 The Git backend is fully featured and maintained, and allows you to use Jujutsu
 as an alternative interface to Git. The commits you create will look like
-regular Git commits. You can always switch back to Git. The Git support uses the
-[libgit2](https://libgit2.org/) C library.
+regular Git commits. You can fetch branches from a regular Git remote and push
+branches to the remote. You can always switch back to Git. The Git support uses
+the [libgit2](https://libgit2.org/) C library.
 
 
 <img src="demos/git_compat.png" />
