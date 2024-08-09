@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use std::cmp::max;
-use std::collections::{HashMap, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::ops::Range;
 use std::path::{Path, PathBuf};
 use std::{io, mem};
@@ -284,8 +284,7 @@ impl<'a> DiffRenderer<'a> {
                     show_diff_summary(formatter, tree_diff, path_converter)?;
                 }
                 DiffFormat::Stat => {
-                    let no_copy_tracking = Default::default();
-                    let tree_diff = from_tree.diff_stream(to_tree, matcher, &no_copy_tracking);
+                    let tree_diff = from_tree.diff_stream(to_tree, matcher, copy_records);
                     show_diff_stat(formatter, store, tree_diff, path_converter, width)?;
                 }
                 DiffFormat::Types => {
@@ -1226,6 +1225,7 @@ struct DiffStat {
     path: String,
     added: usize,
     removed: usize,
+    is_deletion: bool,
 }
 
 fn get_diff_stat(
@@ -1253,6 +1253,7 @@ fn get_diff_stat(
         path,
         added,
         removed,
+        is_deletion: right_content.contents.is_empty(),
     }
 }
 
@@ -1264,21 +1265,28 @@ pub fn show_diff_stat(
     display_width: usize,
 ) -> Result<(), DiffRenderError> {
     let mut stats: Vec<DiffStat> = vec![];
+    let mut unresolved_renames = HashSet::<String>::new();
     let mut max_path_width = 0;
     let mut max_diffs = 0;
 
     let mut diff_stream = materialized_diff_stream(store, tree_diff);
     async {
         while let Some(MaterializedTreeDiffEntry {
-            source: _,
-            target: repo_path,
+            source: left_path,
+            target: right_path,
             value: diff,
         }) = diff_stream.next().await
         {
             let (left, right) = diff?;
-            let path = path_converter.format_file_path(&repo_path);
-            let left_content = diff_content(&repo_path, left)?;
-            let right_content = diff_content(&repo_path, right)?;
+            let left_content = diff_content(&left_path, left)?;
+            let right_content = diff_content(&right_path, right)?;
+
+            let left_ui_path = path_converter.format_file_path(&left_path);
+            let right_ui_path = path_converter.format_file_path(&right_path);
+            if left_ui_path != right_ui_path {
+                unresolved_renames.insert(left_ui_path.clone());
+            }
+            let path = text_util::render_copied_path(&left_ui_path, &right_ui_path);
             max_path_width = max(max_path_width, path.width());
             let stat = get_diff_stat(path, &left_content, &right_content);
             max_diffs = max(max_diffs, stat.added + stat.removed);
@@ -1303,10 +1311,15 @@ pub fn show_diff_stat(
 
     let mut total_added = 0;
     let mut total_removed = 0;
-    let total_files = stats.len();
+    let mut total_files = 0;
     for stat in &stats {
+        if stat.is_deletion && unresolved_renames.contains(&stat.path) {
+            continue;
+        }
+
         total_added += stat.added;
         total_removed += stat.removed;
+        total_files += 1;
         let bar_added = (stat.added as f64 * factor).ceil() as usize;
         let bar_removed = (stat.removed as f64 * factor).ceil() as usize;
         // replace start of path with ellipsis if the path is too long

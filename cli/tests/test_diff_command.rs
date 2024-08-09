@@ -189,10 +189,9 @@ fn test_diff_basic() {
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "--stat"]);
     insta::assert_snapshot!(stdout, @r###"
-    file1 | 1 -
-    file2 | 3 ++-
-    file3 | 1 +
-    3 files changed, 3 insertions(+), 2 deletions(-)
+    file2            | 3 ++-
+    {file1 => file3} | 0
+    2 files changed, 2 insertions(+), 1 deletion(-)
     "###);
 
     // Filter by glob pattern

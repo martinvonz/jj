@@ -1905,6 +1905,7 @@ dependencies = [
  "tracing",
  "tracing-chrome",
  "tracing-subscriber",
+ "unicode-segmentation",
  "unicode-width",
 ]
 
