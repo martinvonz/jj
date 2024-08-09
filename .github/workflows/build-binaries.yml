@@ -13,7 +13,7 @@ jobs:
       fail-fast: false
 
       matrix:
-        build: [linux-x86_64-musl, linux-x86_64-gnu, linux-aarch64-musl, linux-aarch64-gnu, macos-aarch64, win-x86_64]
+        build: [linux-x86_64-musl, linux-x86_64-gnu, linux-aarch64-musl, linux-aarch64-gnu, macos-x86_64, macos-aarch64, win-x86_64]
         include:
         - build: linux-x86_64-musl
           os: ubuntu-24.04
@@ -27,6 +27,9 @@ jobs:
         - build: linux-aarch64-gnu
           os: ubuntu-24.04
           target: aarch64-unknown-linux-gnu
+        - build: macos-x86_64
+          os: macos-13
+          target: x86_64-apple-darwin
         - build: macos-aarch64
           os: macos-14
           target: aarch64-apple-darwin
