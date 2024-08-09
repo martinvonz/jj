@@ -44,6 +44,7 @@ merge-tool-edits-conflict-markers = true
 # https://gist.github.com/ilyagr/5d6339fb7dac5e7ab06fe1561ec62d45
 edit-args = ["-f", "-d", "$left", "$right"]
 
+# if you change the settings for vscode, please do the same for vscodium
 [merge-tools.vscode]
 program = "code"
 merge-args = ["--wait", "--merge", "$left", "$right", "$base", "$output"]
@@ -51,3 +52,10 @@ merge-args = ["--wait", "--merge", "$left", "$right", "$base", "$output"]
 # markers. Unfortunately, it does not seem to be able to output conflict markers when
 # the user only resolves some of the conflicts.
 merge-tool-edits-conflict-markers = true
+
+# free/libre distribution of vscode, functionally more or less the same
+[merge-tools.vscodium]
+program = "codium"
+merge-args = ["--wait", "--merge", "$left", "$right", "$base", "$output"]
+merge-tool-edits-conflict-markers = true
+
