@@ -25,6 +25,9 @@ include = [
     "/tests/cli-reference@.md.snap"
 ]
 
+[lints]
+workspace = true
+
 [[bin]]
 name = "jj"
 path = "src/main.rs"

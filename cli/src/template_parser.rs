@@ -28,6 +28,12 @@ use pest::Parser;
 use pest_derive::Parser;
 use thiserror::Error;
 
+#[cfg(buck_build)]
+#[derive(Parser)]
+#[grammar = "cli/src/template.pest"]
+struct TemplateParser;
+
+#[cfg(not(buck_build))]
 #[derive(Parser)]
 #[grammar = "template.pest"]
 struct TemplateParser;

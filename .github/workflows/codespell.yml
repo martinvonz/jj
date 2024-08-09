@@ -18,5 +18,5 @@ jobs:
         with:
           check_filenames: true
           check_hidden: true
-          skip: ./target,./.jj,*.lock
+          skip: ./target,./.jj,*.lock,./buck/third-party/rust/BUILD
           ignore_words_list: crate,NotIn
