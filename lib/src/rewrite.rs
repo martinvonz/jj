@@ -53,7 +53,7 @@ pub fn merge_commit_trees_without_repo(
             .map(|commit| commit.id().clone())
             .collect_vec();
         for (i, other_commit) in commits.iter().enumerate().skip(1) {
-            let ancestor_ids = index.common_ancestors(&commit_ids[0..i], &[commit_ids[i].clone()]);
+            let ancestor_ids = index.common_ancestors(&commit_ids[0..i], &commit_ids[i..][..1]);
             let ancestors: Vec<_> = ancestor_ids
                 .iter()
                 .map(|id| store.get_commit(id))
