@@ -1155,6 +1155,7 @@ fn show_structured_conflict_diff_hunks(
         };
     // TODO: print_header with custom character, use +- for added/removed diffs
     // or maybe *% for something.
+    // TODO: Print "Part 1 of 5" as part of the header?
     let print_header = |formatter: &mut dyn Formatter, header: &str| {
         writeln!(formatter.labeled("hunk_header"), "=========== {header}")
     };
@@ -1208,7 +1209,7 @@ fn show_structured_conflict_diff_hunks(
                         conflict_add,
                         conflict_remove,
                     } => {
-                        print_header(formatter, "Added Diff")?;
+                        print_header(formatter, "Added a Diff (+1 Base and +1 Side)")?;
                         print_indented(
                             formatter,
                             |formatter| {
@@ -1222,7 +1223,7 @@ fn show_structured_conflict_diff_hunks(
                         conflict_add,
                         conflict_remove,
                     } => {
-                        print_header(formatter, "Removed Diff")?;
+                        print_header(formatter, "Removed a Diff (-1 Base and -1 Side)")?;
                         print_indented(
                             formatter,
                             |formatter| {
@@ -1236,22 +1237,22 @@ fn show_structured_conflict_diff_hunks(
                         left_version,
                         right_version,
                     } => {
-                        print_header(formatter, "Changed Add")?;
+                        print_header(formatter, "Changed one of the Sides")?;
                         show_diff(formatter, left_version, right_version)?;
                     }
                     DiffExplanationAtom::ChangedConflictRemove {
                         left_version,
                         right_version,
                     } => {
-                        print_header(formatter, "Changed Remove")?;
+                        print_header(formatter, "Changed one of the Bases")?;
                         show_diff(formatter, left_version, right_version)?;
                     }
                     DiffExplanationAtom::UnchangedConflictAdd(text) => {
-                        print_header(formatter, "Unchanged Conflict Add")?;
+                        print_header(formatter, "Unchanged conflict Side")?;
                         formatter.write_all(text)?;
                     }
                     DiffExplanationAtom::UnchangedConflictRemove(text) => {
-                        print_header(formatter, "Unchanged Conflict Remove")?;
+                        print_header(formatter, "Unchanged conflict Base")?;
                         formatter.write_all(text)?;
                     }
                 };
