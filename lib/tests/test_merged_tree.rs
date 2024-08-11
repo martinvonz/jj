@@ -19,8 +19,7 @@ use jj_lib::files::MergeResult;
 use jj_lib::matchers::{EverythingMatcher, FilesMatcher, Matcher, PrefixMatcher};
 use jj_lib::merge::{Merge, MergeBuilder, MergedTreeValue};
 use jj_lib::merged_tree::{
-    MergedTree, MergedTreeBuilder, MergedTreeVal, TreeDiffEntry, TreeDiffIterator,
-    TreeDiffStreamImpl,
+    MergedTree, MergedTreeBuilder, TreeDiffEntry, TreeDiffIterator, TreeDiffStreamImpl,
 };
 use jj_lib::repo::Repo;
 use jj_lib::repo_path::{RepoPath, RepoPathBuf, RepoPathComponent};
@@ -163,52 +162,62 @@ fn test_from_legacy_tree() {
     let merged_tree = MergedTree::from_legacy_tree(tree.clone()).unwrap();
     assert_eq!(
         merged_tree.value(RepoPathComponent::new("missing")),
-        MergedTreeVal::Resolved(None)
+        Merge::absent()
     );
     // file1: regular file without conflicts
     assert_eq!(
-        merged_tree.value(file1_path.components().next().unwrap()),
-        MergedTreeVal::Resolved(Some(&TreeValue::File {
+        merged_tree
+            .value(file1_path.components().next().unwrap())
+            .cloned(),
+        Merge::normal(TreeValue::File {
             id: file1_id.clone(),
             executable: false,
-        }))
+        })
     );
     // file2: 3-way conflict
     assert_eq!(
-        merged_tree.value(file2_path.components().next().unwrap()),
-        MergedTreeVal::Conflict(Merge::from_removes_adds(
+        merged_tree
+            .value(file2_path.components().next().unwrap())
+            .cloned(),
+        Merge::from_removes_adds(
             vec![Some(file_value(&file2_v1_id)), None],
             vec![
                 Some(file_value(&file2_v2_id)),
                 Some(file_value(&file2_v3_id)),
                 None,
             ],
-        ))
+        )
     );
     // file3: modify/delete conflict
     assert_eq!(
-        merged_tree.value(file3_path.components().next().unwrap()),
-        MergedTreeVal::Conflict(Merge::from_removes_adds(
+        merged_tree
+            .value(file3_path.components().next().unwrap())
+            .cloned(),
+        Merge::from_removes_adds(
             vec![Some(file_value(&file3_v1_id)), None],
             vec![Some(file_value(&file3_v2_id)), None, None],
-        ))
+        )
     );
     // file4: add/add conflict
     assert_eq!(
-        merged_tree.value(file4_path.components().next().unwrap()),
-        MergedTreeVal::Conflict(Merge::from_removes_adds(
+        merged_tree
+            .value(file4_path.components().next().unwrap())
+            .cloned(),
+        Merge::from_removes_adds(
             vec![None, None],
             vec![
                 Some(file_value(&file4_v1_id)),
                 Some(file_value(&file4_v2_id)),
                 None
             ],
-        ))
+        )
     );
     // file5: 5-way conflict
     assert_eq!(
-        merged_tree.value(file5_path.components().next().unwrap()),
-        MergedTreeVal::Conflict(Merge::from_removes_adds(
+        merged_tree
+            .value(file5_path.components().next().unwrap())
+            .cloned(),
+        Merge::from_removes_adds(
             vec![
                 Some(file_value(&file5_v1_id)),
                 Some(file_value(&file5_v2_id)),
@@ -218,12 +227,12 @@ fn test_from_legacy_tree() {
                 Some(file_value(&file5_v4_id)),
                 Some(file_value(&file5_v5_id)),
             ],
-        ))
+        )
     );
     // file6: directory without conflicts
     assert_eq!(
         merged_tree.value(dir1_basename),
-        MergedTreeVal::Resolved(tree.value(dir1_basename))
+        Merge::resolved(tree.value(dir1_basename))
     );
 
     // Create the merged tree by starting from an empty merged tree and adding
