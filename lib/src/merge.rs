@@ -539,13 +539,21 @@ impl MergedTreeValue {
             .collect();
         backend::Conflict { removes, adds }
     }
+}
 
+impl<T> Merge<Option<T>>
+where
+    T: Borrow<TreeValue>,
+{
     /// Whether this merge should be recursed into when doing directory walks.
     pub fn is_tree(&self) -> bool {
         self.is_present()
-            && self
-                .iter()
-                .all(|value| matches!(value, Some(TreeValue::Tree(_)) | None))
+            && self.iter().all(|value| {
+                matches!(
+                    borrow_tree_value(value.as_ref()),
+                    Some(TreeValue::Tree(_)) | None
+                )
+            })
     }
 
     /// If this merge contains only files or absent entries, returns a merge of
@@ -553,7 +561,7 @@ impl MergedTreeValue {
     /// `Merge::with_new_file_ids()` to produce a new merge with the original
     /// executable bits preserved.
     pub fn to_file_merge(&self) -> Option<Merge<Option<FileId>>> {
-        self.maybe_map(|term| match term {
+        self.maybe_map(|term| match borrow_tree_value(term.as_ref()) {
             None => Some(None),
             Some(TreeValue::File { id, executable: _ }) => Some(Some(id.clone())),
             _ => None,
@@ -563,51 +571,13 @@ impl MergedTreeValue {
     /// If this merge contains only files or absent entries, returns a merge of
     /// the files' executable bits.
     pub fn to_executable_merge(&self) -> Option<Merge<bool>> {
-        self.maybe_map(|term| match term {
+        self.maybe_map(|term| match borrow_tree_value(term.as_ref()) {
             None => Some(false),
             Some(TreeValue::File { id: _, executable }) => Some(*executable),
             _ => None,
         })
     }
 
-    /// Creates a new merge with the file ids from the given merge. In other
-    /// words, only the executable bits from `self` will be preserved.
-    pub fn with_new_file_ids(&self, file_ids: &Merge<Option<FileId>>) -> Self {
-        assert_eq!(self.values.len(), file_ids.values.len());
-        let values = zip(self.iter(), file_ids.iter())
-            .map(|(tree_value, file_id)| {
-                if let Some(TreeValue::File { id: _, executable }) = tree_value {
-                    Some(TreeValue::File {
-                        id: file_id.as_ref().unwrap().clone(),
-                        executable: *executable,
-                    })
-                } else {
-                    assert!(tree_value.is_none());
-                    assert!(file_id.is_none());
-                    None
-                }
-            })
-            .collect();
-        Merge { values }
-    }
-
-    /// Give a summary description of the conflict's "removes" and "adds"
-    pub fn describe(&self, file: &mut dyn Write) -> std::io::Result<()> {
-        file.write_all(b"Conflict:\n")?;
-        for term in self.removes().flatten() {
-            file.write_all(format!("  Removing {}\n", describe_conflict_term(term)).as_bytes())?;
-        }
-        for term in self.adds().flatten() {
-            file.write_all(format!("  Adding {}\n", describe_conflict_term(term)).as_bytes())?;
-        }
-        Ok(())
-    }
-}
-
-impl<T> Merge<Option<T>>
-where
-    T: Borrow<TreeValue>,
-{
     /// If every non-`None` term of a `MergedTreeValue`
     /// is a `TreeValue::Tree`, this converts it to
     /// a `Merge<Tree>`, with empty trees instead of
@@ -634,6 +604,45 @@ where
         } else {
             Ok(None)
         }
+    }
+
+    /// Creates a new merge with the file ids from the given merge. In other
+    /// words, only the executable bits from `self` will be preserved.
+    pub fn with_new_file_ids(&self, file_ids: &Merge<Option<FileId>>) -> Merge<Option<TreeValue>> {
+        assert_eq!(self.values.len(), file_ids.values.len());
+        let values = zip(self.iter(), file_ids.iter())
+            .map(|(tree_value, file_id)| {
+                if let Some(TreeValue::File { id: _, executable }) =
+                    borrow_tree_value(tree_value.as_ref())
+                {
+                    Some(TreeValue::File {
+                        id: file_id.as_ref().unwrap().clone(),
+                        executable: *executable,
+                    })
+                } else {
+                    assert!(tree_value.is_none());
+                    assert!(file_id.is_none());
+                    None
+                }
+            })
+            .collect();
+        Merge { values }
+    }
+
+    /// Give a summary description of the conflict's "removes" and "adds"
+    pub fn describe(&self, file: &mut dyn Write) -> std::io::Result<()> {
+        file.write_all(b"Conflict:\n")?;
+        for term in self.removes().flatten() {
+            file.write_all(
+                format!("  Removing {}\n", describe_conflict_term(term.borrow())).as_bytes(),
+            )?;
+        }
+        for term in self.adds().flatten() {
+            file.write_all(
+                format!("  Adding {}\n", describe_conflict_term(term.borrow())).as_bytes(),
+            )?;
+        }
+        Ok(())
     }
 }
 
