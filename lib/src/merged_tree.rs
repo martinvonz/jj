@@ -389,7 +389,7 @@ fn all_tree_entries(
 /// than `tree.entries_non_recursive()`.
 fn all_merged_tree_entries(
     trees: &Merge<Tree>,
-) -> impl Iterator<Item = (&RepoPathComponent, MergedTreeValue)> {
+) -> impl Iterator<Item = (&RepoPathComponent, Merge<Option<&TreeValue>>)> {
     let mut entries_iters = trees
         .iter()
         .map(|tree| tree.entries_non_recursive().peekable())
@@ -404,7 +404,7 @@ fn all_merged_tree_entries(
             .iter_mut()
             .map(|iter| {
                 let entry = iter.next_if(|entry| entry.name() == next_name)?;
-                Some(entry.value().clone())
+                Some(entry.value())
             })
             .collect();
         Some((next_name, values.build()))
@@ -456,7 +456,7 @@ fn merge_trees(merge: &Merge<Tree>) -> BackendResult<Merge<Tree>> {
     let mut conflicts = vec![];
     for (basename, path_merge) in all_merged_tree_entries(merge) {
         let path = dir.join(basename);
-        let path_merge = merge_tree_values(store, &path, path_merge)?;
+        let path_merge = merge_tree_values(store, &path, &path_merge)?;
         match path_merge.into_resolved() {
             Ok(value) => {
                 new_tree.set_or_remove(basename, value);
@@ -493,10 +493,10 @@ fn merge_trees(merge: &Merge<Tree>) -> BackendResult<Merge<Tree>> {
 fn merge_tree_values(
     store: &Arc<Store>,
     path: &RepoPath,
-    values: MergedTreeValue,
+    values: &Merge<Option<&TreeValue>>,
 ) -> BackendResult<MergedTreeValue> {
     if let Some(resolved) = values.resolve_trivial() {
-        return Ok(Merge::resolved(resolved.clone()));
+        return Ok(Merge::resolved(resolved.cloned()));
     }
 
     if let Some(trees) = values.to_tree_merge(store, path)? {
@@ -517,7 +517,7 @@ fn merge_tree_values(
             Ok(Merge::normal(resolved))
         } else {
             // Failed to merge the files, or the paths are not files
-            Ok(values)
+            Ok(values.map(|value| value.cloned()))
         }
     }
 }
