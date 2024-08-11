@@ -381,7 +381,7 @@ fn all_tree_entries(
         let iter = all_merged_tree_entries(trees).map(|(name, values)| {
             let value = match values.resolve_trivial() {
                 Some(resolved) => MergedTreeVal::Resolved(*resolved),
-                None => MergedTreeVal::Conflict(values.map(|value| value.cloned())),
+                None => MergedTreeVal::Conflict(values.cloned()),
             };
             (name, value)
         });
@@ -441,7 +441,7 @@ fn trees_value<'a>(trees: &'a Merge<Tree>, basename: &RepoPathComponent) -> Merg
     if let Some(resolved) = value.resolve_trivial() {
         return MergedTreeVal::Resolved(*resolved);
     }
-    MergedTreeVal::Conflict(value.map(|x| x.cloned()))
+    MergedTreeVal::Conflict(value.cloned())
 }
 
 /// The returned conflict will either be resolved or have the same number of
@@ -522,7 +522,7 @@ fn merge_tree_values(
             Ok(Merge::normal(resolved))
         } else {
             // Failed to merge the files, or the paths are not files
-            Ok(values.map(|value| value.cloned()))
+            Ok(values.cloned())
         }
     }
 }
