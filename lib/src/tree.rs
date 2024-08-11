@@ -28,7 +28,7 @@ use crate::backend::{
 };
 use crate::files::MergeResult;
 use crate::matchers::{EverythingMatcher, Matcher};
-use crate::merge::{trivial_merge, Merge};
+use crate::merge::{trivial_merge, Merge, MergedTreeVal};
 use crate::object_id::ObjectId;
 use crate::repo_path::{RepoPath, RepoPathBuf, RepoPathComponent};
 use crate::store::Store;
@@ -404,7 +404,7 @@ fn merge_tree_value(
 pub fn try_resolve_file_conflict(
     store: &Store,
     filename: &RepoPath,
-    conflict: &Merge<Option<&TreeValue>>,
+    conflict: &MergedTreeVal,
 ) -> BackendResult<Option<TreeValue>> {
     // If there are any non-file or any missing parts in the conflict, we can't
     // merge it. We check early so we don't waste time reading file contents if

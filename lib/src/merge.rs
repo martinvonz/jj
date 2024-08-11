@@ -509,6 +509,9 @@ impl<T: ContentHash> ContentHash for Merge<T> {
     }
 }
 
+/// Borrowed `MergedTreeValue`.
+pub type MergedTreeVal<'a> = Merge<Option<&'a TreeValue>>;
+
 /// The value at a given path in a commit. It depends on the context whether it
 /// can be absent (`Merge::is_absent()`). For example, when getting the value at
 /// a specific path, it may be, but when iterating over entries in a tree, it
