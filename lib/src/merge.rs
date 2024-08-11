@@ -617,15 +617,10 @@ where
         store: &Arc<Store>,
         dir: &RepoPath,
     ) -> BackendResult<Option<Merge<Tree>>> {
-        let tree_id_merge = self.maybe_map(|term| match term {
+        let tree_id_merge = self.maybe_map(|term| match borrow_tree_value(term.as_ref()) {
             None => Some(None),
-            Some(value) => {
-                if let TreeValue::Tree(id) = value.borrow() {
-                    Some(Some(id))
-                } else {
-                    None
-                }
-            }
+            Some(TreeValue::Tree(id)) => Some(Some(id)),
+            Some(_) => None,
         });
         if let Some(tree_id_merge) = tree_id_merge {
             let get_tree = |id: &Option<&TreeId>| -> BackendResult<Tree> {
@@ -640,6 +635,10 @@ where
             Ok(None)
         }
     }
+}
+
+fn borrow_tree_value<T: Borrow<TreeValue> + ?Sized>(term: Option<&T>) -> Option<&TreeValue> {
+    term.map(|value| value.borrow())
 }
 
 fn describe_conflict_term(value: &TreeValue) -> String {
