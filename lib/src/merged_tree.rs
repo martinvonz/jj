@@ -384,6 +384,33 @@ fn all_tree_entries(
     }
 }
 
+/// Suppose the given `trees` aren't resolved, iterates `(name, values)` pairs
+/// non-recursively. This also works if `trees` are resolved, but is more costly
+/// than `tree.entries_non_recursive()`.
+fn all_merged_tree_entries(
+    trees: &Merge<Tree>,
+) -> impl Iterator<Item = (&RepoPathComponent, MergedTreeValue)> {
+    let mut entries_iters = trees
+        .iter()
+        .map(|tree| tree.entries_non_recursive().peekable())
+        .collect_vec();
+    iter::from_fn(move || {
+        let next_name = entries_iters
+            .iter_mut()
+            .filter_map(|iter| iter.peek())
+            .map(|entry| entry.name())
+            .min()?;
+        let values: MergeBuilder<_> = entries_iters
+            .iter_mut()
+            .map(|iter| {
+                let entry = iter.next_if(|entry| entry.name() == next_name)?;
+                Some(entry.value().clone())
+            })
+            .collect();
+        Some((next_name, values.build()))
+    })
+}
+
 fn merged_tree_entry_diff<'a>(
     trees1: &'a Merge<Tree>,
     trees2: &'a Merge<Tree>,
@@ -427,10 +454,7 @@ fn merge_trees(merge: &Merge<Tree>) -> BackendResult<Merge<Tree>> {
     // any conflicts.
     let mut new_tree = backend::Tree::default();
     let mut conflicts = vec![];
-    // TODO: add all_tree_entries()-like function that doesn't change the arity
-    // of conflicts?
-    for basename in all_tree_basenames(merge) {
-        let path_merge = merge.map(|tree| tree.value(basename).cloned());
+    for (basename, path_merge) in all_merged_tree_entries(merge) {
         let path = dir.join(basename);
         let path_merge = merge_tree_values(store, &path, path_merge)?;
         match path_merge.into_resolved() {
