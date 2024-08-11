@@ -464,6 +464,13 @@ impl<T> Merge<Option<T>> {
     }
 }
 
+impl<T: Clone> Merge<Option<&T>> {
+    /// Creates a new merge by cloning inner `Option<&T>`s.
+    pub fn cloned(&self) -> Merge<Option<T>> {
+        self.map(|value| value.cloned())
+    }
+}
+
 impl<T> Merge<Merge<T>> {
     /// Flattens a nested merge into a regular merge.
     ///
