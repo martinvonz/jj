@@ -378,8 +378,13 @@ fn all_tree_entries(
             .map(|entry| (entry.name(), MergedTreeVal::Resolved(Some(entry.value()))));
         Either::Left(iter)
     } else {
-        // TODO: reimplement as entries iterator?
-        let iter = all_tree_basenames(trees).map(|name| (name, trees_value(trees, name)));
+        let iter = all_merged_tree_entries(trees).map(|(name, values)| {
+            let value = match values.resolve_trivial() {
+                Some(resolved) => MergedTreeVal::Resolved(*resolved),
+                None => MergedTreeVal::Conflict(values.map(|value| value.cloned())),
+            };
+            (name, value)
+        });
         Either::Right(iter)
     }
 }
