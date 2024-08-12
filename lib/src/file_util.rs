@@ -69,6 +69,16 @@ pub fn remove_dir_contents(dirname: &Path) -> Result<(), PathError> {
     Ok(())
 }
 
+/// Expands "~/" to "$HOME/".
+pub fn expand_home_path(path_str: &str) -> PathBuf {
+    if let Some(remainder) = path_str.strip_prefix("~/") {
+        if let Ok(home_dir_str) = std::env::var("HOME") {
+            return PathBuf::from(home_dir_str).join(remainder);
+        }
+    }
+    PathBuf::from(path_str)
+}
+
 /// Turns the given `to` path into relative path starting from the `from` path.
 ///
 /// Both `from` and `to` paths are supposed to be absolute and normalized in the

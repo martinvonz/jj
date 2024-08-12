@@ -419,13 +419,3 @@ export or their "parent" branches."#,
     }
     Ok(())
 }
-
-/// Expands "~/" to "$HOME/" as Git seems to do for e.g. core.excludesFile.
-pub fn expand_git_path(path_str: &str) -> PathBuf {
-    if let Some(remainder) = path_str.strip_prefix("~/") {
-        if let Ok(home_dir_str) = std::env::var("HOME") {
-            return PathBuf::from(home_dir_str).join(remainder);
-        }
-    }
-    PathBuf::from(path_str)
-}
