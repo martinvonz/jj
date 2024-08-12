@@ -441,9 +441,18 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#from-source_1" class="md-nav__link">
+  <a href="#from-source-vendored-openssl" class="md-nav__link">
     <span class="md-ellipsis">
-      From Source
+      From Source, Vendored OpenSSL
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#from-source-homebrew-openssl" class="md-nav__link">
+    <span class="md-ellipsis">
+      From Source, Homebrew OpenSSL
     </span>
   </a>
   
@@ -1634,9 +1643,18 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#from-source_1" class="md-nav__link">
+  <a href="#from-source-vendored-openssl" class="md-nav__link">
     <span class="md-ellipsis">
-      From Source
+      From Source, Vendored OpenSSL
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#from-source-homebrew-openssl" class="md-nav__link">
+    <span class="md-ellipsis">
+      From Source, Homebrew OpenSSL
     </span>
   </a>
   
@@ -1818,8 +1836,22 @@ nix<span class="w"> </span>profile<span class="w"> </span>install<span class="w"
 brew<span class="w"> </span>install<span class="w"> </span>jj
 </code></pre></div>
 <h3 id="mac">Mac<a class="headerlink" href="#mac" title="Permanent link">&para;</a></h3>
-<h4 id="from-source_1">From Source<a class="headerlink" href="#from-source_1" title="Permanent link">&para;</a></h4>
-<p>You may need to run some or all of these:</p>
+<h4 id="from-source-vendored-openssl">From Source, Vendored OpenSSL<a class="headerlink" href="#from-source-vendored-openssl" title="Permanent link">&para;</a></h4>
+<p>You may need to run:</p>
+<div class="highlight"><pre><span></span><code>xcode-select<span class="w"> </span>--install
+</code></pre></div>
+<p>Now run either:</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># To install the *prerelease* version from the main branch</span>
+cargo<span class="w"> </span>install<span class="w"> </span>--git<span class="w"> </span>https://github.com/martinvonz/jj.git<span class="w"> </span><span class="se">\</span>
+<span class="w">     </span>--features<span class="w"> </span>vendored-openssl<span class="w"> </span>--locked<span class="w"> </span>--bin<span class="w"> </span>jj<span class="w"> </span>jj-cli
+</code></pre></div>
+<p>or:</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># To install the latest release</span>
+cargo<span class="w"> </span>install<span class="w"> </span>--features<span class="w"> </span>vendored-openssl<span class="w"> </span>-locked<span class="w"> </span>--bin<span class="w"> </span>jj<span class="w"> </span>jj-cli
+</code></pre></div>
+<h4 id="from-source-homebrew-openssl">From Source, Homebrew OpenSSL<a class="headerlink" href="#from-source-homebrew-openssl" title="Permanent link">&para;</a></h4>
+<p>You will need <a href="https://brew.sh/">Homebrew</a> installed. You may then need to run
+some or all of these:</p>
 <div class="highlight"><pre><span></span><code>xcode-select<span class="w"> </span>--install
 brew<span class="w"> </span>install<span class="w"> </span>openssl
 brew<span class="w"> </span>install<span class="w"> </span>pkg-config
