@@ -18,18 +18,21 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use futures::StreamExt;
+use indexmap::{IndexMap, IndexSet};
 use itertools::Itertools;
 use pollster::FutureExt;
 use tracing::instrument;
 
 use crate::backend::{BackendError, BackendResult, CommitId, MergedTreeId};
-use crate::commit::Commit;
+use crate::commit::{Commit, CommitIteratorExt};
 use crate::commit_builder::CommitBuilder;
+use crate::dag_walk;
 use crate::index::Index;
 use crate::matchers::{Matcher, Visit};
 use crate::merged_tree::{MergedTree, MergedTreeBuilder, TreeDiffEntry};
 use crate::repo::{MutableRepo, Repo};
 use crate::repo_path::RepoPath;
+use crate::revset::{RevsetEvaluationError, RevsetExpression, RevsetIteratorExt};
 use crate::settings::UserSettings;
 use crate::store::Store;
 
@@ -436,4 +439,362 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         }
         self.mut_repo.update_rewritten_references(self.settings)
     }
+}
+
+pub struct MoveCommitsStats {
+    /// The number of commits in the target set which were rebased.
+    pub num_rebased_targets: u32,
+    /// The number of descendant commits which were rebased.
+    pub num_rebased_descendants: u32,
+    /// The number of commits for which rebase was skipped, due to the commit
+    /// already being in place.
+    pub num_skipped_rebases: u32,
+}
+
+/// Moves `target_commits` from their current location to a new location in the
+/// graph, given by the set of `new_parent_ids` and `new_children`.
+/// The roots of `target_commits` are rebased onto the new parents, while the
+/// new children are rebased onto the heads of `target_commits`.
+/// This assumes that `target_commits` and `new_children` can be rewritten, and
+/// there will be no cycles in the resulting graph.
+/// `target_commits` should be in reverse topological order.
+pub fn move_commits(
+    settings: &UserSettings,
+    mut_repo: &mut MutableRepo,
+    new_parent_ids: &[CommitId],
+    new_children: &[Commit],
+    target_commits: &[Commit],
+) -> BackendResult<MoveCommitsStats> {
+    if target_commits.is_empty() {
+        return Ok(MoveCommitsStats {
+            num_rebased_targets: 0,
+            num_rebased_descendants: 0,
+            num_skipped_rebases: 0,
+        });
+    }
+
+    let target_commit_ids: HashSet<_> = target_commits.iter().ids().cloned().collect();
+
+    let connected_target_commits: Vec<_> =
+        RevsetExpression::commits(target_commits.iter().ids().cloned().collect_vec())
+            .connected()
+            .evaluate_programmatic(mut_repo)
+            .map_err(|err| match err {
+                RevsetEvaluationError::StoreError(err) => err,
+                RevsetEvaluationError::Other(_) => panic!("Unexpected revset error: {err}"),
+            })?
+            .iter()
+            .commits(mut_repo.store())
+            .try_collect()?;
+
+    // Commits in the target set should only have other commits in the set as
+    // parents, except the roots of the set, which persist their original
+    // parents.
+    // If a commit in the set has a parent which is not in the set, but has
+    // an ancestor which is in the set, then the commit will have that ancestor
+    // as a parent.
+    let mut target_commits_internal_parents: HashMap<CommitId, Vec<CommitId>> = HashMap::new();
+    for commit in connected_target_commits.iter().rev() {
+        // The roots of the set will not have any parents found in
+        // `target_commits_internal_parents`, and will be stored in
+        // `target_commits_internal_parents` as an empty vector.
+        let mut new_parents = vec![];
+        for old_parent in commit.parent_ids() {
+            if target_commit_ids.contains(old_parent) {
+                new_parents.push(old_parent.clone());
+            } else if let Some(parents) = target_commits_internal_parents.get(old_parent) {
+                new_parents.extend(parents.iter().cloned());
+            }
+        }
+        target_commits_internal_parents.insert(commit.id().clone(), new_parents);
+    }
+    target_commits_internal_parents.retain(|id, _| target_commit_ids.contains(id));
+
+    // Compute the roots of `target_commits`.
+    let target_roots: HashSet<_> = target_commits_internal_parents
+        .iter()
+        .filter(|(_, parents)| parents.is_empty())
+        .map(|(commit_id, _)| commit_id.clone())
+        .collect();
+
+    // If a commit outside the target set has a commit in the target set as a
+    // parent, then - after the transformation - it should have that commit's
+    // ancestors which are not in the target set as parents.
+    let mut target_commits_external_parents: HashMap<CommitId, IndexSet<CommitId>> = HashMap::new();
+    for commit in target_commits.iter().rev() {
+        let mut new_parents = IndexSet::new();
+        for old_parent in commit.parent_ids() {
+            if let Some(parents) = target_commits_external_parents.get(old_parent) {
+                new_parents.extend(parents.iter().cloned());
+            } else {
+                new_parents.insert(old_parent.clone());
+            }
+        }
+        target_commits_external_parents.insert(commit.id().clone(), new_parents);
+    }
+
+    // If the new parents include a commit in the target set, replace it with the
+    // commit's ancestors which are outside the set.
+    // e.g. `jj rebase -r A --before A`
+    let new_parent_ids: Vec<_> = new_parent_ids
+        .iter()
+        .flat_map(|parent_id| {
+            if let Some(parent_ids) = target_commits_external_parents.get(parent_id) {
+                parent_ids.iter().cloned().collect_vec()
+            } else {
+                [parent_id.clone()].to_vec()
+            }
+        })
+        .collect();
+
+    // If the new children include a commit in the target set, replace it with the
+    // commit's descendants which are outside the set.
+    // e.g. `jj rebase -r A --after A`
+    let new_children: Vec<_> = if new_children
+        .iter()
+        .any(|child| target_commit_ids.contains(child.id()))
+    {
+        let target_commits_descendants: Vec<_> =
+            RevsetExpression::commits(target_commit_ids.iter().cloned().collect_vec())
+                .union(
+                    &RevsetExpression::commits(target_commit_ids.iter().cloned().collect_vec())
+                        .children(),
+                )
+                .evaluate_programmatic(mut_repo)
+                .map_err(|err| match err {
+                    RevsetEvaluationError::StoreError(err) => err,
+                    RevsetEvaluationError::Other(_) => panic!("Unexpected revset error: {err}"),
+                })?
+                .iter()
+                .commits(mut_repo.store())
+                .try_collect()?;
+
+        // For all commits in the target set, compute its transitive descendant commits
+        // which are outside of the target set by up to 1 generation.
+        let mut target_commit_external_descendants: HashMap<CommitId, IndexSet<Commit>> =
+            HashMap::new();
+        // Iterate through all descendants of the target set, going through children
+        // before parents.
+        for commit in target_commits_descendants.iter() {
+            if !target_commit_external_descendants.contains_key(commit.id()) {
+                let children = if target_commit_ids.contains(commit.id()) {
+                    IndexSet::new()
+                } else {
+                    IndexSet::from([commit.clone()])
+                };
+                target_commit_external_descendants.insert(commit.id().clone(), children);
+            }
+
+            let children = target_commit_external_descendants
+                .get(commit.id())
+                .unwrap()
+                .iter()
+                .cloned()
+                .collect_vec();
+            for parent_id in commit.parent_ids() {
+                if target_commit_ids.contains(parent_id) {
+                    if let Some(target_children) =
+                        target_commit_external_descendants.get_mut(parent_id)
+                    {
+                        target_children.extend(children.iter().cloned());
+                    } else {
+                        target_commit_external_descendants
+                            .insert(parent_id.clone(), children.iter().cloned().collect());
+                    }
+                };
+            }
+        }
+
+        new_children
+            .iter()
+            .flat_map(|child| {
+                if let Some(children) = target_commit_external_descendants.get(child.id()) {
+                    children.iter().cloned().collect_vec()
+                } else {
+                    [child.clone()].to_vec()
+                }
+            })
+            .collect()
+    } else {
+        new_children.to_vec()
+    };
+
+    // Compute the parents of the new children, which will include the heads of the
+    // target set.
+    let new_children_parents: HashMap<_, _> = if !new_children.is_empty() {
+        // Compute the heads of the target set, which will be used as the parents of
+        // `new_children`.
+        let mut target_heads: HashSet<CommitId> = HashSet::new();
+        for commit in connected_target_commits.iter().rev() {
+            target_heads.insert(commit.id().clone());
+            for old_parent in commit.parent_ids() {
+                target_heads.remove(old_parent);
+            }
+        }
+        let target_heads = connected_target_commits
+            .iter()
+            .rev()
+            .filter(|commit| {
+                target_heads.contains(commit.id()) && target_commit_ids.contains(commit.id())
+            })
+            .map(|commit| commit.id().clone())
+            .collect_vec();
+
+        new_children
+            .iter()
+            .map(|child_commit| {
+                let mut new_child_parent_ids: IndexSet<_> = child_commit
+                    .parent_ids()
+                    .iter()
+                    // Replace target commits with their parents outside the target set.
+                    .flat_map(|id| {
+                        if let Some(parents) = target_commits_external_parents.get(id) {
+                            parents.iter().cloned().collect_vec()
+                        } else {
+                            [id.clone()].to_vec()
+                        }
+                    })
+                    // Exclude any of the new parents of the target commits, since we are
+                    // "inserting" the target commits in between the new parents and the new
+                    // children.
+                    .filter(|id| {
+                        !new_parent_ids
+                            .iter()
+                            .any(|new_parent_id| new_parent_id == id)
+                    })
+                    .collect();
+
+                // Add `target_heads` as parents of the new child commit.
+                new_child_parent_ids.extend(target_heads.clone());
+
+                (
+                    child_commit.id().clone(),
+                    new_child_parent_ids.iter().cloned().collect_vec(),
+                )
+            })
+            .collect()
+    } else {
+        HashMap::new()
+    };
+
+    // Compute the set of commits to visit, which includes the target commits, the
+    // new children commits (if any), and their descendants.
+    let mut roots = target_roots.iter().cloned().collect_vec();
+    roots.extend(new_children.iter().ids().cloned());
+    let to_visit_expression = RevsetExpression::commits(roots).descendants();
+    let to_visit: Vec<_> = to_visit_expression
+        .evaluate_programmatic(mut_repo)
+        .map_err(|err| match err {
+            RevsetEvaluationError::StoreError(err) => err,
+            RevsetEvaluationError::Other(_) => panic!("Unexpected revset error: {err}"),
+        })?
+        .iter()
+        .commits(mut_repo.store())
+        .try_collect()?;
+    let to_visit_commits: IndexMap<_, _> = to_visit
+        .into_iter()
+        .map(|commit| (commit.id().clone(), commit))
+        .collect();
+
+    let to_visit_commits_new_parents: HashMap<_, _> = to_visit_commits
+        .iter()
+        .map(|(commit_id, commit)| {
+            let new_parents =
+            // New child of the rebased target commits.
+            if let Some(new_child_parents) = new_children_parents.get(commit_id) {
+                new_child_parents.clone()
+            }
+            // Commits in the target set should persist only rebased parents from the target
+            // sets.
+            else if let Some(target_commit_parents) =
+                target_commits_internal_parents.get(commit_id)
+            {
+                // If the commit does not have any parents in the target set, it is one of the
+                // commits in the root set, and should be rebased onto the new destination.
+                if target_commit_parents.is_empty() {
+                    new_parent_ids.clone()
+                } else {
+                    target_commit_parents.clone()
+                }
+            }
+            // Commits outside the target set should have references to commits inside the set
+            // replaced.
+            else if commit
+                .parent_ids()
+                .iter()
+                .any(|id| target_commits_external_parents.contains_key(id))
+            {
+                let mut new_parents = vec![];
+                for parent in commit.parent_ids() {
+                    if let Some(parents) = target_commits_external_parents.get(parent) {
+                        new_parents.extend(parents.iter().cloned());
+                    } else {
+                        new_parents.push(parent.clone());
+                    }
+                }
+                new_parents
+            } else {
+                commit.parent_ids().iter().cloned().collect_vec()
+            };
+
+            (commit_id.clone(), new_parents)
+        })
+        .collect();
+
+    // Re-compute the order of commits to visit, such that each commit's new parents
+    // must be visited first.
+    let mut visited: HashSet<CommitId> = HashSet::new();
+    let mut to_visit = dag_walk::topo_order_reverse(
+        to_visit_commits.keys().cloned().collect_vec(),
+        |commit_id| commit_id.clone(),
+        |commit_id| -> Vec<CommitId> {
+            visited.insert(commit_id.clone());
+            to_visit_commits_new_parents
+                .get(commit_id)
+                .cloned()
+                .unwrap()
+                .iter()
+                // Only add parents which are in the set to be visited and have not already been
+                // visited.
+                .filter(|&id| to_visit_commits.contains_key(id) && !visited.contains(id))
+                .cloned()
+                .collect()
+        },
+    );
+
+    let mut num_rebased_targets = 0;
+    let mut num_rebased_descendants = 0;
+    let mut num_skipped_rebases = 0;
+
+    // Rebase each commit onto its new parents in the reverse topological order
+    // computed above.
+    // TODO(ilyagr): Consider making it possible for descendants of the target set
+    // to become emptied, like --skip-empty. This would require writing careful
+    // tests.
+    while let Some(old_commit_id) = to_visit.pop() {
+        let old_commit = to_visit_commits.get(&old_commit_id).unwrap();
+        let parent_ids = to_visit_commits_new_parents
+            .get(&old_commit_id)
+            .cloned()
+            .unwrap();
+        let new_parent_ids = mut_repo.new_parents(parent_ids);
+        let rewriter = CommitRewriter::new(mut_repo, old_commit.clone(), new_parent_ids);
+        if rewriter.parents_changed() {
+            rewriter.rebase(settings)?.write()?;
+            if target_commit_ids.contains(&old_commit_id) {
+                num_rebased_targets += 1;
+            } else {
+                num_rebased_descendants += 1;
+            }
+        } else {
+            num_skipped_rebases += 1;
+        }
+    }
+    mut_repo.update_rewritten_references(settings)?;
+
+    Ok(MoveCommitsStats {
+        num_rebased_targets,
+        num_rebased_descendants,
+        num_skipped_rebases,
+    })
 }
