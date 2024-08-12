@@ -493,18 +493,28 @@ fn merge_tree_values(
         Ok(merged_tree
             .map(|tree| (tree.id() != empty_tree_id).then(|| TreeValue::Tree(tree.id().clone()))))
     } else {
-        // Try to resolve file conflicts by merging the file contents. Treats missing
-        // files as empty. The values may contain trees canceling each other (notably
-        // padded absent trees), so we need to simplify them first.
-        let simplified = values.clone().simplify();
-        // No fast path for simplified.is_resolved(). If it could be resolved, it would
-        // have been caught by values.resolve_trivial() above.
-        if let Some(resolved) = try_resolve_file_conflict(store, path, &simplified)? {
-            Ok(Merge::normal(resolved))
-        } else {
-            // Failed to merge the files, or the paths are not files
-            Ok(values.cloned())
-        }
+        let maybe_resolved = try_resolve_file_values(store, path, values)?;
+        Ok(maybe_resolved.unwrap_or_else(|| values.cloned()))
+    }
+}
+
+/// Tries to resolve file conflicts by merging the file contents. Treats missing
+/// files as empty.
+fn try_resolve_file_values(
+    store: &Arc<Store>,
+    path: &RepoPath,
+    values: &MergedTreeVal,
+) -> BackendResult<Option<MergedTreeValue>> {
+    // The values may contain trees canceling each other (notably padded absent
+    // trees), so we need to simplify them first.
+    let simplified = values.clone().simplify();
+    // No fast path for simplified.is_resolved(). If it could be resolved, it would
+    // have been caught by values.resolve_trivial() above.
+    if let Some(resolved) = try_resolve_file_conflict(store, path, &simplified)? {
+        Ok(Some(Merge::normal(resolved)))
+    } else {
+        // Failed to merge the files, or the paths are not files
+        Ok(None)
     }
 }
 
