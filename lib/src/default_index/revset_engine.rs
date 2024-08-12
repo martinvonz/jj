@@ -1169,7 +1169,7 @@ fn matches_diff_from_parent(
     text_pattern: &StringPattern,
     files_matcher: &dyn Matcher,
 ) -> BackendResult<bool> {
-    let copy_records = Default::default();
+    let copy_records = Default::default(); // TODO handle copy tracking
     let parents: Vec<_> = commit.parents().try_collect()?;
     let from_tree =
         rewrite::merge_commit_trees_no_resolve_without_repo(store, &index, &parents)?.resolve()?;
@@ -1180,14 +1180,14 @@ fn matches_diff_from_parent(
     let mut diff_stream = materialized_diff_stream(store, tree_diff);
     async {
         while let Some(MaterializedTreeDiffEntry {
-            source: _, // TODO handle copy tracking
-            target: path,
+            source,
+            target,
             value: diff,
         }) = diff_stream.next().await
         {
             let (left_value, right_value) = diff?;
-            let left_content = to_file_content(&path, left_value)?;
-            let right_content = to_file_content(&path, right_value)?;
+            let left_content = to_file_content(&source, left_value)?;
+            let right_content = to_file_content(&target, right_value)?;
             // Filter lines prior to comparison. This might produce inferior
             // hunks due to lack of contexts, but is way faster than full diff.
             let left_lines = match_lines(&left_content, text_pattern);
