@@ -30,9 +30,7 @@ use super::rev_walk::{EagerRevWalk, PeekableRevWalk, RevWalk, RevWalkBuilder};
 use super::revset_graph_iterator::RevsetGraphWalk;
 use crate::backend::{BackendError, BackendResult, ChangeId, CommitId, MillisSinceEpoch};
 use crate::commit::Commit;
-use crate::conflicts::{
-    materialized_diff_stream, MaterializedTreeDiffEntry, MaterializedTreeValue,
-};
+use crate::conflicts::{materialize_tree_value, MaterializedTreeValue};
 use crate::default_index::{AsCompositeIndex, CompositeIndex, IndexPosition};
 use crate::graph::GraphEdge;
 use crate::matchers::{Matcher, Visit};
@@ -1174,20 +1172,17 @@ fn matches_diff_from_parent(
     let from_tree =
         rewrite::merge_commit_trees_no_resolve_without_repo(store, &index, &parents)?.resolve()?;
     let to_tree = commit.tree()?;
-    let tree_diff = from_tree.diff_stream(&to_tree, files_matcher, &copy_records);
-    // Conflicts are compared in materialized form. Alternatively, conflict
-    // pairs can be compared one by one. #4062
-    let mut diff_stream = materialized_diff_stream(store, tree_diff);
+    let mut tree_diff = from_tree.diff_stream(&to_tree, files_matcher, &copy_records);
     async {
-        while let Some(MaterializedTreeDiffEntry {
-            source,
-            target,
-            value: diff,
-        }) = diff_stream.next().await
-        {
-            let (left_value, right_value) = diff?;
-            let left_content = to_file_content(&source, left_value)?;
-            let right_content = to_file_content(&target, right_value)?;
+        while let Some(entry) = tree_diff.next().await {
+            let (left_value, right_value) = entry.value?;
+            // Conflicts are compared in materialized form. Alternatively,
+            // conflict pairs can be compared one by one. #4062
+            let left_future = materialize_tree_value(store, &entry.source, left_value);
+            let right_future = materialize_tree_value(store, &entry.target, right_value);
+            let (left_value, right_value) = futures::try_join!(left_future, right_future)?;
+            let left_content = to_file_content(&entry.source, left_value)?;
+            let right_content = to_file_content(&entry.target, right_value)?;
             // Filter lines prior to comparison. This might produce inferior
             // hunks due to lack of contexts, but is way faster than full diff.
             let left_lines = match_lines(&left_content, text_pattern);
