@@ -14,6 +14,7 @@
 
 //! A lazily merged view of a set of trees.
 
+use std::borrow::Borrow;
 use std::cmp::{max, Ordering};
 use std::collections::{BTreeMap, VecDeque};
 use std::iter::zip;
@@ -499,15 +500,31 @@ fn merge_tree_values(
 }
 
 /// Tries to resolve file conflicts by merging the file contents. Treats missing
-/// files as empty.
-fn try_resolve_file_values(
+/// files as empty. If the file conflict cannot be resolved, returns the passed
+/// `values` unmodified.
+pub fn resolve_file_values(
     store: &Arc<Store>,
     path: &RepoPath,
-    values: &MergedTreeVal,
+    values: MergedTreeValue,
+) -> BackendResult<MergedTreeValue> {
+    if let Some(resolved) = values.resolve_trivial() {
+        return Ok(Merge::resolved(resolved.clone()));
+    }
+
+    let maybe_resolved = try_resolve_file_values(store, path, &values)?;
+    Ok(maybe_resolved.unwrap_or(values))
+}
+
+fn try_resolve_file_values<T: Borrow<TreeValue>>(
+    store: &Arc<Store>,
+    path: &RepoPath,
+    values: &Merge<Option<T>>,
 ) -> BackendResult<Option<MergedTreeValue>> {
     // The values may contain trees canceling each other (notably padded absent
     // trees), so we need to simplify them first.
-    let simplified = values.clone().simplify();
+    let simplified = values
+        .map(|value| value.as_ref().map(Borrow::borrow))
+        .simplify();
     // No fast path for simplified.is_resolved(). If it could be resolved, it would
     // have been caught by values.resolve_trivial() above.
     if let Some(resolved) = try_resolve_file_conflict(store, path, &simplified)? {
