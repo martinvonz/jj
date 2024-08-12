@@ -73,7 +73,7 @@ use jj_lib::workspace::{
     default_working_copy_factories, LockedWorkspace, WorkingCopyFactories, Workspace,
     WorkspaceLoadError, WorkspaceLoader,
 };
-use jj_lib::{dag_walk, fileset, git, op_heads_store, op_walk, revset};
+use jj_lib::{dag_walk, file_util, fileset, git, op_heads_store, op_walk, revset};
 use once_cell::unsync::OnceCell;
 use tracing::instrument;
 use tracing_chrome::ChromeLayerBuilder;
@@ -806,7 +806,7 @@ impl WorkspaceCommandHelper {
             if let Some(value) = config.string("core.excludesFile") {
                 let path = str::from_utf8(&value)
                     .ok()
-                    .map(crate::git_util::expand_git_path)?;
+                    .map(file_util::expand_home_path)?;
                 // The configured path is usually absolute, but if it's relative,
                 // the "git" command would read the file at the work-tree directory.
                 Some(self.workspace_root().join(path))
