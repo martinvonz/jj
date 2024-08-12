@@ -1931,6 +1931,7 @@ dependencies = [
  "glob",
  "hex",
  "ignore",
+ "indexmap",
  "indoc",
  "insta",
  "itertools 0.13.0",
