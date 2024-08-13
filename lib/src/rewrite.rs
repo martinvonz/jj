@@ -248,8 +248,16 @@ impl<'repo> CommitRewriter<'repo> {
                 self.old_commit.tree_id().clone(),
             )
         } else {
-            let old_base_tree = merge_commit_trees(self.mut_repo, &old_parents)?;
-            let new_base_tree = merge_commit_trees(self.mut_repo, &new_parents)?;
+            let old_base_tree = merge_commit_trees_no_resolve_without_repo(
+                self.mut_repo.store(),
+                self.mut_repo.index(),
+                &old_parents,
+            )?;
+            let new_base_tree = merge_commit_trees_no_resolve_without_repo(
+                self.mut_repo.store(),
+                self.mut_repo.index(),
+                &new_parents,
+            )?;
             let old_tree = self.old_commit.tree()?;
             (
                 old_base_tree.id() == *self.old_commit.tree_id(),

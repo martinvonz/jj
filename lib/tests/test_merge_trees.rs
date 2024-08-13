@@ -645,3 +645,70 @@ fn test_simplify_conflict_after_resolving_parent() {
 
 // TODO: Add tests for simplification of multi-way conflicts. Both the content
 // and the executable bit need testing.
+
+#[test]
+fn test_rebase_on_lossy_merge() {
+    let settings = testutils::user_settings();
+    let test_repo = TestRepo::init();
+    let repo = &test_repo.repo;
+
+    // Test this rebase:
+    // D    foo=2          D'   foo=3
+    // |\                  |\
+    // | C  foo=2          | C' foo=3
+    // | |           =>    | |
+    // B |  foo=2          B |  foo=2
+    // |/                  |/
+    // A    foo=1          A    foo=1
+    //
+    // Commit D effectively discarded a change from "1" to "2", so one
+    // reasonable result in D' is "3". That's what the result would be if we
+    // didn't have the "A+(A-B)=A" rule. It's also what the result currently
+    // is because we don't attempt to resolve the auto-merged parents (if we
+    // had, it would have been resolved to just "2" before the rebase and we
+    // get a conflict after the rebase).
+    let path = RepoPath::from_internal_string("foo");
+    let mut tx = repo.start_transaction(&settings);
+    let repo_mut = tx.repo_mut();
+    let tree_1 = create_tree(repo, &[(path, "1")]);
+    let tree_2 = create_tree(repo, &[(path, "2")]);
+    let tree_3 = create_tree(repo, &[(path, "3")]);
+    let commit_a = repo_mut
+        .new_commit(
+            &settings,
+            vec![repo.store().root_commit_id().clone()],
+            tree_1.id(),
+        )
+        .write()
+        .unwrap();
+    let commit_b = repo_mut
+        .new_commit(&settings, vec![commit_a.id().clone()], tree_2.id())
+        .write()
+        .unwrap();
+    let commit_c = repo_mut
+        .new_commit(&settings, vec![commit_a.id().clone()], tree_2.id())
+        .write()
+        .unwrap();
+    let commit_d = repo_mut
+        .new_commit(
+            &settings,
+            vec![commit_b.id().clone(), commit_c.id().clone()],
+            tree_2.id(),
+        )
+        .write()
+        .unwrap();
+
+    let commit_c2 = repo_mut
+        .new_commit(&settings, vec![commit_a.id().clone()], tree_3.id())
+        .write()
+        .unwrap();
+    let commit_d2 = rebase_commit(
+        &settings,
+        repo_mut,
+        commit_d,
+        vec![commit_b.id().clone(), commit_c2.id().clone()],
+    )
+    .unwrap();
+
+    assert_eq!(*commit_d2.tree_id(), tree_3.id());
+}
