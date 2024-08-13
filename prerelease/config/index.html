@@ -2998,7 +2998,7 @@ To consider expired keys as invalid you can set:</p>
 <span class="n">backend</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;ssh&quot;</span>
 <span class="n">key</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGj+J6N6SO+4P8dOZqfR1oiay2yxhhHnagH52avUqw5h&quot;</span>
 <span class="c1">## You can also use a path instead of embedding the key</span>
-<span class="c1"># key = &quot;/home/me/.ssh/id_for_signing.pub&quot;</span>
+<span class="c1"># key = &quot;~/.ssh/id_for_signing.pub&quot;</span>
 </code></pre></div>
 <p>By default the ssh backend will look for a <code>ssh-keygen</code> binary on your path. If you want
 to change the program used or specify a path to <code>ssh-keygen</code> explicitly you can set:</p>
