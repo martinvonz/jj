@@ -15,21 +15,30 @@
 use std::io::Write;
 use std::rc::Rc;
 
+use config::Config;
 use itertools::Itertools;
 use jj_lib::backend::CommitId;
 use jj_lib::commit::Commit;
 use jj_lib::repo::Repo;
 use jj_lib::revset::{RevsetExpression, RevsetFilterPredicate, RevsetIteratorExt};
 
-use crate::cli_util::{short_commit_hash, WorkspaceCommandHelper};
-use crate::command_error::{user_error, CommandError};
+use crate::cli_util::{short_commit_hash, CommandHelper, WorkspaceCommandHelper};
+use crate::command_error::{config_error_with_message, user_error, CommandError};
 use crate::ui::Ui;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct MovementArgs {
     pub offset: u64,
     pub edit: bool,
+    pub no_edit: bool,
     pub conflict: bool,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct MovementArgsInternal {
+    offset: u64,
+    should_edit: bool,
+    conflict: bool,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -56,12 +65,12 @@ impl Direction {
     fn get_target_revset(
         &self,
         working_commit_id: &CommitId,
-        args: &MovementArgs,
+        args: &MovementArgsInternal,
     ) -> Result<Rc<RevsetExpression>, CommandError> {
         let wc_revset = RevsetExpression::commit(working_commit_id.clone());
         // If we're editing, start at the working-copy commit. Otherwise, start from
         // its direct parent(s).
-        let start_revset = if args.edit {
+        let start_revset = if args.should_edit {
             wc_revset.clone()
         } else {
             wc_revset.parents()
@@ -103,7 +112,7 @@ fn get_target_commit(
     workspace_command: &WorkspaceCommandHelper,
     direction: Direction,
     working_commit_id: &CommitId,
-    args: &MovementArgs,
+    args: &MovementArgsInternal,
 ) -> Result<Commit, CommandError> {
     let target_revset = direction.get_target_revset(working_commit_id, args)?;
     let targets: Vec<Commit> = target_revset
@@ -162,29 +171,39 @@ fn choose_commit<'a>(
 
 pub(crate) fn move_to_commit(
     ui: &mut Ui,
-    workspace_command: &mut WorkspaceCommandHelper,
+    command: &CommandHelper,
     direction: Direction,
     args: &MovementArgs,
 ) -> Result<(), CommandError> {
+    let mut workspace_command = command.workspace_helper(ui)?;
+
     let current_wc_id = workspace_command
         .get_wc_commit_id()
         .ok_or_else(|| user_error("This command requires a working copy"))?;
 
-    let mut args = args.clone();
-    args.edit = args.edit
-        || !&workspace_command
-            .repo()
-            .view()
-            .heads()
-            .contains(current_wc_id);
+    let config_edit_flag =
+        match MovementSettings::try_from(command.settings().config())?.edit_mode() {
+            MovementEditMode::Always => true,
+            MovementEditMode::Never => false,
+            MovementEditMode::Auto => !&workspace_command
+                .repo()
+                .view()
+                .heads()
+                .contains(current_wc_id),
+        };
 
-    let target = get_target_commit(ui, workspace_command, direction, current_wc_id, &args)?;
+    let args = MovementArgsInternal {
+        should_edit: args.edit || (!args.no_edit && config_edit_flag),
+        offset: args.offset,
+        conflict: args.conflict,
+    };
+
+    let target = get_target_commit(ui, &workspace_command, direction, current_wc_id, &args)?;
     let current_short = short_commit_hash(current_wc_id);
     let target_short = short_commit_hash(target.id());
     let cmd = direction.cmd();
-
     // We're editing, just move to the target commit.
-    if args.edit {
+    if args.should_edit {
         // We're editing, the target must be rewritable.
         workspace_command.check_rewritable([target.id()])?;
         let mut tx = workspace_command.start_transaction();
@@ -200,4 +219,35 @@ pub(crate) fn move_to_commit(
     tx.check_out(&target)?;
     tx.finish(ui, format!("{cmd}: {current_short} -> {target_short}"))?;
     Ok(())
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, serde::Deserialize)]
+#[serde(rename_all(deserialize = "kebab-case"))]
+pub enum MovementEditMode {
+    #[default]
+    Auto,
+    Always,
+    Never,
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, serde::Deserialize)]
+#[serde(rename_all(deserialize = "kebab-case"))]
+pub struct MovementSettings {
+    edit: MovementEditMode,
+}
+
+impl MovementSettings {
+    fn edit_mode(&self) -> MovementEditMode {
+        self.edit
+    }
+}
+
+impl TryFrom<&Config> for MovementSettings {
+    type Error = CommandError;
+
+    fn try_from(config: &Config) -> Result<Self, CommandError> {
+        config
+            .get::<Self>("ui.movement")
+            .map_err(|err| config_error_with_message("Invalid `ui.movement`", err))
+    }
 }

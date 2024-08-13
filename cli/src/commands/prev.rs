@@ -45,17 +45,26 @@ use crate::ui::Ui;
 /// A        A
 /// ```
 /// If the working copy revision already has visible children, then `--edit` is
-/// implied.
+/// implied
 #[derive(clap::Args, Clone, Debug)]
 #[command(verbatim_doc_comment)]
 pub(crate) struct PrevArgs {
-    /// How many revisions to move backward. Moves to the parent by default.
+    /// How many revisions to move backward. Moves to the parent by default
     #[arg(default_value = "1")]
     offset: u64,
-    /// Edit the parent directly, instead of moving the working-copy commit.
+    /// Edit the parent directly, instead of moving the working-copy commi.
+    ///
+    /// Takes precedence over config in `ui.movement.edit`; i.e.
+    /// will negate `ui.movement.edit = "never"`
     #[arg(long, short)]
     edit: bool,
-    /// Jump to the previous conflicted ancestor.
+    /// The inverse of `--edit`
+    ///
+    /// Takes precedence over config in `ui.movement.edit`; i.e.
+    /// will negate `ui.movement.edit = "always"`
+    #[arg(long, short, conflicts_with = "edit")]
+    no_edit: bool,
+    /// Jump to the previous conflicted ancestor
     #[arg(long, conflicts_with = "offset")]
     conflict: bool,
 }
@@ -65,6 +74,7 @@ impl From<&PrevArgs> for MovementArgs {
         MovementArgs {
             offset: val.offset,
             edit: val.edit,
+            no_edit: val.no_edit,
             conflict: val.conflict,
         }
     }
@@ -75,11 +85,5 @@ pub(crate) fn cmd_prev(
     command: &CommandHelper,
     args: &PrevArgs,
 ) -> Result<(), CommandError> {
-    let mut workspace_command = command.workspace_helper(ui)?;
-    move_to_commit(
-        ui,
-        &mut workspace_command,
-        Direction::Prev,
-        &MovementArgs::from(args),
-    )
+    move_to_commit(ui, command, Direction::Prev, &MovementArgs::from(args))
 }

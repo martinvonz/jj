@@ -51,15 +51,24 @@ use crate::ui::Ui;
 #[command(verbatim_doc_comment)]
 pub(crate) struct NextArgs {
     /// How many revisions to move forward. Advances to the next child by
-    /// default.
+    /// default
     #[arg(default_value = "1")]
     offset: u64,
     /// Instead of creating a new working-copy commit on top of the target
     /// commit (like `jj new`), edit the target commit directly (like `jj
-    /// edit`).
+    /// edit`)
+    ///
+    /// Takes precedence over config in `ui.movement.edit`; i.e.
+    /// will negate `ui.movement.edit = "never"`
     #[arg(long, short)]
     edit: bool,
-    /// Jump to the next conflicted descendant.
+    /// The inverse of `--edit`
+    ///
+    /// Takes precedence over config in `ui.movement.edit`; i.e.
+    /// will negate `ui.movement.edit = "always"`
+    #[arg(long, short, conflicts_with = "edit")]
+    no_edit: bool,
+    /// Jump to the next conflicted descendant
     #[arg(long, conflicts_with = "offset")]
     conflict: bool,
 }
@@ -69,6 +78,7 @@ impl From<&NextArgs> for MovementArgs {
         MovementArgs {
             offset: val.offset,
             edit: val.edit,
+            no_edit: val.no_edit,
             conflict: val.conflict,
         }
     }
@@ -79,11 +89,5 @@ pub(crate) fn cmd_next(
     command: &CommandHelper,
     args: &NextArgs,
 ) -> Result<(), CommandError> {
-    let mut workspace_command = command.workspace_helper(ui)?;
-    move_to_commit(
-        ui,
-        &mut workspace_command,
-        Direction::Next,
-        &MovementArgs::from(args),
-    )
+    move_to_commit(ui, command, Direction::Next, &MovementArgs::from(args))
 }

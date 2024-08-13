@@ -1225,7 +1225,8 @@ implied.
 
 ###### **Options:**
 
-* `-e`, `--edit` — Instead of creating a new working-copy commit on top of the target commit (like `jj new`), edit the target commit directly (like `jj edit`)
+* `-e`, `--edit` — Instead of creating a new working-copy commit on top of the target commit (like `jj new`), edit the target commit directly (like `jj edit`). Takes precedence over config in `ui.movement.edit`; i.e. will negate `ui.movement.edit = "never"`
+* `-n`, `--no-edit` — The inverse of `--edit`. Takes precedence over config in `ui.movement.edit`; i.e. will negate `ui.movement.edit = "always"`
 * `--conflict` — Jump to the next conflicted descendant
 
 
@@ -1529,7 +1530,8 @@ implied.
 
 ###### **Options:**
 
-* `-e`, `--edit` — Edit the parent directly, instead of moving the working-copy commit
+* `-e`, `--edit` — Edit the parent directly, instead of moving the working-copy commit. Takes precedence over config in `ui.movement.edit`; i.e. will negate `ui.movement.edit = "never"`
+* `-n`, `--no-edit` — The inverse of `--edit`. Takes precedence over config in `ui.movement.edit`; i.e. will negate `ui.movement.edit = "always"`
 * `--conflict` — Jump to the previous conflicted ancestor
 
 
