@@ -299,8 +299,7 @@ impl<'a> DiffRenderer<'a> {
                     show_types(formatter, tree_diff, path_converter)?;
                 }
                 DiffFormat::NameOnly => {
-                    let no_copy_tracking = Default::default();
-                    let tree_diff = from_tree.diff_stream(to_tree, matcher, &no_copy_tracking);
+                    let tree_diff = from_tree.diff_stream(to_tree, matcher, copy_records);
                     show_names(formatter, tree_diff, path_converter)?;
                 }
                 DiffFormat::Git { context } => {
