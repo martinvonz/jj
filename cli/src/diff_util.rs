@@ -294,9 +294,14 @@ impl<'a> DiffRenderer<'a> {
                     show_diff_stat(formatter, store, tree_diff, path_converter, width)?;
                 }
                 DiffFormat::Types => {
-                    let no_copy_tracking = Default::default();
-                    let tree_diff = from_tree.diff_stream(to_tree, matcher, &no_copy_tracking);
-                    show_types(formatter, tree_diff, path_converter)?;
+                    show_types(
+                        formatter,
+                        path_converter,
+                        from_tree,
+                        to_tree,
+                        matcher,
+                        copy_records,
+                    )?;
                 }
                 DiffFormat::NameOnly => {
                     let tree_diff = from_tree.diff_stream(to_tree, matcher, copy_records);
@@ -366,6 +371,22 @@ impl<'a> DiffRenderer<'a> {
             width,
         )
     }
+}
+
+fn collect_copied_sources<'a>(
+    copy_records: &'a CopyRecords,
+    matcher: &dyn Matcher,
+) -> HashSet<&'a RepoPath> {
+    copy_records
+        .iter()
+        .filter_map(|record| {
+            if matcher.matches(&record.target) {
+                Some(record.source.as_ref())
+            } else {
+                None
+            }
+        })
+        .collect()
 }
 
 fn show_color_words_diff_hunks(
@@ -1168,17 +1189,7 @@ pub fn show_diff_summary(
     copy_records: &CopyRecords,
 ) -> io::Result<()> {
     let mut tree_diff = from_tree.diff_stream(to_tree, matcher, copy_records);
-
-    let copied_sources: HashSet<&RepoPath> = copy_records
-        .iter()
-        .filter_map(|record| {
-            if matcher.matches(&record.target) {
-                Some(record.source.as_ref())
-            } else {
-                None
-            }
-        })
-        .collect();
+    let copied_sources = collect_copied_sources(copy_records, matcher);
 
     async {
         while let Some(TreeDiffEntry {
@@ -1345,23 +1356,32 @@ pub fn show_diff_stat(
 
 pub fn show_types(
     formatter: &mut dyn Formatter,
-    mut tree_diff: TreeDiffStream,
     path_converter: &RepoPathUiConverter,
+    from_tree: &MergedTree,
+    to_tree: &MergedTree,
+    matcher: &dyn Matcher,
+    copy_records: &CopyRecords,
 ) -> io::Result<()> {
+    let mut tree_diff = from_tree.diff_stream(to_tree, matcher, copy_records);
+    let copied_sources = collect_copied_sources(copy_records, matcher);
+
     async {
         while let Some(TreeDiffEntry {
-            source: _, // TODO handle copy tracking
-            target: repo_path,
+            source,
+            target,
             value: diff,
         }) = tree_diff.next().await
         {
             let (before, after) = diff.unwrap();
+            if after.is_absent() && copied_sources.contains(source.as_ref()) {
+                continue;
+            }
             writeln!(
                 formatter.labeled("modified"),
                 "{}{} {}",
                 diff_summary_char(&before),
                 diff_summary_char(&after),
-                path_converter.format_file_path(&repo_path)
+                path_converter.format_copied_path(&source, &target)
             )?;
         }
         Ok(())

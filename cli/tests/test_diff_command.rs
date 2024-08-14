@@ -70,9 +70,14 @@ fn test_diff_basic() {
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "--types"]);
     insta::assert_snapshot!(stdout, @r###"
+    FF file2
+    FF {file1 => file3}
+    "###);
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "--types", "glob:file[12]"]);
+    insta::assert_snapshot!(stdout, @r###"
     F- file1
     FF file2
-    -F file3
     "###);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "--git"]);

@@ -123,9 +123,8 @@ fn test_show_basic() {
 
         (no description set)
 
-    F- file1
     FF file2
-    -F file3
+    FF {file1 => file3}
     "###);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["show", "--git"]);
