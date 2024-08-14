@@ -349,13 +349,21 @@ impl<'a> DiffRenderer<'a> {
     ) -> Result<(), DiffRenderError> {
         let from_tree = commit.parent_tree(self.repo)?;
         let to_tree = commit.tree()?;
+        let mut copy_records = CopyRecords::default();
+        for parent_id in commit.parent_ids() {
+            copy_records.add_records(self.repo.store().get_copy_records(
+                None,
+                parent_id,
+                commit.id(),
+            )?)?;
+        }
         self.show_diff(
             ui,
             formatter,
             &from_tree,
             &to_tree,
             matcher,
-            &Default::default(),
+            &copy_records,
             width,
         )
     }
