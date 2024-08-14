@@ -17,7 +17,7 @@
 use std::borrow::Borrow;
 use std::collections::VecDeque;
 use std::fmt::{Debug, Error, Formatter};
-use std::iter;
+use std::{iter, mem};
 
 use bstr::BStr;
 
@@ -33,10 +33,6 @@ pub struct DiffLine<'a> {
 }
 
 impl DiffLine<'_> {
-    fn reset_line(&mut self) {
-        self.hunks.clear();
-    }
-
     pub fn has_left_content(&self) -> bool {
         self.hunks
             .iter()
@@ -53,6 +49,14 @@ impl DiffLine<'_> {
         self.hunks
             .iter()
             .all(|&(side, _)| side == DiffLineHunkSide::Both)
+    }
+
+    fn take(&mut self) -> Self {
+        DiffLine {
+            left_line_number: self.left_line_number,
+            right_line_number: self.right_line_number,
+            hunks: mem::take(&mut self.hunks),
+        }
     }
 }
 
@@ -110,10 +114,9 @@ where
                     for line in lines {
                         self.current_line.hunks.push((DiffLineHunkSide::Both, line));
                         if line.ends_with(b"\n") {
-                            self.queued_lines.push_back(self.current_line.clone());
+                            self.queued_lines.push_back(self.current_line.take());
                             self.current_line.left_line_number += 1;
                             self.current_line.right_line_number += 1;
-                            self.current_line.reset_line();
                         }
                     }
                 }
@@ -127,9 +130,8 @@ where
                             .hunks
                             .push((DiffLineHunkSide::Left, left_line));
                         if left_line.ends_with(b"\n") {
-                            self.queued_lines.push_back(self.current_line.clone());
+                            self.queued_lines.push_back(self.current_line.take());
                             self.current_line.left_line_number += 1;
-                            self.current_line.reset_line();
                         }
                     }
                     let right_lines = right_text.split_inclusive(|b| *b == b'\n').map(BStr::new);
@@ -138,9 +140,8 @@ where
                             .hunks
                             .push((DiffLineHunkSide::Right, right_line));
                         if right_line.ends_with(b"\n") {
-                            self.queued_lines.push_back(self.current_line.clone());
+                            self.queued_lines.push_back(self.current_line.take());
                             self.current_line.right_line_number += 1;
-                            self.current_line.reset_line();
                         }
                     }
                 }
@@ -152,9 +153,7 @@ where
         }
 
         if !self.current_line.hunks.is_empty() {
-            let line = self.current_line.clone();
-            self.current_line.reset_line();
-            return Some(line);
+            return Some(self.current_line.take());
         }
 
         None
