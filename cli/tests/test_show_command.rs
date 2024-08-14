@@ -136,13 +136,6 @@ fn test_show_basic() {
 
         (no description set)
 
-    diff --git a/file1 b/file1
-    deleted file mode 100644
-    index 257cc5642c..0000000000
-    --- a/file1
-    +++ /dev/null
-    @@ -1,1 +1,0 @@
-    -foo
     diff --git a/file2 b/file2
     index 523a4a9de8..485b56a572 100644
     --- a/file2
@@ -152,13 +145,9 @@ fn test_show_basic() {
     -baz qux
     +bar
     +baz quux
-    diff --git a/file3 b/file3
-    new file mode 100644
-    index 0000000000..257cc5642c
-    --- /dev/null
-    +++ b/file3
-    @@ -1,0 +1,1 @@
-    +foo
+    diff --git a/file1 b/file3
+    rename from file1
+    rename to file3
     "###);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["show", "--git", "--context=0"]);
@@ -170,13 +159,6 @@ fn test_show_basic() {
 
         (no description set)
 
-    diff --git a/file1 b/file1
-    deleted file mode 100644
-    index 257cc5642c..0000000000
-    --- a/file1
-    +++ /dev/null
-    @@ -1,1 +1,0 @@
-    -foo
     diff --git a/file2 b/file2
     index 523a4a9de8..485b56a572 100644
     --- a/file2
@@ -185,13 +167,9 @@ fn test_show_basic() {
     -baz qux
     +bar
     +baz quux
-    diff --git a/file3 b/file3
-    new file mode 100644
-    index 0000000000..257cc5642c
-    --- /dev/null
-    +++ b/file3
-    @@ -1,0 +1,1 @@
-    +foo
+    diff --git a/file1 b/file3
+    rename from file1
+    rename to file3
     "###);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["show", "--git", "--color=debug"]);
@@ -203,13 +181,6 @@ fn test_show_basic() {
 
     [38;5;3m<<description placeholder::    (no description set)>>[39m
 
-    [1m<<diff file_header::diff --git a/file1 b/file1>>[0m
-    [1m<<diff file_header::deleted file mode 100644>>[0m
-    [1m<<diff file_header::index 257cc5642c..0000000000>>[0m
-    [1m<<diff file_header::--- a/file1>>[0m
-    [1m<<diff file_header::+++ /dev/null>>[0m
-    [38;5;6m<<diff hunk_header::@@ -1,1 +1,0 @@>>[39m
-    [38;5;1m<<diff removed::->>[4m<<diff removed token::foo>>[24m[39m
     [1m<<diff file_header::diff --git a/file2 b/file2>>[0m
     [1m<<diff file_header::index 523a4a9de8..485b56a572 100644>>[0m
     [1m<<diff file_header::--- a/file2>>[0m
@@ -219,13 +190,9 @@ fn test_show_basic() {
     [38;5;1m<<diff removed::-baz >>[4m<<diff removed token::qux>>[24m<<diff removed::>>[39m
     [38;5;2m<<diff added::+>>[4m<<diff added token::bar>>[24m[39m
     [38;5;2m<<diff added::+baz >>[4m<<diff added token::quux>>[24m<<diff added::>>[39m
-    [1m<<diff file_header::diff --git a/file3 b/file3>>[0m
-    [1m<<diff file_header::new file mode 100644>>[0m
-    [1m<<diff file_header::index 0000000000..257cc5642c>>[0m
-    [1m<<diff file_header::--- /dev/null>>[0m
-    [1m<<diff file_header::+++ b/file3>>[0m
-    [38;5;6m<<diff hunk_header::@@ -1,0 +1,1 @@>>[39m
-    [38;5;2m<<diff added::+>>[4m<<diff added token::foo>>[24m[39m
+    [1m<<diff file_header::diff --git a/file1 b/file3>>[0m
+    [1m<<diff file_header::rename from file1>>[0m
+    [1m<<diff file_header::rename to file3>>[0m
     "###);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["show", "-s", "--git"]);
@@ -239,13 +206,6 @@ fn test_show_basic() {
 
     M file2
     R {file1 => file3}
-    diff --git a/file1 b/file1
-    deleted file mode 100644
-    index 257cc5642c..0000000000
-    --- a/file1
-    +++ /dev/null
-    @@ -1,1 +1,0 @@
-    -foo
     diff --git a/file2 b/file2
     index 523a4a9de8..485b56a572 100644
     --- a/file2
@@ -255,13 +215,9 @@ fn test_show_basic() {
     -baz qux
     +bar
     +baz quux
-    diff --git a/file3 b/file3
-    new file mode 100644
-    index 0000000000..257cc5642c
-    --- /dev/null
-    +++ b/file3
-    @@ -1,0 +1,1 @@
-    +foo
+    diff --git a/file1 b/file3
+    rename from file1
+    rename to file3
     "###);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["show", "--stat"]);

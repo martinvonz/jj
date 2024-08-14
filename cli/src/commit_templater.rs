@@ -1366,8 +1366,20 @@ fn builtin_tree_diff_methods<'repo>() -> CommitTemplateBuildMethodFnMap<'repo, T
         let template = (self_property, context_property)
             .map(|(diff, context)| {
                 let context = context.unwrap_or(diff_util::DEFAULT_CONTEXT_LINES);
-                diff.into_formatted(move |formatter, store, tree_diff| {
-                    diff_util::show_git_diff(formatter, store, tree_diff, context)
+                // TODO: don't pass separate copies of from_tree/to_tree/matcher
+                let from_tree = diff.from_tree.clone();
+                let to_tree = diff.to_tree.clone();
+                let matcher = diff.matcher.clone();
+                diff.into_formatted(move |formatter, store, _tree_diff| {
+                    diff_util::show_git_diff(
+                        formatter,
+                        store,
+                        &from_tree,
+                        &to_tree,
+                        matcher.as_ref(),
+                        &Default::default(), // TODO: real copy tracking
+                        context,
+                    )
                 })
             })
             .into_template();
@@ -1405,7 +1417,7 @@ fn builtin_tree_diff_methods<'repo>() -> CommitTemplateBuildMethodFnMap<'repo, T
                             &from_tree,
                             &to_tree,
                             matcher.as_ref(),
-                            &Default::default(),
+                            &Default::default(), // TODO: real copy tracking
                         )
                     })
                 })
