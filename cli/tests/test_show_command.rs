@@ -62,8 +62,7 @@ fn test_show_basic() {
        1    1: foo
             2: bar
        2    3: baz quxquux
-    Added regular file file3:
-            1: foo
+    Modified regular file file3 (file1 => file3):
     "###);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["show", "--context=0"]);
@@ -81,8 +80,7 @@ fn test_show_basic() {
        1    1: foo
             2: bar
        2    3: baz quxquux
-    Added regular file file3:
-            1: foo
+    Modified regular file file3 (file1 => file3):
     "###);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["show", "--color=debug"]);
@@ -100,8 +98,7 @@ fn test_show_basic() {
     [38;5;1m<<diff removed line_number::   1>>[39m<<diff:: >>[38;5;2m<<diff added line_number::   1>>[39m<<diff::: foo>>
     <<diff::     >>[38;5;2m<<diff added line_number::   2>>[39m<<diff::: >>[4m[38;5;2m<<diff added token::bar>>[24m[39m
     [38;5;1m<<diff removed line_number::   2>>[39m<<diff:: >>[38;5;2m<<diff added line_number::   3>>[39m<<diff::: baz >>[4m[38;5;1m<<diff removed token::qux>>[38;5;2m<<diff added token::quux>>[24m[39m<<diff::>>
-    [38;5;3m<<diff header::Added regular file file3:>>[39m
-    <<diff::     >>[38;5;2m<<diff added line_number::   1>>[39m<<diff::: >>[4m[38;5;2m<<diff added token::foo>>[24m[39m
+    [38;5;3m<<diff header::Modified regular file file3 (file1 => file3):>>[39m
     "###);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["show", "-s"]);
@@ -113,9 +110,8 @@ fn test_show_basic() {
 
         (no description set)
 
-    D file1
     M file2
-    A file3
+    R {file1 => file3}
     "###);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["show", "--types"]);
@@ -242,9 +238,8 @@ fn test_show_basic() {
 
         (no description set)
 
-    D file1
     M file2
-    A file3
+    R {file1 => file3}
     diff --git a/file1 b/file1
     deleted file mode 100644
     index 257cc5642c..0000000000
@@ -279,10 +274,9 @@ fn test_show_basic() {
 
         (no description set)
 
-    file1 | 1 -
-    file2 | 3 ++-
-    file3 | 1 +
-    3 files changed, 3 insertions(+), 2 deletions(-)
+    file2            | 3 ++-
+    {file1 => file3} | 0
+    2 files changed, 2 insertions(+), 1 deletion(-)
     "###);
 }
 
