@@ -19,16 +19,19 @@ use std::collections::VecDeque;
 use std::fmt::{Debug, Error, Formatter};
 use std::iter;
 
+use bstr::BStr;
+
 use crate::diff::{Diff, DiffHunk};
 use crate::merge::{trivial_merge, Merge};
 
+/// A diff line which may contain small hunks originating from both sides.
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub struct DiffLine<'a> {
     pub left_line_number: u32,
     pub right_line_number: u32,
     pub has_left_content: bool,
     pub has_right_content: bool,
-    pub hunks: Vec<DiffHunk<'a>>,
+    pub hunks: Vec<(DiffLineHunkSide, &'a BStr)>,
 }
 
 impl DiffLine<'_> {
@@ -41,8 +44,16 @@ impl DiffLine<'_> {
     pub fn is_unmodified(&self) -> bool {
         self.hunks
             .iter()
-            .all(|hunk| matches!(hunk, DiffHunk::Matching(_)))
+            .all(|&(side, _)| side == DiffLineHunkSide::Both)
     }
+}
+
+/// Which side a `DiffLine` hunk belongs to?
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum DiffLineHunkSide {
+    Both,
+    Left,
+    Right,
 }
 
 pub struct DiffLineIterator<'a, I> {
@@ -89,11 +100,11 @@ where
             };
             match hunk.borrow() {
                 DiffHunk::Matching(text) => {
-                    let lines = text.split_inclusive(|b| *b == b'\n');
+                    let lines = text.split_inclusive(|b| *b == b'\n').map(BStr::new);
                     for line in lines {
                         self.current_line.has_left_content = true;
                         self.current_line.has_right_content = true;
-                        self.current_line.hunks.push(DiffHunk::matching(line));
+                        self.current_line.hunks.push((DiffLineHunkSide::Both, line));
                         if line.ends_with(b"\n") {
                             self.queued_lines.push_back(self.current_line.clone());
                             self.current_line.left_line_number += 1;
@@ -106,24 +117,24 @@ where
                     let [left_text, right_text] = contents[..]
                         .try_into()
                         .expect("hunk should have exactly two inputs");
-                    let left_lines = left_text.split_inclusive(|b| *b == b'\n');
+                    let left_lines = left_text.split_inclusive(|b| *b == b'\n').map(BStr::new);
                     for left_line in left_lines {
                         self.current_line.has_left_content = true;
                         self.current_line
                             .hunks
-                            .push(DiffHunk::different([left_line, b""]));
+                            .push((DiffLineHunkSide::Left, left_line));
                         if left_line.ends_with(b"\n") {
                             self.queued_lines.push_back(self.current_line.clone());
                             self.current_line.left_line_number += 1;
                             self.current_line.reset_line();
                         }
                     }
-                    let right_lines = right_text.split_inclusive(|b| *b == b'\n');
+                    let right_lines = right_text.split_inclusive(|b| *b == b'\n').map(BStr::new);
                     for right_line in right_lines {
                         self.current_line.has_right_content = true;
                         self.current_line
                             .hunks
-                            .push(DiffHunk::different([b"", right_line]));
+                            .push((DiffLineHunkSide::Right, right_line));
                         if right_line.ends_with(b"\n") {
                             self.queued_lines.push_back(self.current_line.clone());
                             self.current_line.right_line_number += 1;

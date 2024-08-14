@@ -26,7 +26,7 @@ use jj_lib::conflicts::{
     materialized_diff_stream, MaterializedTreeDiffEntry, MaterializedTreeValue,
 };
 use jj_lib::diff::{self, Diff, DiffHunk};
-use jj_lib::files::{DiffLine, DiffLineIterator};
+use jj_lib::files::{DiffLine, DiffLineHunkSide, DiffLineIterator};
 use jj_lib::matchers::Matcher;
 use jj_lib::merge::MergedTreeValue;
 use jj_lib::merged_tree::{MergedTree, TreeDiffEntry, TreeDiffStream};
@@ -490,25 +490,18 @@ fn show_color_words_diff_line(
     } else {
         write!(formatter, "    : ")?;
     }
-    for hunk in &diff_line.hunks {
-        match hunk {
-            DiffHunk::Matching(data) => {
-                formatter.write_all(data)?;
-            }
-            DiffHunk::Different(data) => {
-                let before = data[0];
-                let after = data[1];
-                if !before.is_empty() {
-                    formatter.with_label("removed", |formatter| {
-                        formatter.with_label("token", |formatter| formatter.write_all(before))
-                    })?;
-                }
-                if !after.is_empty() {
-                    formatter.with_label("added", |formatter| {
-                        formatter.with_label("token", |formatter| formatter.write_all(after))
-                    })?;
-                }
-            }
+    for (side, data) in &diff_line.hunks {
+        let label = match side {
+            DiffLineHunkSide::Both => None,
+            DiffLineHunkSide::Left => Some("removed"),
+            DiffLineHunkSide::Right => Some("added"),
+        };
+        if let Some(label) = label {
+            formatter.with_label(label, |formatter| {
+                formatter.with_label("token", |formatter| formatter.write_all(data))
+            })?;
+        } else {
+            formatter.write_all(data)?;
         }
     }
 
