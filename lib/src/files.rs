@@ -84,7 +84,7 @@ impl<'a> Iterator for DiffLineIterator<'a> {
             let hunk = &self.diff_hunks[self.current_pos];
             self.current_pos += 1;
             match hunk {
-                diff::DiffHunk::Matching(text) => {
+                DiffHunk::Matching(text) => {
                     let lines = text.split_inclusive(|b| *b == b'\n');
                     for line in lines {
                         self.current_line.has_left_content = true;
@@ -98,7 +98,7 @@ impl<'a> Iterator for DiffLineIterator<'a> {
                         }
                     }
                 }
-                diff::DiffHunk::Different(contents) => {
+                DiffHunk::Different(contents) => {
                     let left_lines = contents[0].split_inclusive(|b| *b == b'\n');
                     for left_line in left_lines {
                         self.current_line.has_left_content = true;
