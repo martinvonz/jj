@@ -5,6 +5,9 @@ amend = ["squash"]
 co = ["checkout"]
 unamend = ["unsquash"]
 
+[diff.color-words]
+max-inline-alternation = -1
+
 [ui]
 # TODO: delete ui.allow-filesets in jj 0.26+
 allow-filesets = true

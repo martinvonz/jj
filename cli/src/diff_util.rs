@@ -407,15 +407,28 @@ fn collect_copied_sources<'a>(
 pub struct ColorWordsOptions {
     /// Number of context lines to show.
     pub context: usize,
+    /// Maximum number of removed/added word alternation to inline.
+    pub max_inline_alternation: Option<usize>,
 }
 
 impl ColorWordsOptions {
     fn from_settings_and_args(
-        _settings: &UserSettings,
+        settings: &UserSettings,
         args: &DiffFormatArgs,
     ) -> Result<Self, config::ConfigError> {
+        let config = settings.config();
+        let max_inline_alternation = {
+            let key = "diff.color-words.max-inline-alternation";
+            match config.get_int(key)? {
+                -1 => None, // unlimited
+                n => Some(usize::try_from(n).map_err(|err| {
+                    config::ConfigError::Message(format!("invalid {key}: {err}"))
+                })?),
+            }
+        };
         Ok(ColorWordsOptions {
             context: args.context.unwrap_or(DEFAULT_CONTEXT_LINES),
+            max_inline_alternation,
         })
     }
 }
@@ -467,13 +480,35 @@ fn show_color_words_diff_hunks(
                 )?;
             }
             DiffHunk::Different(contents) => {
-                let word_diff = Diff::by_word(&contents);
-                let mut diff_line_iter =
-                    DiffLineIterator::with_line_number(word_diff.hunks(), line_number);
-                for diff_line in diff_line_iter.by_ref() {
-                    show_color_words_diff_line(formatter, &diff_line)?;
+                let word_diff_hunks = Diff::by_word(&contents).hunks().collect_vec();
+                let can_inline = match options.max_inline_alternation {
+                    None => true,     // unlimited
+                    Some(0) => false, // no need to count alternation
+                    Some(max_num) => {
+                        let groups = split_diff_hunks_by_matching_newline(&word_diff_hunks);
+                        groups.map(count_diff_alternation).max().unwrap_or(0) <= max_num
+                    }
+                };
+                if can_inline {
+                    let mut diff_line_iter =
+                        DiffLineIterator::with_line_number(word_diff_hunks.iter(), line_number);
+                    for diff_line in diff_line_iter.by_ref() {
+                        show_color_words_diff_line(formatter, &diff_line)?;
+                    }
+                    line_number = diff_line_iter.next_line_number();
+                } else {
+                    let (left_lines, right_lines) = unzip_diff_hunks_to_lines(&word_diff_hunks);
+                    for tokens in &left_lines {
+                        show_color_words_line_number(formatter, Some(line_number.left), None)?;
+                        show_color_words_single_sided_line(formatter, tokens, "removed")?;
+                        line_number.left += 1;
+                    }
+                    for tokens in &right_lines {
+                        show_color_words_line_number(formatter, None, Some(line_number.right))?;
+                        show_color_words_single_sided_line(formatter, tokens, "added")?;
+                        line_number.right += 1;
+                    }
                 }
-                line_number = diff_line_iter.next_line_number();
             }
         }
     }
@@ -544,6 +579,7 @@ fn show_color_words_line_number(
     Ok(())
 }
 
+/// Prints `diff_line` which may contain tokens originating from both sides.
 fn show_color_words_diff_line(
     formatter: &mut dyn Formatter,
     diff_line: &DiffLine,
@@ -576,6 +612,56 @@ fn show_color_words_diff_line(
         writeln!(formatter)?;
     };
     Ok(())
+}
+
+/// Prints left/right-only line tokens with the given label.
+fn show_color_words_single_sided_line(
+    formatter: &mut dyn Formatter,
+    tokens: &[(DiffTokenType, &[u8])],
+    label: &str,
+) -> io::Result<()> {
+    formatter.with_label(label, |formatter| show_diff_line_tokens(formatter, tokens))?;
+    let (_, data) = tokens.last().expect("diff line must not be empty");
+    if !data.ends_with(b"\n") {
+        writeln!(formatter)?;
+    };
+    Ok(())
+}
+
+/// Counts number of diff-side alternation, ignoring matching hunks.
+///
+/// This function is meant to measure visual complexity of diff hunks. It's easy
+/// to read hunks containing some removed or added words, but is getting harder
+/// as more removes and adds interleaved.
+///
+/// For example,
+/// - `[matching]` -> 0
+/// - `[left]` -> 1
+/// - `[left, matching, left]` -> 1
+/// - `[matching, left, right, matching, right]` -> 2
+/// - `[left, right, matching, right, left]` -> 3
+fn count_diff_alternation(diff_hunks: &[DiffHunk]) -> usize {
+    diff_hunks
+        .iter()
+        .filter_map(|hunk| match hunk {
+            DiffHunk::Matching(_) => None,
+            DiffHunk::Different(contents) => Some(contents),
+        })
+        // Map non-empty diff side to index (0: left, 1: right)
+        .flat_map(|contents| contents.iter().positions(|content| !content.is_empty()))
+        // Omit e.g. left->(matching->)*left
+        .dedup()
+        .count()
+}
+
+/// Splits hunks into slices of contiguous changed lines.
+fn split_diff_hunks_by_matching_newline<'a, 'b>(
+    diff_hunks: &'a [DiffHunk<'b>],
+) -> impl Iterator<Item = &'a [DiffHunk<'b>]> {
+    diff_hunks.split_inclusive(|hunk| match hunk {
+        DiffHunk::Matching(content) => content.contains(&b'\n'),
+        DiffHunk::Different(_) => false,
+    })
 }
 
 struct FileContent {

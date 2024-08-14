@@ -200,6 +200,29 @@ can override the default style with the following keys:
 ui.diff.format = "git"
 ```
 
+#### Color-words diff options
+
+In color-words diffs, changed words are displayed inline by default. Because
+it's difficult to read a diff line with many removed/added words, there's a
+threshold to switch to traditional separate-line format.
+
+* `max-inline-alternation`: Maximum number of removed/added word alternation to
+  inline. For example, `<added> ... <added>` sequence has 1 alternation, so the
+  line will be inline if `max-inline-alternation >= 1`. `<added> ... <removed>
+  ... <added>` sequence has 3 alternation.
+
+  * `0`: disable inlining, making `--color-words` more similar to `--git`
+  * `1`: inline removes-only or adds-only lines
+  * `2`, `3`, ..: inline up to `2`, `3`, .. alternation
+  * `-1`: inline all lines (default)
+
+  **This parameter is experimental.** The definition is subject to change.
+
+```toml
+[diff.color-words]
+max-inline-alternation = 3
+```
+
 ### Generating diffs by external command
 
 If `ui.diff.tool` is set, the specified diff command will be called instead of
