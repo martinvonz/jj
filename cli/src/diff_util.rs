@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::borrow::Borrow;
 use std::cmp::max;
 use std::collections::HashSet;
 use std::ops::Range;
@@ -1061,8 +1062,8 @@ fn unified_diff_hunks<'content>(
                 current_hunk.extend_context_lines(before_lines.into_iter().rev());
             }
             DiffHunk::Different(contents) => {
-                let [left, right] = contents.try_into().unwrap();
-                let (left_lines, right_lines) = inline_diff_hunks(left, right);
+                let (left_lines, right_lines) =
+                    unzip_diff_hunks_to_lines(Diff::by_word(contents).hunks());
                 current_hunk.extend_removed_lines(left_lines);
                 current_hunk.extend_added_lines(right_lines);
             }
@@ -1074,19 +1075,21 @@ fn unified_diff_hunks<'content>(
     hunks
 }
 
-/// Splits line-level hunks into word-level tokens. Returns lists of tokens per
-/// line.
-fn inline_diff_hunks<'content>(
-    left_content: &'content [u8],
-    right_content: &'content [u8],
-) -> (Vec<DiffTokenVec<'content>>, Vec<DiffTokenVec<'content>>) {
+/// Splits `(left, right)` hunk pairs into `(left_lines, right_lines)`.
+fn unzip_diff_hunks_to_lines<'content, I>(
+    diff_hunks: I,
+) -> (Vec<DiffTokenVec<'content>>, Vec<DiffTokenVec<'content>>)
+where
+    I: IntoIterator,
+    I::Item: Borrow<DiffHunk<'content>>,
+{
     let mut left_lines: Vec<DiffTokenVec<'content>> = vec![];
     let mut right_lines: Vec<DiffTokenVec<'content>> = vec![];
     let mut left_tokens: DiffTokenVec<'content> = vec![];
     let mut right_tokens: DiffTokenVec<'content> = vec![];
 
-    for hunk in Diff::by_word([left_content, right_content]).hunks() {
-        match hunk {
+    for hunk in diff_hunks {
+        match hunk.borrow() {
             DiffHunk::Matching(content) => {
                 for token in content.split_inclusive(|b| *b == b'\n') {
                     left_tokens.push((DiffTokenType::Matching, token));
@@ -1098,7 +1101,9 @@ fn inline_diff_hunks<'content>(
                 }
             }
             DiffHunk::Different(contents) => {
-                let [left, right] = contents.try_into().unwrap();
+                let [left, right] = contents[..]
+                    .try_into()
+                    .expect("hunk should have exactly two inputs");
                 for token in left.split_inclusive(|b| *b == b'\n') {
                     left_tokens.push((DiffTokenType::Different, token));
                     if token.ends_with(b"\n") {
@@ -1147,18 +1152,26 @@ fn show_unified_diff_hunks(
             };
             formatter.with_label(label, |formatter| {
                 write!(formatter, "{sigil}")?;
-                for (token_type, content) in tokens {
-                    match token_type {
-                        DiffTokenType::Matching => formatter.write_all(content)?,
-                        DiffTokenType::Different => formatter
-                            .with_label("token", |formatter| formatter.write_all(content))?,
-                    }
-                }
-                io::Result::Ok(())
+                show_diff_line_tokens(formatter, tokens)
             })?;
             let (_, content) = tokens.last().expect("hunk line must not be empty");
             if !content.ends_with(b"\n") {
                 write!(formatter, "\n\\ No newline at end of file\n")?;
+            }
+        }
+    }
+    Ok(())
+}
+
+fn show_diff_line_tokens(
+    formatter: &mut dyn Formatter,
+    tokens: &[(DiffTokenType, &[u8])],
+) -> io::Result<()> {
+    for (token_type, content) in tokens {
+        match token_type {
+            DiffTokenType::Matching => formatter.write_all(content)?,
+            DiffTokenType::Different => {
+                formatter.with_label("token", |formatter| formatter.write_all(content))?
             }
         }
     }
