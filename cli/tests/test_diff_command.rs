@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use indoc::indoc;
 use itertools::Itertools;
 
 use crate::common::{escaped_fake_diff_editor_path, strip_last_line, TestEnvironment};
@@ -740,6 +741,507 @@ fn test_diff_hunks() {
 }
 
 #[test]
+fn test_diff_color_words_inlining_threshold() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    let render_diff = |max_alternation: i32, args: &[&str]| {
+        let config = format!("diff.color-words.max-inline-alternation={max_alternation}");
+        test_env.jj_cmd_success(
+            &repo_path,
+            &[&["diff", "--config-toml", &config], args].concat(),
+        )
+    };
+
+    let file1_path = "file1-single-line";
+    let file2_path = "file2-multiple-lines-in-single-hunk";
+    let file3_path = "file3-changes-across-lines";
+    std::fs::write(
+        repo_path.join(file1_path),
+        indoc! {"
+            == adds ==
+            a b c
+            == removes ==
+            a b c d e f g
+            == adds + removes ==
+            a b c d e
+            == adds + removes + adds ==
+            a b c d e
+            == adds + removes + adds + removes ==
+            a b c d e f g
+        "},
+    )
+    .unwrap();
+    std::fs::write(
+        repo_path.join(file2_path),
+        indoc! {"
+            == adds; removes; adds + removes ==
+            a b c
+            a b c d e f g
+            a b c d e
+            == adds + removes + adds; adds + removes + adds + removes ==
+            a b c d e
+            a b c d e f g
+        "},
+    )
+    .unwrap();
+    std::fs::write(
+        repo_path.join(file3_path),
+        indoc! {"
+            == adds ==
+            a b c
+            == removes ==
+            a b c d
+            e f g
+            == adds + removes ==
+            a b c
+            d e
+            == adds + removes + adds ==
+            a b c
+            d e
+            == adds + removes + adds + removes ==
+            a b
+            c d e f g
+        "},
+    )
+    .unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["new"]);
+    std::fs::write(
+        repo_path.join(file1_path),
+        indoc! {"
+            == adds ==
+            a X b Y Z c
+            == removes ==
+            a c f
+            == adds + removes ==
+            a X b d
+            == adds + removes + adds ==
+            a X b d Y
+            == adds + removes + adds + removes ==
+            X a Y b d Z e
+        "},
+    )
+    .unwrap();
+    std::fs::write(
+        repo_path.join(file2_path),
+        indoc! {"
+            == adds; removes; adds + removes ==
+            a X b Y Z c
+            a c f
+            a X b d
+            == adds + removes + adds; adds + removes + adds + removes ==
+            a X b d Y
+            X a Y b d Z e
+        "},
+    )
+    .unwrap();
+    std::fs::write(
+        repo_path.join(file3_path),
+        indoc! {"
+            == adds ==
+            a X b
+            Y Z c
+            == removes ==
+            a c f
+            == adds + removes ==
+            a
+            X b d
+            == adds + removes + adds ==
+            a X b d
+            Y
+            == adds + removes + adds + removes ==
+            X a Y b d
+            Z e
+        "},
+    )
+    .unwrap();
+
+    // inline all by default
+    let stdout = test_env.jj_cmd_success(&repo_path, &["diff"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Modified regular file file1-single-line:
+       1    1: == adds ==
+       2    2: a X b Y Z c
+       3    3: == removes ==
+       4    4: a b c d e f g
+       5    5: == adds + removes ==
+       6    6: a X b c d e
+       7    7: == adds + removes + adds ==
+       8    8: a X b c d eY
+       9    9: == adds + removes + adds + removes ==
+      10   10: X a Y b c d Z e f g
+    Modified regular file file2-multiple-lines-in-single-hunk:
+       1    1: == adds; removes; adds + removes ==
+       2    2: a X b Y Z c
+       3    3: a b c d e f g
+       4    4: a X b c d e
+       5    5: == adds + removes + adds; adds + removes + adds + removes ==
+       6    6: a X b c d eY
+       7    7: X a Y b c d Z e f g
+    Modified regular file file3-changes-across-lines:
+       1    1: == adds ==
+       2    2: a X b
+       2    3: Y Z c
+       3    4: == removes ==
+       4    5: a b c d
+       5    5: e f g
+       6    6: == adds + removes ==
+       7    7: a
+       7    8: X b c
+       8    8: d e
+       9    9: == adds + removes + adds ==
+      10   10: a X b c
+      11   10: d e
+      11   11: Y
+      12   12: == adds + removes + adds + removes ==
+      13   13: X a Y b
+      14   13: c d
+      14   14: Z e f g
+    "###);
+
+    // 0: no inlining
+    insta::assert_snapshot!(render_diff(0, &[]), @r###"
+    Modified regular file file1-single-line:
+       1    1: == adds ==
+       2     : a b c
+            2: a X b Y Z c
+       3    3: == removes ==
+       4     : a b c d e f g
+            4: a c f
+       5    5: == adds + removes ==
+       6     : a b c d e
+            6: a X b d
+       7    7: == adds + removes + adds ==
+       8     : a b c d e
+            8: a X b d Y
+       9    9: == adds + removes + adds + removes ==
+      10     : a b c d e f g
+           10: X a Y b d Z e
+    Modified regular file file2-multiple-lines-in-single-hunk:
+       1    1: == adds; removes; adds + removes ==
+       2     : a b c
+       3     : a b c d e f g
+       4     : a b c d e
+            2: a X b Y Z c
+            3: a c f
+            4: a X b d
+       5    5: == adds + removes + adds; adds + removes + adds + removes ==
+       6     : a b c d e
+       7     : a b c d e f g
+            6: a X b d Y
+            7: X a Y b d Z e
+    Modified regular file file3-changes-across-lines:
+       1    1: == adds ==
+       2     : a b c
+            2: a X b
+            3: Y Z c
+       3    4: == removes ==
+       4     : a b c d
+       5     : e f g
+            5: a c f
+       6    6: == adds + removes ==
+       7     : a b c
+       8     : d e
+            7: a
+            8: X b d
+       9    9: == adds + removes + adds ==
+      10     : a b c
+      11     : d e
+           10: a X b d
+           11: Y
+      12   12: == adds + removes + adds + removes ==
+      13     : a b
+      14     : c d e f g
+           13: X a Y b d
+           14: Z e
+    "###);
+
+    // 1: inline adds-only or removes-only lines
+    insta::assert_snapshot!(render_diff(1, &[]), @r###"
+    Modified regular file file1-single-line:
+       1    1: == adds ==
+       2    2: a X b Y Z c
+       3    3: == removes ==
+       4    4: a b c d e f g
+       5    5: == adds + removes ==
+       6     : a b c d e
+            6: a X b d
+       7    7: == adds + removes + adds ==
+       8     : a b c d e
+            8: a X b d Y
+       9    9: == adds + removes + adds + removes ==
+      10     : a b c d e f g
+           10: X a Y b d Z e
+    Modified regular file file2-multiple-lines-in-single-hunk:
+       1    1: == adds; removes; adds + removes ==
+       2     : a b c
+       3     : a b c d e f g
+       4     : a b c d e
+            2: a X b Y Z c
+            3: a c f
+            4: a X b d
+       5    5: == adds + removes + adds; adds + removes + adds + removes ==
+       6     : a b c d e
+       7     : a b c d e f g
+            6: a X b d Y
+            7: X a Y b d Z e
+    Modified regular file file3-changes-across-lines:
+       1    1: == adds ==
+       2    2: a X b
+       2    3: Y Z c
+       3    4: == removes ==
+       4    5: a b c d
+       5    5: e f g
+       6    6: == adds + removes ==
+       7     : a b c
+       8     : d e
+            7: a
+            8: X b d
+       9    9: == adds + removes + adds ==
+      10     : a b c
+      11     : d e
+           10: a X b d
+           11: Y
+      12   12: == adds + removes + adds + removes ==
+      13     : a b
+      14     : c d e f g
+           13: X a Y b d
+           14: Z e
+    "###);
+
+    // 2: inline up to adds + removes lines
+    insta::assert_snapshot!(render_diff(2, &[]), @r###"
+    Modified regular file file1-single-line:
+       1    1: == adds ==
+       2    2: a X b Y Z c
+       3    3: == removes ==
+       4    4: a b c d e f g
+       5    5: == adds + removes ==
+       6    6: a X b c d e
+       7    7: == adds + removes + adds ==
+       8     : a b c d e
+            8: a X b d Y
+       9    9: == adds + removes + adds + removes ==
+      10     : a b c d e f g
+           10: X a Y b d Z e
+    Modified regular file file2-multiple-lines-in-single-hunk:
+       1    1: == adds; removes; adds + removes ==
+       2    2: a X b Y Z c
+       3    3: a b c d e f g
+       4    4: a X b c d e
+       5    5: == adds + removes + adds; adds + removes + adds + removes ==
+       6     : a b c d e
+       7     : a b c d e f g
+            6: a X b d Y
+            7: X a Y b d Z e
+    Modified regular file file3-changes-across-lines:
+       1    1: == adds ==
+       2    2: a X b
+       2    3: Y Z c
+       3    4: == removes ==
+       4    5: a b c d
+       5    5: e f g
+       6    6: == adds + removes ==
+       7    7: a
+       7    8: X b c
+       8    8: d e
+       9    9: == adds + removes + adds ==
+      10     : a b c
+      11     : d e
+           10: a X b d
+           11: Y
+      12   12: == adds + removes + adds + removes ==
+      13     : a b
+      14     : c d e f g
+           13: X a Y b d
+           14: Z e
+    "###);
+
+    // 3: inline up to adds + removes + adds lines
+    insta::assert_snapshot!(render_diff(3, &[]), @r###"
+    Modified regular file file1-single-line:
+       1    1: == adds ==
+       2    2: a X b Y Z c
+       3    3: == removes ==
+       4    4: a b c d e f g
+       5    5: == adds + removes ==
+       6    6: a X b c d e
+       7    7: == adds + removes + adds ==
+       8    8: a X b c d eY
+       9    9: == adds + removes + adds + removes ==
+      10     : a b c d e f g
+           10: X a Y b d Z e
+    Modified regular file file2-multiple-lines-in-single-hunk:
+       1    1: == adds; removes; adds + removes ==
+       2    2: a X b Y Z c
+       3    3: a b c d e f g
+       4    4: a X b c d e
+       5    5: == adds + removes + adds; adds + removes + adds + removes ==
+       6     : a b c d e
+       7     : a b c d e f g
+            6: a X b d Y
+            7: X a Y b d Z e
+    Modified regular file file3-changes-across-lines:
+       1    1: == adds ==
+       2    2: a X b
+       2    3: Y Z c
+       3    4: == removes ==
+       4    5: a b c d
+       5    5: e f g
+       6    6: == adds + removes ==
+       7    7: a
+       7    8: X b c
+       8    8: d e
+       9    9: == adds + removes + adds ==
+      10   10: a X b c
+      11   10: d e
+      11   11: Y
+      12   12: == adds + removes + adds + removes ==
+      13     : a b
+      14     : c d e f g
+           13: X a Y b d
+           14: Z e
+    "###);
+
+    // 4: inline up to adds + removes + adds + removes lines
+    insta::assert_snapshot!(render_diff(4, &[]), @r###"
+    Modified regular file file1-single-line:
+       1    1: == adds ==
+       2    2: a X b Y Z c
+       3    3: == removes ==
+       4    4: a b c d e f g
+       5    5: == adds + removes ==
+       6    6: a X b c d e
+       7    7: == adds + removes + adds ==
+       8    8: a X b c d eY
+       9    9: == adds + removes + adds + removes ==
+      10   10: X a Y b c d Z e f g
+    Modified regular file file2-multiple-lines-in-single-hunk:
+       1    1: == adds; removes; adds + removes ==
+       2    2: a X b Y Z c
+       3    3: a b c d e f g
+       4    4: a X b c d e
+       5    5: == adds + removes + adds; adds + removes + adds + removes ==
+       6    6: a X b c d eY
+       7    7: X a Y b c d Z e f g
+    Modified regular file file3-changes-across-lines:
+       1    1: == adds ==
+       2    2: a X b
+       2    3: Y Z c
+       3    4: == removes ==
+       4    5: a b c d
+       5    5: e f g
+       6    6: == adds + removes ==
+       7    7: a
+       7    8: X b c
+       8    8: d e
+       9    9: == adds + removes + adds ==
+      10   10: a X b c
+      11   10: d e
+      11   11: Y
+      12   12: == adds + removes + adds + removes ==
+      13   13: X a Y b
+      14   13: c d
+      14   14: Z e f g
+    "###);
+
+    // context words in added/removed lines should be labeled as such
+    insta::assert_snapshot!(render_diff(2, &["--color=always"]), @r###"
+    [38;5;3mModified regular file file1-single-line:[39m
+    [38;5;1m   1[39m [38;5;2m   1[39m: == adds ==
+    [38;5;1m   2[39m [38;5;2m   2[39m: a [4m[38;5;2mX [24m[39mb [4m[38;5;2mY Z [24m[39mc
+    [38;5;1m   3[39m [38;5;2m   3[39m: == removes ==
+    [38;5;1m   4[39m [38;5;2m   4[39m: a [4m[38;5;1mb [24m[39mc [4m[38;5;1md e [24m[39mf[4m[38;5;1m g[24m[39m
+    [38;5;1m   5[39m [38;5;2m   5[39m: == adds + removes ==
+    [38;5;1m   6[39m [38;5;2m   6[39m: a [4m[38;5;2mX [24m[39mb [4m[38;5;1mc [24m[39md[4m[38;5;1m e[24m[39m
+    [38;5;1m   7[39m [38;5;2m   7[39m: == adds + removes + adds ==
+    [38;5;1m   8[39m     : [38;5;1ma b [4mc [24md [4me[24m[39m
+         [38;5;2m   8[39m: [38;5;2ma [4mX [24mb d [4mY[24m[39m
+    [38;5;1m   9[39m [38;5;2m   9[39m: == adds + removes + adds + removes ==
+    [38;5;1m  10[39m     : [38;5;1ma b [4mc [24md e[4m f g[24m[39m
+         [38;5;2m  10[39m: [4m[38;5;2mX [24ma [4mY [24mb d [4mZ [24me[39m
+    [38;5;3mModified regular file file2-multiple-lines-in-single-hunk:[39m
+    [38;5;1m   1[39m [38;5;2m   1[39m: == adds; removes; adds + removes ==
+    [38;5;1m   2[39m [38;5;2m   2[39m: a [4m[38;5;2mX [24m[39mb [4m[38;5;2mY Z [24m[39mc
+    [38;5;1m   3[39m [38;5;2m   3[39m: a [4m[38;5;1mb [24m[39mc [4m[38;5;1md e [24m[39mf[4m[38;5;1m g[24m[39m
+    [38;5;1m   4[39m [38;5;2m   4[39m: a [4m[38;5;2mX [24m[39mb [4m[38;5;1mc [24m[39md[4m[38;5;1m e[24m[39m
+    [38;5;1m   5[39m [38;5;2m   5[39m: == adds + removes + adds; adds + removes + adds + removes ==
+    [38;5;1m   6[39m     : [38;5;1ma b [4mc [24md [4me[24m[39m
+    [38;5;1m   7[39m     : [38;5;1ma b [4mc [24md e[4m f g[24m[39m
+         [38;5;2m   6[39m: [38;5;2ma [4mX [24mb d [4mY[24m[39m
+         [38;5;2m   7[39m: [4m[38;5;2mX [24ma [4mY [24mb d [4mZ [24me[39m
+    [38;5;3mModified regular file file3-changes-across-lines:[39m
+    [38;5;1m   1[39m [38;5;2m   1[39m: == adds ==
+    [38;5;1m   2[39m [38;5;2m   2[39m: a [4m[38;5;2mX [24m[39mb[4m[38;5;2m[24m[39m
+    [38;5;1m   2[39m [38;5;2m   3[39m: [4m[38;5;2mY Z[24m[39m c
+    [38;5;1m   3[39m [38;5;2m   4[39m: == removes ==
+    [38;5;1m   4[39m [38;5;2m   5[39m: a [4m[38;5;1mb [24m[39mc [4m[38;5;1md[24m[39m
+    [38;5;1m   5[39m [38;5;2m   5[39m: [4m[38;5;1me [24m[39mf[4m[38;5;1m g[24m[39m
+    [38;5;1m   6[39m [38;5;2m   6[39m: == adds + removes ==
+    [38;5;1m   7[39m [38;5;2m   7[39m: a[4m[38;5;2m[24m[39m
+    [38;5;1m   7[39m [38;5;2m   8[39m: [4m[38;5;2mX[24m[39m b [4m[38;5;1mc[24m[39m
+    [38;5;1m   8[39m [38;5;2m   8[39m: d[4m[38;5;1m e[24m[39m
+    [38;5;1m   9[39m [38;5;2m   9[39m: == adds + removes + adds ==
+    [38;5;1m  10[39m     : [38;5;1ma b [4mc[24m[39m
+    [38;5;1m  11[39m     : [38;5;1md[4m e[24m[39m
+         [38;5;2m  10[39m: [38;5;2ma [4mX [24mb d[4m[24m[39m
+         [38;5;2m  11[39m: [4m[38;5;2mY[24m[39m
+    [38;5;1m  12[39m [38;5;2m  12[39m: == adds + removes + adds + removes ==
+    [38;5;1m  13[39m     : [38;5;1ma b[4m[24m[39m
+    [38;5;1m  14[39m     : [4m[38;5;1mc[24m d e[4m f g[24m[39m
+         [38;5;2m  13[39m: [4m[38;5;2mX [24ma [4mY [24mb d[4m[24m[39m
+         [38;5;2m  14[39m: [4m[38;5;2mZ[24m e[39m
+    "###);
+    insta::assert_snapshot!(render_diff(2, &["--color=debug"]), @r###"
+    [38;5;3m<<diff header::Modified regular file file1-single-line:>>[39m
+    [38;5;1m<<diff removed line_number::   1>>[39m<<diff:: >>[38;5;2m<<diff added line_number::   1>>[39m<<diff::: == adds ==>>
+    [38;5;1m<<diff removed line_number::   2>>[39m<<diff:: >>[38;5;2m<<diff added line_number::   2>>[39m<<diff::: a >>[4m[38;5;2m<<diff added token::X >>[24m[39m<<diff::b >>[4m[38;5;2m<<diff added token::Y Z >>[24m[39m<<diff::c>>
+    [38;5;1m<<diff removed line_number::   3>>[39m<<diff:: >>[38;5;2m<<diff added line_number::   3>>[39m<<diff::: == removes ==>>
+    [38;5;1m<<diff removed line_number::   4>>[39m<<diff:: >>[38;5;2m<<diff added line_number::   4>>[39m<<diff::: a >>[4m[38;5;1m<<diff removed token::b >>[24m[39m<<diff::c >>[4m[38;5;1m<<diff removed token::d e >>[24m[39m<<diff::f>>[4m[38;5;1m<<diff removed token:: g>>[24m[39m<<diff::>>
+    [38;5;1m<<diff removed line_number::   5>>[39m<<diff:: >>[38;5;2m<<diff added line_number::   5>>[39m<<diff::: == adds + removes ==>>
+    [38;5;1m<<diff removed line_number::   6>>[39m<<diff:: >>[38;5;2m<<diff added line_number::   6>>[39m<<diff::: a >>[4m[38;5;2m<<diff added token::X >>[24m[39m<<diff::b >>[4m[38;5;1m<<diff removed token::c >>[24m[39m<<diff::d>>[4m[38;5;1m<<diff removed token:: e>>[24m[39m<<diff::>>
+    [38;5;1m<<diff removed line_number::   7>>[39m<<diff:: >>[38;5;2m<<diff added line_number::   7>>[39m<<diff::: == adds + removes + adds ==>>
+    [38;5;1m<<diff removed line_number::   8>>[39m<<diff::     : >>[38;5;1m<<diff removed::a b >>[4m<<diff removed token::c >>[24m<<diff removed::d >>[4m<<diff removed token::e>>[24m<<diff removed::>>[39m
+    <<diff::     >>[38;5;2m<<diff added line_number::   8>>[39m<<diff::: >>[38;5;2m<<diff added::a >>[4m<<diff added token::X >>[24m<<diff added::b d >>[4m<<diff added token::Y>>[24m<<diff added::>>[39m
+    [38;5;1m<<diff removed line_number::   9>>[39m<<diff:: >>[38;5;2m<<diff added line_number::   9>>[39m<<diff::: == adds + removes + adds + removes ==>>
+    [38;5;1m<<diff removed line_number::  10>>[39m<<diff::     : >>[38;5;1m<<diff removed::a b >>[4m<<diff removed token::c >>[24m<<diff removed::d e>>[4m<<diff removed token:: f g>>[24m<<diff removed::>>[39m
+    <<diff::     >>[38;5;2m<<diff added line_number::  10>>[39m<<diff::: >>[4m[38;5;2m<<diff added token::X >>[24m<<diff added::a >>[4m<<diff added token::Y >>[24m<<diff added::b d >>[4m<<diff added token::Z >>[24m<<diff added::e>>[39m
+    [38;5;3m<<diff header::Modified regular file file2-multiple-lines-in-single-hunk:>>[39m
+    [38;5;1m<<diff removed line_number::   1>>[39m<<diff:: >>[38;5;2m<<diff added line_number::   1>>[39m<<diff::: == adds; removes; adds + removes ==>>
+    [38;5;1m<<diff removed line_number::   2>>[39m<<diff:: >>[38;5;2m<<diff added line_number::   2>>[39m<<diff::: a >>[4m[38;5;2m<<diff added token::X >>[24m[39m<<diff::b >>[4m[38;5;2m<<diff added token::Y Z >>[24m[39m<<diff::c>>
+    [38;5;1m<<diff removed line_number::   3>>[39m<<diff:: >>[38;5;2m<<diff added line_number::   3>>[39m<<diff::: a >>[4m[38;5;1m<<diff removed token::b >>[24m[39m<<diff::c >>[4m[38;5;1m<<diff removed token::d e >>[24m[39m<<diff::f>>[4m[38;5;1m<<diff removed token:: g>>[24m[39m<<diff::>>
+    [38;5;1m<<diff removed line_number::   4>>[39m<<diff:: >>[38;5;2m<<diff added line_number::   4>>[39m<<diff::: a >>[4m[38;5;2m<<diff added token::X >>[24m[39m<<diff::b >>[4m[38;5;1m<<diff removed token::c >>[24m[39m<<diff::d>>[4m[38;5;1m<<diff removed token:: e>>[24m[39m<<diff::>>
+    [38;5;1m<<diff removed line_number::   5>>[39m<<diff:: >>[38;5;2m<<diff added line_number::   5>>[39m<<diff::: == adds + removes + adds; adds + removes + adds + removes ==>>
+    [38;5;1m<<diff removed line_number::   6>>[39m<<diff::     : >>[38;5;1m<<diff removed::a b >>[4m<<diff removed token::c >>[24m<<diff removed::d >>[4m<<diff removed token::e>>[24m<<diff removed::>>[39m
+    [38;5;1m<<diff removed line_number::   7>>[39m<<diff::     : >>[38;5;1m<<diff removed::a b >>[4m<<diff removed token::c >>[24m<<diff removed::d e>>[4m<<diff removed token:: f g>>[24m<<diff removed::>>[39m
+    <<diff::     >>[38;5;2m<<diff added line_number::   6>>[39m<<diff::: >>[38;5;2m<<diff added::a >>[4m<<diff added token::X >>[24m<<diff added::b d >>[4m<<diff added token::Y>>[24m<<diff added::>>[39m
+    <<diff::     >>[38;5;2m<<diff added line_number::   7>>[39m<<diff::: >>[4m[38;5;2m<<diff added token::X >>[24m<<diff added::a >>[4m<<diff added token::Y >>[24m<<diff added::b d >>[4m<<diff added token::Z >>[24m<<diff added::e>>[39m
+    [38;5;3m<<diff header::Modified regular file file3-changes-across-lines:>>[39m
+    [38;5;1m<<diff removed line_number::   1>>[39m<<diff:: >>[38;5;2m<<diff added line_number::   1>>[39m<<diff::: == adds ==>>
+    [38;5;1m<<diff removed line_number::   2>>[39m<<diff:: >>[38;5;2m<<diff added line_number::   2>>[39m<<diff::: a >>[4m[38;5;2m<<diff added token::X >>[24m[39m<<diff::b>>[4m[38;5;2m<<diff added token::>>[24m[39m
+    [38;5;1m<<diff removed line_number::   2>>[39m<<diff:: >>[38;5;2m<<diff added line_number::   3>>[39m<<diff::: >>[4m[38;5;2m<<diff added token::Y Z>>[24m[39m<<diff:: c>>
+    [38;5;1m<<diff removed line_number::   3>>[39m<<diff:: >>[38;5;2m<<diff added line_number::   4>>[39m<<diff::: == removes ==>>
+    [38;5;1m<<diff removed line_number::   4>>[39m<<diff:: >>[38;5;2m<<diff added line_number::   5>>[39m<<diff::: a >>[4m[38;5;1m<<diff removed token::b >>[24m[39m<<diff::c >>[4m[38;5;1m<<diff removed token::d>>[24m[39m
+    [38;5;1m<<diff removed line_number::   5>>[39m<<diff:: >>[38;5;2m<<diff added line_number::   5>>[39m<<diff::: >>[4m[38;5;1m<<diff removed token::e >>[24m[39m<<diff::f>>[4m[38;5;1m<<diff removed token:: g>>[24m[39m<<diff::>>
+    [38;5;1m<<diff removed line_number::   6>>[39m<<diff:: >>[38;5;2m<<diff added line_number::   6>>[39m<<diff::: == adds + removes ==>>
+    [38;5;1m<<diff removed line_number::   7>>[39m<<diff:: >>[38;5;2m<<diff added line_number::   7>>[39m<<diff::: a>>[4m[38;5;2m<<diff added token::>>[24m[39m
+    [38;5;1m<<diff removed line_number::   7>>[39m<<diff:: >>[38;5;2m<<diff added line_number::   8>>[39m<<diff::: >>[4m[38;5;2m<<diff added token::X>>[24m[39m<<diff:: b >>[4m[38;5;1m<<diff removed token::c>>[24m[39m
+    [38;5;1m<<diff removed line_number::   8>>[39m<<diff:: >>[38;5;2m<<diff added line_number::   8>>[39m<<diff::: d>>[4m[38;5;1m<<diff removed token:: e>>[24m[39m<<diff::>>
+    [38;5;1m<<diff removed line_number::   9>>[39m<<diff:: >>[38;5;2m<<diff added line_number::   9>>[39m<<diff::: == adds + removes + adds ==>>
+    [38;5;1m<<diff removed line_number::  10>>[39m<<diff::     : >>[38;5;1m<<diff removed::a b >>[4m<<diff removed token::c>>[24m[39m
+    [38;5;1m<<diff removed line_number::  11>>[39m<<diff::     : >>[38;5;1m<<diff removed::d>>[4m<<diff removed token:: e>>[24m<<diff removed::>>[39m
+    <<diff::     >>[38;5;2m<<diff added line_number::  10>>[39m<<diff::: >>[38;5;2m<<diff added::a >>[4m<<diff added token::X >>[24m<<diff added::b d>>[4m<<diff added token::>>[24m[39m
+    <<diff::     >>[38;5;2m<<diff added line_number::  11>>[39m<<diff::: >>[4m[38;5;2m<<diff added token::Y>>[24m<<diff added::>>[39m
+    [38;5;1m<<diff removed line_number::  12>>[39m<<diff:: >>[38;5;2m<<diff added line_number::  12>>[39m<<diff::: == adds + removes + adds + removes ==>>
+    [38;5;1m<<diff removed line_number::  13>>[39m<<diff::     : >>[38;5;1m<<diff removed::a b>>[4m<<diff removed token::>>[24m[39m
+    [38;5;1m<<diff removed line_number::  14>>[39m<<diff::     : >>[4m[38;5;1m<<diff removed token::c>>[24m<<diff removed:: d e>>[4m<<diff removed token:: f g>>[24m<<diff removed::>>[39m
+    <<diff::     >>[38;5;2m<<diff added line_number::  13>>[39m<<diff::: >>[4m[38;5;2m<<diff added token::X >>[24m<<diff added::a >>[4m<<diff added token::Y >>[24m<<diff added::b d>>[4m<<diff added token::>>[24m[39m
+    <<diff::     >>[38;5;2m<<diff added line_number::  14>>[39m<<diff::: >>[4m[38;5;2m<<diff added token::Z>>[24m<<diff added:: e>>[39m
+    "###);
+}
+
+#[test]
 fn test_diff_missing_newline() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
@@ -880,6 +1382,89 @@ fn test_color_words_diff_missing_newline() {
        7    7: g
        8    8: h
        9    9: I
+    === Empty
+    Modified regular file file1:
+       1     : A
+       2     : b
+       3     : c
+       4     : d
+       5     : E
+       6     : f
+       7     : g
+       8     : h
+       9     : I
+    "###);
+
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &[
+            "log",
+            "--config-toml=diff.color-words.max-inline-alternation=0",
+            "-Tdescription",
+            "-pr::@-",
+            "--no-graph",
+            "--reversed",
+        ],
+    );
+    insta::assert_snapshot!(stdout, @r###"
+    === Empty
+    Added regular file file1:
+        (empty)
+    === Add no newline
+    Modified regular file file1:
+            1: a
+            2: b
+            3: c
+            4: d
+            5: e
+            6: f
+            7: g
+            8: h
+            9: i
+    === Modify first line
+    Modified regular file file1:
+       1     : a
+            1: A
+       2    2: b
+       3    3: c
+       4    4: d
+        ...
+    === Modify middle line
+    Modified regular file file1:
+       1    1: A
+       2    2: b
+       3    3: c
+       4    4: d
+       5     : e
+            5: E
+       6    6: f
+       7    7: g
+       8    8: h
+       9    9: i
+    === Modify last line
+    Modified regular file file1:
+        ...
+       6    6: f
+       7    7: g
+       8    8: h
+       9     : i
+            9: I
+    === Append newline
+    Modified regular file file1:
+        ...
+       6    6: f
+       7    7: g
+       8    8: h
+       9     : I
+            9: I
+    === Remove newline
+    Modified regular file file1:
+        ...
+       6    6: f
+       7    7: g
+       8    8: h
+       9     : I
+            9: I
     === Empty
     Modified regular file file1:
        1     : A

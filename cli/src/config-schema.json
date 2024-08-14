@@ -276,6 +276,22 @@
                 ]
             }
         },
+        "diff": {
+            "type": "object",
+            "description": "Builtin diff formats settings",
+            "properties": {
+                "color-words": {
+                    "type": "object",
+                    "description": "Options for color-words diffs",
+                    "properties": {
+                        "max-inline-alternation": {
+                            "type": "integer",
+                            "description": "Maximum number of removed/added word alternation to inline"
+                        }
+                    }
+                }
+            }
+        },
         "git": {
             "type": "object",
             "description": "Settings for git behavior (when using git backend)",

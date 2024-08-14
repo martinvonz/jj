@@ -1345,8 +1345,10 @@ fn builtin_tree_diff_methods<'repo>() -> CommitTemplateBuildMethodFnMap<'repo, T
             let path_converter = language.path_converter;
             let template = (self_property, context_property)
                 .map(move |(diff, context)| {
+                    // TODO: load defaults from UserSettings?
                     let options = diff_util::ColorWordsOptions {
                         context: context.unwrap_or(diff_util::DEFAULT_CONTEXT_LINES),
+                        max_inline_alternation: None,
                     };
                     diff.into_formatted(move |formatter, store, tree_diff| {
                         diff_util::show_color_words_diff(
