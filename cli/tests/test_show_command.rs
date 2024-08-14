@@ -35,6 +35,258 @@ fn test_show() {
 }
 
 #[test]
+fn test_show_basic() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    std::fs::write(repo_path.join("file1"), "foo\n").unwrap();
+    std::fs::write(repo_path.join("file2"), "foo\nbaz qux\n").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["new"]);
+    std::fs::remove_file(repo_path.join("file1")).unwrap();
+    std::fs::write(repo_path.join("file2"), "foo\nbar\nbaz quux\n").unwrap();
+    std::fs::write(repo_path.join("file3"), "foo\n").unwrap();
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["show"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Commit ID: e34f04317a81edc6ba41fef239c0d0180f10656f
+    Change ID: rlvkpnrzqnoowoytxnquwvuryrwnrmlp
+    Author: Test User <test.user@example.com> (2001-02-03 08:05:09)
+    Committer: Test User <test.user@example.com> (2001-02-03 08:05:09)
+
+        (no description set)
+
+    Removed regular file file1:
+       1     : foo
+    Modified regular file file2:
+       1    1: foo
+            2: bar
+       2    3: baz quxquux
+    Added regular file file3:
+            1: foo
+    "###);
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["show", "--context=0"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Commit ID: e34f04317a81edc6ba41fef239c0d0180f10656f
+    Change ID: rlvkpnrzqnoowoytxnquwvuryrwnrmlp
+    Author: Test User <test.user@example.com> (2001-02-03 08:05:09)
+    Committer: Test User <test.user@example.com> (2001-02-03 08:05:09)
+
+        (no description set)
+
+    Removed regular file file1:
+       1     : foo
+    Modified regular file file2:
+       1    1: foo
+            2: bar
+       2    3: baz quxquux
+    Added regular file file3:
+            1: foo
+    "###);
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["show", "--color=debug"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Commit ID: [38;5;4m<<commit_id::e34f04317a81edc6ba41fef239c0d0180f10656f>>[39m
+    Change ID: [38;5;5m<<change_id::rlvkpnrzqnoowoytxnquwvuryrwnrmlp>>[39m
+    Author: <<author name::Test User>> <[38;5;3m<<author email::test.user@example.com>>[39m> ([38;5;6m<<author timestamp local format::2001-02-03 08:05:09>>[39m)
+    Committer: <<committer name::Test User>> <[38;5;3m<<committer email::test.user@example.com>>[39m> ([38;5;6m<<committer timestamp local format::2001-02-03 08:05:09>>[39m)
+
+    [38;5;3m<<description placeholder::    (no description set)>>[39m
+
+    [38;5;3m<<diff header::Removed regular file file1:>>[39m
+    [38;5;1m<<diff removed line_number::   1>>[39m<<diff::     : >>[4m[38;5;1m<<diff removed token::foo>>[24m[39m
+    [38;5;3m<<diff header::Modified regular file file2:>>[39m
+    [38;5;1m<<diff removed line_number::   1>>[39m<<diff:: >>[38;5;2m<<diff added line_number::   1>>[39m<<diff::: foo>>
+    <<diff::     >>[38;5;2m<<diff added line_number::   2>>[39m<<diff::: >>[4m[38;5;2m<<diff added token::bar>>[24m[39m
+    [38;5;1m<<diff removed line_number::   2>>[39m<<diff:: >>[38;5;2m<<diff added line_number::   3>>[39m<<diff::: baz >>[4m[38;5;1m<<diff removed token::qux>>[38;5;2m<<diff added token::quux>>[24m[39m<<diff::>>
+    [38;5;3m<<diff header::Added regular file file3:>>[39m
+    <<diff::     >>[38;5;2m<<diff added line_number::   1>>[39m<<diff::: >>[4m[38;5;2m<<diff added token::foo>>[24m[39m
+    "###);
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["show", "-s"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Commit ID: e34f04317a81edc6ba41fef239c0d0180f10656f
+    Change ID: rlvkpnrzqnoowoytxnquwvuryrwnrmlp
+    Author: Test User <test.user@example.com> (2001-02-03 08:05:09)
+    Committer: Test User <test.user@example.com> (2001-02-03 08:05:09)
+
+        (no description set)
+
+    D file1
+    M file2
+    A file3
+    "###);
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["show", "--types"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Commit ID: e34f04317a81edc6ba41fef239c0d0180f10656f
+    Change ID: rlvkpnrzqnoowoytxnquwvuryrwnrmlp
+    Author: Test User <test.user@example.com> (2001-02-03 08:05:09)
+    Committer: Test User <test.user@example.com> (2001-02-03 08:05:09)
+
+        (no description set)
+
+    F- file1
+    FF file2
+    -F file3
+    "###);
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["show", "--git"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Commit ID: e34f04317a81edc6ba41fef239c0d0180f10656f
+    Change ID: rlvkpnrzqnoowoytxnquwvuryrwnrmlp
+    Author: Test User <test.user@example.com> (2001-02-03 08:05:09)
+    Committer: Test User <test.user@example.com> (2001-02-03 08:05:09)
+
+        (no description set)
+
+    diff --git a/file1 b/file1
+    deleted file mode 100644
+    index 257cc5642c..0000000000
+    --- a/file1
+    +++ /dev/null
+    @@ -1,1 +1,0 @@
+    -foo
+    diff --git a/file2 b/file2
+    index 523a4a9de8..485b56a572 100644
+    --- a/file2
+    +++ b/file2
+    @@ -1,2 +1,3 @@
+     foo
+    -baz qux
+    +bar
+    +baz quux
+    diff --git a/file3 b/file3
+    new file mode 100644
+    index 0000000000..257cc5642c
+    --- /dev/null
+    +++ b/file3
+    @@ -1,0 +1,1 @@
+    +foo
+    "###);
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["show", "--git", "--context=0"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Commit ID: e34f04317a81edc6ba41fef239c0d0180f10656f
+    Change ID: rlvkpnrzqnoowoytxnquwvuryrwnrmlp
+    Author: Test User <test.user@example.com> (2001-02-03 08:05:09)
+    Committer: Test User <test.user@example.com> (2001-02-03 08:05:09)
+
+        (no description set)
+
+    diff --git a/file1 b/file1
+    deleted file mode 100644
+    index 257cc5642c..0000000000
+    --- a/file1
+    +++ /dev/null
+    @@ -1,1 +1,0 @@
+    -foo
+    diff --git a/file2 b/file2
+    index 523a4a9de8..485b56a572 100644
+    --- a/file2
+    +++ b/file2
+    @@ -2,1 +2,2 @@
+    -baz qux
+    +bar
+    +baz quux
+    diff --git a/file3 b/file3
+    new file mode 100644
+    index 0000000000..257cc5642c
+    --- /dev/null
+    +++ b/file3
+    @@ -1,0 +1,1 @@
+    +foo
+    "###);
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["show", "--git", "--color=debug"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Commit ID: [38;5;4m<<commit_id::e34f04317a81edc6ba41fef239c0d0180f10656f>>[39m
+    Change ID: [38;5;5m<<change_id::rlvkpnrzqnoowoytxnquwvuryrwnrmlp>>[39m
+    Author: <<author name::Test User>> <[38;5;3m<<author email::test.user@example.com>>[39m> ([38;5;6m<<author timestamp local format::2001-02-03 08:05:09>>[39m)
+    Committer: <<committer name::Test User>> <[38;5;3m<<committer email::test.user@example.com>>[39m> ([38;5;6m<<committer timestamp local format::2001-02-03 08:05:09>>[39m)
+
+    [38;5;3m<<description placeholder::    (no description set)>>[39m
+
+    [1m<<diff file_header::diff --git a/file1 b/file1>>[0m
+    [1m<<diff file_header::deleted file mode 100644>>[0m
+    [1m<<diff file_header::index 257cc5642c..0000000000>>[0m
+    [1m<<diff file_header::--- a/file1>>[0m
+    [1m<<diff file_header::+++ /dev/null>>[0m
+    [38;5;6m<<diff hunk_header::@@ -1,1 +1,0 @@>>[39m
+    [38;5;1m<<diff removed::->>[4m<<diff removed token::foo>>[24m[39m
+    [1m<<diff file_header::diff --git a/file2 b/file2>>[0m
+    [1m<<diff file_header::index 523a4a9de8..485b56a572 100644>>[0m
+    [1m<<diff file_header::--- a/file2>>[0m
+    [1m<<diff file_header::+++ b/file2>>[0m
+    [38;5;6m<<diff hunk_header::@@ -1,2 +1,3 @@>>[39m
+    <<diff context:: foo>>
+    [38;5;1m<<diff removed::-baz >>[4m<<diff removed token::qux>>[24m<<diff removed::>>[39m
+    [38;5;2m<<diff added::+>>[4m<<diff added token::bar>>[24m[39m
+    [38;5;2m<<diff added::+baz >>[4m<<diff added token::quux>>[24m<<diff added::>>[39m
+    [1m<<diff file_header::diff --git a/file3 b/file3>>[0m
+    [1m<<diff file_header::new file mode 100644>>[0m
+    [1m<<diff file_header::index 0000000000..257cc5642c>>[0m
+    [1m<<diff file_header::--- /dev/null>>[0m
+    [1m<<diff file_header::+++ b/file3>>[0m
+    [38;5;6m<<diff hunk_header::@@ -1,0 +1,1 @@>>[39m
+    [38;5;2m<<diff added::+>>[4m<<diff added token::foo>>[24m[39m
+    "###);
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["show", "-s", "--git"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Commit ID: e34f04317a81edc6ba41fef239c0d0180f10656f
+    Change ID: rlvkpnrzqnoowoytxnquwvuryrwnrmlp
+    Author: Test User <test.user@example.com> (2001-02-03 08:05:09)
+    Committer: Test User <test.user@example.com> (2001-02-03 08:05:09)
+
+        (no description set)
+
+    D file1
+    M file2
+    A file3
+    diff --git a/file1 b/file1
+    deleted file mode 100644
+    index 257cc5642c..0000000000
+    --- a/file1
+    +++ /dev/null
+    @@ -1,1 +1,0 @@
+    -foo
+    diff --git a/file2 b/file2
+    index 523a4a9de8..485b56a572 100644
+    --- a/file2
+    +++ b/file2
+    @@ -1,2 +1,3 @@
+     foo
+    -baz qux
+    +bar
+    +baz quux
+    diff --git a/file3 b/file3
+    new file mode 100644
+    index 0000000000..257cc5642c
+    --- /dev/null
+    +++ b/file3
+    @@ -1,0 +1,1 @@
+    +foo
+    "###);
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["show", "--stat"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Commit ID: e34f04317a81edc6ba41fef239c0d0180f10656f
+    Change ID: rlvkpnrzqnoowoytxnquwvuryrwnrmlp
+    Author: Test User <test.user@example.com> (2001-02-03 08:05:09)
+    Committer: Test User <test.user@example.com> (2001-02-03 08:05:09)
+
+        (no description set)
+
+    file1 | 1 -
+    file2 | 3 ++-
+    file3 | 1 +
+    3 files changed, 3 insertions(+), 2 deletions(-)
+    "###);
+}
+
+#[test]
 fn test_show_with_template() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
