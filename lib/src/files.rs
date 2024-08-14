@@ -14,11 +14,11 @@
 
 #![allow(missing_docs)]
 
+use std::borrow::Borrow;
 use std::collections::VecDeque;
 use std::fmt::{Debug, Error, Formatter};
-use std::{iter, vec};
+use std::iter;
 
-use crate::diff;
 use crate::diff::{Diff, DiffHunk};
 use crate::merge::{trivial_merge, Merge};
 
@@ -45,19 +45,19 @@ impl DiffLine<'_> {
     }
 }
 
-pub fn diff<'a>(left: &'a [u8], right: &'a [u8]) -> DiffLineIterator<'a> {
-    let diff_hunks = diff::diff(left, right);
-    DiffLineIterator::new(diff_hunks)
-}
-
-pub struct DiffLineIterator<'a> {
-    diff_hunks: iter::Fuse<vec::IntoIter<DiffHunk<'a>>>,
+pub struct DiffLineIterator<'a, I> {
+    diff_hunks: iter::Fuse<I>,
     current_line: DiffLine<'a>,
     queued_lines: VecDeque<DiffLine<'a>>,
 }
 
-impl<'a> DiffLineIterator<'a> {
-    fn new(diff_hunks: Vec<DiffHunk<'a>>) -> Self {
+impl<'a, I> DiffLineIterator<'a, I>
+where
+    I: Iterator,
+    I::Item: Borrow<DiffHunk<'a>>,
+{
+    /// Iterates `diff_hunks` by line. Each hunk should have exactly two inputs.
+    pub fn new(diff_hunks: I) -> Self {
         let current_line = DiffLine {
             left_line_number: 1,
             right_line_number: 1,
@@ -66,14 +66,18 @@ impl<'a> DiffLineIterator<'a> {
             hunks: vec![],
         };
         DiffLineIterator {
-            diff_hunks: diff_hunks.into_iter().fuse(),
+            diff_hunks: diff_hunks.fuse(),
             current_line,
             queued_lines: VecDeque::new(),
         }
     }
 }
 
-impl<'a> Iterator for DiffLineIterator<'a> {
+impl<'a, I> Iterator for DiffLineIterator<'a, I>
+where
+    I: Iterator,
+    I::Item: Borrow<DiffHunk<'a>>,
+{
     type Item = DiffLine<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -83,7 +87,7 @@ impl<'a> Iterator for DiffLineIterator<'a> {
             let Some(hunk) = self.diff_hunks.next() else {
                 break;
             };
-            match &hunk {
+            match hunk.borrow() {
                 DiffHunk::Matching(text) => {
                     let lines = text.split_inclusive(|b| *b == b'\n');
                     for line in lines {

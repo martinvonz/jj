@@ -25,8 +25,8 @@ use jj_lib::commit::Commit;
 use jj_lib::conflicts::{
     materialized_diff_stream, MaterializedTreeDiffEntry, MaterializedTreeValue,
 };
-use jj_lib::diff::{Diff, DiffHunk};
-use jj_lib::files::DiffLine;
+use jj_lib::diff::{self, Diff, DiffHunk};
+use jj_lib::files::{DiffLine, DiffLineIterator};
 use jj_lib::matchers::Matcher;
 use jj_lib::merge::MergedTreeValue;
 use jj_lib::merged_tree::{MergedTree, TreeDiffEntry, TreeDiffStream};
@@ -35,7 +35,6 @@ use jj_lib::repo::Repo;
 use jj_lib::repo_path::{RepoPath, RepoPathUiConverter};
 use jj_lib::settings::{ConfigResultExt as _, UserSettings};
 use jj_lib::store::Store;
-use jj_lib::{diff, files};
 use pollster::FutureExt;
 use thiserror::Error;
 use tracing::instrument;
@@ -373,7 +372,7 @@ fn show_color_words_diff_hunks(
     let mut skipped_context = false;
     // Are the lines in `context` to be printed before the next modified line?
     let mut context_before = true;
-    for diff_line in files::diff(left, right) {
+    for diff_line in DiffLineIterator::new(Diff::default_refinement([left, right]).hunks()) {
         if diff_line.is_unmodified() {
             context.push_back(diff_line.clone());
             let mut start_skipping_context = false;
