@@ -1971,21 +1971,27 @@ always resolves to exactly one commit. For example:</p>
 </code></pre></div>
 </li>
 <li>
+<p><code>builtin_immutable_heads()</code>: Resolves to <code>trunk() | tags() | untracked_remote_branches()</code>.
+   It is used as the default definition for <code>immutable_heads()</code> below. it is not
+   recommended to redefined this alias. Prefer to redefine <code>immutable_heads()</code> instead.</p>
+</li>
+<li>
 <p><code>immutable_heads()</code>: Resolves to <code>trunk() | tags() |
-  untracked_remote_branches()</code> by default. See
-  <a href="../config/#set-of-immutable-commits">here</a> for details.</p>
+  untracked_remote_branches()</code> by default. It is actually defined as <code>builtin_immutable_heads()</code>,
+  and can be overridden as required.
+  See <a href="../config/#set-of-immutable-commits">here</a> for details.</p>
 </li>
 <li>
 <p><code>immutable()</code>: The set of commits that <code>jj</code> treats as immutable. This is
-  equivalent to <code>::(immutable_heads() | root())</code>. Note that modifying this will
-  <em>not</em> change whether a commit is immutable. To do that, edit
-  <code>immutable_heads()</code>.</p>
+  equivalent to <code>::(immutable_heads() | root())</code>. It is not recommended to redefine
+  this alias. Note that modifying this will <em>not</em> change whether a commit is immutable.
+  To do that, edit <code>immutable_heads()</code>. </p>
 </li>
 <li>
 <p><code>mutable()</code>: The set of commits that <code>jj</code> treats as mutable. This is
-  equivalent to <code>~immutable()</code>. Note that modifying this will
-  <em>not</em> change whether a commit is immutable. To do that, edit
-  <code>immutable_heads()</code>.</p>
+  equivalent to <code>~immutable()</code>. It is not recommended to redefined this alias.
+  Note that modifying this will <em>not</em> change whether a commit is immutable.
+  To do that, edit <code>immutable_heads()</code>.</p>
 </li>
 </ul>
 <h2 id="the-all-modifier">The <code>all:</code> modifier<a class="headerlink" href="#the-all-modifier" title="Permanent link">&para;</a></h2>
