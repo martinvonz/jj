@@ -23,21 +23,24 @@ fn test_diff_basic() {
     let repo_path = test_env.env_root().join("repo");
 
     std::fs::write(repo_path.join("file1"), "foo\n").unwrap();
-    std::fs::write(repo_path.join("file2"), "foo\nbaz qux\n").unwrap();
+    std::fs::write(repo_path.join("file2"), "1\n2\n3\n4\n").unwrap();
     test_env.jj_cmd_ok(&repo_path, &["new"]);
     std::fs::remove_file(repo_path.join("file1")).unwrap();
-    std::fs::write(repo_path.join("file2"), "foo\nbar\nbaz quux\n").unwrap();
+    std::fs::write(repo_path.join("file2"), "1\n5\n3\n").unwrap();
     std::fs::write(repo_path.join("file3"), "foo\n").unwrap();
+    std::fs::write(repo_path.join("file4"), "1\n2\n3\n4\n").unwrap();
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff"]);
     insta::assert_snapshot!(stdout, @r###"
     Removed regular file file1:
        1     : foo
     Modified regular file file2:
-       1    1: foo
-            2: bar
-       2    3: baz quxquux
+       1    1: 1
+       2    2: 25
+       3    3: 3
+       4     : 4
     Modified regular file file3 (file1 => file3):
+    Modified regular file file4 (file2 => file4):
     "###);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "--context=0"]);
@@ -45,10 +48,13 @@ fn test_diff_basic() {
     Removed regular file file1:
        1     : foo
     Modified regular file file2:
-       1    1: foo
-            2: bar
-       2    3: baz quxquux
+       1    1: 1
+       2    2: 25
+       3    3: 3
+       4     : 4
     Modified regular file file3 (file1 => file3):
+    Modified regular file file4 (file2 => file4):
+        ...
     "###);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "--color=debug"]);
@@ -56,22 +62,26 @@ fn test_diff_basic() {
     [38;5;3m<<diff header::Removed regular file file1:>>[39m
     [38;5;1m<<diff removed line_number::   1>>[39m<<diff::     : >>[4m[38;5;1m<<diff removed token::foo>>[24m[39m
     [38;5;3m<<diff header::Modified regular file file2:>>[39m
-    [38;5;1m<<diff removed line_number::   1>>[39m<<diff:: >>[38;5;2m<<diff added line_number::   1>>[39m<<diff::: foo>>
-    <<diff::     >>[38;5;2m<<diff added line_number::   2>>[39m<<diff::: >>[4m[38;5;2m<<diff added token::bar>>[24m[39m
-    [38;5;1m<<diff removed line_number::   2>>[39m<<diff:: >>[38;5;2m<<diff added line_number::   3>>[39m<<diff::: baz >>[4m[38;5;1m<<diff removed token::qux>>[38;5;2m<<diff added token::quux>>[24m[39m<<diff::>>
+    [38;5;1m<<diff removed line_number::   1>>[39m<<diff:: >>[38;5;2m<<diff added line_number::   1>>[39m<<diff::: 1>>
+    [38;5;1m<<diff removed line_number::   2>>[39m<<diff:: >>[38;5;2m<<diff added line_number::   2>>[39m<<diff::: >>[4m[38;5;1m<<diff removed token::2>>[38;5;2m<<diff added token::5>>[24m[39m<<diff::>>
+    [38;5;1m<<diff removed line_number::   3>>[39m<<diff:: >>[38;5;2m<<diff added line_number::   3>>[39m<<diff::: 3>>
+    [38;5;1m<<diff removed line_number::   4>>[39m<<diff::     : >>[4m[38;5;1m<<diff removed token::4>>[24m[39m
     [38;5;3m<<diff header::Modified regular file file3 (file1 => file3):>>[39m
+    [38;5;3m<<diff header::Modified regular file file4 (file2 => file4):>>[39m
     "###);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
     insta::assert_snapshot!(stdout, @r###"
     M file2
     R {file1 => file3}
+    C {file2 => file4}
     "###);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "--types"]);
     insta::assert_snapshot!(stdout, @r###"
     FF file2
     FF {file1 => file3}
+    FF {file2 => file4}
     "###);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "--types", "glob:file[12]"]);
@@ -80,7 +90,7 @@ fn test_diff_basic() {
     FF file2
     "###);
 
-    let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "--git"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "--git", "file1"]);
     insta::assert_snapshot!(stdout, @r###"
     diff --git a/file1 b/file1
     deleted file mode 100644
@@ -89,111 +99,96 @@ fn test_diff_basic() {
     +++ /dev/null
     @@ -1,1 +1,0 @@
     -foo
+    "###);
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "--git"]);
+    insta::assert_snapshot!(stdout, @r###"
     diff --git a/file2 b/file2
-    index 523a4a9de8..485b56a572 100644
+    index 94ebaf9001..1ffc51b472 100644
     --- a/file2
     +++ b/file2
-    @@ -1,2 +1,3 @@
-     foo
-    -baz qux
-    +bar
-    +baz quux
-    diff --git a/file3 b/file3
-    new file mode 100644
-    index 0000000000..257cc5642c
-    --- /dev/null
-    +++ b/file3
-    @@ -1,0 +1,1 @@
-    +foo
+    @@ -1,4 +1,3 @@
+     1
+    -2
+    +5
+     3
+    -4
+    diff --git a/file1 b/file3
+    rename from file1
+    rename to file3
+    diff --git a/file2 b/file4
+    copy from file2
+    copy to file4
     "###);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "--git", "--context=0"]);
     insta::assert_snapshot!(stdout, @r###"
-    diff --git a/file1 b/file1
-    deleted file mode 100644
-    index 257cc5642c..0000000000
-    --- a/file1
-    +++ /dev/null
-    @@ -1,1 +1,0 @@
-    -foo
     diff --git a/file2 b/file2
-    index 523a4a9de8..485b56a572 100644
+    index 94ebaf9001..1ffc51b472 100644
     --- a/file2
     +++ b/file2
-    @@ -2,1 +2,2 @@
-    -baz qux
-    +bar
-    +baz quux
-    diff --git a/file3 b/file3
-    new file mode 100644
-    index 0000000000..257cc5642c
-    --- /dev/null
-    +++ b/file3
-    @@ -1,0 +1,1 @@
-    +foo
+    @@ -2,1 +2,1 @@
+    -2
+    +5
+    @@ -4,1 +4,0 @@
+    -4
+    diff --git a/file1 b/file3
+    rename from file1
+    rename to file3
+    diff --git a/file2 b/file4
+    copy from file2
+    copy to file4
     "###);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "--git", "--color=debug"]);
     insta::assert_snapshot!(stdout, @r###"
-    [1m<<diff file_header::diff --git a/file1 b/file1>>[0m
-    [1m<<diff file_header::deleted file mode 100644>>[0m
-    [1m<<diff file_header::index 257cc5642c..0000000000>>[0m
-    [1m<<diff file_header::--- a/file1>>[0m
-    [1m<<diff file_header::+++ /dev/null>>[0m
-    [38;5;6m<<diff hunk_header::@@ -1,1 +1,0 @@>>[39m
-    [38;5;1m<<diff removed::->>[4m<<diff removed token::foo>>[24m[39m
     [1m<<diff file_header::diff --git a/file2 b/file2>>[0m
-    [1m<<diff file_header::index 523a4a9de8..485b56a572 100644>>[0m
+    [1m<<diff file_header::index 94ebaf9001..1ffc51b472 100644>>[0m
     [1m<<diff file_header::--- a/file2>>[0m
     [1m<<diff file_header::+++ b/file2>>[0m
-    [38;5;6m<<diff hunk_header::@@ -1,2 +1,3 @@>>[39m
-    <<diff context:: foo>>
-    [38;5;1m<<diff removed::-baz >>[4m<<diff removed token::qux>>[24m<<diff removed::>>[39m
-    [38;5;2m<<diff added::+>>[4m<<diff added token::bar>>[24m[39m
-    [38;5;2m<<diff added::+baz >>[4m<<diff added token::quux>>[24m<<diff added::>>[39m
-    [1m<<diff file_header::diff --git a/file3 b/file3>>[0m
-    [1m<<diff file_header::new file mode 100644>>[0m
-    [1m<<diff file_header::index 0000000000..257cc5642c>>[0m
-    [1m<<diff file_header::--- /dev/null>>[0m
-    [1m<<diff file_header::+++ b/file3>>[0m
-    [38;5;6m<<diff hunk_header::@@ -1,0 +1,1 @@>>[39m
-    [38;5;2m<<diff added::+>>[4m<<diff added token::foo>>[24m[39m
+    [38;5;6m<<diff hunk_header::@@ -1,4 +1,3 @@>>[39m
+    <<diff context:: 1>>
+    [38;5;1m<<diff removed::->>[4m<<diff removed token::2>>[24m<<diff removed::>>[39m
+    [38;5;2m<<diff added::+>>[4m<<diff added token::5>>[24m<<diff added::>>[39m
+    <<diff context:: 3>>
+    [38;5;1m<<diff removed::->>[4m<<diff removed token::4>>[24m[39m
+    [1m<<diff file_header::diff --git a/file1 b/file3>>[0m
+    [1m<<diff file_header::rename from file1>>[0m
+    [1m<<diff file_header::rename to file3>>[0m
+    [1m<<diff file_header::diff --git a/file2 b/file4>>[0m
+    [1m<<diff file_header::copy from file2>>[0m
+    [1m<<diff file_header::copy to file4>>[0m
     "###);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s", "--git"]);
     insta::assert_snapshot!(stdout, @r###"
     M file2
     R {file1 => file3}
-    diff --git a/file1 b/file1
-    deleted file mode 100644
-    index 257cc5642c..0000000000
-    --- a/file1
-    +++ /dev/null
-    @@ -1,1 +1,0 @@
-    -foo
+    C {file2 => file4}
     diff --git a/file2 b/file2
-    index 523a4a9de8..485b56a572 100644
+    index 94ebaf9001..1ffc51b472 100644
     --- a/file2
     +++ b/file2
-    @@ -1,2 +1,3 @@
-     foo
-    -baz qux
-    +bar
-    +baz quux
-    diff --git a/file3 b/file3
-    new file mode 100644
-    index 0000000000..257cc5642c
-    --- /dev/null
-    +++ b/file3
-    @@ -1,0 +1,1 @@
-    +foo
+    @@ -1,4 +1,3 @@
+     1
+    -2
+    +5
+     3
+    -4
+    diff --git a/file1 b/file3
+    rename from file1
+    rename to file3
+    diff --git a/file2 b/file4
+    copy from file2
+    copy to file4
     "###);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "--stat"]);
     insta::assert_snapshot!(stdout, @r###"
-    file2            | 3 ++-
+    file2            | 3 +--
     {file1 => file3} | 0
-    2 files changed, 2 insertions(+), 1 deletion(-)
+    {file2 => file4} | 0
+    3 files changed, 1 insertion(+), 2 deletions(-)
     "###);
 
     // Filter by glob pattern
@@ -219,6 +214,7 @@ fn test_diff_basic() {
     insta::assert_snapshot!(stdout.replace('\\', "/"), @r###"
     M repo/file2
     R repo/{file1 => file3}
+    C repo/{file2 => file4}
     "###);
     insta::assert_snapshot!(stderr.replace('\\', "/"), @r###"
     Warning: No matching entries for paths: repo/x, repo/y/z

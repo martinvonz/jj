@@ -1303,6 +1303,14 @@ impl Backend for GitBackend {
             .changes()
             .map_err(|err| BackendError::Other(err.into()))?;
         change_platform.track_path();
+        change_platform.track_rewrites(Some(gix::diff::Rewrites {
+            copies: Some(gix::diff::rewrites::Copies {
+                source: gix::diff::rewrites::CopySource::FromSetOfModifiedFiles,
+                percentage: Some(0.5),
+            }),
+            percentage: Some(0.5),
+            limit: 1000,
+        }));
         change_platform
             .for_each_to_obtain_tree_with_cache(
                 &head_tree,

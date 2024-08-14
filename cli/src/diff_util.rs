@@ -308,9 +308,15 @@ impl<'a> DiffRenderer<'a> {
                     show_names(formatter, tree_diff, path_converter)?;
                 }
                 DiffFormat::Git { context } => {
-                    let no_copy_tracking = Default::default();
-                    let tree_diff = from_tree.diff_stream(to_tree, matcher, &no_copy_tracking);
-                    show_git_diff(formatter, store, tree_diff, *context)?;
+                    show_git_diff(
+                        formatter,
+                        store,
+                        from_tree,
+                        to_tree,
+                        matcher,
+                        copy_records,
+                        *context,
+                    )?;
                 }
                 DiffFormat::ColorWords { context } => {
                     let tree_diff = from_tree.diff_stream(to_tree, matcher, copy_records);
@@ -1098,23 +1104,40 @@ fn show_unified_diff_hunks(
 pub fn show_git_diff(
     formatter: &mut dyn Formatter,
     store: &Store,
-    tree_diff: TreeDiffStream,
+    from_tree: &MergedTree,
+    to_tree: &MergedTree,
+    matcher: &dyn Matcher,
+    copy_records: &CopyRecords,
     num_context_lines: usize,
 ) -> Result<(), DiffRenderError> {
+    let tree_diff = from_tree.diff_stream(to_tree, matcher, copy_records);
     let mut diff_stream = materialized_diff_stream(store, tree_diff);
+    let copied_sources = collect_copied_sources(copy_records, matcher);
+
     async {
         while let Some(MaterializedTreeDiffEntry {
-            source: _, // TODO handle copy tracking
-            target: path,
+            source: left_path,
+            target: right_path,
             value: diff,
         }) = diff_stream.next().await
         {
-            let path_string = path.as_internal_file_string();
+            let left_path_string = left_path.as_internal_file_string();
+            let right_path_string = right_path.as_internal_file_string();
             let (left_value, right_value) = diff?;
-            let left_part = git_diff_part(&path, left_value)?;
-            let right_part = git_diff_part(&path, right_value)?;
+
+            let left_part = git_diff_part(&left_path, left_value)?;
+            let right_part = git_diff_part(&right_path, right_value)?;
+
+            // Skip the "delete" entry when there is a rename.
+            if right_part.mode.is_none() && copied_sources.contains(left_path.as_ref()) {
+                continue;
+            }
+
             formatter.with_label("file_header", |formatter| {
-                writeln!(formatter, "diff --git a/{path_string} b/{path_string}")?;
+                writeln!(
+                    formatter,
+                    "diff --git a/{left_path_string} b/{right_path_string}"
+                )?;
                 let left_hash = &left_part.hash;
                 let right_hash = &right_part.hash;
                 match (left_part.mode, right_part.mode) {
@@ -1127,6 +1150,16 @@ pub fn show_git_diff(
                         writeln!(formatter, "index {left_hash}..{right_hash}")?;
                     }
                     (Some(left_mode), Some(right_mode)) => {
+                        if left_path != right_path {
+                            let operation = if to_tree.path_value(&left_path)?.is_absent() {
+                                "rename"
+                            } else {
+                                "copy"
+                            };
+                            // TODO: include similarity index?
+                            writeln!(formatter, "{operation} from {left_path_string}")?;
+                            writeln!(formatter, "{operation} to {right_path_string}")?;
+                        }
                         if left_mode != right_mode {
                             writeln!(formatter, "old mode {left_mode}")?;
                             writeln!(formatter, "new mode {right_mode}")?;
@@ -1139,7 +1172,7 @@ pub fn show_git_diff(
                     }
                     (None, None) => panic!("either left or right part should be present"),
                 }
-                io::Result::Ok(())
+                Ok::<(), DiffRenderError>(())
             })?;
 
             if left_part.content.contents == right_part.content.contents {
@@ -1147,11 +1180,11 @@ pub fn show_git_diff(
             }
 
             let left_path = match left_part.mode {
-                Some(_) => format!("a/{path_string}"),
+                Some(_) => format!("a/{left_path_string}"),
                 None => "/dev/null".to_owned(),
             };
             let right_path = match right_part.mode {
-                Some(_) => format!("b/{path_string}"),
+                Some(_) => format!("b/{right_path_string}"),
                 None => "/dev/null".to_owned(),
             };
             if left_part.content.is_binary || right_part.content.is_binary {

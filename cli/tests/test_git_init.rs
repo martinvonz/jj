@@ -615,9 +615,9 @@ fn test_git_init_colocated_dirty_working_copy() {
     insta::assert_snapshot!(stdout, @r###"
     @  sqpuoqvx test.user@example.com 2001-02-03 08:05:07 cd1e144d
     │  (no description set)
-    │  A new-staged-file
+    │  C {some-file => new-staged-file}
     │  M some-file
-    │  A unstaged-file
+    │  C {some-file => unstaged-file}
     ○  mwrttmos git.user@example.com 1970-01-01 11:02:03 my-branch HEAD@git 8d698d4a
     │  My commit message
     │  A some-file
