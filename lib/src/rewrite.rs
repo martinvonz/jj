@@ -643,33 +643,39 @@ pub fn move_commits(
         new_children
             .iter()
             .map(|child_commit| {
-                let mut new_child_parent_ids: IndexSet<_> = child_commit
-                    .parent_ids()
-                    .iter()
+                let mut new_child_parent_ids = IndexSet::new();
+                for old_child_parent_id in child_commit.parent_ids() {
                     // Replace target commits with their parents outside the target set.
-                    .flat_map(|id| {
-                        if let Some(parents) = target_commits_external_parents.get(id) {
-                            parents.iter().cloned().collect_vec()
-                        } else {
-                            [id.clone()].to_vec()
-                        }
-                    })
-                    // Exclude any of the new parents of the target commits, since we are
-                    // "inserting" the target commits in between the new parents and the new
-                    // children.
-                    .filter(|id| {
-                        !new_parent_ids
-                            .iter()
-                            .any(|new_parent_id| new_parent_id == id)
-                    })
-                    .collect();
+                    let old_child_parent_ids = if let Some(parents) =
+                        target_commits_external_parents.get(old_child_parent_id)
+                    {
+                        parents.iter().collect_vec()
+                    } else {
+                        vec![old_child_parent_id]
+                    };
 
-                // Add `target_heads` as parents of the new child commit.
+                    // If the original parents of the new children are the new parents of the
+                    // `target_heads`, replace them with the target heads since we are "inserting"
+                    // the target commits in between the new parents and the new children.
+                    for id in old_child_parent_ids {
+                        if new_parent_ids
+                            .iter()
+                            .any(|new_parent_id| *new_parent_id == *id)
+                        {
+                            new_child_parent_ids.extend(target_heads.clone());
+                        } else {
+                            new_child_parent_ids.insert(id.clone());
+                        };
+                    }
+                }
+
+                // If not already present, add `target_heads` as parents of the new child
+                // commit.
                 new_child_parent_ids.extend(target_heads.clone());
 
                 (
                     child_commit.id().clone(),
-                    new_child_parent_ids.iter().cloned().collect_vec(),
+                    new_child_parent_ids.into_iter().collect_vec(),
                 )
             })
             .collect()

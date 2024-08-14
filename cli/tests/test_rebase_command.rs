@@ -1470,11 +1470,11 @@ fn test_rebase_revisions_after() {
     ├─╯
     ○    c
     ├─╮
-    │ @  f
-    │ ○  b2
-    │ ○  b1
-    ○ │  b4
-    ○ │  b3
+    │ ○  b4
+    │ ○  b3
+    @ │  f
+    ○ │  b2
+    ○ │  b1
     ├─╯
     ○  a
     ◆
