@@ -938,7 +938,7 @@ mod tests {
 
         let format = |before, after| {
             ui.format_copied_path(repo_path(before), repo_path(after))
-                .replace("\\", "/")
+                .replace('\\', "/")
         };
 
         assert_eq!(format("one/two/three", "one/two/three"), "one/two/three");
