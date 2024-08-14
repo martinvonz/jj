@@ -16,6 +16,7 @@
 
 use std::collections::VecDeque;
 use std::fmt::{Debug, Error, Formatter};
+use std::{iter, vec};
 
 use crate::diff;
 use crate::diff::{Diff, DiffHunk};
@@ -50,8 +51,7 @@ pub fn diff<'a>(left: &'a [u8], right: &'a [u8]) -> DiffLineIterator<'a> {
 }
 
 pub struct DiffLineIterator<'a> {
-    diff_hunks: Vec<DiffHunk<'a>>,
-    current_pos: usize,
+    diff_hunks: iter::Fuse<vec::IntoIter<DiffHunk<'a>>>,
     current_line: DiffLine<'a>,
     queued_lines: VecDeque<DiffLine<'a>>,
 }
@@ -66,8 +66,7 @@ impl<'a> DiffLineIterator<'a> {
             hunks: vec![],
         };
         DiffLineIterator {
-            diff_hunks,
-            current_pos: 0,
+            diff_hunks: diff_hunks.into_iter().fuse(),
             current_line,
             queued_lines: VecDeque::new(),
         }
@@ -80,10 +79,11 @@ impl<'a> Iterator for DiffLineIterator<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         // TODO: Should we attempt to interpret as utf-8 and otherwise break only at
         // newlines?
-        while self.current_pos < self.diff_hunks.len() && self.queued_lines.is_empty() {
-            let hunk = &self.diff_hunks[self.current_pos];
-            self.current_pos += 1;
-            match hunk {
+        while self.queued_lines.is_empty() {
+            let Some(hunk) = self.diff_hunks.next() else {
+                break;
+            };
+            match &hunk {
                 DiffHunk::Matching(text) => {
                     let lines = text.split_inclusive(|b| *b == b'\n');
                     for line in lines {
