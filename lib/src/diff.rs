@@ -970,9 +970,50 @@ mod tests {
     }
 
     #[test]
-    fn test_diff_single_empty_input() {
+    fn test_diff_some_empty_inputs() {
+        // All empty
         let diff = Diff::default_refinement([""]);
         assert_eq!(diff.hunks().collect_vec(), vec![]);
+        let diff = Diff::default_refinement(["", ""]);
+        assert_eq!(diff.hunks().collect_vec(), vec![]);
+        let diff = Diff::default_refinement(["", "", ""]);
+        assert_eq!(diff.hunks().collect_vec(), vec![]);
+
+        // One empty
+        let diff = Diff::default_refinement(["a b", ""]);
+        assert_eq!(
+            diff.hunks().collect_vec(),
+            vec![DiffHunk::different(["a b", ""])]
+        );
+        let diff = Diff::default_refinement(["", "a b"]);
+        assert_eq!(
+            diff.hunks().collect_vec(),
+            vec![DiffHunk::different(["", "a b"])]
+        );
+
+        // One empty, two match
+        let diff = Diff::default_refinement(["a b", "", "a b"]);
+        assert_eq!(
+            diff.hunks().collect_vec(),
+            vec![DiffHunk::different(["a b", "", "a b"])]
+        );
+        let diff = Diff::default_refinement(["", "a b", "a b"]);
+        assert_eq!(
+            diff.hunks().collect_vec(),
+            vec![DiffHunk::different(["", "a b", "a b"])]
+        );
+
+        // Two empty, one differs
+        let diff = Diff::default_refinement(["a b", "", ""]);
+        assert_eq!(
+            diff.hunks().collect_vec(),
+            vec![DiffHunk::different(["a b", "", ""])]
+        );
+        let diff = Diff::default_refinement(["", "a b", ""]);
+        assert_eq!(
+            diff.hunks().collect_vec(),
+            vec![DiffHunk::different(["", "a b", ""])]
+        );
     }
 
     #[test]
