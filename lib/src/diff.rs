@@ -416,11 +416,20 @@ impl<'input> Diff<'input> {
         let base_input = inputs.next().expect("inputs must not be empty");
         let other_inputs = inputs.collect_vec();
         // First tokenize each input
-        let base_token_ranges = tokenizer(base_input);
-        let other_token_ranges = other_inputs
-            .iter()
-            .map(|other_input| tokenizer(other_input))
-            .collect_vec();
+        let base_token_ranges: Vec<Range<usize>>;
+        let other_token_ranges: Vec<Vec<Range<usize>>>;
+        // No need to tokenize if one of the inputs is empty. Non-empty inputs
+        // are all different.
+        if base_input.is_empty() || other_inputs.iter().any(|input| input.is_empty()) {
+            base_token_ranges = vec![];
+            other_token_ranges = iter::repeat(vec![]).take(other_inputs.len()).collect();
+        } else {
+            base_token_ranges = tokenizer(base_input);
+            other_token_ranges = other_inputs
+                .iter()
+                .map(|other_input| tokenizer(other_input))
+                .collect();
+        }
         Self::with_inputs_and_token_ranges(
             base_input,
             other_inputs,
@@ -653,12 +662,6 @@ impl<'diff, 'input> Iterator for DiffHunkIterator<'diff, 'input> {
 pub fn diff<'a>(left: &'a [u8], right: &'a [u8]) -> Vec<DiffHunk<'a>> {
     if left == right {
         return vec![DiffHunk::matching(left)];
-    }
-    if left.is_empty() {
-        return vec![DiffHunk::different([b"", right])];
-    }
-    if right.is_empty() {
-        return vec![DiffHunk::different([left, b""])];
     }
 
     Diff::default_refinement([left, right])
