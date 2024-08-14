@@ -29,16 +29,24 @@ use crate::merge::{trivial_merge, Merge};
 pub struct DiffLine<'a> {
     pub left_line_number: u32,
     pub right_line_number: u32,
-    pub has_left_content: bool,
-    pub has_right_content: bool,
     pub hunks: Vec<(DiffLineHunkSide, &'a BStr)>,
 }
 
 impl DiffLine<'_> {
     fn reset_line(&mut self) {
-        self.has_left_content = false;
-        self.has_right_content = false;
         self.hunks.clear();
+    }
+
+    pub fn has_left_content(&self) -> bool {
+        self.hunks
+            .iter()
+            .any(|&(side, _)| side != DiffLineHunkSide::Right)
+    }
+
+    pub fn has_right_content(&self) -> bool {
+        self.hunks
+            .iter()
+            .any(|&(side, _)| side != DiffLineHunkSide::Left)
     }
 
     pub fn is_unmodified(&self) -> bool {
@@ -72,8 +80,6 @@ where
         let current_line = DiffLine {
             left_line_number: 1,
             right_line_number: 1,
-            has_left_content: false,
-            has_right_content: false,
             hunks: vec![],
         };
         DiffLineIterator {
@@ -102,8 +108,6 @@ where
                 DiffHunk::Matching(text) => {
                     let lines = text.split_inclusive(|b| *b == b'\n').map(BStr::new);
                     for line in lines {
-                        self.current_line.has_left_content = true;
-                        self.current_line.has_right_content = true;
                         self.current_line.hunks.push((DiffLineHunkSide::Both, line));
                         if line.ends_with(b"\n") {
                             self.queued_lines.push_back(self.current_line.clone());
@@ -119,7 +123,6 @@ where
                         .expect("hunk should have exactly two inputs");
                     let left_lines = left_text.split_inclusive(|b| *b == b'\n').map(BStr::new);
                     for left_line in left_lines {
-                        self.current_line.has_left_content = true;
                         self.current_line
                             .hunks
                             .push((DiffLineHunkSide::Left, left_line));
@@ -131,7 +134,6 @@ where
                     }
                     let right_lines = right_text.split_inclusive(|b| *b == b'\n').map(BStr::new);
                     for right_line in right_lines {
-                        self.current_line.has_right_content = true;
                         self.current_line
                             .hunks
                             .push((DiffLineHunkSide::Right, right_line));

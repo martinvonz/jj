@@ -460,7 +460,7 @@ fn show_color_words_diff_line(
     formatter: &mut dyn Formatter,
     diff_line: &DiffLine,
 ) -> io::Result<()> {
-    if diff_line.has_left_content {
+    if diff_line.has_left_content() {
         formatter.with_label("removed", |formatter| {
             write!(
                 formatter.labeled("line_number"),
@@ -472,7 +472,7 @@ fn show_color_words_diff_line(
     } else {
         write!(formatter, "     ")?;
     }
-    if diff_line.has_right_content {
+    if diff_line.has_right_content() {
         formatter.with_label("added", |formatter| {
             write!(
                 formatter.labeled("line_number"),
