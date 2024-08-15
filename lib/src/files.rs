@@ -103,7 +103,10 @@ where
                     }
                 }
                 DiffHunk::Different(contents) => {
-                    let left_lines = contents[0].split_inclusive(|b| *b == b'\n');
+                    let [left_text, right_text] = contents[..]
+                        .try_into()
+                        .expect("hunk should have exactly two inputs");
+                    let left_lines = left_text.split_inclusive(|b| *b == b'\n');
                     for left_line in left_lines {
                         self.current_line.has_left_content = true;
                         self.current_line
@@ -115,7 +118,7 @@ where
                             self.current_line.reset_line();
                         }
                     }
-                    let right_lines = contents[1].split_inclusive(|b| *b == b'\n');
+                    let right_lines = right_text.split_inclusive(|b| *b == b'\n');
                     for right_line in right_lines {
                         self.current_line.has_right_content = true;
                         self.current_line
