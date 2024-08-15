@@ -1187,7 +1187,7 @@ pub fn show_diff_summary(
     to_tree: &MergedTree,
     matcher: &dyn Matcher,
     copy_records: &CopyRecords,
-) -> io::Result<()> {
+) -> Result<(), DiffRenderError> {
     let mut tree_diff = from_tree.diff_stream(to_tree, matcher, copy_records);
     let copied_sources = collect_copied_sources(copy_records, matcher);
 
@@ -1198,7 +1198,7 @@ pub fn show_diff_summary(
             value: diff,
         }) = tree_diff.next().await
         {
-            let (before, after) = diff.unwrap();
+            let (before, after) = diff?;
             if before_path != after_path {
                 let path = path_converter.format_copied_path(&before_path, &after_path);
                 if to_tree.path_value(&before_path).unwrap().is_absent() {
@@ -1220,10 +1220,9 @@ pub fn show_diff_summary(
                 }
             }
         }
-        Ok::<(), io::Error>(())
+        Ok(())
     }
-    .block_on()?;
-    Ok(())
+    .block_on()
 }
 
 struct DiffStat {
@@ -1361,7 +1360,7 @@ pub fn show_types(
     to_tree: &MergedTree,
     matcher: &dyn Matcher,
     copy_records: &CopyRecords,
-) -> io::Result<()> {
+) -> Result<(), DiffRenderError> {
     let mut tree_diff = from_tree.diff_stream(to_tree, matcher, copy_records);
     let copied_sources = collect_copied_sources(copy_records, matcher);
 
@@ -1372,7 +1371,7 @@ pub fn show_types(
             value: diff,
         }) = tree_diff.next().await
         {
-            let (before, after) = diff.unwrap();
+            let (before, after) = diff?;
             if after.is_absent() && copied_sources.contains(source.as_ref()) {
                 continue;
             }
