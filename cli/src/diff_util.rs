@@ -324,15 +324,15 @@ impl<'a> DiffRenderer<'a> {
                 DiffFormat::Tool(tool) => {
                     match tool.diff_invocation_mode {
                         DiffToolMode::FileByFile => {
-                            let no_copy_tracking = Default::default();
-                            let tree_diff =
-                                from_tree.diff_stream(to_tree, matcher, &no_copy_tracking);
+                            let tree_diff = from_tree.diff_stream(to_tree, matcher, copy_records);
                             show_file_by_file_diff(
                                 ui,
                                 formatter,
                                 store,
                                 tree_diff,
                                 path_converter,
+                                matcher,
+                                copy_records,
                                 tool,
                             )
                         }
@@ -753,12 +753,15 @@ pub fn show_color_words_diff(
     .block_on()
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn show_file_by_file_diff(
     ui: &Ui,
     formatter: &mut dyn Formatter,
     store: &Store,
     tree_diff: TreeDiffStream,
     path_converter: &RepoPathUiConverter,
+    matcher: &dyn Matcher,
+    copy_records: &CopyRecords,
     tool: &ExternalMergeTool,
 ) -> Result<(), DiffRenderError> {
     fn create_file(
@@ -772,6 +775,7 @@ pub fn show_file_by_file_diff(
         std::fs::write(&fs_path, content.contents)?;
         Ok(fs_path)
     }
+    let copied_sources = collect_copied_sources(copy_records, matcher);
 
     let temp_dir = new_utf8_temp_dir("jj-diff-")?;
     let left_wc_dir = temp_dir.path().join("left");
@@ -779,28 +783,40 @@ pub fn show_file_by_file_diff(
     let mut diff_stream = materialized_diff_stream(store, tree_diff);
     async {
         while let Some(MaterializedTreeDiffEntry {
-            source: _, // TODO handle copy tracking
-            target: path,
+            source: left_path,
+            target: right_path,
             value: diff,
         }) = diff_stream.next().await
         {
-            let ui_path = path_converter.format_file_path(&path);
             let (left_value, right_value) = diff?;
+            if right_value.is_absent() && copied_sources.contains(left_path.as_ref()) {
+                continue;
+            }
+
+            let left_ui_path = path_converter.format_file_path(&left_path);
+            let right_ui_path = path_converter.format_file_path(&right_path);
 
             match (&left_value, &right_value) {
-                (_, MaterializedTreeValue::AccessDenied(source))
-                | (MaterializedTreeValue::AccessDenied(source), _) => {
+                (_, MaterializedTreeValue::AccessDenied(source)) => {
                     write!(
                         formatter.labeled("access-denied"),
-                        "Access denied to {ui_path}:"
+                        "Access denied to {right_ui_path}:"
+                    )?;
+                    writeln!(formatter, " {source}")?;
+                    continue;
+                }
+                (MaterializedTreeValue::AccessDenied(source), _) => {
+                    write!(
+                        formatter.labeled("access-denied"),
+                        "Access denied to {left_ui_path}:"
                     )?;
                     writeln!(formatter, " {source}")?;
                     continue;
                 }
                 _ => {}
             }
-            let left_path = create_file(&path, &left_wc_dir, left_value)?;
-            let right_path = create_file(&path, &right_wc_dir, right_value)?;
+            let left_path = create_file(&left_path, &left_wc_dir, left_value)?;
+            let right_path = create_file(&right_path, &right_wc_dir, right_value)?;
 
             invoke_external_diff(
                 ui,
