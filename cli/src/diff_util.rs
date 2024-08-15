@@ -16,7 +16,7 @@ use std::cmp::max;
 use std::collections::{HashSet, VecDeque};
 use std::ops::Range;
 use std::path::{Path, PathBuf};
-use std::{io, mem};
+use std::{io, iter, mem};
 
 use futures::StreamExt;
 use itertools::Itertools;
@@ -26,7 +26,7 @@ use jj_lib::conflicts::{
     materialized_diff_stream, MaterializedTreeDiffEntry, MaterializedTreeValue,
 };
 use jj_lib::diff::{Diff, DiffHunk};
-use jj_lib::files::{DiffLine, DiffLineHunkSide, DiffLineIterator};
+use jj_lib::files::{DiffLine, DiffLineHunkSide, DiffLineIterator, DiffLineNumber};
 use jj_lib::matchers::Matcher;
 use jj_lib::merge::MergedTreeValue;
 use jj_lib::merged_tree::{MergedTree, TreeDiffEntry, TreeDiffStream};
@@ -401,41 +401,61 @@ fn show_color_words_diff_hunks(
     formatter: &mut dyn Formatter,
 ) -> io::Result<()> {
     const SKIPPED_CONTEXT_LINE: &str = "    ...\n";
+    let mut line_number = DiffLineNumber { left: 1, right: 1 };
     let mut context = VecDeque::new();
     // Have we printed "..." for any skipped context?
     let mut skipped_context = false;
     // Are the lines in `context` to be printed before the next modified line?
     let mut context_before = true;
-    for diff_line in DiffLineIterator::new(Diff::default_refinement([left, right]).hunks()) {
-        if diff_line.is_unmodified() {
-            context.push_back(diff_line.clone());
-            let mut start_skipping_context = false;
-            if context_before {
-                if skipped_context && context.len() > num_context_lines {
-                    context.pop_front();
-                } else if !skipped_context && context.len() > num_context_lines + 1 {
-                    start_skipping_context = true;
+    for hunk in Diff::by_line([left, right]).hunks() {
+        match hunk {
+            DiffHunk::Matching(content) => {
+                // TODO: just split by "\n"
+                let mut diff_line_iter = DiffLineIterator::with_line_number(
+                    iter::once(DiffHunk::matching(content)),
+                    line_number,
+                );
+                for diff_line in diff_line_iter.by_ref() {
+                    context.push_back(diff_line.clone());
+                    let mut start_skipping_context = false;
+                    if context_before {
+                        if skipped_context && context.len() > num_context_lines {
+                            context.pop_front();
+                        } else if !skipped_context && context.len() > num_context_lines + 1 {
+                            start_skipping_context = true;
+                        }
+                    } else if context.len() > num_context_lines * 2 + 1 {
+                        for line in context.drain(..num_context_lines) {
+                            show_color_words_diff_line(formatter, &line)?;
+                        }
+                        start_skipping_context = true;
+                    }
+                    if start_skipping_context {
+                        context.drain(..2);
+                        write!(formatter, "{SKIPPED_CONTEXT_LINE}")?;
+                        skipped_context = true;
+                        context_before = true;
+                    }
                 }
-            } else if context.len() > num_context_lines * 2 + 1 {
-                for line in context.drain(..num_context_lines) {
-                    show_color_words_diff_line(formatter, &line)?;
+                line_number = diff_line_iter.next_line_number();
+            }
+            DiffHunk::Different(contents) => {
+                for line in &context {
+                    show_color_words_diff_line(formatter, line)?;
                 }
-                start_skipping_context = true;
+                context.clear();
+
+                let word_diff = Diff::by_word(&contents);
+                let mut diff_line_iter =
+                    DiffLineIterator::with_line_number(word_diff.hunks(), line_number);
+                for diff_line in diff_line_iter.by_ref() {
+                    show_color_words_diff_line(formatter, &diff_line)?;
+                }
+                line_number = diff_line_iter.next_line_number();
+
+                context_before = false;
+                skipped_context = false;
             }
-            if start_skipping_context {
-                context.drain(..2);
-                write!(formatter, "{SKIPPED_CONTEXT_LINE}")?;
-                skipped_context = true;
-                context_before = true;
-            }
-        } else {
-            for line in &context {
-                show_color_words_diff_line(formatter, line)?;
-            }
-            context.clear();
-            show_color_words_diff_line(formatter, &diff_line)?;
-            context_before = false;
-            skipped_context = false;
         }
     }
     if !context_before {
