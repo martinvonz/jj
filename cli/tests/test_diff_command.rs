@@ -1253,6 +1253,7 @@ fn test_diff_external_file_by_file_tool() {
     std::fs::remove_file(repo_path.join("file1")).unwrap();
     std::fs::write(repo_path.join("file2"), "file2\nfile2\n").unwrap();
     std::fs::write(repo_path.join("file3"), "file3\n").unwrap();
+    std::fs::write(repo_path.join("file4"), "file1\n").unwrap();
 
     let edit_script = test_env.set_up_fake_diff_editor();
     std::fs::write(
@@ -1269,10 +1270,6 @@ fn test_diff_external_file_by_file_tool() {
     insta::assert_snapshot!(
         test_env.jj_cmd_success(&repo_path, &["diff", config]), @r###"
     ==
-    file1
-    --
-    file1
-    ==
     file2
     --
     file2
@@ -1280,6 +1277,10 @@ fn test_diff_external_file_by_file_tool() {
     file3
     --
     file3
+    ==
+    file1
+    --
+    file4
     "###);
 
     // diff with file patterns
@@ -1293,13 +1294,9 @@ fn test_diff_external_file_by_file_tool() {
 
     insta::assert_snapshot!(
         test_env.jj_cmd_success(&repo_path, &["log", "-p", config]), @r###"
-    @  rlvkpnrz test.user@example.com 2001-02-03 08:05:09 f12f62fb
+    @  rlvkpnrz test.user@example.com 2001-02-03 08:05:09 7b01704a
     │  (no description set)
     │  ==
-    │  file1
-    │  --
-    │  file1
-    │  ==
     │  file2
     │  --
     │  file2
@@ -1307,6 +1304,10 @@ fn test_diff_external_file_by_file_tool() {
     │  file3
     │  --
     │  file3
+    │  ==
+    │  file1
+    │  --
+    │  file4
     ○  qpvuntsm test.user@example.com 2001-02-03 08:05:08 6e485984
     │  (no description set)
     │  ==
@@ -1322,7 +1323,7 @@ fn test_diff_external_file_by_file_tool() {
 
     insta::assert_snapshot!(
         test_env.jj_cmd_success(&repo_path, &["show", config]), @r###"
-    Commit ID: f12f62fb1d73629c1b44abd4d5bbb500d7f8b86c
+    Commit ID: 7b01704a670bc77d11ed117d362855cff1d4513b
     Change ID: rlvkpnrzqnoowoytxnquwvuryrwnrmlp
     Author: Test User <test.user@example.com> (2001-02-03 08:05:09)
     Committer: Test User <test.user@example.com> (2001-02-03 08:05:09)
@@ -1330,10 +1331,6 @@ fn test_diff_external_file_by_file_tool() {
         (no description set)
 
     ==
-    file1
-    --
-    file1
-    ==
     file2
     --
     file2
@@ -1341,6 +1338,10 @@ fn test_diff_external_file_by_file_tool() {
     file3
     --
     file3
+    ==
+    file1
+    --
+    file4
     "###);
 }
 
