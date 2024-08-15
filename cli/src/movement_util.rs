@@ -59,52 +59,89 @@ impl Direction {
         }
     }
 
-    fn target_not_found_message(&self, change_offset: u64) -> String {
-        match self {
-            Direction::Next => format!("No descendant found {} commit(s) forward", change_offset),
-            Direction::Prev => format!("No ancestor found {} commit(s) back", change_offset),
-        }
-    }
-
-    fn get_target_revset(
+    fn target_not_found_error(
         &self,
-        working_commit_id: &CommitId,
+        workspace_command: &WorkspaceCommandHelper,
         args: &MovementArgsInternal,
-    ) -> Result<Rc<RevsetExpression>, CommandError> {
-        let wc_revset = RevsetExpression::commit(working_commit_id.clone());
-        // If we're editing, start at the working-copy commit. Otherwise, start from
-        // its direct parent(s).
-        let start_revset = if args.should_edit {
-            wc_revset.clone()
-        } else {
-            wc_revset.parents()
+        commits: &[Commit],
+    ) -> CommandError {
+        let offset = args.offset;
+        let err_msg = match (self, args.should_edit, args.conflict) {
+            // in edit mode, start_revset is the WC, so we only look for direct descendants.
+            (Direction::Next, true, true) => {
+                String::from("The working copy has no descendants with conflicts")
+            }
+            (Direction::Next, true, false) => {
+                format!("No descendant found {offset} commit(s) forward from the working copy",)
+            }
+            // in non-edit mode, start_revset is the parent of WC, so we look for other descendants
+            // of start_revset.
+            (Direction::Next, false, true) => {
+                String::from("The working copy parent(s) have no other descendants with conflicts")
+            }
+            (Direction::Next, false, false) => format!(
+                "No other descendant found {offset} commit(s) forward from the working copy \
+                 parent(s)",
+            ),
+            // The WC can never be an ancestor of the start_revset since start_revset is either
+            // itself or it's parent.
+            (Direction::Prev, true, true) => {
+                String::from("The working copy has no ancestors with conflicts")
+            }
+            (Direction::Prev, true, false) => {
+                format!("No ancestor found {offset} commit(s) back from the working copy",)
+            }
+            (Direction::Prev, false, true) => {
+                String::from("The working copy parent(s) have no ancestors with conflicts")
+            }
+            (Direction::Prev, false, false) => format!(
+                "No ancestor found {offset} commit(s) back from the working copy parents(s)",
+            ),
         };
 
-        let target_revset = match self {
-            Direction::Next => if args.conflict {
-                start_revset
-                    .children()
-                    .descendants()
-                    .filtered(RevsetFilterPredicate::HasConflict)
-                    .roots()
-            } else {
-                start_revset.descendants_at(args.offset)
-            }
-            .minus(&wc_revset),
-
-            Direction::Prev => {
-                if args.conflict {
-                    // If people desire to move to the root conflict, replace the `heads()` below
-                    // with `roots(). But let's wait for feedback.
-                    start_revset
-                        .parents()
-                        .ancestors()
-                        .filtered(RevsetFilterPredicate::HasConflict)
-                        .heads()
+        let template = workspace_command.commit_summary_template();
+        let mut cmd_err = user_error(err_msg);
+        commits.iter().for_each(|commit| {
+            cmd_err.add_formatted_hint_with(|formatter| {
+                if args.should_edit {
+                    write!(formatter, "Working copy: ")?;
                 } else {
-                    start_revset.ancestors_at(args.offset)
+                    write!(formatter, "Working copy parent: ")?;
                 }
+                template.format(commit, formatter)
+            })
+        });
+
+        cmd_err
+    }
+
+    fn build_target_revset(
+        &self,
+        working_revset: &Rc<RevsetExpression>,
+        start_revset: &Rc<RevsetExpression>,
+        args: &MovementArgsInternal,
+    ) -> Result<Rc<RevsetExpression>, CommandError> {
+        let target_revset = match (self, args.conflict) {
+            (Direction::Next, true) => start_revset
+                .children()
+                .descendants()
+                .filtered(RevsetFilterPredicate::HasConflict)
+                .roots()
+                .minus(working_revset),
+            (Direction::Next, false) => start_revset
+                .descendants_at(args.offset)
+                .minus(working_revset),
+            (Direction::Prev, true) =>
+            // If people desire to move to the root conflict, replace the `heads()` below
+            // with `roots(). But let's wait for feedback.
+            {
+                start_revset
+                    .parents()
+                    .ancestors()
+                    .filtered(RevsetFilterPredicate::HasConflict)
+                    .heads()
             }
+            (Direction::Prev, false) => start_revset.ancestors_at(args.offset),
         };
 
         Ok(target_revset)
@@ -118,7 +155,17 @@ fn get_target_commit(
     working_commit_id: &CommitId,
     args: &MovementArgsInternal,
 ) -> Result<Commit, CommandError> {
-    let target_revset = direction.get_target_revset(working_commit_id, args)?;
+    let wc_revset = RevsetExpression::commit(working_commit_id.clone());
+    // If we're editing, start at the working-copy commit. Otherwise, start from
+    // its direct parent(s).
+    let start_revset = if args.should_edit {
+        wc_revset.clone()
+    } else {
+        wc_revset.parents()
+    };
+
+    let target_revset = direction.build_target_revset(&wc_revset, &start_revset, args)?;
+
     let targets: Vec<Commit> = target_revset
         .evaluate_programmatic(workspace_command.repo().as_ref())?
         .iter()
@@ -129,7 +176,12 @@ fn get_target_commit(
         [target] => target,
         [] => {
             // We found no ancestor/descendant.
-            return Err(user_error(direction.target_not_found_message(args.offset)));
+            let start_commits: Vec<Commit> = start_revset
+                .evaluate_programmatic(workspace_command.repo().as_ref())?
+                .iter()
+                .commits(workspace_command.repo().store())
+                .try_collect()?;
+            return Err(direction.target_not_found_error(workspace_command, args, &start_commits));
         }
         commits => choose_commit(ui, workspace_command, direction, commits)?,
     };
