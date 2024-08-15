@@ -27,6 +27,7 @@ pub mod generic_templater;
 pub mod git_util;
 pub mod graphlog;
 pub mod merge_tools;
+pub mod movement_util;
 pub mod operation_templater;
 mod progress;
 pub mod revset_util;

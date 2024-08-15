@@ -201,7 +201,7 @@ fn test_next_exceeding_history() {
     let stderr = test_env.jj_cmd_failure(&repo_path, &["next", "3"]);
     // `jj next` beyond existing history fails.
     insta::assert_snapshot!(stderr, @r###"
-    Error: No descendant found 3 commits forward
+    Error: No descendant found 3 commit(s) forward
     "###);
 }
 
@@ -594,7 +594,7 @@ fn test_prev_beyond_root_fails() {
     // @- is at "fourth", and there is no parent 5 commits behind it.
     let stderr = test_env.jj_cmd_failure(&repo_path, &["prev", "5"]);
     insta::assert_snapshot!(stderr,@r###"
-    Error: No ancestor found 5 commits back
+    Error: No ancestor found 5 commit(s) back
     "###);
 }
 
@@ -860,12 +860,12 @@ fn test_next_conflict_head() {
     "###);
     let stderr = test_env.jj_cmd_failure(&repo_path, &["next", "--conflict"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: No descendant found 1 commit forward
+    Error: No descendant found 1 commit(s) forward
     "###);
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["next", "--conflict", "--edit"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: No descendant found 1 commit forward
+    Error: No descendant found 1 commit(s) forward
     "###);
 }
 
