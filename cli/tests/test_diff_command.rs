@@ -54,7 +54,6 @@ fn test_diff_basic() {
        4     : 4
     Modified regular file file3 (file1 => file3):
     Modified regular file file4 (file2 => file4):
-        ...
     "###);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "--color=debug"]);

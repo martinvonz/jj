@@ -13,10 +13,10 @@
 // limitations under the License.
 
 use std::cmp::max;
-use std::collections::{HashSet, VecDeque};
+use std::collections::HashSet;
 use std::ops::Range;
 use std::path::{Path, PathBuf};
-use std::{io, iter, mem};
+use std::{io, mem};
 
 use futures::StreamExt;
 use itertools::Itertools;
@@ -400,51 +400,53 @@ fn show_color_words_diff_hunks(
     num_context_lines: usize,
     formatter: &mut dyn Formatter,
 ) -> io::Result<()> {
-    const SKIPPED_CONTEXT_LINE: &str = "    ...\n";
+    let line_diff = Diff::by_line([left, right]);
+    let mut line_diff_hunks = line_diff.hunks().peekable();
     let mut line_number = DiffLineNumber { left: 1, right: 1 };
-    let mut context = VecDeque::new();
-    // Have we printed "..." for any skipped context?
+    // Have we printed "..." for the last skipped context?
     let mut skipped_context = false;
-    // Are the lines in `context` to be printed before the next modified line?
-    let mut context_before = true;
-    for hunk in Diff::by_line([left, right]).hunks() {
+
+    // First "before" context
+    if let Some(DiffHunk::Matching(content)) =
+        line_diff_hunks.next_if(|hunk| matches!(hunk, DiffHunk::Matching(_)))
+    {
+        if line_diff_hunks.peek().is_some() {
+            let (new_line_number, _) = show_color_words_context_lines(
+                formatter,
+                content,
+                line_number,
+                0,
+                num_context_lines,
+            )?;
+            line_number = new_line_number;
+        }
+    }
+    while let Some(hunk) = line_diff_hunks.next() {
         match hunk {
-            DiffHunk::Matching(content) => {
-                // TODO: just split by "\n"
-                let mut diff_line_iter = DiffLineIterator::with_line_number(
-                    iter::once(DiffHunk::matching(content)),
+            // Middle "after"/"before" context
+            DiffHunk::Matching(content) if line_diff_hunks.peek().is_some() => {
+                let (new_line_number, _) = show_color_words_context_lines(
+                    formatter,
+                    content,
                     line_number,
-                );
-                for diff_line in diff_line_iter.by_ref() {
-                    context.push_back(diff_line.clone());
-                    let mut start_skipping_context = false;
-                    if context_before {
-                        if skipped_context && context.len() > num_context_lines {
-                            context.pop_front();
-                        } else if !skipped_context && context.len() > num_context_lines + 1 {
-                            start_skipping_context = true;
-                        }
-                    } else if context.len() > num_context_lines * 2 + 1 {
-                        for line in context.drain(..num_context_lines) {
-                            show_color_words_diff_line(formatter, &line)?;
-                        }
-                        start_skipping_context = true;
-                    }
-                    if start_skipping_context {
-                        context.drain(..2);
-                        write!(formatter, "{SKIPPED_CONTEXT_LINE}")?;
-                        skipped_context = true;
-                        context_before = true;
-                    }
-                }
-                line_number = diff_line_iter.next_line_number();
+                    num_context_lines,
+                    num_context_lines,
+                )?;
+                line_number = new_line_number;
+            }
+            // Last "after" context
+            DiffHunk::Matching(content) => {
+                let (new_line_number, skipped) = show_color_words_context_lines(
+                    formatter,
+                    content,
+                    line_number,
+                    num_context_lines,
+                    0,
+                )?;
+                line_number = new_line_number;
+                skipped_context = skipped;
             }
             DiffHunk::Different(contents) => {
-                for line in &context {
-                    show_color_words_diff_line(formatter, line)?;
-                }
-                context.clear();
-
                 let word_diff = Diff::by_word(&contents);
                 let mut diff_line_iter =
                     DiffLineIterator::with_line_number(word_diff.hunks(), line_number);
@@ -452,23 +454,7 @@ fn show_color_words_diff_hunks(
                     show_color_words_diff_line(formatter, &diff_line)?;
                 }
                 line_number = diff_line_iter.next_line_number();
-
-                context_before = false;
-                skipped_context = false;
             }
-        }
-    }
-    if !context_before {
-        if context.len() > num_context_lines + 1 {
-            context.truncate(num_context_lines);
-            skipped_context = true;
-            context_before = true;
-        }
-        for line in &context {
-            show_color_words_diff_line(formatter, line)?;
-        }
-        if context_before {
-            write!(formatter, "{SKIPPED_CONTEXT_LINE}")?;
         }
     }
 
@@ -480,6 +466,45 @@ fn show_color_words_diff_hunks(
     }
 
     Ok(())
+}
+
+/// Prints `num_after` lines, ellipsis, and `num_before` lines.
+fn show_color_words_context_lines(
+    formatter: &mut dyn Formatter,
+    content: &[u8],
+    mut line_number: DiffLineNumber,
+    num_after: usize,
+    num_before: usize,
+) -> io::Result<(DiffLineNumber, bool)> {
+    const SKIPPED_CONTEXT_LINE: &str = "    ...\n";
+    let mut lines = content.split_inclusive(|b| *b == b'\n').fuse();
+    for line in lines.by_ref().take(num_after) {
+        let diff_line = DiffLine {
+            line_number,
+            hunks: vec![(DiffLineHunkSide::Both, line.as_ref())],
+        };
+        show_color_words_diff_line(formatter, &diff_line)?;
+        line_number.left += 1;
+        line_number.right += 1;
+    }
+    let mut before_lines = lines.by_ref().rev().take(num_before + 1).collect_vec();
+    let num_skipped: u32 = lines.count().try_into().unwrap();
+    if num_skipped > 0 {
+        write!(formatter, "{SKIPPED_CONTEXT_LINE}")?;
+        before_lines.pop();
+        line_number.left += num_skipped + 1;
+        line_number.right += num_skipped + 1;
+    }
+    for line in before_lines.into_iter().rev() {
+        let diff_line = DiffLine {
+            line_number,
+            hunks: vec![(DiffLineHunkSide::Both, line.as_ref())],
+        };
+        show_color_words_diff_line(formatter, &diff_line)?;
+        line_number.left += 1;
+        line_number.right += 1;
+    }
+    Ok((line_number, num_skipped > 0))
 }
 
 fn show_color_words_diff_line(
