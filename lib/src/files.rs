@@ -27,8 +27,7 @@ use crate::merge::{trivial_merge, Merge};
 /// A diff line which may contain small hunks originating from both sides.
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub struct DiffLine<'a> {
-    pub left_line_number: u32,
-    pub right_line_number: u32,
+    pub line_number: DiffLineNumber,
     pub hunks: Vec<(DiffLineHunkSide, &'a BStr)>,
 }
 
@@ -53,11 +52,16 @@ impl DiffLine<'_> {
 
     fn take(&mut self) -> Self {
         DiffLine {
-            left_line_number: self.left_line_number,
-            right_line_number: self.right_line_number,
+            line_number: self.line_number,
             hunks: mem::take(&mut self.hunks),
         }
     }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct DiffLineNumber {
+    pub left: u32,
+    pub right: u32,
 }
 
 /// Which side a `DiffLine` hunk belongs to?
@@ -81,9 +85,15 @@ where
 {
     /// Iterates `diff_hunks` by line. Each hunk should have exactly two inputs.
     pub fn new(diff_hunks: I) -> Self {
+        let line_number = DiffLineNumber { left: 1, right: 1 };
+        Self::with_line_number(diff_hunks, line_number)
+    }
+
+    /// Iterates `diff_hunks` by line. Each hunk should have exactly two inputs.
+    /// Hunk's line numbers start from the given `line_number`.
+    pub fn with_line_number(diff_hunks: I, line_number: DiffLineNumber) -> Self {
         let current_line = DiffLine {
-            left_line_number: 1,
-            right_line_number: 1,
+            line_number,
             hunks: vec![],
         };
         DiffLineIterator {
@@ -91,6 +101,15 @@ where
             current_line,
             queued_lines: VecDeque::new(),
         }
+    }
+}
+
+impl<'a, I> DiffLineIterator<'a, I> {
+    /// Returns line number of the next hunk. After all hunks are consumed, this
+    /// returns the next line number if the last hunk ends with newline.
+    pub fn next_line_number(&self) -> DiffLineNumber {
+        let next_line = self.queued_lines.front().unwrap_or(&self.current_line);
+        next_line.line_number
     }
 }
 
@@ -115,8 +134,8 @@ where
                         self.current_line.hunks.push((DiffLineHunkSide::Both, line));
                         if line.ends_with(b"\n") {
                             self.queued_lines.push_back(self.current_line.take());
-                            self.current_line.left_line_number += 1;
-                            self.current_line.right_line_number += 1;
+                            self.current_line.line_number.left += 1;
+                            self.current_line.line_number.right += 1;
                         }
                     }
                 }
@@ -131,7 +150,7 @@ where
                             .push((DiffLineHunkSide::Left, left_line));
                         if left_line.ends_with(b"\n") {
                             self.queued_lines.push_back(self.current_line.take());
-                            self.current_line.left_line_number += 1;
+                            self.current_line.line_number.left += 1;
                         }
                     }
                     let right_lines = right_text.split_inclusive(|b| *b == b'\n').map(BStr::new);
@@ -141,7 +160,7 @@ where
                             .push((DiffLineHunkSide::Right, right_line));
                         if right_line.ends_with(b"\n") {
                             self.queued_lines.push_back(self.current_line.take());
-                            self.current_line.right_line_number += 1;
+                            self.current_line.line_number.right += 1;
                         }
                     }
                 }
@@ -240,6 +259,63 @@ mod tests {
 
     fn merge(removes: &[&[u8]], adds: &[&[u8]]) -> MergeResult {
         super::merge(&Merge::from_removes_adds(removes, adds))
+    }
+
+    #[test]
+    fn test_diff_line_iterator_line_numbers() {
+        let mut line_iter = DiffLineIterator::with_line_number(
+            [DiffHunk::different(["a\nb", "c\nd\n"])].into_iter(),
+            DiffLineNumber { left: 1, right: 10 },
+        );
+        // Nothing queued
+        assert_eq!(
+            line_iter.next_line_number(),
+            DiffLineNumber { left: 1, right: 10 }
+        );
+        assert_eq!(
+            line_iter.next().unwrap(),
+            DiffLine {
+                line_number: DiffLineNumber { left: 1, right: 10 },
+                hunks: vec![(DiffLineHunkSide::Left, "a\n".as_ref())],
+            }
+        );
+        // Multiple lines queued
+        assert_eq!(
+            line_iter.next_line_number(),
+            DiffLineNumber { left: 2, right: 10 }
+        );
+        assert_eq!(
+            line_iter.next().unwrap(),
+            DiffLine {
+                line_number: DiffLineNumber { left: 2, right: 10 },
+                hunks: vec![
+                    (DiffLineHunkSide::Left, "b".as_ref()),
+                    (DiffLineHunkSide::Right, "c\n".as_ref()),
+                ],
+            }
+        );
+        // Single line queued
+        assert_eq!(
+            line_iter.next_line_number(),
+            DiffLineNumber { left: 2, right: 11 }
+        );
+        assert_eq!(
+            line_iter.next().unwrap(),
+            DiffLine {
+                line_number: DiffLineNumber { left: 2, right: 11 },
+                hunks: vec![(DiffLineHunkSide::Right, "d\n".as_ref())],
+            }
+        );
+        // No more lines: left remains 2 as it lacks newline
+        assert_eq!(
+            line_iter.next_line_number(),
+            DiffLineNumber { left: 2, right: 12 }
+        );
+        assert!(line_iter.next().is_none());
+        assert_eq!(
+            line_iter.next_line_number(),
+            DiffLineNumber { left: 2, right: 12 }
+        );
     }
 
     #[test]

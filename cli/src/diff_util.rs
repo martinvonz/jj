@@ -471,7 +471,7 @@ fn show_color_words_diff_line(
             write!(
                 formatter.labeled("line_number"),
                 "{:>4}",
-                diff_line.left_line_number
+                diff_line.line_number.left
             )
         })?;
         write!(formatter, " ")?;
@@ -483,7 +483,7 @@ fn show_color_words_diff_line(
             write!(
                 formatter.labeled("line_number"),
                 "{:>4}",
-                diff_line.right_line_number
+                diff_line.line_number.right
             )
         })?;
         write!(formatter, ": ")?;
