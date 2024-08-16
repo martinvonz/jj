@@ -650,6 +650,97 @@ fn test_diff_relative_paths() {
 }
 
 #[test]
+fn test_diff_hunks() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    // Test added, removed, inserted, and modified lines. The modified line
+    // contains unchanged words.
+    std::fs::write(repo_path.join("file1"), "").unwrap();
+    std::fs::write(repo_path.join("file2"), "foo\n").unwrap();
+    std::fs::write(repo_path.join("file3"), "foo\nbaz qux blah blah\n").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["new"]);
+    std::fs::write(repo_path.join("file1"), "foo\n").unwrap();
+    std::fs::write(repo_path.join("file2"), "").unwrap();
+    std::fs::write(repo_path.join("file3"), "foo\nbar\nbaz quux blah blah\n").unwrap();
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["diff"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Modified regular file file1:
+            1: foo
+    Modified regular file file2:
+       1     : foo
+    Modified regular file file3:
+       1    1: foo
+            2: bar
+       2    3: baz quxquux blah blah
+    "###);
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "--color=debug"]);
+    insta::assert_snapshot!(stdout, @r###"
+    [38;5;3m<<diff header::Modified regular file file1:>>[39m
+    <<diff::     >>[38;5;2m<<diff added line_number::   1>>[39m<<diff::: >>[4m[38;5;2m<<diff added token::foo>>[24m[39m
+    [38;5;3m<<diff header::Modified regular file file2:>>[39m
+    [38;5;1m<<diff removed line_number::   1>>[39m<<diff::     : >>[4m[38;5;1m<<diff removed token::foo>>[24m[39m
+    [38;5;3m<<diff header::Modified regular file file3:>>[39m
+    [38;5;1m<<diff removed line_number::   1>>[39m<<diff:: >>[38;5;2m<<diff added line_number::   1>>[39m<<diff::: foo>>
+    <<diff::     >>[38;5;2m<<diff added line_number::   2>>[39m<<diff::: >>[4m[38;5;2m<<diff added token::bar>>[24m[39m
+    [38;5;1m<<diff removed line_number::   2>>[39m<<diff:: >>[38;5;2m<<diff added line_number::   3>>[39m<<diff::: baz >>[4m[38;5;1m<<diff removed token::qux>>[38;5;2m<<diff added token::quux>>[24m[39m<<diff:: blah blah>>
+    "###);
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "--git"]);
+    insta::assert_snapshot!(stdout, @r###"
+    diff --git a/file1 b/file1
+    index e69de29bb2..257cc5642c 100644
+    --- a/file1
+    +++ b/file1
+    @@ -1,0 +1,1 @@
+    +foo
+    diff --git a/file2 b/file2
+    index 257cc5642c..e69de29bb2 100644
+    --- a/file2
+    +++ b/file2
+    @@ -1,1 +1,0 @@
+    -foo
+    diff --git a/file3 b/file3
+    index 221a95a095..a543ef3892 100644
+    --- a/file3
+    +++ b/file3
+    @@ -1,2 +1,3 @@
+     foo
+    -baz qux blah blah
+    +bar
+    +baz quux blah blah
+    "###);
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "--git", "--color=debug"]);
+    insta::assert_snapshot!(stdout, @r###"
+    [1m<<diff file_header::diff --git a/file1 b/file1>>[0m
+    [1m<<diff file_header::index e69de29bb2..257cc5642c 100644>>[0m
+    [1m<<diff file_header::--- a/file1>>[0m
+    [1m<<diff file_header::+++ b/file1>>[0m
+    [38;5;6m<<diff hunk_header::@@ -1,0 +1,1 @@>>[39m
+    [38;5;2m<<diff added::+>>[4m<<diff added token::foo>>[24m[39m
+    [1m<<diff file_header::diff --git a/file2 b/file2>>[0m
+    [1m<<diff file_header::index 257cc5642c..e69de29bb2 100644>>[0m
+    [1m<<diff file_header::--- a/file2>>[0m
+    [1m<<diff file_header::+++ b/file2>>[0m
+    [38;5;6m<<diff hunk_header::@@ -1,1 +1,0 @@>>[39m
+    [38;5;1m<<diff removed::->>[4m<<diff removed token::foo>>[24m[39m
+    [1m<<diff file_header::diff --git a/file3 b/file3>>[0m
+    [1m<<diff file_header::index 221a95a095..a543ef3892 100644>>[0m
+    [1m<<diff file_header::--- a/file3>>[0m
+    [1m<<diff file_header::+++ b/file3>>[0m
+    [38;5;6m<<diff hunk_header::@@ -1,2 +1,3 @@>>[39m
+    <<diff context:: foo>>
+    [38;5;1m<<diff removed::-baz >>[4m<<diff removed token::qux>>[24m<<diff removed:: blah blah>>[39m
+    [38;5;2m<<diff added::+>>[4m<<diff added token::bar>>[24m[39m
+    [38;5;2m<<diff added::+baz >>[4m<<diff added token::quux>>[24m<<diff added:: blah blah>>[39m
+    "###);
+}
+
+#[test]
 fn test_diff_missing_newline() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
