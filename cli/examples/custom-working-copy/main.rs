@@ -94,6 +94,7 @@ fn main() -> std::process::ExitCode {
 /// file to the working copy.
 struct ConflictsWorkingCopy {
     inner: Box<dyn WorkingCopy>,
+    working_copy_path: PathBuf,
 }
 
 impl ConflictsWorkingCopy {
@@ -110,20 +111,22 @@ impl ConflictsWorkingCopy {
     ) -> Result<Self, WorkingCopyStateError> {
         let inner = LocalWorkingCopy::init(
             store,
-            working_copy_path,
+            working_copy_path.clone(),
             state_path,
             operation_id,
             workspace_id,
         )?;
         Ok(ConflictsWorkingCopy {
             inner: Box::new(inner),
+            working_copy_path,
         })
     }
 
     fn load(store: Arc<Store>, working_copy_path: PathBuf, state_path: PathBuf) -> Self {
-        let inner = LocalWorkingCopy::load(store, working_copy_path, state_path);
+        let inner = LocalWorkingCopy::load(store, working_copy_path.clone(), state_path);
         ConflictsWorkingCopy {
             inner: Box::new(inner),
+            working_copy_path,
         }
     }
 }
@@ -135,10 +138,6 @@ impl WorkingCopy for ConflictsWorkingCopy {
 
     fn name(&self) -> &str {
         Self::name()
-    }
-
-    fn path(&self) -> &Path {
-        self.inner.path()
     }
 
     fn workspace_id(&self) -> &WorkspaceId {
@@ -160,7 +159,7 @@ impl WorkingCopy for ConflictsWorkingCopy {
     fn start_mutation(&self) -> Result<Box<dyn LockedWorkingCopy>, WorkingCopyStateError> {
         let inner = self.inner.start_mutation()?;
         Ok(Box::new(LockedConflictsWorkingCopy {
-            wc_path: self.inner.path().to_owned(),
+            wc_path: self.working_copy_path.clone(),
             inner,
         }))
     }
@@ -261,6 +260,9 @@ impl LockedWorkingCopy for LockedConflictsWorkingCopy {
         operation_id: OperationId,
     ) -> Result<Box<dyn WorkingCopy>, WorkingCopyStateError> {
         let inner = self.inner.finish(operation_id)?;
-        Ok(Box::new(ConflictsWorkingCopy { inner }))
+        Ok(Box::new(ConflictsWorkingCopy {
+            inner,
+            working_copy_path: self.wc_path,
+        }))
     }
 }

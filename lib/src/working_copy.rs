@@ -17,7 +17,7 @@
 
 use std::any::Any;
 use std::ffi::OsString;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use thiserror::Error;
@@ -39,9 +39,6 @@ pub trait WorkingCopy: Send {
     /// The name/id of the implementation. Used for choosing the right
     /// implementation when loading a working copy.
     fn name(&self) -> &str;
-
-    /// The working copy's root directory.
-    fn path(&self) -> &Path;
 
     /// The working copy's workspace ID.
     fn workspace_id(&self) -> &WorkspaceId;
