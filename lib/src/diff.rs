@@ -493,6 +493,18 @@ impl<'input> Diff<'input> {
         Diff::for_tokenizer(inputs, find_line_ranges)
     }
 
+    /// Compares `inputs` word by word.
+    ///
+    /// The `inputs` is usually a changed hunk (e.g. a `DiffHunk::Different`)
+    /// that was the output from a line-by-line diff.
+    pub fn by_word<T: AsRef<[u8]> + ?Sized + 'input>(
+        inputs: impl IntoIterator<Item = &'input T>,
+    ) -> Self {
+        let mut diff = Diff::for_tokenizer(inputs, find_word_ranges);
+        diff.refine_changed_regions(find_nonword_ranges);
+        diff
+    }
+
     // TODO: At least when merging, it's wasteful to refine the diff if e.g. if 2
     // out of 3 inputs match in the differing regions. Perhaps the refine()
     // method should be on the hunk instead (probably returning a new Diff)?

@@ -25,7 +25,7 @@ use jj_lib::commit::Commit;
 use jj_lib::conflicts::{
     materialized_diff_stream, MaterializedTreeDiffEntry, MaterializedTreeValue,
 };
-use jj_lib::diff::{self, Diff, DiffHunk};
+use jj_lib::diff::{Diff, DiffHunk};
 use jj_lib::files::{DiffLine, DiffLineHunkSide, DiffLineIterator};
 use jj_lib::matchers::Matcher;
 use jj_lib::merge::MergedTreeValue;
@@ -1025,11 +1025,7 @@ fn inline_diff_hunks<'content>(
     let mut left_tokens: DiffTokenVec<'content> = vec![];
     let mut right_tokens: DiffTokenVec<'content> = vec![];
 
-    // Like Diff::default_refinement(), but doesn't try to match up contents by
-    // lines. We know left/right_contents have no matching lines.
-    let mut diff = Diff::for_tokenizer([left_content, right_content], diff::find_word_ranges);
-    diff.refine_changed_regions(diff::find_nonword_ranges);
-    for hunk in diff.hunks() {
+    for hunk in Diff::by_word([left_content, right_content]).hunks() {
         match hunk {
             DiffHunk::Matching(content) => {
                 for token in content.split_inclusive(|b| *b == b'\n') {
