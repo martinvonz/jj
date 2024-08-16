@@ -1,0 +1,30 @@
+name: Install DotSlash
+description: Install DotSlash on the current system
+inputs:
+  version:
+    description: "version of dotslash"
+    required: false
+    default: "0.4.1"
+runs:
+  using: "composite"
+  steps:
+    - name: Install DotSlash
+      shell: bash
+      run: |
+        mkdir -p $RUNNER_TEMP/dotslash
+        echo "$RUNNER_TEMP/dotslash" >> $GITHUB_PATH
+
+        if [[ "$RUNNER_OS" == "Windows" ]]; then
+          C:\\msys64\\usr\\bin\\wget.exe https://github.com/facebook/dotslash/releases/download/v0.4.1/dotslash-windows.v0.4.1.tar.gz
+          tar xf dotslash-windows.v0.4.1.tar.gz
+          mv dotslash.exe $RUNNER_TEMP/dotslash
+        else
+          if [[ "$RUNNER_OS" == "macOS" ]]; then
+            wget https://github.com/facebook/dotslash/releases/download/v0.4.1/dotslash-macos.v0.4.1.tar.gz
+            tar xf dotslash-macos.v0.4.1.tar.gz
+          elif [[ "$RUNNER_OS" == "Linux" ]]; then
+            wget https://github.com/facebook/dotslash/releases/download/v0.4.1/dotslash-ubuntu-22.04.x86_64.v0.4.1.tar.gz
+            tar xf dotslash-ubuntu-22.04.x86_64.v0.4.1.tar.gz
+          fi
+          mv dotslash $RUNNER_TEMP/dotslash
+        fi

@@ -1,0 +1,41 @@
+name: check dotslash files
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions: read-all
+
+jobs:
+  nix:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            abi: x86_64-unknown-linux-gnu
+          - os: windows-latest
+            abi: x86_64-pc-windows-msvc
+          - os: macos-latest
+            abi: aarch64-apple-darwin
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15 # NOTE (aseipp): keep in-sync with the build.yml timeout limit
+
+    name: check dotslash files
+    steps:
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+      - name: Install DotSlash
+        uses: ./.github/actions/install-dotslash
+      - shell: bash
+        run: |
+          for x in $(ls tools/bin); do
+            if [ "$x" = "README.md" ]; then
+              continue;
+            fi
+            if ! dotslash "tools/bin/$x" --help; then
+              echo "error: $x failed to run on ${{ matrix.abi }}"
+              exit 1
+            fi
+          done
