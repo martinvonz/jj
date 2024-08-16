@@ -5,9 +5,6 @@ amend = ["squash"]
 co = ["checkout"]
 unamend = ["unsquash"]
 
-[format]
-tree-level-conflicts = true
-
 [ui]
 # TODO: delete ui.allow-filesets in jj 0.26+
 allow-filesets = true

@@ -124,8 +124,6 @@ pub struct GitBackend {
     empty_tree_id: TreeId,
     extra_metadata_store: TableStore,
     cached_extra_metadata: Mutex<Option<Arc<ReadonlyTable>>>,
-    /// Whether tree of imported commit should be promoted to non-legacy format.
-    imported_commit_uses_tree_conflict_format: bool,
 }
 
 impl GitBackend {
@@ -133,11 +131,7 @@ impl GitBackend {
         "git"
     }
 
-    fn new(
-        base_repo: gix::ThreadSafeRepository,
-        extra_metadata_store: TableStore,
-        imported_commit_uses_tree_conflict_format: bool,
-    ) -> Self {
+    fn new(base_repo: gix::ThreadSafeRepository, extra_metadata_store: TableStore) -> Self {
         let repo = Mutex::new(base_repo.to_thread_local());
         let root_commit_id = CommitId::from_bytes(&[0; HASH_LENGTH]);
         let root_change_id = ChangeId::from_bytes(&[0; CHANGE_ID_LENGTH]);
@@ -150,7 +144,6 @@ impl GitBackend {
             empty_tree_id,
             extra_metadata_store,
             cached_extra_metadata: Mutex::new(None),
-            imported_commit_uses_tree_conflict_format,
         }
     }
 
@@ -166,7 +159,7 @@ impl GitBackend {
             gix_open_opts_from_settings(settings),
         )
         .map_err(GitBackendInitError::InitRepository)?;
-        Self::init_with_repo(settings, store_path, git_repo_path, git_repo)
+        Self::init_with_repo(store_path, git_repo_path, git_repo)
     }
 
     /// Initializes backend by creating a new Git repo at the specified
@@ -190,7 +183,7 @@ impl GitBackend {
         )
         .map_err(GitBackendInitError::InitRepository)?;
         let git_repo_path = workspace_root.join(".git");
-        Self::init_with_repo(settings, store_path, &git_repo_path, git_repo)
+        Self::init_with_repo(store_path, &git_repo_path, git_repo)
     }
 
     /// Initializes backend with an existing Git repo at the specified path.
@@ -210,11 +203,10 @@ impl GitBackend {
             gix_open_opts_from_settings(settings),
         )
         .map_err(GitBackendInitError::OpenRepository)?;
-        Self::init_with_repo(settings, store_path, git_repo_path, git_repo)
+        Self::init_with_repo(store_path, git_repo_path, git_repo)
     }
 
     fn init_with_repo(
-        settings: &UserSettings,
         store_path: &Path,
         git_repo_path: &Path,
         git_repo: gix::ThreadSafeRepository,
@@ -244,11 +236,7 @@ impl GitBackend {
                 .map_err(GitBackendInitError::Path)?;
         };
         let extra_metadata_store = TableStore::init(extra_path, HASH_LENGTH);
-        Ok(GitBackend::new(
-            git_repo,
-            extra_metadata_store,
-            settings.use_tree_conflict_format(),
-        ))
+        Ok(GitBackend::new(git_repo, extra_metadata_store))
     }
 
     pub fn load(
@@ -271,11 +259,7 @@ impl GitBackend {
         )
         .map_err(GitBackendLoadError::OpenRepository)?;
         let extra_metadata_store = TableStore::load(store_path.join("extra"), HASH_LENGTH);
-        Ok(GitBackend::new(
-            repo,
-            extra_metadata_store,
-            settings.use_tree_conflict_format(),
-        ))
+        Ok(GitBackend::new(repo, extra_metadata_store))
     }
 
     fn lock_git_repo(&self) -> MutexGuard<'_, gix::Repository> {
@@ -349,6 +333,14 @@ impl GitBackend {
         &self,
         head_ids: impl IntoIterator<Item = &'a CommitId>,
     ) -> BackendResult<()> {
+        self.import_head_commits_with_tree_conflicts(head_ids, true)
+    }
+
+    fn import_head_commits_with_tree_conflicts<'a>(
+        &self,
+        head_ids: impl IntoIterator<Item = &'a CommitId>,
+        uses_tree_conflict_format: bool,
+    ) -> BackendResult<()> {
         let head_ids: HashSet<&CommitId> = head_ids
             .into_iter()
             .filter(|&id| *id != self.root_commit_id)
@@ -377,7 +369,7 @@ impl GitBackend {
             &mut mut_table,
             &table_lock,
             &head_ids,
-            self.imported_commit_uses_tree_conflict_format,
+            uses_tree_conflict_format,
         )?;
         self.save_extra_metadata_table(mut_table, &table_lock)
     }
@@ -1491,14 +1483,7 @@ mod tests {
     #[test_case(false; "legacy tree format")]
     #[test_case(true; "tree-level conflict format")]
     fn read_plain_git_commit(uses_tree_conflict_format: bool) {
-        let settings = {
-            let config = config::Config::builder()
-                .set_override("format.tree-level-conflicts", uses_tree_conflict_format)
-                .unwrap()
-                .build()
-                .unwrap();
-            UserSettings::from_config(config)
-        };
+        let settings = user_settings();
         let temp_dir = testutils::new_temp_dir();
         let store_path = temp_dir.path();
         let git_repo_path = temp_dir.path().join("git");
@@ -1561,7 +1546,9 @@ mod tests {
         let backend = GitBackend::init_external(&settings, store_path, git_repo.path()).unwrap();
 
         // Import the head commit and its ancestors
-        backend.import_head_commits([&commit_id2]).unwrap();
+        backend
+            .import_head_commits_with_tree_conflicts([&commit_id2], uses_tree_conflict_format)
+            .unwrap();
         // Ref should be created only for the head commit
         let git_refs = backend
             .open_git_repo()
