@@ -36,17 +36,17 @@ fn bench_diff_lines(c: &mut Criterion) {
         group.bench_with_input(
             BenchmarkId::new("unchanged", &label),
             &unchanged_lines(count),
-            |b, (left, right)| b.iter(|| diff::diff(left.as_bytes(), right.as_bytes())),
+            |b, (left, right)| b.iter(|| diff::diff([left, right])),
         );
         group.bench_with_input(
             BenchmarkId::new("modified", &label),
             &modified_lines(count),
-            |b, (left, right)| b.iter(|| diff::diff(left.as_bytes(), right.as_bytes())),
+            |b, (left, right)| b.iter(|| diff::diff([left, right])),
         );
         group.bench_with_input(
             BenchmarkId::new("reversed", &label),
             &reversed_lines(count),
-            |b, (left, right)| b.iter(|| diff::diff(left.as_bytes(), right.as_bytes())),
+            |b, (left, right)| b.iter(|| diff::diff([left, right])),
         );
     }
 }
@@ -54,8 +54,8 @@ fn bench_diff_lines(c: &mut Criterion) {
 fn bench_diff_git_git_read_tree_c(c: &mut Criterion) {
     c.bench_function("bench_diff_git_git_read_tree_c", |b| {
         b.iter(|| {
-            diff::diff(
-                br##"/*
+            diff::diff([
+                r##"/*
  * GIT - The information manager from hell
  *
  * Copyright (C) Linus Torvalds, 2005
@@ -104,7 +104,7 @@ int main(int argc, char **argv)
 	return 0;
 }
 "##,
-                br##"/*
+                r##"/*
  * GIT - The information manager from hell
  *
  * Copyright (C) Linus Torvalds, 2005
@@ -193,7 +193,7 @@ int main(int argc, char **argv)
 	return 0;
 }
 "##,
-            )
+            ])
         })
     });
 }
