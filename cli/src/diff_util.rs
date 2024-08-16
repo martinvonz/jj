@@ -137,27 +137,27 @@ fn diff_formats_from_args(
     settings: &UserSettings,
     args: &DiffFormatArgs,
 ) -> Result<Vec<DiffFormat>, config::ConfigError> {
-    let mut formats = [
-        (args.summary, DiffFormat::Summary),
-        (args.types, DiffFormat::Types),
-        (args.name_only, DiffFormat::NameOnly),
-        (
-            args.git,
-            DiffFormat::Git {
-                context: args.context.unwrap_or(DEFAULT_CONTEXT_LINES),
-            },
-        ),
-        (
-            args.color_words,
-            DiffFormat::ColorWords {
-                context: args.context.unwrap_or(DEFAULT_CONTEXT_LINES),
-            },
-        ),
-        (args.stat, DiffFormat::Stat),
-    ]
-    .into_iter()
-    .filter_map(|(arg, format)| arg.then_some(format))
-    .collect_vec();
+    let mut formats = Vec::new();
+    if args.summary {
+        formats.push(DiffFormat::Summary);
+    }
+    if args.types {
+        formats.push(DiffFormat::Types);
+    }
+    if args.name_only {
+        formats.push(DiffFormat::NameOnly);
+    }
+    if args.git {
+        let context = args.context.unwrap_or(DEFAULT_CONTEXT_LINES);
+        formats.push(DiffFormat::Git { context });
+    }
+    if args.color_words {
+        let context = args.context.unwrap_or(DEFAULT_CONTEXT_LINES);
+        formats.push(DiffFormat::ColorWords { context });
+    }
+    if args.stat {
+        formats.push(DiffFormat::Stat);
+    }
     if let Some(name) = &args.tool {
         let tool = merge_tools::get_external_tool_config(settings, name)?
             .unwrap_or_else(|| ExternalMergeTool::with_program(name));
