@@ -147,12 +147,6 @@ impl UserSettings {
         self.rng.clone()
     }
 
-    pub fn use_tree_conflict_format(&self) -> bool {
-        self.config
-            .get_bool("format.tree-level-conflicts")
-            .unwrap_or(false)
-    }
-
     pub fn user_name(&self) -> String {
         self.config.get_string("user.name").unwrap_or_default()
     }

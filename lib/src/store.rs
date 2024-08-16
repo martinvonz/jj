@@ -44,7 +44,6 @@ pub struct Store {
     signer: Signer,
     commit_cache: RwLock<HashMap<CommitId, Arc<backend::Commit>>>,
     tree_cache: RwLock<HashMap<(RepoPathBuf, TreeId), Arc<backend::Tree>>>,
-    use_tree_conflict_format: bool,
 }
 
 impl Debug for Store {
@@ -56,17 +55,12 @@ impl Debug for Store {
 }
 
 impl Store {
-    pub fn new(
-        backend: Box<dyn Backend>,
-        signer: Signer,
-        use_tree_conflict_format: bool,
-    ) -> Arc<Self> {
+    pub fn new(backend: Box<dyn Backend>, signer: Signer) -> Arc<Self> {
         Arc::new(Store {
             backend,
             signer,
             commit_cache: Default::default(),
             tree_cache: Default::default(),
-            use_tree_conflict_format,
         })
     }
 
@@ -76,11 +70,6 @@ impl Store {
 
     pub fn signer(&self) -> &Signer {
         &self.signer
-    }
-
-    /// Whether new tree should be written using the tree-level format.
-    pub fn use_tree_conflict_format(&self) -> bool {
-        self.use_tree_conflict_format
     }
 
     pub fn get_copy_records(
