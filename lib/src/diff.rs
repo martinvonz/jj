@@ -505,21 +505,6 @@ impl<'input> Diff<'input> {
         diff
     }
 
-    // TODO: At least when merging, it's wasteful to refine the diff if e.g. if 2
-    // out of 3 inputs match in the differing regions. Perhaps the refine()
-    // method should be on the hunk instead (probably returning a new Diff)?
-    // That would let each user decide which hunks to refine. However, it would
-    // probably mean that many callers repeat the same code. Perhaps it
-    // should be possible to refine a whole diff *or* individual hunks.
-    pub fn default_refinement<T: AsRef<[u8]> + ?Sized + 'input>(
-        inputs: impl IntoIterator<Item = &'input T>,
-    ) -> Self {
-        let mut diff = Diff::for_tokenizer(inputs, find_line_ranges);
-        diff.refine_changed_regions(find_word_ranges);
-        diff.refine_changed_regions(find_nonword_ranges);
-        diff
-    }
-
     pub fn hunks<'diff>(&'diff self) -> DiffHunkIterator<'diff, 'input> {
         let previous_offsets = vec![0; self.other_inputs.len()];
         DiffHunkIterator {
@@ -674,7 +659,10 @@ impl<'diff, 'input> Iterator for DiffHunkIterator<'diff, 'input> {
 pub fn diff<'a, T: AsRef<[u8]> + ?Sized + 'a>(
     inputs: impl IntoIterator<Item = &'a T>,
 ) -> Vec<DiffHunk<'a>> {
-    Diff::default_refinement(inputs).hunks().collect()
+    let mut diff = Diff::for_tokenizer(inputs, find_line_ranges);
+    diff.refine_changed_regions(find_word_ranges);
+    diff.refine_changed_regions(find_nonword_ranges);
+    diff.hunks().collect()
 }
 
 #[cfg(test)]
