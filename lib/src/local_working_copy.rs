@@ -1543,10 +1543,6 @@ impl WorkingCopy for LocalWorkingCopy {
         Self::name()
     }
 
-    fn path(&self) -> &Path {
-        &self.working_copy_path
-    }
-
     fn workspace_id(&self) -> &WorkspaceId {
         &self.checkout_state().workspace_id
     }
