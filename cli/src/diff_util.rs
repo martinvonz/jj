@@ -95,12 +95,13 @@ pub struct DiffFormatArgs {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum DiffFormat {
+    // Non-trivial parameters are boxed in order to keep the variants small
     Summary,
     Stat,
     Types,
     NameOnly,
     Git { context: usize },
-    ColorWords { context: usize },
+    ColorWords(Box<ColorWordsOptions>),
     Tool(Box<ExternalMergeTool>),
 }
 
@@ -152,8 +153,8 @@ fn diff_formats_from_args(
         formats.push(DiffFormat::Git { context });
     }
     if args.color_words {
-        let context = args.context.unwrap_or(DEFAULT_CONTEXT_LINES);
-        formats.push(DiffFormat::ColorWords { context });
+        let options = ColorWordsOptions::from_settings_and_args(settings, args)?;
+        formats.push(DiffFormat::ColorWords(Box::new(options)));
     }
     if args.stat {
         formats.push(DiffFormat::Stat);
@@ -195,9 +196,10 @@ fn default_diff_format(
         "git" => Ok(DiffFormat::Git {
             context: args.context.unwrap_or(DEFAULT_CONTEXT_LINES),
         }),
-        "color-words" => Ok(DiffFormat::ColorWords {
-            context: args.context.unwrap_or(DEFAULT_CONTEXT_LINES),
-        }),
+        "color-words" => {
+            let options = ColorWordsOptions::from_settings_and_args(settings, args)?;
+            Ok(DiffFormat::ColorWords(Box::new(options)))
+        }
         "stat" => Ok(DiffFormat::Stat),
         _ => Err(config::ConfigError::Message(format!(
             "invalid diff format: {name}"
@@ -321,10 +323,10 @@ impl<'a> DiffRenderer<'a> {
                         *context,
                     )?;
                 }
-                DiffFormat::ColorWords { context } => {
+                DiffFormat::ColorWords(options) => {
                     let tree_diff =
                         from_tree.diff_stream_with_copies(to_tree, matcher, copy_records);
-                    show_color_words_diff(formatter, store, tree_diff, path_converter, *context)?;
+                    show_color_words_diff(formatter, store, tree_diff, path_converter, options)?;
                 }
                 DiffFormat::Tool(tool) => {
                     match tool.diff_invocation_mode {
@@ -400,11 +402,28 @@ fn collect_copied_sources<'a>(
         .collect()
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ColorWordsOptions {
+    /// Number of context lines to show.
+    pub context: usize,
+}
+
+impl ColorWordsOptions {
+    fn from_settings_and_args(
+        _settings: &UserSettings,
+        args: &DiffFormatArgs,
+    ) -> Result<Self, config::ConfigError> {
+        Ok(ColorWordsOptions {
+            context: args.context.unwrap_or(DEFAULT_CONTEXT_LINES),
+        })
+    }
+}
+
 fn show_color_words_diff_hunks(
+    formatter: &mut dyn Formatter,
     left: &[u8],
     right: &[u8],
-    num_context_lines: usize,
-    formatter: &mut dyn Formatter,
+    options: &ColorWordsOptions,
 ) -> io::Result<()> {
     let line_diff = Diff::by_line([left, right]);
     let mut line_diff_hunks = line_diff.hunks().peekable();
@@ -422,7 +441,7 @@ fn show_color_words_diff_hunks(
                 content,
                 line_number,
                 0,
-                num_context_lines,
+                options.context,
             )?;
             line_number = new_line_number;
         }
@@ -435,8 +454,8 @@ fn show_color_words_diff_hunks(
                     formatter,
                     content,
                     line_number,
-                    num_context_lines,
-                    num_context_lines,
+                    options.context,
+                    options.context,
                 )?;
                 line_number = new_line_number;
             }
@@ -446,7 +465,7 @@ fn show_color_words_diff_hunks(
                     formatter,
                     content,
                     line_number,
-                    num_context_lines,
+                    options.context,
                     0,
                 )?;
                 line_number = new_line_number;
@@ -655,7 +674,7 @@ pub fn show_color_words_diff(
     store: &Store,
     tree_diff: BoxStream<CopiesTreeDiffEntry>,
     path_converter: &RepoPathUiConverter,
-    num_context_lines: usize,
+    options: &ColorWordsOptions,
 ) -> Result<(), DiffRenderError> {
     let mut diff_stream = materialized_diff_stream(store, tree_diff);
     async {
@@ -700,12 +719,7 @@ pub fn show_color_words_diff(
                 } else if right_content.is_binary {
                     writeln!(formatter.labeled("binary"), "    (binary)")?;
                 } else {
-                    show_color_words_diff_hunks(
-                        &[],
-                        &right_content.contents,
-                        num_context_lines,
-                        formatter,
-                    )?;
+                    show_color_words_diff_hunks(formatter, &[], &right_content.contents, options)?;
                 }
             } else if right_value.is_present() {
                 let description = match (&left_value, &right_value) {
@@ -772,10 +786,10 @@ pub fn show_color_words_diff(
                     writeln!(formatter.labeled("binary"), "    (binary)")?;
                 } else {
                     show_color_words_diff_hunks(
+                        formatter,
                         &left_content.contents,
                         &right_content.contents,
-                        num_context_lines,
-                        formatter,
+                        options,
                     )?;
                 }
             } else {
@@ -790,12 +804,7 @@ pub fn show_color_words_diff(
                 } else if left_content.is_binary {
                     writeln!(formatter.labeled("binary"), "    (binary)")?;
                 } else {
-                    show_color_words_diff_hunks(
-                        &left_content.contents,
-                        &[],
-                        num_context_lines,
-                        formatter,
-                    )?;
+                    show_color_words_diff_hunks(formatter, &left_content.contents, &[], options)?;
                 }
             }
         }
