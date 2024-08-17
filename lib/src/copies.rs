@@ -15,11 +15,15 @@
 //! Code for working with copies and renames.
 
 use std::collections::HashMap;
+use std::pin::Pin;
+use std::task::{Context, Poll};
 
 use futures::executor::block_on_stream;
 use futures::stream::BoxStream;
+use futures::Stream;
 
 use crate::backend::{BackendResult, CopyRecord};
+use crate::merged_tree::{MergedTree, TreeDiffEntry, TreeDiffStream};
 use crate::repo_path::{RepoPath, RepoPathBuf};
 
 /// A collection of CopyRecords.
@@ -62,5 +66,39 @@ impl CopyRecords {
     /// Gets all copy records.
     pub fn iter(&self) -> impl Iterator<Item = &CopyRecord> + '_ {
         self.records.iter()
+    }
+}
+
+/// Wraps a `TreeDiffStream`, adding support for copies and renames.
+pub struct CopiesTreeDiffStream<'a> {
+    inner: TreeDiffStream<'a>,
+    source_tree: MergedTree,
+    copy_records: &'a CopyRecords,
+}
+
+impl<'a> CopiesTreeDiffStream<'a> {
+    /// Create a new diff stream with copy information.
+    pub fn new(
+        inner: TreeDiffStream<'a>,
+        source_tree: MergedTree,
+        copy_records: &'a CopyRecords,
+    ) -> Self {
+        Self {
+            inner,
+            source_tree,
+            copy_records,
+        }
+    }
+}
+
+impl Stream for CopiesTreeDiffStream<'_> {
+    type Item = TreeDiffEntry;
+
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        self.inner.as_mut().poll_next(cx).map(|option| {
+            option.map(|diff_entry| {
+                diff_entry.adjust_for_copy_tracking(&self.source_tree, self.copy_records)
+            })
+        })
     }
 }
