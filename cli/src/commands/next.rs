@@ -14,7 +14,7 @@
 
 use crate::cli_util::CommandHelper;
 use crate::command_error::CommandError;
-use crate::movement_util::{move_to_commit, Direction};
+use crate::movement_util::{move_to_commit, Direction, MovementArgs};
 use crate::ui::Ui;
 
 /// Move the working-copy commit to the child revision
@@ -64,6 +64,16 @@ pub(crate) struct NextArgs {
     conflict: bool,
 }
 
+impl From<&NextArgs> for MovementArgs {
+    fn from(val: &NextArgs) -> Self {
+        MovementArgs {
+            offset: val.offset,
+            edit: val.edit,
+            conflict: val.conflict,
+        }
+    }
+}
+
 pub(crate) fn cmd_next(
     ui: &mut Ui,
     command: &CommandHelper,
@@ -73,9 +83,7 @@ pub(crate) fn cmd_next(
     move_to_commit(
         ui,
         &mut workspace_command,
-        &Direction::Next,
-        args.edit,
-        args.conflict,
-        args.offset,
+        Direction::Next,
+        &MovementArgs::from(args),
     )
 }

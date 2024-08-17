@@ -14,7 +14,7 @@
 
 use crate::cli_util::CommandHelper;
 use crate::command_error::CommandError;
-use crate::movement_util::{move_to_commit, Direction};
+use crate::movement_util::{move_to_commit, Direction, MovementArgs};
 use crate::ui::Ui;
 /// Change the working copy revision relative to the parent revision
 ///
@@ -60,6 +60,16 @@ pub(crate) struct PrevArgs {
     conflict: bool,
 }
 
+impl From<&PrevArgs> for MovementArgs {
+    fn from(val: &PrevArgs) -> Self {
+        MovementArgs {
+            offset: val.offset,
+            edit: val.edit,
+            conflict: val.conflict,
+        }
+    }
+}
+
 pub(crate) fn cmd_prev(
     ui: &mut Ui,
     command: &CommandHelper,
@@ -69,9 +79,7 @@ pub(crate) fn cmd_prev(
     move_to_commit(
         ui,
         &mut workspace_command,
-        &Direction::Prev,
-        args.edit,
-        args.conflict,
-        args.offset,
+        Direction::Prev,
+        &MovementArgs::from(args),
     )
 }
