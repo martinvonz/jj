@@ -25,16 +25,24 @@ use crate::cli_util::{short_commit_hash, WorkspaceCommandHelper};
 use crate::command_error::{user_error, CommandError};
 use crate::ui::Ui;
 
-pub enum Direction {
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct MovementArgs {
+    pub offset: u64,
+    pub edit: bool,
+    pub conflict: bool,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum Direction {
     Next,
     Prev,
 }
 
 impl Direction {
-    fn cmd(&self) -> String {
+    fn cmd(&self) -> &'static str {
         match self {
-            Direction::Next => "next".to_string(),
-            Direction::Prev => "prev".to_string(),
+            Direction::Next => "next",
+            Direction::Prev => "prev",
         }
     }
 
@@ -48,33 +56,31 @@ impl Direction {
     fn get_target_revset(
         &self,
         working_commit_id: &CommitId,
-        edit: bool,
-        has_conflict: bool,
-        change_offset: u64,
+        args: &MovementArgs,
     ) -> Result<Rc<RevsetExpression>, CommandError> {
         let wc_revset = RevsetExpression::commit(working_commit_id.clone());
         // If we're editing, start at the working-copy commit. Otherwise, start from
         // its direct parent(s).
-        let start_revset = if edit {
+        let start_revset = if args.edit {
             wc_revset.clone()
         } else {
             wc_revset.parents()
         };
 
         let target_revset = match self {
-            Direction::Next => if has_conflict {
+            Direction::Next => if args.conflict {
                 start_revset
                     .children()
                     .descendants()
                     .filtered(RevsetFilterPredicate::HasConflict)
                     .roots()
             } else {
-                start_revset.descendants_at(change_offset)
+                start_revset.descendants_at(args.offset)
             }
             .minus(&wc_revset),
 
             Direction::Prev => {
-                if has_conflict {
+                if args.conflict {
                     // If people desire to move to the root conflict, replace the `heads()` below
                     // with `roots(). But let's wait for feedback.
                     start_revset
@@ -83,7 +89,7 @@ impl Direction {
                         .filtered(RevsetFilterPredicate::HasConflict)
                         .heads()
                 } else {
-                    start_revset.ancestors_at(change_offset)
+                    start_revset.ancestors_at(args.offset)
                 }
             }
         };
@@ -95,14 +101,11 @@ impl Direction {
 fn get_target_commit(
     ui: &mut Ui,
     workspace_command: &WorkspaceCommandHelper,
-    direction: &Direction,
+    direction: Direction,
     working_commit_id: &CommitId,
-    edit: bool,
-    has_conflict: bool,
-    change_offset: u64,
+    args: &MovementArgs,
 ) -> Result<Commit, CommandError> {
-    let target_revset =
-        direction.get_target_revset(working_commit_id, edit, has_conflict, change_offset)?;
+    let target_revset = direction.get_target_revset(working_commit_id, args)?;
     let targets: Vec<Commit> = target_revset
         .evaluate_programmatic(workspace_command.repo().as_ref())?
         .iter()
@@ -113,9 +116,7 @@ fn get_target_commit(
         [target] => target,
         [] => {
             // We found no ancestor/descendant.
-            return Err(user_error(
-                direction.target_not_found_message(change_offset),
-            ));
+            return Err(user_error(direction.target_not_found_message(args.offset)));
         }
         commits => choose_commit(ui, workspace_command, direction, commits)?,
     };
@@ -126,7 +127,7 @@ fn get_target_commit(
 fn choose_commit<'a>(
     ui: &mut Ui,
     workspace_command: &WorkspaceCommandHelper,
-    direction: &Direction,
+    direction: Direction,
     commits: &'a [Commit],
 ) -> Result<&'a Commit, CommandError> {
     writeln!(
@@ -159,39 +160,31 @@ fn choose_commit<'a>(
     Ok(&commits[choice.parse::<usize>().unwrap() - 1])
 }
 
-pub fn move_to_commit(
+pub(crate) fn move_to_commit(
     ui: &mut Ui,
     workspace_command: &mut WorkspaceCommandHelper,
-    direction: &Direction,
-    edit: bool,
-    has_conflict: bool,
-    change_offset: u64,
+    direction: Direction,
+    args: &MovementArgs,
 ) -> Result<(), CommandError> {
     let current_wc_id = workspace_command
         .get_wc_commit_id()
         .ok_or_else(|| user_error("This command requires a working copy"))?;
-    let edit = edit
+
+    let mut args = args.clone();
+    args.edit = args.edit
         || !&workspace_command
             .repo()
             .view()
             .heads()
             .contains(current_wc_id);
-    let target = get_target_commit(
-        ui,
-        workspace_command,
-        direction,
-        current_wc_id,
-        edit,
-        has_conflict,
-        change_offset,
-    )?;
 
+    let target = get_target_commit(ui, workspace_command, direction, current_wc_id, &args)?;
     let current_short = short_commit_hash(current_wc_id);
     let target_short = short_commit_hash(target.id());
     let cmd = direction.cmd();
 
     // We're editing, just move to the target commit.
-    if edit {
+    if args.edit {
         // We're editing, the target must be rewritable.
         workspace_command.check_rewritable([target.id()])?;
         let mut tx = workspace_command.start_transaction();
