@@ -30,7 +30,7 @@ use futures::{Stream, TryStreamExt};
 use itertools::{EitherOrBoth, Itertools};
 
 use crate::backend;
-use crate::backend::{BackendResult, CopyRecord, MergedTreeId, TreeId, TreeValue};
+use crate::backend::{BackendResult, MergedTreeId, TreeId, TreeValue};
 use crate::copies::{CopiesTreeDiffStream, CopyRecords};
 use crate::matchers::{EverythingMatcher, Matcher};
 use crate::merge::{Merge, MergeBuilder, MergedTreeVal, MergedTreeValue};
@@ -317,28 +317,6 @@ pub struct TreeDiffEntry {
     pub target: RepoPathBuf,
     /// The resolved tree values if available.
     pub value: BackendResult<(MergedTreeValue, MergedTreeValue)>,
-}
-
-impl TreeDiffEntry {
-    pub(crate) fn adjust_for_copy_tracking(
-        self,
-        source_tree: &MergedTree,
-        copy_records: &CopyRecords,
-    ) -> TreeDiffEntry {
-        let Some(CopyRecord { source, .. }) = copy_records.for_target(&self.target) else {
-            return self;
-        };
-
-        Self {
-            source: source.clone(),
-            target: self.target,
-            value: self.value.and_then(|(_, target_value)| {
-                source_tree
-                    .path_value(source)
-                    .map(|source_value| (source_value, target_value))
-            }),
-        }
-    }
 }
 
 /// Type alias for the result from `MergedTree::diff_stream()`. We use a
