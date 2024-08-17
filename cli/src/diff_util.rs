@@ -533,34 +533,43 @@ fn show_color_words_context_lines(
     Ok((line_number, num_skipped > 0))
 }
 
-fn show_color_words_diff_line(
+fn show_color_words_line_number(
     formatter: &mut dyn Formatter,
-    diff_line: &DiffLine,
+    left_line_number: Option<u32>,
+    right_line_number: Option<u32>,
 ) -> io::Result<()> {
-    if diff_line.has_left_content() {
+    if let Some(line_number) = left_line_number {
         formatter.with_label("removed", |formatter| {
-            write!(
-                formatter.labeled("line_number"),
-                "{:>4}",
-                diff_line.line_number.left
-            )
+            write!(formatter.labeled("line_number"), "{line_number:>4}")
         })?;
         write!(formatter, " ")?;
     } else {
         write!(formatter, "     ")?;
     }
-    if diff_line.has_right_content() {
+    if let Some(line_number) = right_line_number {
         formatter.with_label("added", |formatter| {
-            write!(
-                formatter.labeled("line_number"),
-                "{:>4}",
-                diff_line.line_number.right
-            )
+            write!(formatter.labeled("line_number"), "{line_number:>4}",)
         })?;
         write!(formatter, ": ")?;
     } else {
         write!(formatter, "    : ")?;
     }
+    Ok(())
+}
+
+fn show_color_words_diff_line(
+    formatter: &mut dyn Formatter,
+    diff_line: &DiffLine,
+) -> io::Result<()> {
+    show_color_words_line_number(
+        formatter,
+        diff_line
+            .has_left_content()
+            .then_some(diff_line.line_number.left),
+        diff_line
+            .has_right_content()
+            .then_some(diff_line.line_number.right),
+    )?;
     for (side, data) in &diff_line.hunks {
         let label = match side {
             DiffLineHunkSide::Both => None,
