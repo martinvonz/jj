@@ -30,7 +30,8 @@ use futures::{Stream, TryStreamExt};
 use itertools::{EitherOrBoth, Itertools};
 
 use crate::backend;
-use crate::backend::{BackendResult, CopyRecord, CopyRecords, MergedTreeId, TreeId, TreeValue};
+use crate::backend::{BackendResult, CopyRecord, MergedTreeId, TreeId, TreeValue};
+use crate::copies::CopyRecords;
 use crate::matchers::{EverythingMatcher, Matcher};
 use crate::merge::{Merge, MergeBuilder, MergedTreeVal, MergedTreeValue};
 use crate::repo_path::{RepoPath, RepoPathBuf, RepoPathComponent};
