@@ -109,18 +109,18 @@ impl Stream for CopiesTreeDiffStream<'_> {
         self.inner.as_mut().poll_next(cx).map(|option| {
             option.map(|diff_entry| {
                 let Some(CopyRecord { source, .. }) =
-                    self.copy_records.for_target(&diff_entry.target)
+                    self.copy_records.for_target(&diff_entry.path)
                 else {
                     return CopiesTreeDiffEntry {
-                        source: diff_entry.source,
-                        target: diff_entry.target,
+                        source: diff_entry.path.clone(),
+                        target: diff_entry.path,
                         value: diff_entry.value,
                     };
                 };
 
                 CopiesTreeDiffEntry {
                     source: source.clone(),
-                    target: diff_entry.target,
+                    target: diff_entry.path,
                     value: diff_entry.value.and_then(|(_, target_value)| {
                         self.source_tree
                             .path_value(source)

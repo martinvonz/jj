@@ -1152,7 +1152,7 @@ fn has_diff_from_parent(
     async {
         while let Some(entry) = tree_diff.next().await {
             let (from_value, to_value) = entry.value?;
-            let from_value = resolve_file_values(store, &entry.source, from_value)?;
+            let from_value = resolve_file_values(store, &entry.path, from_value)?;
             if from_value == to_value {
                 continue;
             }
@@ -1179,17 +1179,17 @@ fn matches_diff_from_parent(
     async {
         while let Some(entry) = tree_diff.next().await {
             let (left_value, right_value) = entry.value?;
-            let left_value = resolve_file_values(store, &entry.source, left_value)?;
+            let left_value = resolve_file_values(store, &entry.path, left_value)?;
             if left_value == right_value {
                 continue;
             }
             // Conflicts are compared in materialized form. Alternatively,
             // conflict pairs can be compared one by one. #4062
-            let left_future = materialize_tree_value(store, &entry.source, left_value);
-            let right_future = materialize_tree_value(store, &entry.target, right_value);
+            let left_future = materialize_tree_value(store, &entry.path, left_value);
+            let right_future = materialize_tree_value(store, &entry.path, right_value);
             let (left_value, right_value) = futures::try_join!(left_future, right_future)?;
-            let left_content = to_file_content(&entry.source, left_value)?;
-            let right_content = to_file_content(&entry.target, right_value)?;
+            let left_content = to_file_content(&entry.path, left_value)?;
+            let right_content = to_file_content(&entry.path, right_value)?;
             // Filter lines prior to comparison. This might produce inferior
             // hunks due to lack of contexts, but is way faster than full diff.
             let left_lines = match_lines(&left_content, text_pattern);

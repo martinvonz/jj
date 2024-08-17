@@ -201,7 +201,7 @@ fn test_sparse_commit() {
         .collect()
         .block_on();
     assert_eq!(diff.len(), 1);
-    assert_eq!(diff[0].target.as_ref(), dir1_file1_path);
+    assert_eq!(diff[0].path.as_ref(), dir1_file1_path);
 
     // Set sparse patterns to also include dir2/
     let mut locked_ws = test_workspace
@@ -223,8 +223,8 @@ fn test_sparse_commit() {
         .collect()
         .block_on();
     assert_eq!(diff.len(), 2);
-    assert_eq!(diff[0].target.as_ref(), dir1_file1_path);
-    assert_eq!(diff[1].target.as_ref(), dir2_file1_path);
+    assert_eq!(diff[0].path.as_ref(), dir1_file1_path);
+    assert_eq!(diff[1].path.as_ref(), dir2_file1_path);
 }
 
 #[test]

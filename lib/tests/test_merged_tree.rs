@@ -36,17 +36,17 @@ fn file_value(file_id: &FileId) -> TreeValue {
 }
 
 fn diff_entry_tuple(diff: TreeDiffEntry) -> (RepoPathBuf, (MergedTreeValue, MergedTreeValue)) {
-    (diff.target, diff.value.unwrap())
+    (diff.path, diff.value.unwrap())
 }
 
 fn diff_stream_equals_iter(tree1: &MergedTree, tree2: &MergedTree, matcher: &dyn Matcher) {
     let iter_diff: Vec<_> = TreeDiffIterator::new(tree1.as_merge(), tree2.as_merge(), matcher)
-        .map(|diff| (diff.source, diff.target, diff.value.unwrap()))
+        .map(|diff| (diff.path, diff.value.unwrap()))
         .collect();
     let max_concurrent_reads = 10;
     let stream_diff: Vec<_> =
         TreeDiffStreamImpl::new(tree1.clone(), tree2.clone(), matcher, max_concurrent_reads)
-            .map(|diff| (diff.source, diff.target, diff.value.unwrap()))
+            .map(|diff| (diff.path, diff.value.unwrap()))
             .collect()
             .block_on();
     assert_eq!(stream_diff, iter_diff);
