@@ -265,10 +265,9 @@ impl MergedTree {
         &self,
         other: &MergedTree,
         matcher: &'matcher dyn Matcher,
-        copy_records: &'matcher CopyRecords,
     ) -> TreeDiffStream<'matcher> {
         let concurrency = self.store().concurrency();
-        let stream: TreeDiffStream<'matcher> = if concurrency <= 1 {
+        if concurrency <= 1 {
             Box::pin(futures::stream::iter(TreeDiffIterator::new(
                 &self.trees,
                 &other.trees,
@@ -281,7 +280,17 @@ impl MergedTree {
                 matcher,
                 concurrency,
             ))
-        };
+        }
+    }
+
+    /// Like `diff_stream()` but takes the given copy records into account.
+    pub fn diff_stream_with_copies<'a>(
+        &self,
+        other: &MergedTree,
+        matcher: &'a dyn Matcher,
+        copy_records: &'a CopyRecords,
+    ) -> TreeDiffStream<'a> {
+        let stream = self.diff_stream(other, matcher);
         Box::pin(CopiesTreeDiffStream::new(
             stream,
             self.clone(),

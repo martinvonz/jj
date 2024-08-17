@@ -26,7 +26,7 @@ use testutils::{assert_rebased_onto, create_tree, CommitGraphBuilder, TestRepo, 
 
 fn diff_paths(from_tree: &MergedTree, to_tree: &MergedTree) -> Vec<RepoPathBuf> {
     from_tree
-        .diff_stream(to_tree, &EverythingMatcher, &Default::default())
+        .diff_stream(to_tree, &EverythingMatcher)
         .map(|diff| {
             let _ = diff.value.unwrap();
             diff.target

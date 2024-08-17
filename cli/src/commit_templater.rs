@@ -1298,7 +1298,7 @@ impl TreeDiff {
 
     fn diff_stream(&self) -> TreeDiffStream<'_> {
         self.from_tree
-            .diff_stream(&self.to_tree, &*self.matcher, &self.copy_records)
+            .diff_stream_with_copies(&self.to_tree, &*self.matcher, &self.copy_records)
     }
 
     fn into_formatted<F, E>(self, show: F) -> TreeDiffFormatted<F>

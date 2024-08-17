@@ -290,7 +290,8 @@ impl<'a> DiffRenderer<'a> {
                     )?;
                 }
                 DiffFormat::Stat => {
-                    let tree_diff = from_tree.diff_stream(to_tree, matcher, copy_records);
+                    let tree_diff =
+                        from_tree.diff_stream_with_copies(to_tree, matcher, copy_records);
                     show_diff_stat(formatter, store, tree_diff, path_converter, width)?;
                 }
                 DiffFormat::Types => {
@@ -304,7 +305,8 @@ impl<'a> DiffRenderer<'a> {
                     )?;
                 }
                 DiffFormat::NameOnly => {
-                    let tree_diff = from_tree.diff_stream(to_tree, matcher, copy_records);
+                    let tree_diff =
+                        from_tree.diff_stream_with_copies(to_tree, matcher, copy_records);
                     show_names(formatter, tree_diff, path_converter)?;
                 }
                 DiffFormat::Git { context } => {
@@ -319,13 +321,15 @@ impl<'a> DiffRenderer<'a> {
                     )?;
                 }
                 DiffFormat::ColorWords { context } => {
-                    let tree_diff = from_tree.diff_stream(to_tree, matcher, copy_records);
+                    let tree_diff =
+                        from_tree.diff_stream_with_copies(to_tree, matcher, copy_records);
                     show_color_words_diff(formatter, store, tree_diff, path_converter, *context)?;
                 }
                 DiffFormat::Tool(tool) => {
                     match tool.diff_invocation_mode {
                         DiffToolMode::FileByFile => {
-                            let tree_diff = from_tree.diff_stream(to_tree, matcher, copy_records);
+                            let tree_diff =
+                                from_tree.diff_stream_with_copies(to_tree, matcher, copy_records);
                             show_file_by_file_diff(
                                 ui,
                                 formatter,
@@ -1160,7 +1164,7 @@ pub fn show_git_diff(
     copy_records: &CopyRecords,
     num_context_lines: usize,
 ) -> Result<(), DiffRenderError> {
-    let tree_diff = from_tree.diff_stream(to_tree, matcher, copy_records);
+    let tree_diff = from_tree.diff_stream_with_copies(to_tree, matcher, copy_records);
     let mut diff_stream = materialized_diff_stream(store, tree_diff);
     let copied_sources = collect_copied_sources(copy_records, matcher);
 
@@ -1271,7 +1275,7 @@ pub fn show_diff_summary(
     matcher: &dyn Matcher,
     copy_records: &CopyRecords,
 ) -> Result<(), DiffRenderError> {
-    let mut tree_diff = from_tree.diff_stream(to_tree, matcher, copy_records);
+    let mut tree_diff = from_tree.diff_stream_with_copies(to_tree, matcher, copy_records);
     let copied_sources = collect_copied_sources(copy_records, matcher);
 
     async {
@@ -1444,7 +1448,7 @@ pub fn show_types(
     matcher: &dyn Matcher,
     copy_records: &CopyRecords,
 ) -> Result<(), DiffRenderError> {
-    let mut tree_diff = from_tree.diff_stream(to_tree, matcher, copy_records);
+    let mut tree_diff = from_tree.diff_stream_with_copies(to_tree, matcher, copy_records);
     let copied_sources = collect_copied_sources(copy_records, matcher);
 
     async {
