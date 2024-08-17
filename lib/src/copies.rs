@@ -97,7 +97,21 @@ impl Stream for CopiesTreeDiffStream<'_> {
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         self.inner.as_mut().poll_next(cx).map(|option| {
             option.map(|diff_entry| {
-                diff_entry.adjust_for_copy_tracking(&self.source_tree, self.copy_records)
+                let Some(CopyRecord { source, .. }) =
+                    self.copy_records.for_target(&diff_entry.target)
+                else {
+                    return diff_entry;
+                };
+
+                TreeDiffEntry {
+                    source: source.clone(),
+                    target: diff_entry.target,
+                    value: diff_entry.value.and_then(|(_, target_value)| {
+                        self.source_tree
+                            .path_value(source)
+                            .map(|source_value| (source_value, target_value))
+                    }),
+                }
             })
         })
     }
