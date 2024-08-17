@@ -1147,8 +1147,8 @@ fn has_diff_from_parent(
     // Conflict resolution is expensive, try that only for matched files.
     let from_tree = rewrite::merge_commit_trees_no_resolve_without_repo(store, &index, &parents)?;
     let to_tree = commit.tree()?;
-    let copy_records = Default::default();
-    let mut tree_diff = from_tree.diff_stream(&to_tree, matcher, &copy_records);
+    // TODO: handle copy tracking
+    let mut tree_diff = from_tree.diff_stream(&to_tree, matcher);
     async {
         while let Some(entry) = tree_diff.next().await {
             let (from_value, to_value) = entry.value?;
@@ -1170,12 +1170,12 @@ fn matches_diff_from_parent(
     text_pattern: &StringPattern,
     files_matcher: &dyn Matcher,
 ) -> BackendResult<bool> {
-    let copy_records = Default::default(); // TODO handle copy tracking
     let parents: Vec<_> = commit.parents().try_collect()?;
     // Conflict resolution is expensive, try that only for matched files.
     let from_tree = rewrite::merge_commit_trees_no_resolve_without_repo(store, &index, &parents)?;
     let to_tree = commit.tree()?;
-    let mut tree_diff = from_tree.diff_stream(&to_tree, files_matcher, &copy_records);
+    // TODO: handle copy tracking
+    let mut tree_diff = from_tree.diff_stream(&to_tree, files_matcher);
     async {
         while let Some(entry) = tree_diff.next().await {
             let (left_value, right_value) = entry.value?;

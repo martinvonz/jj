@@ -1340,7 +1340,6 @@ impl TreeState {
         new_tree: &MergedTree,
         matcher: &dyn Matcher,
     ) -> Result<CheckoutStats, CheckoutError> {
-        let copy_records = Default::default();
         // TODO: maybe it's better not include the skipped counts in the "intended"
         // counts
         let mut stats = CheckoutStats {
@@ -1353,7 +1352,7 @@ impl TreeState {
         let mut deleted_files = HashSet::new();
         let mut diff_stream = Box::pin(
             old_tree
-                .diff_stream(new_tree, matcher, &copy_records)
+                .diff_stream(new_tree, matcher)
                 .map(
                     |TreeDiffEntry {
                          source: _, // TODO handle copy tracking
@@ -1452,10 +1451,9 @@ impl TreeState {
         })?;
 
         let matcher = self.sparse_matcher();
-        let copy_records = Default::default();
         let mut changed_file_states = Vec::new();
         let mut deleted_files = HashSet::new();
-        let mut diff_stream = old_tree.diff_stream(new_tree, matcher.as_ref(), &copy_records);
+        let mut diff_stream = old_tree.diff_stream(new_tree, matcher.as_ref());
         while let Some(TreeDiffEntry {
             source: _, // TODO handle copy tracking
             target: path,

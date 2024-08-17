@@ -131,7 +131,7 @@ pub(crate) fn check_out_trees(
     output_is: Option<DiffSide>,
 ) -> Result<DiffWorkingCopies, DiffCheckoutError> {
     let changed_files: Vec<_> = left_tree
-        .diff_stream(right_tree, matcher, &Default::default())
+        .diff_stream(right_tree, matcher)
         .map(|TreeDiffEntry { target, .. }| target)
         .collect()
         .block_on();

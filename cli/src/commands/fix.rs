@@ -172,8 +172,8 @@ pub(crate) fn cmd_fix(
         // Also fix any new paths that were changed in this commit.
         let tree = commit.tree()?;
         let parent_tree = commit.parent_tree(tx.repo())?;
-        let copy_records = Default::default();
-        let mut diff_stream = parent_tree.diff_stream(&tree, &matcher, &copy_records);
+        // TODO: handle copy tracking
+        let mut diff_stream = parent_tree.diff_stream(&tree, &matcher);
         async {
             while let Some(TreeDiffEntry {
                 source: _, // TODO handle copy tracking
