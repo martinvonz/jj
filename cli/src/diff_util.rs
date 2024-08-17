@@ -20,11 +20,12 @@ use std::{io, mem};
 
 use futures::StreamExt;
 use itertools::Itertools;
-use jj_lib::backend::{BackendError, CopyRecords, TreeValue};
+use jj_lib::backend::{BackendError, TreeValue};
 use jj_lib::commit::Commit;
 use jj_lib::conflicts::{
     materialized_diff_stream, MaterializedTreeDiffEntry, MaterializedTreeValue,
 };
+use jj_lib::copies::CopyRecords;
 use jj_lib::diff::{Diff, DiffHunk};
 use jj_lib::files::{DiffLine, DiffLineHunkSide, DiffLineIterator, DiffLineNumber};
 use jj_lib::matchers::Matcher;

@@ -14,7 +14,8 @@
 
 use futures::StreamExt;
 use itertools::Itertools;
-use jj_lib::backend::{CommitId, CopyRecord, CopyRecords, FileId, MergedTreeId, TreeValue};
+use jj_lib::backend::{CommitId, CopyRecord, FileId, MergedTreeId, TreeValue};
+use jj_lib::copies::CopyRecords;
 use jj_lib::files::MergeResult;
 use jj_lib::matchers::{EverythingMatcher, FilesMatcher, Matcher, PrefixMatcher};
 use jj_lib::merge::{Merge, MergeBuilder, MergedTreeValue};

@@ -19,8 +19,9 @@ use std::io;
 use std::rc::Rc;
 
 use itertools::Itertools as _;
-use jj_lib::backend::{BackendResult, ChangeId, CommitId, CopyRecords};
+use jj_lib::backend::{BackendResult, ChangeId, CommitId};
 use jj_lib::commit::Commit;
+use jj_lib::copies::CopyRecords;
 use jj_lib::extensions_map::ExtensionsMap;
 use jj_lib::fileset::{self, FilesetExpression};
 use jj_lib::git;

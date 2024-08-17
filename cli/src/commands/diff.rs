@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use itertools::Itertools;
-use jj_lib::backend::CopyRecords;
+use jj_lib::copies::CopyRecords;
 use jj_lib::repo::Repo;
 use jj_lib::rewrite::merge_commit_trees;
 use tracing::instrument;
