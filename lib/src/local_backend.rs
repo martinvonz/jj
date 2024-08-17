@@ -508,11 +508,12 @@ mod tests {
     use pollster::FutureExt;
 
     use super::*;
+    use crate::tests_common::new_temp_dir;
 
     /// Test that parents get written correctly
     #[test]
     fn write_commit_parents() {
-        let temp_dir = testutils::new_temp_dir();
+        let temp_dir = new_temp_dir();
         let store_path = temp_dir.path();
 
         let backend = LocalBackend::init(store_path);

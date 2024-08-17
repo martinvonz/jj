@@ -52,6 +52,7 @@ mod tests {
     use crate::default_index::entry::{LocalPosition, SmallLocalPositionsVec};
     use crate::index::Index;
     use crate::object_id::{HexPrefix, ObjectId, PrefixResolution};
+    use crate::tests_common::new_temp_dir;
 
     /// Generator of unique 16-byte CommitId excluding root id
     fn commit_id_generator() -> impl FnMut() -> CommitId {
@@ -68,7 +69,7 @@ mod tests {
     #[test_case(false; "memory")]
     #[test_case(true; "file")]
     fn index_empty(on_disk: bool) {
-        let temp_dir = testutils::new_temp_dir();
+        let temp_dir = new_temp_dir();
         let mutable_segment = MutableIndexSegment::full(3, 16);
         let index_segment: Box<DynIndexSegment> = if on_disk {
             let saved_index = mutable_segment.save_in(temp_dir.path()).unwrap();
@@ -95,7 +96,7 @@ mod tests {
     #[test_case(false; "memory")]
     #[test_case(true; "file")]
     fn index_root_commit(on_disk: bool) {
-        let temp_dir = testutils::new_temp_dir();
+        let temp_dir = new_temp_dir();
         let mut new_change_id = change_id_generator();
         let mut mutable_segment = MutableIndexSegment::full(3, 16);
         let id_0 = CommitId::from_hex("000000");
@@ -147,7 +148,7 @@ mod tests {
     #[test_case(true, false; "incremental in memory")]
     #[test_case(true, true; "incremental on disk")]
     fn index_multiple_commits(incremental: bool, on_disk: bool) {
-        let temp_dir = testutils::new_temp_dir();
+        let temp_dir = new_temp_dir();
         let mut new_change_id = change_id_generator();
         let mut mutable_segment = MutableIndexSegment::full(3, 16);
         // 5
@@ -268,7 +269,7 @@ mod tests {
     #[test_case(false; "in memory")]
     #[test_case(true; "on disk")]
     fn index_many_parents(on_disk: bool) {
-        let temp_dir = testutils::new_temp_dir();
+        let temp_dir = new_temp_dir();
         let mut new_change_id = change_id_generator();
         let mut mutable_segment = MutableIndexSegment::full(3, 16);
         //     6
@@ -332,7 +333,7 @@ mod tests {
 
     #[test]
     fn resolve_commit_id_prefix() {
-        let temp_dir = testutils::new_temp_dir();
+        let temp_dir = new_temp_dir();
         let mut new_change_id = change_id_generator();
         let mut mutable_segment = MutableIndexSegment::full(3, 16);
 
@@ -404,7 +405,7 @@ mod tests {
     #[test]
     #[allow(clippy::redundant_clone)] // allow id_n.clone()
     fn neighbor_commit_ids() {
-        let temp_dir = testutils::new_temp_dir();
+        let temp_dir = new_temp_dir();
         let mut new_change_id = change_id_generator();
         let mut mutable_segment = MutableIndexSegment::full(3, 16);
 
@@ -532,7 +533,7 @@ mod tests {
 
     #[test]
     fn shortest_unique_commit_id_prefix() {
-        let temp_dir = testutils::new_temp_dir();
+        let temp_dir = new_temp_dir();
         let mut new_change_id = change_id_generator();
         let mut mutable_segment = MutableIndexSegment::full(3, 16);
 
@@ -586,7 +587,7 @@ mod tests {
 
     #[test]
     fn resolve_change_id_prefix() {
-        let temp_dir = testutils::new_temp_dir();
+        let temp_dir = new_temp_dir();
         let mut new_commit_id = commit_id_generator();
         let local_positions_vec = |positions: &[u32]| -> SmallLocalPositionsVec {
             positions.iter().copied().map(LocalPosition).collect()
@@ -756,7 +757,7 @@ mod tests {
 
     #[test]
     fn neighbor_change_ids() {
-        let temp_dir = testutils::new_temp_dir();
+        let temp_dir = new_temp_dir();
         let mut new_commit_id = commit_id_generator();
 
         let id_0 = ChangeId::from_hex("00000001");
@@ -902,7 +903,7 @@ mod tests {
 
     #[test]
     fn shortest_unique_change_id_prefix() {
-        let temp_dir = testutils::new_temp_dir();
+        let temp_dir = new_temp_dir();
         let mut new_commit_id = commit_id_generator();
 
         let id_0 = ChangeId::from_hex("00000001");
