@@ -18,17 +18,18 @@ use std::collections::HashMap;
 use std::io;
 use std::rc::Rc;
 
+use futures::stream::BoxStream;
 use itertools::Itertools as _;
 use jj_lib::backend::{BackendResult, ChangeId, CommitId};
 use jj_lib::commit::Commit;
-use jj_lib::copies::CopyRecords;
+use jj_lib::copies::{CopiesTreeDiffEntry, CopyRecords};
 use jj_lib::extensions_map::ExtensionsMap;
 use jj_lib::fileset::{self, FilesetExpression};
 use jj_lib::git;
 use jj_lib::hex_util::to_reverse_hex;
 use jj_lib::id_prefix::IdPrefixContext;
 use jj_lib::matchers::Matcher;
-use jj_lib::merged_tree::{MergedTree, TreeDiffStream};
+use jj_lib::merged_tree::MergedTree;
 use jj_lib::object_id::ObjectId as _;
 use jj_lib::op_store::{RefTarget, RemoteRef, WorkspaceId};
 use jj_lib::repo::Repo;
@@ -1296,14 +1297,14 @@ impl TreeDiff {
         })
     }
 
-    fn diff_stream(&self) -> TreeDiffStream<'_> {
+    fn diff_stream(&self) -> BoxStream<'_, CopiesTreeDiffEntry> {
         self.from_tree
             .diff_stream_with_copies(&self.to_tree, &*self.matcher, &self.copy_records)
     }
 
     fn into_formatted<F, E>(self, show: F) -> TreeDiffFormatted<F>
     where
-        F: Fn(&mut dyn Formatter, &Store, TreeDiffStream) -> Result<(), E>,
+        F: Fn(&mut dyn Formatter, &Store, BoxStream<CopiesTreeDiffEntry>) -> Result<(), E>,
         E: Into<TemplatePropertyError>,
     {
         TreeDiffFormatted { diff: self, show }
@@ -1318,7 +1319,7 @@ struct TreeDiffFormatted<F> {
 
 impl<F, E> Template for TreeDiffFormatted<F>
 where
-    F: Fn(&mut dyn Formatter, &Store, TreeDiffStream) -> Result<(), E>,
+    F: Fn(&mut dyn Formatter, &Store, BoxStream<CopiesTreeDiffEntry>) -> Result<(), E>,
     E: Into<TemplatePropertyError>,
 {
     fn format(&self, formatter: &mut TemplateFormatter) -> io::Result<()> {

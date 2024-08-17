@@ -17,16 +17,17 @@
 use std::io::{Read, Write};
 use std::iter::zip;
 
+use futures::stream::BoxStream;
 use futures::{try_join, Stream, StreamExt, TryStreamExt};
 use itertools::Itertools;
 use regex::bytes::{Regex, RegexBuilder};
 
 use crate::backend::{BackendError, BackendResult, CommitId, FileId, SymlinkId, TreeId, TreeValue};
+use crate::copies::CopiesTreeDiffEntry;
 use crate::diff::{Diff, DiffHunk};
 use crate::files;
 use crate::files::{ContentHunk, MergeResult};
 use crate::merge::{Merge, MergeBuilder, MergedTreeValue};
-use crate::merged_tree::{TreeDiffEntry, TreeDiffStream};
 use crate::repo_path::{RepoPath, RepoPathBuf};
 use crate::store::Store;
 
@@ -333,11 +334,11 @@ pub struct MaterializedTreeDiffEntry {
 
 pub fn materialized_diff_stream<'a>(
     store: &'a Store,
-    tree_diff: TreeDiffStream<'a>,
+    tree_diff: BoxStream<'a, CopiesTreeDiffEntry>,
 ) -> impl Stream<Item = MaterializedTreeDiffEntry> + 'a {
     tree_diff
         .map(
-            |TreeDiffEntry {
+            |CopiesTreeDiffEntry {
                  source,
                  target,
                  value,

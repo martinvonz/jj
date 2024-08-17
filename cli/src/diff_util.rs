@@ -18,6 +18,7 @@ use std::ops::Range;
 use std::path::{Path, PathBuf};
 use std::{io, mem};
 
+use futures::stream::BoxStream;
 use futures::StreamExt;
 use itertools::Itertools;
 use jj_lib::backend::{BackendError, TreeValue};
@@ -25,12 +26,12 @@ use jj_lib::commit::Commit;
 use jj_lib::conflicts::{
     materialized_diff_stream, MaterializedTreeDiffEntry, MaterializedTreeValue,
 };
-use jj_lib::copies::CopyRecords;
+use jj_lib::copies::{CopiesTreeDiffEntry, CopyRecords};
 use jj_lib::diff::{Diff, DiffHunk};
 use jj_lib::files::{DiffLine, DiffLineHunkSide, DiffLineIterator, DiffLineNumber};
 use jj_lib::matchers::Matcher;
 use jj_lib::merge::MergedTreeValue;
-use jj_lib::merged_tree::{MergedTree, TreeDiffEntry, TreeDiffStream};
+use jj_lib::merged_tree::MergedTree;
 use jj_lib::object_id::ObjectId;
 use jj_lib::repo::Repo;
 use jj_lib::repo_path::{RepoPath, RepoPathUiConverter};
@@ -652,7 +653,7 @@ fn basic_diff_file_type(value: &MaterializedTreeValue) -> &'static str {
 pub fn show_color_words_diff(
     formatter: &mut dyn Formatter,
     store: &Store,
-    tree_diff: TreeDiffStream,
+    tree_diff: BoxStream<CopiesTreeDiffEntry>,
     path_converter: &RepoPathUiConverter,
     num_context_lines: usize,
 ) -> Result<(), DiffRenderError> {
@@ -808,7 +809,7 @@ pub fn show_file_by_file_diff(
     ui: &Ui,
     formatter: &mut dyn Formatter,
     store: &Store,
-    tree_diff: TreeDiffStream,
+    tree_diff: BoxStream<CopiesTreeDiffEntry>,
     path_converter: &RepoPathUiConverter,
     matcher: &dyn Matcher,
     copy_records: &CopyRecords,
@@ -1279,7 +1280,7 @@ pub fn show_diff_summary(
     let copied_sources = collect_copied_sources(copy_records, matcher);
 
     async {
-        while let Some(TreeDiffEntry {
+        while let Some(CopiesTreeDiffEntry {
             source: before_path,
             target: after_path,
             value: diff,
@@ -1351,7 +1352,7 @@ fn get_diff_stat(
 pub fn show_diff_stat(
     formatter: &mut dyn Formatter,
     store: &Store,
-    tree_diff: TreeDiffStream,
+    tree_diff: BoxStream<CopiesTreeDiffEntry>,
     path_converter: &RepoPathUiConverter,
     display_width: usize,
 ) -> Result<(), DiffRenderError> {
@@ -1452,7 +1453,7 @@ pub fn show_types(
     let copied_sources = collect_copied_sources(copy_records, matcher);
 
     async {
-        while let Some(TreeDiffEntry {
+        while let Some(CopiesTreeDiffEntry {
             source,
             target,
             value: diff,
@@ -1490,11 +1491,11 @@ fn diff_summary_char(value: &MergedTreeValue) -> char {
 
 pub fn show_names(
     formatter: &mut dyn Formatter,
-    mut tree_diff: TreeDiffStream,
+    mut tree_diff: BoxStream<CopiesTreeDiffEntry>,
     path_converter: &RepoPathUiConverter,
 ) -> io::Result<()> {
     async {
-        while let Some(TreeDiffEntry {
+        while let Some(CopiesTreeDiffEntry {
             target: repo_path, ..
         }) = tree_diff.next().await
         {

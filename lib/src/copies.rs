@@ -23,7 +23,8 @@ use futures::stream::BoxStream;
 use futures::Stream;
 
 use crate::backend::{BackendResult, CopyRecord};
-use crate::merged_tree::{MergedTree, TreeDiffEntry, TreeDiffStream};
+use crate::merge::MergedTreeValue;
+use crate::merged_tree::{MergedTree, TreeDiffStream};
 use crate::repo_path::{RepoPath, RepoPathBuf};
 
 /// A collection of CopyRecords.
@@ -91,8 +92,18 @@ impl<'a> CopiesTreeDiffStream<'a> {
     }
 }
 
+/// A `TreeDiffEntry` with copy information.
+pub struct CopiesTreeDiffEntry {
+    /// The source path.
+    pub source: RepoPathBuf,
+    /// The target path.
+    pub target: RepoPathBuf,
+    /// The resolved tree values if available.
+    pub value: BackendResult<(MergedTreeValue, MergedTreeValue)>,
+}
+
 impl Stream for CopiesTreeDiffStream<'_> {
-    type Item = TreeDiffEntry;
+    type Item = CopiesTreeDiffEntry;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         self.inner.as_mut().poll_next(cx).map(|option| {
@@ -100,10 +111,14 @@ impl Stream for CopiesTreeDiffStream<'_> {
                 let Some(CopyRecord { source, .. }) =
                     self.copy_records.for_target(&diff_entry.target)
                 else {
-                    return diff_entry;
+                    return CopiesTreeDiffEntry {
+                        source: diff_entry.source,
+                        target: diff_entry.target,
+                        value: diff_entry.value,
+                    };
                 };
 
-                TreeDiffEntry {
+                CopiesTreeDiffEntry {
                     source: source.clone(),
                     target: diff_entry.target,
                     value: diff_entry.value.and_then(|(_, target_value)| {
