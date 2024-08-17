@@ -111,7 +111,7 @@ pub fn diff_formats_for(
 ) -> Result<Vec<DiffFormat>, config::ConfigError> {
     let formats = diff_formats_from_args(settings, args)?;
     if formats.is_empty() {
-        Ok(vec![default_diff_format(settings, args.context)?])
+        Ok(vec![default_diff_format(settings, args)?])
     } else {
         Ok(formats)
     }
@@ -127,7 +127,7 @@ pub fn diff_formats_for_log(
     let mut formats = diff_formats_from_args(settings, args)?;
     // --patch implies default if no format other than --summary is specified
     if patch && matches!(formats.as_slice(), [] | [DiffFormat::Summary]) {
-        formats.push(default_diff_format(settings, args.context)?);
+        formats.push(default_diff_format(settings, args)?);
         formats.dedup();
     }
     Ok(formats)
@@ -168,7 +168,7 @@ fn diff_formats_from_args(
 
 fn default_diff_format(
     settings: &UserSettings,
-    num_context_lines: Option<usize>,
+    args: &DiffFormatArgs,
 ) -> Result<DiffFormat, config::ConfigError> {
     let config = settings.config();
     if let Some(args) = config.get("ui.diff.tool").optional()? {
@@ -193,10 +193,10 @@ fn default_diff_format(
         "types" => Ok(DiffFormat::Types),
         "name-only" => Ok(DiffFormat::NameOnly),
         "git" => Ok(DiffFormat::Git {
-            context: num_context_lines.unwrap_or(DEFAULT_CONTEXT_LINES),
+            context: args.context.unwrap_or(DEFAULT_CONTEXT_LINES),
         }),
         "color-words" => Ok(DiffFormat::ColorWords {
-            context: num_context_lines.unwrap_or(DEFAULT_CONTEXT_LINES),
+            context: args.context.unwrap_or(DEFAULT_CONTEXT_LINES),
         }),
         "stat" => Ok(DiffFormat::Stat),
         _ => Err(config::ConfigError::Message(format!(
