@@ -695,8 +695,50 @@ impl<'matcher> TreeDiffIterator<'matcher> {
             Ok(Merge::resolved(Tree::empty(store.clone(), dir.to_owned())))
         }
     }
+}
 
-    fn next_impl(&mut self) -> Option<TreeDiffEntry> {
+impl TreeDiffDirItem {
+    fn from_trees(
+        dir: &RepoPath,
+        trees1: &Merge<Tree>,
+        trees2: &Merge<Tree>,
+        matcher: &dyn Matcher,
+    ) -> Self {
+        let mut entries = vec![];
+        for (name, before, after) in merged_tree_entry_diff(trees1, trees2) {
+            let path = dir.join(name);
+            let tree_before = before.is_tree();
+            let tree_after = after.is_tree();
+            // Check if trees and files match, but only if either side is a tree or a file
+            // (don't query the matcher unnecessarily).
+            let tree_matches = (tree_before || tree_after) && !matcher.visit(&path).is_nothing();
+            let file_matches = (!tree_before || !tree_after) && matcher.matches(&path);
+
+            // Replace trees or files that don't match by `Merge::absent()`
+            let before = if (tree_before && tree_matches) || (!tree_before && file_matches) {
+                before
+            } else {
+                Merge::absent()
+            };
+            let after = if (tree_after && tree_matches) || (!tree_after && file_matches) {
+                after
+            } else {
+                Merge::absent()
+            };
+            if before.is_absent() && after.is_absent() {
+                continue;
+            }
+            entries.push((path, before.cloned(), after.cloned()));
+        }
+        entries.reverse();
+        Self { entries }
+    }
+}
+
+impl Iterator for TreeDiffIterator<'_> {
+    type Item = TreeDiffEntry;
+
+    fn next(&mut self) -> Option<Self::Item> {
         while let Some(top) = self.stack.last_mut() {
             let (path, before, after) = match top {
                 TreeDiffItem::Dir(dir) => match dir.entries.pop() {
@@ -773,52 +815,6 @@ impl<'matcher> TreeDiffIterator<'matcher> {
             }
         }
         None
-    }
-}
-
-impl TreeDiffDirItem {
-    fn from_trees(
-        dir: &RepoPath,
-        trees1: &Merge<Tree>,
-        trees2: &Merge<Tree>,
-        matcher: &dyn Matcher,
-    ) -> Self {
-        let mut entries = vec![];
-        for (name, before, after) in merged_tree_entry_diff(trees1, trees2) {
-            let path = dir.join(name);
-            let tree_before = before.is_tree();
-            let tree_after = after.is_tree();
-            // Check if trees and files match, but only if either side is a tree or a file
-            // (don't query the matcher unnecessarily).
-            let tree_matches = (tree_before || tree_after) && !matcher.visit(&path).is_nothing();
-            let file_matches = (!tree_before || !tree_after) && matcher.matches(&path);
-
-            // Replace trees or files that don't match by `Merge::absent()`
-            let before = if (tree_before && tree_matches) || (!tree_before && file_matches) {
-                before
-            } else {
-                Merge::absent()
-            };
-            let after = if (tree_after && tree_matches) || (!tree_after && file_matches) {
-                after
-            } else {
-                Merge::absent()
-            };
-            if before.is_absent() && after.is_absent() {
-                continue;
-            }
-            entries.push((path, before.cloned(), after.cloned()));
-        }
-        entries.reverse();
-        Self { entries }
-    }
-}
-
-impl Iterator for TreeDiffIterator<'_> {
-    type Item = TreeDiffEntry;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.next_impl()
     }
 }
 
@@ -1028,11 +1024,12 @@ impl<'matcher> TreeDiffStreamImpl<'matcher> {
             }
         }
     }
+}
 
-    fn poll_next_impl(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Option<TreeDiffEntry>> {
+impl Stream for TreeDiffStreamImpl<'_> {
+    type Item = TreeDiffEntry;
+
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         // Go through all pending tree futures and poll them.
         self.poll_tree_futures(cx);
 
@@ -1081,14 +1078,6 @@ impl<'matcher> TreeDiffStreamImpl<'matcher> {
         } else {
             Poll::Ready(None)
         }
-    }
-}
-
-impl Stream for TreeDiffStreamImpl<'_> {
-    type Item = TreeDiffEntry;
-
-    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        self.as_mut().poll_next_impl(cx)
     }
 }
 
