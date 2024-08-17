@@ -31,7 +31,7 @@ use itertools::{EitherOrBoth, Itertools};
 
 use crate::backend;
 use crate::backend::{BackendResult, MergedTreeId, TreeId, TreeValue};
-use crate::copies::{CopiesTreeDiffStream, CopyRecords};
+use crate::copies::{CopiesTreeDiffEntry, CopiesTreeDiffStream, CopyRecords};
 use crate::matchers::{EverythingMatcher, Matcher};
 use crate::merge::{Merge, MergeBuilder, MergedTreeVal, MergedTreeValue};
 use crate::repo_path::{RepoPath, RepoPathBuf, RepoPathComponent};
@@ -289,7 +289,7 @@ impl MergedTree {
         other: &MergedTree,
         matcher: &'a dyn Matcher,
         copy_records: &'a CopyRecords,
-    ) -> TreeDiffStream<'a> {
+    ) -> BoxStream<'a, CopiesTreeDiffEntry> {
         let stream = self.diff_stream(other, matcher);
         Box::pin(CopiesTreeDiffStream::new(
             stream,
