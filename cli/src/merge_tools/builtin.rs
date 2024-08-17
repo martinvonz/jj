@@ -497,13 +497,7 @@ pub fn edit_diff_builtin(
     // TODO: handle copy tracking
     let changed_files: Vec<_> = left_tree
         .diff_stream(right_tree, matcher)
-        .map(
-            |TreeDiffEntry {
-                 source: _, // TODO handle copy tracking
-                 target: path,
-                 value: diff,
-             }| diff.map(|_| path),
-        )
+        .map(|TreeDiffEntry { path, value: diff }| diff.map(|_| path))
         .try_collect()
         .block_on()?;
     let files = make_diff_files(&store, left_tree, right_tree, &changed_files)?;

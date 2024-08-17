@@ -93,8 +93,7 @@ pub fn restore_tree(
             // TODO: handle copy tracking
             let mut diff_stream = source.diff_stream(destination, matcher);
             while let Some(TreeDiffEntry {
-                source: _, // TODO handle copy tracking
-                target: repo_path,
+                path: repo_path,
                 value: diff,
             }) = diff_stream.next().await
             {
