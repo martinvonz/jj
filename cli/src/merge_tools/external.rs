@@ -12,7 +12,7 @@ use jj_lib::backend::FileId;
 use jj_lib::backend::MergedTreeId;
 use jj_lib::backend::TreeValue;
 use jj_lib::conflicts;
-use jj_lib::conflicts::materialize_merge_result;
+use jj_lib::conflicts::materialize_merge_result_to_bytes;
 use jj_lib::gitignore::GitIgnoreFile;
 use jj_lib::matchers::Matcher;
 use jj_lib::merge::Merge;
@@ -157,13 +157,10 @@ pub fn run_mergetool_external(
     conflict: MergedTreeValue,
     tree: &MergedTree,
 ) -> Result<MergedTreeId, ConflictResolveError> {
-    let initial_output_content: Vec<u8> = if editor.merge_tool_edits_conflict_markers {
-        let mut materialized_conflict = vec![];
-        materialize_merge_result(&content, &mut materialized_conflict)
-            .expect("Writing to an in-memory buffer should never fail");
-        materialized_conflict
+    let initial_output_content = if editor.merge_tool_edits_conflict_markers {
+        materialize_merge_result_to_bytes(&content)
     } else {
-        vec![]
+        BString::default()
     };
     assert_eq!(content.num_sides(), 2);
     let files: HashMap<&str, &[u8]> = maplit::hashmap! {

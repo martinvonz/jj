@@ -32,7 +32,7 @@ use jj_lib::backend::CommitId;
 use jj_lib::backend::CopyRecord;
 use jj_lib::backend::TreeValue;
 use jj_lib::commit::Commit;
-use jj_lib::conflicts::materialize_merge_result;
+use jj_lib::conflicts::materialize_merge_result_to_bytes;
 use jj_lib::conflicts::materialized_diff_stream;
 use jj_lib::conflicts::MaterializedTreeDiffEntry;
 use jj_lib::conflicts::MaterializedTreeValue;
@@ -863,15 +863,10 @@ fn diff_content(path: &RepoPath, value: MaterializedTreeValue) -> io::Result<Fil
             id: _,
             contents,
             executable: _,
-        } => {
-            let mut data = vec![];
-            materialize_merge_result(&contents, &mut data)
-                .expect("Failed to materialize conflict to in-memory buffer");
-            Ok(FileContent {
-                is_binary: false,
-                contents: data,
-            })
-        }
+        } => Ok(FileContent {
+            is_binary: false,
+            contents: materialize_merge_result_to_bytes(&contents).into(),
+        }),
         MaterializedTreeValue::OtherConflict { id } => Ok(FileContent {
             is_binary: false,
             contents: id.describe().into_bytes(),
@@ -1181,12 +1176,9 @@ fn git_diff_part(
         } => {
             mode = if executable { "100755" } else { "100644" };
             hash = DUMMY_HASH.to_owned();
-            let mut data = vec![];
-            materialize_merge_result(&contents, &mut data)
-                .expect("Failed to materialize conflict to in-memory buffer");
             content = FileContent {
                 is_binary: false, // TODO: are we sure this is never binary?
-                contents: data,
+                contents: materialize_merge_result_to_bytes(&contents).into(),
             };
         }
         MaterializedTreeValue::OtherConflict { id } => {

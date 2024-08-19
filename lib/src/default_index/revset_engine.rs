@@ -42,7 +42,7 @@ use crate::backend::ChangeId;
 use crate::backend::CommitId;
 use crate::backend::MillisSinceEpoch;
 use crate::commit::Commit;
-use crate::conflicts::materialize_merge_result;
+use crate::conflicts::materialize_merge_result_to_bytes;
 use crate::conflicts::materialize_tree_value;
 use crate::conflicts::MaterializedTreeValue;
 use crate::default_index::AsCompositeIndex;
@@ -1346,10 +1346,7 @@ fn to_file_content(path: &RepoPath, value: MaterializedTreeValue) -> BackendResu
         MaterializedTreeValue::Symlink { id: _, target } => Ok(target.into_bytes()),
         MaterializedTreeValue::GitSubmodule(_) => Ok(vec![]),
         MaterializedTreeValue::FileConflict { contents, .. } => {
-            let mut content = vec![];
-            materialize_merge_result(&contents, &mut content)
-                .expect("Failed to materialize conflict to in-memory buffer");
-            Ok(content)
+            Ok(materialize_merge_result_to_bytes(&contents).into())
         }
         MaterializedTreeValue::OtherConflict { .. } => Ok(vec![]),
         MaterializedTreeValue::Tree(id) => {
