@@ -15,7 +15,7 @@
 use indoc::indoc;
 use jj_lib::backend::FileId;
 use jj_lib::conflicts::extract_as_single_hunk;
-use jj_lib::conflicts::materialize_merge_result;
+use jj_lib::conflicts::materialize_merge_result_to_bytes;
 use jj_lib::conflicts::parse_conflict;
 use jj_lib::conflicts::update_from_content;
 use jj_lib::merge::Merge;
@@ -1063,10 +1063,8 @@ fn materialize_conflict_string(
     path: &RepoPath,
     conflict: &Merge<Option<FileId>>,
 ) -> String {
-    let mut result: Vec<u8> = vec![];
     let contents = extract_as_single_hunk(conflict, store, path)
         .block_on()
         .unwrap();
-    materialize_merge_result(&contents, &mut result).unwrap();
-    String::from_utf8(result).unwrap()
+    String::from_utf8(materialize_merge_result_to_bytes(&contents).into()).unwrap()
 }

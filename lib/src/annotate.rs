@@ -32,7 +32,7 @@ use pollster::FutureExt;
 use crate::backend::BackendError;
 use crate::backend::CommitId;
 use crate::commit::Commit;
-use crate::conflicts::materialize_merge_result;
+use crate::conflicts::materialize_merge_result_to_bytes;
 use crate::conflicts::materialize_tree_value;
 use crate::conflicts::MaterializedTreeValue;
 use crate::diff::Diff;
@@ -358,16 +358,8 @@ fn get_file_contents(
                 })?;
             Ok(file_contents)
         }
-        MaterializedTreeValue::FileConflict { id, contents, .. } => {
-            let mut materialized_conflict_buffer = Vec::new();
-            materialize_merge_result(&contents, &mut materialized_conflict_buffer).map_err(
-                |io_err| BackendError::ReadFile {
-                    path: path.to_owned(),
-                    source: Box::new(io_err),
-                    id: id.first().clone().unwrap(),
-                },
-            )?;
-            Ok(materialized_conflict_buffer)
+        MaterializedTreeValue::FileConflict { contents, .. } => {
+            Ok(materialize_merge_result_to_bytes(&contents).into())
         }
         _ => Ok(Vec::new()),
     }

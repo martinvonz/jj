@@ -243,6 +243,19 @@ pub fn materialize_merge_result<T: AsRef<[u8]>>(
     }
 }
 
+pub fn materialize_merge_result_to_bytes<T: AsRef<[u8]>>(single_hunk: &Merge<T>) -> BString {
+    let merge_result = files::merge(single_hunk);
+    match merge_result {
+        MergeResult::Resolved(content) => content,
+        MergeResult::Conflict(hunks) => {
+            let mut output = Vec::new();
+            materialize_conflict_hunks(&hunks, &mut output)
+                .expect("writing to an in-memory buffer should never fail");
+            output.into()
+        }
+    }
+}
+
 fn materialize_conflict_hunks(hunks: &[Merge<BString>], output: &mut dyn Write) -> io::Result<()> {
     let num_conflicts = hunks
         .iter()

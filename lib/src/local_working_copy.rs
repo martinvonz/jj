@@ -61,7 +61,7 @@ use crate::backend::TreeId;
 use crate::backend::TreeValue;
 use crate::commit::Commit;
 use crate::conflicts;
-use crate::conflicts::materialize_merge_result;
+use crate::conflicts::materialize_merge_result_to_bytes;
 use crate::conflicts::materialize_tree_value;
 use crate::conflicts::MaterializedTreeValue;
 use crate::file_util::check_symlink_support;
@@ -1597,9 +1597,7 @@ impl TreeState {
                     contents,
                     executable,
                 } => {
-                    let mut data = vec![];
-                    materialize_merge_result(&contents, &mut data)
-                        .expect("Failed to materialize conflict to in-memory buffer");
+                    let data = materialize_merge_result_to_bytes(&contents).into();
                     self.write_conflict(&disk_path, data, executable)?
                 }
                 MaterializedTreeValue::OtherConflict { id } => {
