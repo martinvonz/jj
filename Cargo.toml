@@ -31,7 +31,7 @@ clap = { version = "4.5.16", features = [
     "wrap_help",
     "string",
 ] }
-clap_complete = "4.5.16"
+clap_complete = "4.5.19"
 clap_complete_nushell = "4.5.3"
 clap-markdown = "0.1.4"
 clap_mangen = "0.2.10"
@@ -72,7 +72,7 @@ indexmap = "2.4.0"
 indoc = "2.0.4"
 insta = { version = "1.39.0", features = ["filters"] }
 itertools = "0.13.0"
-libc = { version = "0.2.156" }
+libc = { version = "0.2.158" }
 maplit = "1.0.2"
 minus = { version = "5.6.1", features = ["dynamic_output", "search"] }
 num_cpus = "1.16.0"
@@ -102,13 +102,13 @@ smallvec = { version = "1.13.2", features = [
     "union",
 ] }
 strsim = "0.11.1"
-syn = "2.0.74"
+syn = "2.0.75"
 tempfile = "3.12.0"
 test-case = "3.3.1"
 textwrap = "0.16.1"
 thiserror = "1.0.63"
 timeago = { version = "0.4.2", default-features = false }
-tokio = { version = "1.39.2" }
+tokio = { version = "1.39.3" }
 toml_edit = { version = "0.19.15", features = ["serde"] }
 tracing = "0.1.40"
 tracing-chrome = "0.7.2"
