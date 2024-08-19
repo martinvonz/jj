@@ -232,8 +232,8 @@ async fn materialize_tree_value_no_access_denied(
     }
 }
 
-pub fn materialize_merge_result(
-    single_hunk: &Merge<BString>,
+pub fn materialize_merge_result<T: AsRef<[u8]>>(
+    single_hunk: &Merge<T>,
     output: &mut dyn Write,
 ) -> io::Result<()> {
     let merge_result = files::merge(single_hunk);
