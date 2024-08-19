@@ -55,13 +55,13 @@ pub(crate) struct PrevArgs {
     /// Edit the parent directly, instead of moving the working-copy commi.
     ///
     /// Takes precedence over config in `ui.movement.edit`; i.e.
-    /// will negate `ui.movement.edit = "never"`
+    /// will negate `ui.movement.edit = false`
     #[arg(long, short)]
     edit: bool,
     /// The inverse of `--edit`
     ///
     /// Takes precedence over config in `ui.movement.edit`; i.e.
-    /// will negate `ui.movement.edit = "always"`
+    /// will negate `ui.movement.edit = true`
     #[arg(long, short, conflicts_with = "edit")]
     no_edit: bool,
     /// Jump to the previous conflicted ancestor

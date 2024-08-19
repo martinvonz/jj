@@ -10,13 +10,17 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Breaking changes
 
+* `next/prev` will no longer infer when to go into edit mode when moving from
+  commit to commit. It now either follows the flags `--edit|--no-edit` or it
+  gets the mode from `ui.movement.edit`.
+
 ### Deprecations
 
 ### New features
 
-* Add new config knob, `ui.movement.edit` for controlling the behaviour of `prev/next`.
-  `auto` maintains existing behaviour while `always` and `never` turn `edit` mode
-  permanently `on` and `off` respectively.
+* Add new boolean config knob, `ui.movement.edit` for controlling the behaviour
+  of `prev/next`. The flag turns `edit` mode `on` and `off` permanently when set
+  respectively to `true` or `false`.
 
 * The following diff formats now include information about copies and moves:
   `--color-words`, `--git`, `--stat`, `--summary`, `--types`, and external diff

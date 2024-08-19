@@ -16,7 +16,7 @@ log-word-wrap = false
 log-synthetic-elided-nodes = true
 
 [ui.movement]
-edit = "auto"
+edit = false
 
 [snapshot]
 max-new-file-size = "1MiB"

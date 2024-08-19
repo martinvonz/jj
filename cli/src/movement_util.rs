@@ -15,7 +15,6 @@
 use std::io::Write;
 use std::rc::Rc;
 
-use config::Config;
 use itertools::Itertools;
 use jj_lib::backend::CommitId;
 use jj_lib::commit::Commit;
@@ -23,7 +22,7 @@ use jj_lib::repo::Repo;
 use jj_lib::revset::{RevsetExpression, RevsetFilterPredicate, RevsetIteratorExt};
 
 use crate::cli_util::{short_commit_hash, CommandHelper, WorkspaceCommandHelper};
-use crate::command_error::{config_error_with_message, user_error, CommandError};
+use crate::command_error::{user_error, CommandError};
 use crate::ui::Ui;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -181,17 +180,7 @@ pub(crate) fn move_to_commit(
         .get_wc_commit_id()
         .ok_or_else(|| user_error("This command requires a working copy"))?;
 
-    let config_edit_flag =
-        match MovementSettings::try_from(command.settings().config())?.edit_mode() {
-            MovementEditMode::Always => true,
-            MovementEditMode::Never => false,
-            MovementEditMode::Auto => !&workspace_command
-                .repo()
-                .view()
-                .heads()
-                .contains(current_wc_id),
-        };
-
+    let config_edit_flag = command.settings().config().get_bool("ui.movement.edit")?;
     let args = MovementArgsInternal {
         should_edit: args.edit || (!args.no_edit && config_edit_flag),
         offset: args.offset,
@@ -219,35 +208,4 @@ pub(crate) fn move_to_commit(
     tx.check_out(&target)?;
     tx.finish(ui, format!("{cmd}: {current_short} -> {target_short}"))?;
     Ok(())
-}
-
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, serde::Deserialize)]
-#[serde(rename_all(deserialize = "kebab-case"))]
-pub enum MovementEditMode {
-    #[default]
-    Auto,
-    Always,
-    Never,
-}
-
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, serde::Deserialize)]
-#[serde(rename_all(deserialize = "kebab-case"))]
-pub struct MovementSettings {
-    edit: MovementEditMode,
-}
-
-impl MovementSettings {
-    fn edit_mode(&self) -> MovementEditMode {
-        self.edit
-    }
-}
-
-impl TryFrom<&Config> for MovementSettings {
-    type Error = CommandError;
-
-    fn try_from(config: &Config) -> Result<Self, CommandError> {
-        config
-            .get::<Self>("ui.movement")
-            .map_err(|err| config_error_with_message("Invalid `ui.movement`", err))
-    }
 }
