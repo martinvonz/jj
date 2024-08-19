@@ -48,6 +48,9 @@ pub struct OperationLogArgs {
     /// For the syntax, see https://github.com/martinvonz/jj/blob/main/docs/templates.md
     #[arg(long, short = 'T')]
     template: Option<String>,
+    /// Show operations in reverse chronological order
+    #[arg(long)]
+    reversed: bool,
 }
 
 pub fn cmd_op_log(
@@ -109,7 +112,7 @@ pub fn cmd_op_log(
         )?;
     }
     let limit = args.limit.or(args.deprecated_limit).unwrap_or(usize::MAX);
-    let iter = op_walk::walk_ancestors(slice::from_ref(&current_op)).take(limit);
+    let iter = op_walk::walk_ancestors(slice::from_ref(&current_op), args.reversed).take(limit);
     if !args.no_graph {
         let mut graph = get_graphlog(command.settings(), formatter.raw());
         for op in iter {

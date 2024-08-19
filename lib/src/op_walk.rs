@@ -203,7 +203,7 @@ fn find_child_ops(
     head_ops: &[Operation],
     root_op_id: &OperationId,
 ) -> OpStoreResult<Vec<Operation>> {
-    walk_ancestors(head_ops)
+    walk_ancestors(head_ops, false)
         .take_while(|res| res.as_ref().map_or(true, |op| op.id() != root_op_id))
         .filter_ok(|op| op.parent_ids().iter().any(|id| id == root_op_id))
         .try_collect()
@@ -229,7 +229,7 @@ impl PartialOrd for OperationByEndTime {
 }
 
 /// Walks `head_ops` and their ancestors in reverse topological order.
-pub fn walk_ancestors(head_ops: &[Operation]) -> impl Iterator<Item = OpStoreResult<Operation>> {
+pub fn walk_ancestors(head_ops: &[Operation], reversed: bool) -> impl Iterator<Item = OpStoreResult<Operation>> {
     // Emit the latest head first to stabilize the order.
     let mut head_ops = head_ops
         .iter()
@@ -237,14 +237,20 @@ pub fn walk_ancestors(head_ops: &[Operation]) -> impl Iterator<Item = OpStoreRes
         .map(OperationByEndTime)
         .collect_vec();
     head_ops.sort_unstable_by(|op1, op2| op1.cmp(op2).reverse());
-    // Lazily load operations based on timestamp-based heuristic. This works so long
-    // as the operation history is mostly linear.
-    dag_walk::topo_order_reverse_lazy_ok(
-        head_ops.into_iter().map(Ok),
-        |OperationByEndTime(op)| op.id().clone(),
-        |OperationByEndTime(op)| op.parents().map_ok(OperationByEndTime).collect_vec(),
-    )
-    .map_ok(|OperationByEndTime(op)| op)
+    let walk = if reversed {
+        dag_walk::topo_order_forward_ok(
+            head_ops.into_iter().map(Ok),
+            |OperationByEndTime(op)| op.id().clone(),
+            |OperationByEndTime(op)| op.parents().map_ok(OperationByEndTime).collect_vec(),
+        )
+    } else {
+        dag_walk::topo_order_reverse_ok(
+            head_ops.into_iter().map(Ok),
+            |OperationByEndTime(op)| op.id().clone(),
+            |OperationByEndTime(op)| op.parents().map_ok(OperationByEndTime).collect_vec(),
+        )
+    };
+    walk.into_iter().flatten().map(|OperationByEndTime(op)| Ok(op))
 }
 
 /// Stats about `reparent_range()`.
@@ -276,13 +282,13 @@ pub fn reparent_range(
 ) -> OpStoreResult<ReparentStats> {
     // Calculate ::root_ops to exclude them from the source range and count the
     // number of operations that become unreachable.
-    let mut unwanted_ids: HashSet<_> = walk_ancestors(root_ops)
+    let mut unwanted_ids: HashSet<_> = walk_ancestors(root_ops, false)
         .map_ok(|op| op.id().clone())
         .try_collect()?;
-    let ops_to_reparent: Vec<_> = walk_ancestors(head_ops)
+    let ops_to_reparent: Vec<_> = walk_ancestors(head_ops, false)
         .filter_ok(|op| !unwanted_ids.contains(op.id()))
         .try_collect()?;
-    for op in walk_ancestors(slice::from_ref(dest_op)) {
+    for op in walk_ancestors(slice::from_ref(dest_op), false) {
         unwanted_ids.remove(op?.id());
     }
     let unreachable_ids = unwanted_ids;
