@@ -1315,7 +1315,7 @@ impl TreeDiff {
             from_tree: commit.parent_tree(repo)?,
             to_tree: commit.tree()?,
             matcher,
-            copy_records: Default::default(),
+            copy_records: Default::default(), // TODO: real copy tracking
         })
     }
 
@@ -1394,20 +1394,8 @@ fn builtin_tree_diff_methods<'repo>() -> CommitTemplateBuildMethodFnMap<'repo, T
         let template = (self_property, context_property)
             .map(|(diff, context)| {
                 let context = context.unwrap_or(diff_util::DEFAULT_CONTEXT_LINES);
-                // TODO: don't pass separate copies of from_tree/to_tree/matcher
-                let from_tree = diff.from_tree.clone();
-                let to_tree = diff.to_tree.clone();
-                let matcher = diff.matcher.clone();
-                diff.into_formatted(move |formatter, store, _tree_diff| {
-                    diff_util::show_git_diff(
-                        formatter,
-                        store,
-                        &from_tree,
-                        &to_tree,
-                        matcher.as_ref(),
-                        &Default::default(), // TODO: real copy tracking
-                        context,
-                    )
+                diff.into_formatted(move |formatter, store, tree_diff| {
+                    diff_util::show_git_diff(formatter, store, tree_diff, context)
                 })
             })
             .into_template();
@@ -1434,19 +1422,8 @@ fn builtin_tree_diff_methods<'repo>() -> CommitTemplateBuildMethodFnMap<'repo, T
             let path_converter = language.path_converter;
             let template = self_property
                 .map(move |diff| {
-                    // TODO: don't pass separate copies of from_tree/to_tree/matcher
-                    let from_tree = diff.from_tree.clone();
-                    let to_tree = diff.to_tree.clone();
-                    let matcher = diff.matcher.clone();
-                    diff.into_formatted(move |formatter, _store, _tree_diff| {
-                        diff_util::show_diff_summary(
-                            formatter,
-                            path_converter,
-                            &from_tree,
-                            &to_tree,
-                            matcher.as_ref(),
-                            &Default::default(), // TODO: real copy tracking
-                        )
+                    diff.into_formatted(move |formatter, _store, tree_diff| {
+                        diff_util::show_diff_summary(formatter, tree_diff, path_converter)
                     })
                 })
                 .into_template();
