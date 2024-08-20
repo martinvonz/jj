@@ -29,8 +29,9 @@ use crate::repo_path::{RepoPath, RepoPathBuf};
 #[derive(Default, Debug)]
 pub struct CopyRecords {
     records: Vec<CopyRecord>,
-    // Maps from `target` to the index of the target in `records`.  Conflicts
-    // are excluded by keeping an out of range value.
+    // Maps from `source` or `target` to the index of the entry in `records`.
+    // Conflicts are excluded by keeping an out of range value.
+    sources: HashMap<RepoPathBuf, usize>,
     targets: HashMap<RepoPathBuf, usize>,
 }
 
@@ -43,18 +44,34 @@ impl CopyRecords {
     ) -> BackendResult<()> {
         for record in copy_records {
             let r = record?;
-            let value = self
-                .targets
-                .entry(r.target.clone())
-                .or_insert(self.records.len());
-
-            if *value != self.records.len() {
+            self.sources
+                .entry(r.source.clone())
                 // TODO: handle conflicts instead of ignoring both sides.
-                *value = usize::MAX;
-            }
+                .and_modify(|value| *value = usize::MAX)
+                .or_insert(self.records.len());
+            self.targets
+                .entry(r.target.clone())
+                // TODO: handle conflicts instead of ignoring both sides.
+                .and_modify(|value| *value = usize::MAX)
+                .or_insert(self.records.len());
             self.records.push(r);
         }
         Ok(())
+    }
+
+    /// Returns true if there are copy records associated with a source path.
+    pub fn has_source(&self, source: &RepoPath) -> bool {
+        self.sources.contains_key(source)
+    }
+
+    /// Gets any copy record associated with a source path.
+    pub fn for_source(&self, source: &RepoPath) -> Option<&CopyRecord> {
+        self.sources.get(source).and_then(|&i| self.records.get(i))
+    }
+
+    /// Returns true if there are copy records associated with a target path.
+    pub fn has_target(&self, target: &RepoPath) -> bool {
+        self.targets.contains_key(target)
     }
 
     /// Gets any copy record associated with a target path.

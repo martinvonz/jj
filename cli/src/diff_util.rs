@@ -396,13 +396,6 @@ pub fn get_copy_records<'a>(
     Ok(block_on_stream(stream).filter_ok(|record| matcher.matches(&record.target)))
 }
 
-fn collect_copied_sources(copy_records: &CopyRecords) -> HashSet<&RepoPath> {
-    copy_records
-        .iter()
-        .map(|record| record.source.as_ref())
-        .collect()
-}
-
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ColorWordsOptions {
     /// Number of context lines to show.
@@ -919,7 +912,6 @@ pub fn show_file_by_file_diff(
         std::fs::write(&fs_path, content.contents)?;
         Ok(fs_path)
     }
-    let copied_sources = collect_copied_sources(copy_records);
 
     let temp_dir = new_utf8_temp_dir("jj-diff-")?;
     let left_wc_dir = temp_dir.path().join("left");
@@ -933,7 +925,7 @@ pub fn show_file_by_file_diff(
         }) = diff_stream.next().await
         {
             let (left_value, right_value) = diff?;
-            if right_value.is_absent() && copied_sources.contains(left_path.as_ref()) {
+            if right_value.is_absent() && copy_records.has_source(&left_path) {
                 continue;
             }
 
@@ -1272,7 +1264,6 @@ pub fn show_git_diff(
 ) -> Result<(), DiffRenderError> {
     let tree_diff = from_tree.diff_stream_with_copies(to_tree, matcher, copy_records);
     let mut diff_stream = materialized_diff_stream(store, tree_diff);
-    let copied_sources = collect_copied_sources(copy_records);
 
     async {
         while let Some(MaterializedTreeDiffEntry {
@@ -1289,7 +1280,7 @@ pub fn show_git_diff(
             let right_part = git_diff_part(&right_path, right_value)?;
 
             // Skip the "delete" entry when there is a rename.
-            if right_part.mode.is_none() && copied_sources.contains(left_path.as_ref()) {
+            if right_part.mode.is_none() && copy_records.has_source(&left_path) {
                 continue;
             }
 
@@ -1382,7 +1373,6 @@ pub fn show_diff_summary(
     copy_records: &CopyRecords,
 ) -> Result<(), DiffRenderError> {
     let mut tree_diff = from_tree.diff_stream_with_copies(to_tree, matcher, copy_records);
-    let copied_sources = collect_copied_sources(copy_records);
 
     async {
         while let Some(CopiesTreeDiffEntry {
@@ -1405,7 +1395,7 @@ pub fn show_diff_summary(
                     (true, true) => writeln!(formatter.labeled("modified"), "M {path}")?,
                     (false, true) => writeln!(formatter.labeled("added"), "A {path}")?,
                     (true, false) => {
-                        if !copied_sources.contains(before_path.as_ref()) {
+                        if !copy_records.has_source(&before_path) {
                             writeln!(formatter.labeled("removed"), "D {path}")?;
                         }
                     }
@@ -1555,7 +1545,6 @@ pub fn show_types(
     copy_records: &CopyRecords,
 ) -> Result<(), DiffRenderError> {
     let mut tree_diff = from_tree.diff_stream_with_copies(to_tree, matcher, copy_records);
-    let copied_sources = collect_copied_sources(copy_records);
 
     async {
         while let Some(CopiesTreeDiffEntry {
@@ -1565,7 +1554,7 @@ pub fn show_types(
         }) = tree_diff.next().await
         {
             let (before, after) = diff?;
-            if after.is_absent() && copied_sources.contains(source.as_ref()) {
+            if after.is_absent() && copy_records.has_source(&source) {
                 continue;
             }
             writeln!(
