@@ -93,6 +93,18 @@ If you use linuxbrew, you can run:
 brew install jj
 ```
 
+#### Gentoo Linux
+
+`dev-vcs/jj` is available in the [GURU](https://wiki.gentoo.org/wiki/Project:GURU) repository.
+Details on how to enable the GURU repository can be found [here](https://wiki.gentoo.org/wiki/Project:GURU/Information_for_End_Users).
+
+Once you have synced the GURU repository, you can install `dev-vcs/jj` via Portage:
+
+
+```
+emerge -av dev-vcs/jj
+```
+
 ### Mac
 
 #### From Source, Vendored OpenSSL
