@@ -16,7 +16,7 @@
 
 use std::collections::HashMap;
 use std::pin::Pin;
-use std::task::{Context, Poll};
+use std::task::{ready, Context, Poll};
 
 use futures::Stream;
 
@@ -121,28 +121,26 @@ impl Stream for CopiesTreeDiffStream<'_> {
     type Item = CopiesTreeDiffEntry;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        self.inner.as_mut().poll_next(cx).map(|option| {
-            option.map(|diff_entry| {
-                let Some(CopyRecord { source, .. }) =
-                    self.copy_records.for_target(&diff_entry.path)
-                else {
-                    return CopiesTreeDiffEntry {
-                        source: diff_entry.path.clone(),
-                        target: diff_entry.path,
-                        value: diff_entry.value,
-                    };
-                };
+        let Some(diff_entry) = ready!(self.inner.as_mut().poll_next(cx)) else {
+            return Poll::Ready(None);
+        };
 
-                CopiesTreeDiffEntry {
-                    source: source.clone(),
-                    target: diff_entry.path,
-                    value: diff_entry.value.and_then(|(_, target_value)| {
-                        self.source_tree
-                            .path_value(source)
-                            .map(|source_value| (source_value, target_value))
-                    }),
-                }
-            })
-        })
+        let Some(CopyRecord { source, .. }) = self.copy_records.for_target(&diff_entry.path) else {
+            return Poll::Ready(Some(CopiesTreeDiffEntry {
+                source: diff_entry.path.clone(),
+                target: diff_entry.path,
+                value: diff_entry.value,
+            }));
+        };
+
+        Poll::Ready(Some(CopiesTreeDiffEntry {
+            source: source.clone(),
+            target: diff_entry.path,
+            value: diff_entry.value.and_then(|(_, target_value)| {
+                self.source_tree
+                    .path_value(source)
+                    .map(|source_value| (source_value, target_value))
+            }),
+        }))
     }
 }
