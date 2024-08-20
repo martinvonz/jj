@@ -14,6 +14,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### New features
 
+* Add `--reversed` flag to `jj op log`
+
 * The following diff formats now include information about copies and moves:
   `--color-words`, `--git`, `--stat`, `--summary`, `--types`, and external diff
   tools in file-by-file mode.
