@@ -189,7 +189,11 @@ impl Backend for TestBackend {
         }
     }
 
-    fn write_file(&self, path: &RepoPath, contents: &mut dyn Read) -> BackendResult<FileId> {
+    async fn write_file(
+        &self,
+        path: &RepoPath,
+        contents: &mut (dyn Read + Send),
+    ) -> BackendResult<FileId> {
         let mut bytes = Vec::new();
         contents.read_to_end(&mut bytes).unwrap();
         let id = FileId::new(get_hash(&bytes));
@@ -218,7 +222,7 @@ impl Backend for TestBackend {
         }
     }
 
-    fn write_symlink(&self, path: &RepoPath, target: &str) -> BackendResult<SymlinkId> {
+    async fn write_symlink(&self, path: &RepoPath, target: &str) -> BackendResult<SymlinkId> {
         let id = SymlinkId::new(get_hash(target.as_bytes()));
         self.locked_data()
             .symlinks
@@ -248,7 +252,7 @@ impl Backend for TestBackend {
         }
     }
 
-    fn write_tree(&self, path: &RepoPath, contents: &Tree) -> BackendResult<TreeId> {
+    async fn write_tree(&self, path: &RepoPath, contents: &Tree) -> BackendResult<TreeId> {
         let id = TreeId::new(get_hash(contents));
         self.locked_data()
             .trees
@@ -302,7 +306,7 @@ impl Backend for TestBackend {
         }
     }
 
-    fn write_commit(
+    async fn write_commit(
         &self,
         mut contents: Commit,
         mut sign_with: Option<&mut SigningFn>,

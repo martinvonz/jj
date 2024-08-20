@@ -149,24 +149,28 @@ impl Backend for JitBackend {
         self.inner.read_file(path, id).await
     }
 
-    fn write_file(&self, path: &RepoPath, contents: &mut dyn Read) -> BackendResult<FileId> {
-        self.inner.write_file(path, contents)
+    async fn write_file(
+        &self,
+        path: &RepoPath,
+        contents: &mut (dyn Read + Send),
+    ) -> BackendResult<FileId> {
+        self.inner.write_file(path, contents).await
     }
 
     async fn read_symlink(&self, path: &RepoPath, id: &SymlinkId) -> BackendResult<String> {
         self.inner.read_symlink(path, id).await
     }
 
-    fn write_symlink(&self, path: &RepoPath, target: &str) -> BackendResult<SymlinkId> {
-        self.inner.write_symlink(path, target)
+    async fn write_symlink(&self, path: &RepoPath, target: &str) -> BackendResult<SymlinkId> {
+        self.inner.write_symlink(path, target).await
     }
 
     async fn read_tree(&self, path: &RepoPath, id: &TreeId) -> BackendResult<Tree> {
         self.inner.read_tree(path, id).await
     }
 
-    fn write_tree(&self, path: &RepoPath, contents: &Tree) -> BackendResult<TreeId> {
-        self.inner.write_tree(path, contents)
+    async fn write_tree(&self, path: &RepoPath, contents: &Tree) -> BackendResult<TreeId> {
+        self.inner.write_tree(path, contents).await
     }
 
     fn read_conflict(&self, path: &RepoPath, id: &ConflictId) -> BackendResult<Conflict> {
@@ -181,12 +185,12 @@ impl Backend for JitBackend {
         self.inner.read_commit(id).await
     }
 
-    fn write_commit(
+    async fn write_commit(
         &self,
         contents: Commit,
         sign_with: Option<&mut SigningFn>,
     ) -> BackendResult<(CommitId, Commit)> {
-        self.inner.write_commit(contents, sign_with)
+        self.inner.write_commit(contents, sign_with).await
     }
 
     fn get_copy_records(
