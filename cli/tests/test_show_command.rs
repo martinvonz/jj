@@ -56,8 +56,6 @@ fn test_show_basic() {
 
         (no description set)
 
-    Removed regular file file1:
-       1     : foo
     Modified regular file file2:
        1    1: foo
             2: bar
@@ -74,8 +72,6 @@ fn test_show_basic() {
 
         (no description set)
 
-    Removed regular file file1:
-       1     : foo
     Modified regular file file2:
        1    1: foo
             2: bar
@@ -92,8 +88,6 @@ fn test_show_basic() {
 
     [38;5;3m<<description placeholder::    (no description set)>>[39m
 
-    [38;5;3m<<diff header::Removed regular file file1:>>[39m
-    [38;5;1m<<diff removed line_number::   1>>[39m<<diff::     : >>[4m[38;5;1m<<diff removed token::foo>>[24m[39m
     [38;5;3m<<diff header::Modified regular file file2:>>[39m
     [38;5;1m<<diff removed line_number::   1>>[39m<<diff:: >>[38;5;2m<<diff added line_number::   1>>[39m<<diff::: foo>>
     <<diff::     >>[38;5;2m<<diff added line_number::   2>>[39m<<diff::: >>[4m[38;5;2m<<diff added token::bar>>[24m[39m
