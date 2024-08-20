@@ -328,14 +328,7 @@ impl<'a> DiffRenderer<'a> {
                 DiffFormat::ColorWords(options) => {
                     let tree_diff =
                         from_tree.diff_stream_with_copies(to_tree, matcher, copy_records);
-                    show_color_words_diff(
-                        formatter,
-                        store,
-                        tree_diff,
-                        copy_records,
-                        path_converter,
-                        options,
-                    )?;
+                    show_color_words_diff(formatter, store, tree_diff, path_converter, options)?;
                 }
                 DiffFormat::Tool(tool) => {
                     match tool.diff_invocation_mode {
@@ -348,7 +341,6 @@ impl<'a> DiffRenderer<'a> {
                                 store,
                                 tree_diff,
                                 path_converter,
-                                copy_records,
                                 tool,
                             )
                         }
@@ -759,7 +751,6 @@ pub fn show_color_words_diff(
     formatter: &mut dyn Formatter,
     store: &Store,
     tree_diff: BoxStream<CopiesTreeDiffEntry>,
-    copy_records: &CopyRecords,
     path_converter: &RepoPathUiConverter,
     options: &ColorWordsOptions,
 ) -> Result<(), DiffRenderError> {
@@ -774,9 +765,6 @@ pub fn show_color_words_diff(
             let left_ui_path = path_converter.format_file_path(&left_path);
             let right_ui_path = path_converter.format_file_path(&right_path);
             let (left_value, right_value) = diff?;
-            if right_value.is_absent() && copy_records.has_source(&left_path) {
-                continue;
-            }
 
             match (&left_value, &right_value) {
                 (MaterializedTreeValue::AccessDenied(source), _) => {
@@ -909,7 +897,6 @@ pub fn show_file_by_file_diff(
     store: &Store,
     tree_diff: BoxStream<CopiesTreeDiffEntry>,
     path_converter: &RepoPathUiConverter,
-    copy_records: &CopyRecords,
     tool: &ExternalMergeTool,
 ) -> Result<(), DiffRenderError> {
     fn create_file(
@@ -936,10 +923,6 @@ pub fn show_file_by_file_diff(
         }) = diff_stream.next().await
         {
             let (left_value, right_value) = diff?;
-            if right_value.is_absent() && copy_records.has_source(&left_path) {
-                continue;
-            }
-
             let left_ui_path = path_converter.format_file_path(&left_path);
             let right_ui_path = path_converter.format_file_path(&right_path);
 
@@ -1290,11 +1273,6 @@ pub fn show_git_diff(
             let left_part = git_diff_part(&left_path, left_value)?;
             let right_part = git_diff_part(&right_path, right_value)?;
 
-            // Skip the "delete" entry when there is a rename.
-            if right_part.mode.is_none() && copy_records.has_source(&left_path) {
-                continue;
-            }
-
             formatter.with_label("file_header", |formatter| {
                 writeln!(
                     formatter,
@@ -1405,11 +1383,7 @@ pub fn show_diff_summary(
                 match (before.is_present(), after.is_present()) {
                     (true, true) => writeln!(formatter.labeled("modified"), "M {path}")?,
                     (false, true) => writeln!(formatter.labeled("added"), "A {path}")?,
-                    (true, false) => {
-                        if !copy_records.has_source(&before_path) {
-                            writeln!(formatter.labeled("removed"), "D {path}")?;
-                        }
-                    }
+                    (true, false) => writeln!(formatter.labeled("removed"), "D {path}")?,
                     (false, false) => unreachable!(),
                 }
             }
@@ -1565,9 +1539,6 @@ pub fn show_types(
         }) = tree_diff.next().await
         {
             let (before, after) = diff?;
-            if after.is_absent() && copy_records.has_source(&source) {
-                continue;
-            }
             writeln!(
                 formatter.labeled("modified"),
                 "{}{} {}",
