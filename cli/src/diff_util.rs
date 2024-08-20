@@ -302,14 +302,9 @@ impl<'a> DiffRenderer<'a> {
         for format in &self.formats {
             match format {
                 DiffFormat::Summary => {
-                    show_diff_summary(
-                        formatter,
-                        path_converter,
-                        from_tree,
-                        to_tree,
-                        matcher,
-                        copy_records,
-                    )?;
+                    let tree_diff =
+                        from_tree.diff_stream_with_copies(to_tree, matcher, copy_records);
+                    show_diff_summary(formatter, tree_diff, path_converter)?;
                 }
                 DiffFormat::Stat => {
                     let tree_diff =
@@ -317,14 +312,9 @@ impl<'a> DiffRenderer<'a> {
                     show_diff_stat(formatter, store, tree_diff, path_converter, width)?;
                 }
                 DiffFormat::Types => {
-                    show_types(
-                        formatter,
-                        path_converter,
-                        from_tree,
-                        to_tree,
-                        matcher,
-                        copy_records,
-                    )?;
+                    let tree_diff =
+                        from_tree.diff_stream_with_copies(to_tree, matcher, copy_records);
+                    show_types(formatter, tree_diff, path_converter)?;
                 }
                 DiffFormat::NameOnly => {
                     let tree_diff =
@@ -332,15 +322,9 @@ impl<'a> DiffRenderer<'a> {
                     show_names(formatter, tree_diff, path_converter)?;
                 }
                 DiffFormat::Git { context } => {
-                    show_git_diff(
-                        formatter,
-                        store,
-                        from_tree,
-                        to_tree,
-                        matcher,
-                        copy_records,
-                        *context,
-                    )?;
+                    let tree_diff =
+                        from_tree.diff_stream_with_copies(to_tree, matcher, copy_records);
+                    show_git_diff(formatter, store, tree_diff, *context)?;
                 }
                 DiffFormat::ColorWords(options) => {
                     let tree_diff =
@@ -1261,15 +1245,10 @@ fn show_diff_line_tokens(
 pub fn show_git_diff(
     formatter: &mut dyn Formatter,
     store: &Store,
-    from_tree: &MergedTree,
-    to_tree: &MergedTree,
-    matcher: &dyn Matcher,
-    copy_records: &CopyRecords,
+    tree_diff: BoxStream<CopiesTreeDiffEntry>,
     num_context_lines: usize,
 ) -> Result<(), DiffRenderError> {
-    let tree_diff = from_tree.diff_stream_with_copies(to_tree, matcher, copy_records);
     let mut diff_stream = materialized_diff_stream(store, tree_diff);
-
     async {
         while let Some(MaterializedTreeDiffEntry { path, values }) = diff_stream.next().await {
             let left_path = path.source();
@@ -1362,14 +1341,9 @@ pub fn show_git_diff(
 #[instrument(skip_all)]
 pub fn show_diff_summary(
     formatter: &mut dyn Formatter,
+    mut tree_diff: BoxStream<CopiesTreeDiffEntry>,
     path_converter: &RepoPathUiConverter,
-    from_tree: &MergedTree,
-    to_tree: &MergedTree,
-    matcher: &dyn Matcher,
-    copy_records: &CopyRecords,
 ) -> Result<(), DiffRenderError> {
-    let mut tree_diff = from_tree.diff_stream_with_copies(to_tree, matcher, copy_records);
-
     async {
         while let Some(CopiesTreeDiffEntry { path, values }) = tree_diff.next().await {
             let (before, after) = values?;
@@ -1524,14 +1498,9 @@ pub fn show_diff_stat(
 
 pub fn show_types(
     formatter: &mut dyn Formatter,
+    mut tree_diff: BoxStream<CopiesTreeDiffEntry>,
     path_converter: &RepoPathUiConverter,
-    from_tree: &MergedTree,
-    to_tree: &MergedTree,
-    matcher: &dyn Matcher,
-    copy_records: &CopyRecords,
 ) -> Result<(), DiffRenderError> {
-    let mut tree_diff = from_tree.diff_stream_with_copies(to_tree, matcher, copy_records);
-
     async {
         while let Some(CopiesTreeDiffEntry { path, values }) = tree_diff.next().await {
             let (before, after) = values?;
