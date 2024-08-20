@@ -930,7 +930,11 @@ impl Backend for GitBackend {
         self.read_file_sync(id)
     }
 
-    fn write_file(&self, _path: &RepoPath, contents: &mut dyn Read) -> BackendResult<FileId> {
+    async fn write_file(
+        &self,
+        _path: &RepoPath,
+        contents: &mut (dyn Read + Send),
+    ) -> BackendResult<FileId> {
         let mut bytes = Vec::new();
         contents.read_to_end(&mut bytes).unwrap();
         let locked_repo = self.lock_git_repo();
@@ -957,7 +961,7 @@ impl Backend for GitBackend {
         Ok(target)
     }
 
-    fn write_symlink(&self, _path: &RepoPath, target: &str) -> BackendResult<SymlinkId> {
+    async fn write_symlink(&self, _path: &RepoPath, target: &str) -> BackendResult<SymlinkId> {
         let locked_repo = self.lock_git_repo();
         let oid =
             locked_repo
@@ -1032,7 +1036,7 @@ impl Backend for GitBackend {
         Ok(tree)
     }
 
-    fn write_tree(&self, _path: &RepoPath, contents: &Tree) -> BackendResult<TreeId> {
+    async fn write_tree(&self, _path: &RepoPath, contents: &Tree) -> BackendResult<TreeId> {
         // Tree entries to be written must be sorted by Entry::filename(), which
         // is slightly different from the order of our backend::Tree.
         let entries = contents
@@ -1161,7 +1165,7 @@ impl Backend for GitBackend {
         Ok(commit)
     }
 
-    fn write_commit(
+    async fn write_commit(
         &self,
         mut contents: Commit,
         mut sign_with: Option<&mut SigningFn>,
@@ -1830,16 +1834,20 @@ mod tests {
             secure_sig: None,
         };
 
+        let write_commit = |commit: Commit| -> BackendResult<(CommitId, Commit)> {
+            backend.write_commit(commit, None).block_on()
+        };
+
         // No parents
         commit.parents = vec![];
         assert_matches!(
-            backend.write_commit(commit.clone(), None),
+            write_commit(commit.clone()),
             Err(BackendError::Other(err)) if err.to_string().contains("no parents")
         );
 
         // Only root commit as parent
         commit.parents = vec![backend.root_commit_id().clone()];
-        let first_id = backend.write_commit(commit.clone(), None).unwrap().0;
+        let first_id = write_commit(commit.clone()).unwrap().0;
         let first_commit = backend.read_commit(&first_id).block_on().unwrap();
         assert_eq!(first_commit, commit);
         let first_git_commit = git_repo.find_commit(git_id(&first_id)).unwrap();
@@ -1847,7 +1855,7 @@ mod tests {
 
         // Only non-root commit as parent
         commit.parents = vec![first_id.clone()];
-        let second_id = backend.write_commit(commit.clone(), None).unwrap().0;
+        let second_id = write_commit(commit.clone()).unwrap().0;
         let second_commit = backend.read_commit(&second_id).block_on().unwrap();
         assert_eq!(second_commit, commit);
         let second_git_commit = git_repo.find_commit(git_id(&second_id)).unwrap();
@@ -1858,7 +1866,7 @@ mod tests {
 
         // Merge commit
         commit.parents = vec![first_id.clone(), second_id.clone()];
-        let merge_id = backend.write_commit(commit.clone(), None).unwrap().0;
+        let merge_id = write_commit(commit.clone()).unwrap().0;
         let merge_commit = backend.read_commit(&merge_id).block_on().unwrap();
         assert_eq!(merge_commit, commit);
         let merge_git_commit = git_repo.find_commit(git_id(&merge_id)).unwrap();
@@ -1870,7 +1878,7 @@ mod tests {
         // Merge commit with root as one parent
         commit.parents = vec![first_id, backend.root_commit_id().clone()];
         assert_matches!(
-            backend.write_commit(commit, None),
+            write_commit(commit),
             Err(BackendError::Unsupported(message)) if message.contains("root commit")
         );
     }
@@ -1908,9 +1916,13 @@ mod tests {
             secure_sig: None,
         };
 
+        let write_commit = |commit: Commit| -> BackendResult<(CommitId, Commit)> {
+            backend.write_commit(commit, None).block_on()
+        };
+
         // When writing a tree-level conflict, the root tree on the git side has the
         // individual trees as subtrees.
-        let read_commit_id = backend.write_commit(commit.clone(), None).unwrap().0;
+        let read_commit_id = write_commit(commit.clone()).unwrap().0;
         let read_commit = backend.read_commit(&read_commit_id).block_on().unwrap();
         assert_eq!(read_commit, commit);
         let git_commit = git_repo
@@ -1960,7 +1972,7 @@ mod tests {
         // When writing a single tree using the new format, it's represented by a
         // regular git tree.
         commit.root_tree = MergedTreeId::resolved(create_tree(5));
-        let read_commit_id = backend.write_commit(commit.clone(), None).unwrap().0;
+        let read_commit_id = write_commit(commit.clone()).unwrap().0;
         let read_commit = backend.read_commit(&read_commit_id).block_on().unwrap();
         assert_eq!(read_commit, commit);
         let git_commit = git_repo
@@ -1996,7 +2008,7 @@ mod tests {
             committer: signature,
             secure_sig: None,
         };
-        let commit_id = backend.write_commit(commit, None).unwrap().0;
+        let commit_id = backend.write_commit(commit, None).block_on().unwrap().0;
         let git_refs: Vec<_> = git_repo
             .references_glob("refs/jj/keep/*")
             .unwrap()
@@ -2073,15 +2085,20 @@ mod tests {
             committer: create_signature(),
             secure_sig: None,
         };
+
+        let write_commit = |commit: Commit| -> BackendResult<(CommitId, Commit)> {
+            backend.write_commit(commit, None).block_on()
+        };
+
         // libgit2 doesn't seem to preserve negative timestamps, so set it to at least 1
         // second after the epoch, so the timestamp adjustment can remove 1
         // second and it will still be nonnegative
         commit1.committer.timestamp.timestamp = MillisSinceEpoch(1000);
-        let (commit_id1, mut commit2) = backend.write_commit(commit1, None).unwrap();
+        let (commit_id1, mut commit2) = write_commit(commit1).unwrap();
         commit2.predecessors.push(commit_id1.clone());
         // `write_commit` should prevent the ids from being the same by changing the
         // committer timestamp of the commit it actually writes.
-        let (commit_id2, mut actual_commit2) = backend.write_commit(commit2.clone(), None).unwrap();
+        let (commit_id2, mut actual_commit2) = write_commit(commit2.clone()).unwrap();
         // The returned matches the ID
         assert_eq!(
             backend.read_commit(&commit_id2).block_on().unwrap(),
@@ -2122,6 +2139,7 @@ mod tests {
 
         let (id, commit) = backend
             .write_commit(commit, Some(&mut signer as &mut SigningFn))
+            .block_on()
             .unwrap();
 
         let git_repo = backend.git_repo();

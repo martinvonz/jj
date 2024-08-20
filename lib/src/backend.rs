@@ -90,7 +90,7 @@ pub struct SecureSig {
     pub sig: Vec<u8>,
 }
 
-pub type SigningFn<'a> = dyn FnMut(&[u8]) -> SignResult<Vec<u8>> + 'a;
+pub type SigningFn<'a> = dyn FnMut(&[u8]) -> SignResult<Vec<u8>> + Send + 'a;
 
 /// Identifies a single legacy tree, which may have path-level conflicts, or a
 /// merge of multiple trees, where the individual trees do not have conflicts.
@@ -411,15 +411,19 @@ pub trait Backend: Send + Sync + Debug {
 
     async fn read_file(&self, path: &RepoPath, id: &FileId) -> BackendResult<Box<dyn Read>>;
 
-    fn write_file(&self, path: &RepoPath, contents: &mut dyn Read) -> BackendResult<FileId>;
+    async fn write_file(
+        &self,
+        path: &RepoPath,
+        contents: &mut (dyn Read + Send),
+    ) -> BackendResult<FileId>;
 
     async fn read_symlink(&self, path: &RepoPath, id: &SymlinkId) -> BackendResult<String>;
 
-    fn write_symlink(&self, path: &RepoPath, target: &str) -> BackendResult<SymlinkId>;
+    async fn write_symlink(&self, path: &RepoPath, target: &str) -> BackendResult<SymlinkId>;
 
     async fn read_tree(&self, path: &RepoPath, id: &TreeId) -> BackendResult<Tree>;
 
-    fn write_tree(&self, path: &RepoPath, contents: &Tree) -> BackendResult<TreeId>;
+    async fn write_tree(&self, path: &RepoPath, contents: &Tree) -> BackendResult<TreeId>;
 
     // Not async because it would force `MergedTree::value()` to be async. We don't
     // need this to be async anyway because it's only used by legacy repos.
@@ -442,7 +446,7 @@ pub trait Backend: Send + Sync + Debug {
     /// an implementation specific fashion, and both `read_commit` and the
     /// return of `write_commit` should read it back as the `secure_sig`
     /// field.
-    fn write_commit(
+    async fn write_commit(
         &self,
         contents: Commit,
         sign_with: Option<&mut SigningFn>,

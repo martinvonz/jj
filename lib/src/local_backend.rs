@@ -29,6 +29,7 @@ use blake2::Blake2b512;
 use blake2::Digest;
 use futures::stream;
 use futures::stream::BoxStream;
+use pollster::FutureExt;
 use prost::Message;
 use tempfile::NamedTempFile;
 
@@ -108,6 +109,7 @@ impl LocalBackend {
         let backend = Self::load(store_path);
         let empty_tree_id = backend
             .write_tree(RepoPath::root(), &Tree::default())
+            .block_on()
             .unwrap();
         assert_eq!(empty_tree_id, backend.empty_tree_id);
         backend
@@ -116,7 +118,9 @@ impl LocalBackend {
     pub fn load(store_path: &Path) -> Self {
         let root_commit_id = CommitId::from_bytes(&[0; COMMIT_ID_LENGTH]);
         let root_change_id = ChangeId::from_bytes(&[0; CHANGE_ID_LENGTH]);
-        let empty_tree_id = TreeId::from_hex("482ae5a29fbe856c7272f2071b8b0f0359ee2d89ff392b8a900643fbd0836eccd067b8bf41909e206c90d45d6e7d8b6686b93ecaee5fe1a9060d87b672101310");
+        let empty_tree_id = TreeId::from_hex(
+            "482ae5a29fbe856c7272f2071b8b0f0359ee2d89ff392b8a900643fbd0836eccd067b8bf41909e206c90d45d6e7d8b6686b93ecaee5fe1a9060d87b672101310",
+        );
         LocalBackend {
             path: store_path.to_path_buf(),
             root_commit_id,
@@ -186,7 +190,11 @@ impl Backend for LocalBackend {
         Ok(Box::new(zstd::Decoder::new(file).map_err(to_other_err)?))
     }
 
-    fn write_file(&self, _path: &RepoPath, contents: &mut dyn Read) -> BackendResult<FileId> {
+    async fn write_file(
+        &self,
+        _path: &RepoPath,
+        contents: &mut (dyn Read + Send),
+    ) -> BackendResult<FileId> {
         let temp_file = NamedTempFile::new_in(&self.path).map_err(to_other_err)?;
         let mut encoder = zstd::Encoder::new(temp_file.as_file(), 0).map_err(to_other_err)?;
         let mut hasher = Blake2b512::new();
@@ -214,7 +222,7 @@ impl Backend for LocalBackend {
         Ok(target)
     }
 
-    fn write_symlink(&self, _path: &RepoPath, target: &str) -> BackendResult<SymlinkId> {
+    async fn write_symlink(&self, _path: &RepoPath, target: &str) -> BackendResult<SymlinkId> {
         let mut temp_file = NamedTempFile::new_in(&self.path).map_err(to_other_err)?;
         temp_file
             .write_all(target.as_bytes())
@@ -236,7 +244,7 @@ impl Backend for LocalBackend {
         Ok(tree_from_proto(proto))
     }
 
-    fn write_tree(&self, _path: &RepoPath, tree: &Tree) -> BackendResult<TreeId> {
+    async fn write_tree(&self, _path: &RepoPath, tree: &Tree) -> BackendResult<TreeId> {
         let temp_file = NamedTempFile::new_in(&self.path).map_err(to_other_err)?;
 
         let proto = tree_to_proto(tree);
@@ -291,7 +299,7 @@ impl Backend for LocalBackend {
         Ok(commit_from_proto(proto))
     }
 
-    fn write_commit(
+    async fn write_commit(
         &self,
         mut commit: Commit,
         sign_with: Option<&mut SigningFn>,
@@ -550,34 +558,38 @@ mod tests {
             secure_sig: None,
         };
 
+        let write_commit = |commit: Commit| -> BackendResult<(CommitId, Commit)> {
+            backend.write_commit(commit, None).block_on()
+        };
+
         // No parents
         commit.parents = vec![];
         assert_matches!(
-            backend.write_commit(commit.clone(), None),
+            write_commit(commit.clone()),
             Err(BackendError::Other(err)) if err.to_string().contains("no parents")
         );
 
         // Only root commit as parent
         commit.parents = vec![backend.root_commit_id().clone()];
-        let first_id = backend.write_commit(commit.clone(), None).unwrap().0;
+        let first_id = write_commit(commit.clone()).unwrap().0;
         let first_commit = backend.read_commit(&first_id).block_on().unwrap();
         assert_eq!(first_commit, commit);
 
         // Only non-root commit as parent
         commit.parents = vec![first_id.clone()];
-        let second_id = backend.write_commit(commit.clone(), None).unwrap().0;
+        let second_id = write_commit(commit.clone()).unwrap().0;
         let second_commit = backend.read_commit(&second_id).block_on().unwrap();
         assert_eq!(second_commit, commit);
 
         // Merge commit
         commit.parents = vec![first_id.clone(), second_id.clone()];
-        let merge_id = backend.write_commit(commit.clone(), None).unwrap().0;
+        let merge_id = write_commit(commit.clone()).unwrap().0;
         let merge_commit = backend.read_commit(&merge_id).block_on().unwrap();
         assert_eq!(merge_commit, commit);
 
         // Merge commit with root as one parent
         commit.parents = vec![first_id, backend.root_commit_id().clone()];
-        let root_merge_id = backend.write_commit(commit.clone(), None).unwrap().0;
+        let root_merge_id = write_commit(commit.clone()).unwrap().0;
         let root_merge_commit = backend.read_commit(&root_merge_id).block_on().unwrap();
         assert_eq!(root_merge_commit, commit);
     }

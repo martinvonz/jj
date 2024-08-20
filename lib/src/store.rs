@@ -160,7 +160,7 @@ impl Store {
     ) -> BackendResult<Commit> {
         assert!(!commit.parents.is_empty());
 
-        let (commit_id, commit) = self.backend.write_commit(commit, sign_with)?;
+        let (commit_id, commit) = self.backend.write_commit(commit, sign_with).block_on()?;
         let data = Arc::new(commit);
         {
             let mut locked_cache = self.commit_cache.lock().unwrap();
@@ -220,7 +220,7 @@ impl Store {
         path: &RepoPath,
         tree: backend::Tree,
     ) -> BackendResult<Tree> {
-        let tree_id = self.backend.write_tree(path, &tree)?;
+        let tree_id = self.backend.write_tree(path, &tree).block_on()?;
         let data = Arc::new(tree);
         {
             let mut locked_cache = self.tree_cache.lock().unwrap();
@@ -242,8 +242,12 @@ impl Store {
         self.backend.read_file(path, id).await
     }
 
-    pub fn write_file(&self, path: &RepoPath, contents: &mut dyn Read) -> BackendResult<FileId> {
-        self.backend.write_file(path, contents)
+    pub fn write_file(
+        &self,
+        path: &RepoPath,
+        contents: &mut (dyn Read + Send),
+    ) -> BackendResult<FileId> {
+        self.backend.write_file(path, contents).block_on()
     }
 
     pub fn read_symlink(&self, path: &RepoPath, id: &SymlinkId) -> BackendResult<String> {
@@ -259,7 +263,7 @@ impl Store {
     }
 
     pub fn write_symlink(&self, path: &RepoPath, contents: &str) -> BackendResult<SymlinkId> {
-        self.backend.write_symlink(path, contents)
+        self.backend.write_symlink(path, contents).block_on()
     }
 
     pub fn read_conflict(
