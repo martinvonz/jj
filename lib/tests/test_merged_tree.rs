@@ -855,7 +855,7 @@ fn test_diff_copy_tracing() {
         .map(|diff| (diff.source, diff.target, diff.value.unwrap()))
         .collect()
         .block_on();
-    assert_eq!(diff.len(), 4);
+    assert_eq!(diff.len(), 3);
     assert_eq!(
         diff[0].clone(),
         (
@@ -880,17 +880,6 @@ fn test_diff_copy_tracing() {
     );
     assert_eq!(
         diff[2].clone(),
-        (
-            removed_path.to_owned(),
-            removed_path.to_owned(),
-            (
-                Merge::resolved(before.path_value(removed_path).unwrap()),
-                Merge::absent()
-            ),
-        )
-    );
-    assert_eq!(
-        diff[3].clone(),
         (
             removed_path.to_owned(),
             added_path.to_owned(),
