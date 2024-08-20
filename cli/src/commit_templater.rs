@@ -1355,6 +1355,7 @@ fn builtin_tree_diff_methods<'repo>() -> CommitTemplateBuildMethodFnMap<'repo, T
                             formatter,
                             store,
                             tree_diff,
+                            &Default::default(), // TODO: real copy tracking
                             path_converter,
                             &options,
                         )

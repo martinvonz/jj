@@ -328,7 +328,14 @@ impl<'a> DiffRenderer<'a> {
                 DiffFormat::ColorWords(options) => {
                     let tree_diff =
                         from_tree.diff_stream_with_copies(to_tree, matcher, copy_records);
-                    show_color_words_diff(formatter, store, tree_diff, path_converter, options)?;
+                    show_color_words_diff(
+                        formatter,
+                        store,
+                        tree_diff,
+                        copy_records,
+                        path_converter,
+                        options,
+                    )?;
                 }
                 DiffFormat::Tool(tool) => {
                     match tool.diff_invocation_mode {
@@ -752,6 +759,7 @@ pub fn show_color_words_diff(
     formatter: &mut dyn Formatter,
     store: &Store,
     tree_diff: BoxStream<CopiesTreeDiffEntry>,
+    copy_records: &CopyRecords,
     path_converter: &RepoPathUiConverter,
     options: &ColorWordsOptions,
 ) -> Result<(), DiffRenderError> {
@@ -766,6 +774,9 @@ pub fn show_color_words_diff(
             let left_ui_path = path_converter.format_file_path(&left_path);
             let right_ui_path = path_converter.format_file_path(&right_path);
             let (left_value, right_value) = diff?;
+            if right_value.is_absent() && copy_records.has_source(&left_path) {
+                continue;
+            }
 
             match (&left_value, &right_value) {
                 (MaterializedTreeValue::AccessDenied(source), _) => {

@@ -33,8 +33,6 @@ fn test_diff_basic() {
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff"]);
     insta::assert_snapshot!(stdout, @r###"
-    Removed regular file file1:
-       1     : foo
     Modified regular file file2:
        1    1: 1
        2    2: 25
@@ -46,8 +44,6 @@ fn test_diff_basic() {
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "--context=0"]);
     insta::assert_snapshot!(stdout, @r###"
-    Removed regular file file1:
-       1     : foo
     Modified regular file file2:
        1    1: 1
        2    2: 25
@@ -59,8 +55,6 @@ fn test_diff_basic() {
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "--color=debug"]);
     insta::assert_snapshot!(stdout, @r###"
-    [38;5;3m<<diff header::Removed regular file file1:>>[39m
-    [38;5;1m<<diff removed line_number::   1>>[39m<<diff::     : >>[4m[38;5;1m<<diff removed token::foo>>[24m[39m
     [38;5;3m<<diff header::Modified regular file file2:>>[39m
     [38;5;1m<<diff removed line_number::   1>>[39m<<diff:: >>[38;5;2m<<diff added line_number::   1>>[39m<<diff::: 1>>
     [38;5;1m<<diff removed line_number::   2>>[39m<<diff:: >>[38;5;2m<<diff added line_number::   2>>[39m<<diff::: >>[4m[38;5;1m<<diff removed token::2>>[38;5;2m<<diff added token::5>>[24m[39m<<diff::>>
