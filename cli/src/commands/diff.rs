@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use futures::executor::block_on_stream;
 use itertools::Itertools;
 use jj_lib::copies::CopyRecords;
 use jj_lib::repo::Repo;
@@ -21,7 +20,7 @@ use tracing::instrument;
 
 use crate::cli_util::{print_unmatched_explicit_paths, CommandHelper, RevisionArg};
 use crate::command_error::CommandError;
-use crate::diff_util::DiffFormatArgs;
+use crate::diff_util::{get_copy_records, DiffFormatArgs};
 use crate::ui::Ui;
 
 /// Compare file contents between two revisions
@@ -64,6 +63,9 @@ pub(crate) fn cmd_diff(
     args: &DiffArgs,
 ) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
+    let repo = workspace_command.repo();
+    let fileset_expression = workspace_command.parse_file_patterns(&args.paths)?;
+    let matcher = fileset_expression.to_matcher();
     let resolve_revision = |r: &Option<RevisionArg>| {
         workspace_command.resolve_single_rev(r.as_ref().unwrap_or(&RevisionArg::AT))
     };
@@ -77,30 +79,21 @@ pub(crate) fn cmd_diff(
         from_tree = from.tree()?;
         to_tree = to.tree()?;
 
-        let stream = workspace_command
-            .repo()
-            .store()
-            .get_copy_records(None, from.id(), to.id())?;
-        copy_records.add_records(block_on_stream(stream))?;
+        let records = get_copy_records(repo.store(), from.id(), to.id(), &matcher)?;
+        copy_records.add_records(records)?;
     } else {
         let to = resolve_revision(&args.revision)?;
         let parents: Vec<_> = to.parents().try_collect()?;
-        from_tree = merge_commit_trees(workspace_command.repo().as_ref(), &parents)?;
+        from_tree = merge_commit_trees(repo.as_ref(), &parents)?;
         to_tree = to.tree()?;
 
         for p in &parents {
-            let stream =
-                workspace_command
-                    .repo()
-                    .store()
-                    .get_copy_records(None, p.id(), to.id())?;
-            copy_records.add_records(block_on_stream(stream))?;
+            let records = get_copy_records(repo.store(), p.id(), to.id(), &matcher)?;
+            copy_records.add_records(records)?;
         }
     }
 
     let diff_renderer = workspace_command.diff_renderer_for(&args.format)?;
-    let fileset_expression = workspace_command.parse_file_patterns(&args.paths)?;
-    let matcher = fileset_expression.to_matcher();
     ui.request_pager();
     diff_renderer.show_diff(
         ui,
