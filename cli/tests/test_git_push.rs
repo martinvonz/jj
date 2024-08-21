@@ -559,15 +559,15 @@ fn test_git_push_multiple() {
       @origin: yqosqzyt c4a3c310 (empty) foo
     "###);
     let stdout = test_env.jj_cmd_success(&workspace_root, &["log", "-rall()"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @r#"
     @  yqosqzyt test.user@example.com 2001-02-03 08:05:17 branch2 my-branch c4a3c310
     │  (empty) foo
-    │ ○  rlzusymt test.user@example.com 2001-02-03 08:05:10 8476341e
+    │ ◌  rlzusymt test.user@example.com 2001-02-03 08:05:10 8476341e
     ├─╯  (empty) description 2
-    │ ○  xtvrqkyv test.user@example.com 2001-02-03 08:05:08 d13ecdbd
+    │ ◌  xtvrqkyv test.user@example.com 2001-02-03 08:05:08 d13ecdbd
     ├─╯  (empty) description 1
     ◆  zzzzzzzz root() 00000000
-    "###);
+    "#);
 }
 
 #[test]
@@ -1028,15 +1028,15 @@ fn test_git_push_deleted() {
       Delete branch branch1 from d13ecdbda2a2
     "###);
     let stdout = test_env.jj_cmd_success(&workspace_root, &["log", "-rall()"]);
-    insta::assert_snapshot!(stdout, @r###"
-    ○  rlzusymt test.user@example.com 2001-02-03 08:05:10 branch2 8476341e
+    insta::assert_snapshot!(stdout, @r#"
+    ◌  rlzusymt test.user@example.com 2001-02-03 08:05:10 branch2 8476341e
     │  (empty) description 2
-    │ ○  xtvrqkyv test.user@example.com 2001-02-03 08:05:08 d13ecdbd
+    │ ◌  xtvrqkyv test.user@example.com 2001-02-03 08:05:08 d13ecdbd
     ├─╯  (empty) description 1
     │ @  yqosqzyt test.user@example.com 2001-02-03 08:05:13 5b36783c
     ├─╯  (empty) (no description set)
     ◆  zzzzzzzz root() 00000000
-    "###);
+    "#);
     let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push", "--deleted"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"

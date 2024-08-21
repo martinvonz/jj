@@ -2309,15 +2309,15 @@ fn test_rebase_skip_emptied() {
     test_env.jj_cmd_ok(&repo_path, &["new", "-m", "also already empty"]);
 
     // Test the setup
-    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["log", "-T", "description"]), @r###"
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["log", "-T", "description"]), @r#"
     @  also already empty
-    ○  already empty
+    ◌  already empty
     ○  will become empty
     │ ○  b
     ├─╯
     ○  a
     ◆
-    "###);
+    "#);
 
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-d=b", "--skip-emptied"]);
     insta::assert_snapshot!(stdout, @"");
@@ -2329,13 +2329,13 @@ fn test_rebase_skip_emptied() {
 
     // The parent commit became empty and was dropped, but the already empty commits
     // were kept
-    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["log", "-T", "description"]), @r###"
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["log", "-T", "description"]), @r#"
     @  also already empty
-    ○  already empty
+    ◌  already empty
     ○  b
     ○  a
     ◆
-    "###);
+    "#);
 }
 
 #[test]

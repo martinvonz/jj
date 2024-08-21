@@ -84,23 +84,23 @@ fn test_advance_branches_enabled(make_commit: CommitFn) {
     // Run jj commit, which will advance the branch pointing to @-.
     make_commit(&test_env, &workspace_path, "first");
     insta::allow_duplicates! {
-    insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r###"
+    insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r#"
     @  branches{} desc:
-    ○  branches{test_branch} desc: first
+    ◌  branches{test_branch} desc: first
     ◆  branches{} desc:
-    "###);
+    "#);
     }
 
     // Now disable advance branches and commit again. The branch shouldn't move.
     set_advance_branches(&test_env, false);
     make_commit(&test_env, &workspace_path, "second");
     insta::allow_duplicates! {
-    insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r###"
+    insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r#"
     @  branches{} desc:
-    ○  branches{} desc: second
-    ○  branches{test_branch} desc: first
+    ◌  branches{} desc: second
+    ◌  branches{test_branch} desc: first
     ◆  branches{} desc:
-    "###);
+    "#);
     }
 }
 
@@ -125,11 +125,11 @@ fn test_advance_branches_at_minus(make_commit: CommitFn) {
 
     make_commit(&test_env, &workspace_path, "first");
     insta::allow_duplicates! {
-    insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r###"
+    insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r#"
     @  branches{} desc:
-    ○  branches{test_branch} desc: first
+    ◌  branches{test_branch} desc: first
     ◆  branches{} desc:
-    "###);
+    "#);
     }
 
     // Create a second branch pointing to @. On the next commit, only the first
@@ -137,12 +137,12 @@ fn test_advance_branches_at_minus(make_commit: CommitFn) {
     test_env.jj_cmd_ok(&workspace_path, &["branch", "create", "test_branch2"]);
     make_commit(&test_env, &workspace_path, "second");
     insta::allow_duplicates! {
-    insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r###"
+    insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r#"
     @  branches{} desc:
-    ○  branches{test_branch test_branch2} desc: second
-    ○  branches{} desc: first
+    ◌  branches{test_branch test_branch2} desc: second
+    ◌  branches{} desc: first
     ◆  branches{} desc:
-    "###);
+    "#);
     }
 }
 
@@ -172,11 +172,11 @@ fn test_advance_branches_overrides(make_commit: CommitFn) {
     // Commit will not advance the branch since advance-branches is disabled.
     make_commit(&test_env, &workspace_path, "first");
     insta::allow_duplicates! {
-    insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r###"
+    insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r#"
     @  branches{} desc:
-    ○  branches{} desc: first
+    ◌  branches{} desc: first
     ◆  branches{test_branch} desc:
-    "###);
+    "#);
     }
 
     // Now enable advance branches for "test_branch", move the branch, and commit
@@ -191,20 +191,20 @@ fn test_advance_branches_overrides(make_commit: CommitFn) {
         &["branch", "set", "test_branch", "-r", "@-"],
     );
     insta::allow_duplicates! {
-    insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r###"
+    insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r#"
     @  branches{} desc:
-    ○  branches{test_branch} desc: first
+    ◌  branches{test_branch} desc: first
     ◆  branches{} desc:
-    "###);
+    "#);
     }
     make_commit(&test_env, &workspace_path, "second");
     insta::allow_duplicates! {
-    insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r###"
+    insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r#"
     @  branches{} desc:
-    ○  branches{test_branch} desc: second
-    ○  branches{} desc: first
+    ◌  branches{test_branch} desc: second
+    ◌  branches{} desc: first
     ◆  branches{} desc:
-    "###);
+    "#);
     }
 
     // Now disable advance branches for "test_branch" and "second_branch", which
@@ -217,13 +217,13 @@ fn test_advance_branches_overrides(make_commit: CommitFn) {
     );
     make_commit(&test_env, &workspace_path, "third");
     insta::allow_duplicates! {
-    insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r###"
+    insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r#"
     @  branches{} desc:
-    ○  branches{} desc: third
-    ○  branches{test_branch} desc: second
-    ○  branches{} desc: first
+    ◌  branches{} desc: third
+    ◌  branches{test_branch} desc: second
+    ◌  branches{} desc: first
     ◆  branches{} desc:
-    "###);
+    "#);
     }
 
     // If we create a new branch at @- and move test_branch there as well. When
@@ -237,24 +237,24 @@ fn test_advance_branches_overrides(make_commit: CommitFn) {
         &["branch", "set", "test_branch", "-r", "@-"],
     );
     insta::allow_duplicates! {
-    insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r###"
+    insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r#"
     @  branches{} desc:
-    ○  branches{second_branch test_branch} desc: third
-    ○  branches{} desc: second
-    ○  branches{} desc: first
+    ◌  branches{second_branch test_branch} desc: third
+    ◌  branches{} desc: second
+    ◌  branches{} desc: first
     ◆  branches{} desc:
-    "###);
+    "#);
     }
     make_commit(&test_env, &workspace_path, "fourth");
     insta::allow_duplicates! {
-    insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r###"
+    insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r#"
     @  branches{} desc:
-    ○  branches{second_branch} desc: fourth
-    ○  branches{test_branch} desc: third
-    ○  branches{} desc: second
-    ○  branches{} desc: first
+    ◌  branches{second_branch} desc: fourth
+    ◌  branches{test_branch} desc: third
+    ◌  branches{} desc: second
+    ◌  branches{} desc: first
     ◆  branches{} desc:
-    "###);
+    "#);
     }
 }
 
@@ -287,11 +287,11 @@ fn test_advance_branches_multiple_branches(make_commit: CommitFn) {
     // Both branches are eligible and both will advance.
     make_commit(&test_env, &workspace_path, "first");
     insta::allow_duplicates! {
-    insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r###"
+    insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r#"
     @  branches{} desc:
-    ○  branches{first_branch second_branch} desc: first
+    ◌  branches{first_branch second_branch} desc: first
     ◆  branches{} desc:
-    "###);
+    "#);
     }
 }
 
@@ -319,23 +319,23 @@ fn test_new_advance_branches_interior() {
         &workspace_path,
         &["branch", "create", "-r", "@---", "test_branch"],
     );
-    insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r###"
+    insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r#"
     @  branches{} desc:
-    ○  branches{} desc: third
-    ○  branches{} desc: second
-    ○  branches{test_branch} desc: first
+    ◌  branches{} desc: third
+    ◌  branches{} desc: second
+    ◌  branches{test_branch} desc: first
     ◆  branches{} desc:
-    "###);
+    "#);
 
     test_env.jj_cmd_ok(&workspace_path, &["new", "-r", "@--"]);
-    insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r###"
+    insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r#"
     @  branches{} desc:
-    │ ○  branches{} desc: third
+    │ ◌  branches{} desc: third
     ├─╯
-    ○  branches{test_branch} desc: second
-    ○  branches{} desc: first
+    ◌  branches{test_branch} desc: second
+    ◌  branches{} desc: first
     ◆  branches{} desc:
-    "###);
+    "#);
 }
 
 // If the `--before` flag is passed to `jj new`, branches are not advanced.
@@ -361,22 +361,22 @@ fn test_new_advance_branches_before() {
         &workspace_path,
         &["branch", "create", "-r", "@---", "test_branch"],
     );
-    insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r###"
+    insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r#"
     @  branches{} desc:
-    ○  branches{} desc: third
-    ○  branches{} desc: second
-    ○  branches{test_branch} desc: first
+    ◌  branches{} desc: third
+    ◌  branches{} desc: second
+    ◌  branches{test_branch} desc: first
     ◆  branches{} desc:
-    "###);
+    "#);
 
     test_env.jj_cmd_ok(&workspace_path, &["new", "--before", "@-"]);
-    insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r###"
-    ○  branches{} desc: third
+    insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r#"
+    ◌  branches{} desc: third
     @  branches{} desc:
-    ○  branches{} desc: second
-    ○  branches{test_branch} desc: first
+    ◌  branches{} desc: second
+    ◌  branches{test_branch} desc: first
     ◆  branches{} desc:
-    "###);
+    "#);
 }
 
 // If the `--after` flag is passed to `jj new`, branches are not advanced.
@@ -400,11 +400,11 @@ fn test_new_advance_branches_after() {
 
     test_env.jj_cmd_ok(&workspace_path, &["describe", "-m", "first"]);
     test_env.jj_cmd_ok(&workspace_path, &["new", "--after", "@"]);
-    insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r###"
+    insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r#"
     @  branches{} desc:
-    ○  branches{} desc: first
+    ◌  branches{} desc: first
     ◆  branches{test_branch} desc:
-    "###);
+    "#);
 }
 
 #[test]
@@ -423,26 +423,26 @@ fn test_new_advance_branches_merge_children() {
     );
 
     // Check the initial state of the repo.
-    insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r###"
+    insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r#"
     @  branches{} desc: 2
-    │ ○  branches{} desc: 1
+    │ ◌  branches{} desc: 1
     ├─╯
-    ○  branches{test_branch} desc: 0
+    ◌  branches{test_branch} desc: 0
     ◆  branches{} desc:
-    "###);
+    "#);
 
     // The branch won't advance because `jj  new` had multiple targets.
     test_env.jj_cmd_ok(
         &workspace_path,
         &["new", "description(1)", "description(2)"],
     );
-    insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r###"
+    insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r#"
     @    branches{} desc:
     ├─╮
-    │ ○  branches{} desc: 2
-    ○ │  branches{} desc: 1
+    │ ◌  branches{} desc: 2
+    ◌ │  branches{} desc: 1
     ├─╯
-    ○  branches{test_branch} desc: 0
+    ◌  branches{test_branch} desc: 0
     ◆  branches{} desc:
-    "###);
+    "#);
 }

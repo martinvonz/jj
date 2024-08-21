@@ -34,22 +34,22 @@ fn test_checkout() {
     Working copy now at: zsuskuln c97da310 (empty) (no description set)
     Parent commit      : rlvkpnrz 9ed53a4a (empty) second
     "###);
-    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r#"
     @  c97da310c66008034013412d321397242e1e43ef
-    ○  9ed53a4a1becd028f9a2fe0d5275973acea7e8da second
-    ○  fa15625b4a986997697639dfc2844138900c79f2 first
+    ◌  9ed53a4a1becd028f9a2fe0d5275973acea7e8da second
+    ◌  fa15625b4a986997697639dfc2844138900c79f2 first
     ◆  0000000000000000000000000000000000000000
-    "###);
+    "#);
 
     // Can provide a description
     test_env.jj_cmd_ok(&repo_path, &["checkout", "@--", "-m", "my message"]);
-    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r#"
     @  6f9c4a002224fde4ebc48ce6ec03d5ffcfa64ad2 my message
-    │ ○  9ed53a4a1becd028f9a2fe0d5275973acea7e8da second
+    │ ◌  9ed53a4a1becd028f9a2fe0d5275973acea7e8da second
     ├─╯
-    ○  fa15625b4a986997697639dfc2844138900c79f2 first
+    ◌  fa15625b4a986997697639dfc2844138900c79f2 first
     ◆  0000000000000000000000000000000000000000
-    "###);
+    "#);
 }
 
 #[test]

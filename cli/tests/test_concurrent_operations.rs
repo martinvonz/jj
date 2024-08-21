@@ -52,12 +52,12 @@ fn test_concurrent_operation_divergence() {
 
     // We should be informed about the concurrent modification
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["log", "-T", "description"]);
-    insta::assert_snapshot!(stdout, @r###"
-    ○  message 2
+    insta::assert_snapshot!(stdout, @r#"
+    ◌  message 2
     │ @  message 1
     ├─╯
     ◆
-    "###);
+    "#);
     insta::assert_snapshot!(stderr, @r###"
     Concurrent modification detected, resolving automatically.
     "###);
@@ -95,11 +95,11 @@ fn test_concurrent_operations_auto_rebase() {
 
     // We should be informed about the concurrent modification
     let (stdout, stderr) = get_log_output_with_stderr(&test_env, &repo_path);
-    insta::assert_snapshot!(stdout, @r###"
-    ○  db141860e12c2d5591c56fde4fc99caf71cec418 new child
+    insta::assert_snapshot!(stdout, @r#"
+    ◌  db141860e12c2d5591c56fde4fc99caf71cec418 new child
     @  07c3641e495cce57ea4ca789123b52f421c57aa2 rewritten
     ◆  0000000000000000000000000000000000000000
-    "###);
+    "#);
     insta::assert_snapshot!(stderr, @r###"
     Concurrent modification detected, resolving automatically.
     Rebased 1 descendant commits onto commits rewritten by other operation
@@ -129,13 +129,13 @@ fn test_concurrent_operations_wc_modified() {
 
     // We should be informed about the concurrent modification
     let (stdout, stderr) = get_log_output_with_stderr(&test_env, &repo_path);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @r#"
     @  4eadcf3df11f46ef3d825c776496221cc8303053 new child1
-    │ ○  68119f1643b7e3c301c5f7c2b6c9bf4ccba87379 new child2
+    │ ◌  68119f1643b7e3c301c5f7c2b6c9bf4ccba87379 new child2
     ├─╯
     ○  2ff7ae858a3a11837fdf9d1a76be295ef53f1bb3 initial
     ◆  0000000000000000000000000000000000000000
-    "###);
+    "#);
     insta::assert_snapshot!(stderr, @r###"
     Concurrent modification detected, resolving automatically.
     "###);

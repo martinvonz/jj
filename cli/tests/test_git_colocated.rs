@@ -316,13 +316,13 @@ fn test_git_colocated_branches() {
     test_env.jj_cmd_ok(&workspace_root, &["git", "init", "--git-repo", "."]);
     test_env.jj_cmd_ok(&workspace_root, &["new", "-m", "foo"]);
     test_env.jj_cmd_ok(&workspace_root, &["new", "@-", "-m", "bar"]);
-    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r#"
     @  3560559274ab431feea00b7b7e0b9250ecce951f bar
-    │ ○  1e6f0b403ed2ff9713b5d6b1dc601e4804250cda foo
+    │ ◌  1e6f0b403ed2ff9713b5d6b1dc601e4804250cda foo
     ├─╯
-    ○  230dd059e1b059aefc0da06a2e5a7dbf22362f22 HEAD@git
+    ◌  230dd059e1b059aefc0da06a2e5a7dbf22362f22 HEAD@git
     ◆  0000000000000000000000000000000000000000
-    "###);
+    "#);
 
     // Create a branch in jj. It should be exported to Git even though it points to
     // the working- copy commit.
@@ -350,13 +350,13 @@ fn test_git_colocated_branches() {
         )
         .unwrap();
     let (stdout, stderr) = get_log_output_with_stderr(&test_env, &workspace_root);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @r#"
     @  096dc80da67094fbaa6683e2a205dddffa31f9a8
-    │ ○  1e6f0b403ed2ff9713b5d6b1dc601e4804250cda master foo
+    │ ◌  1e6f0b403ed2ff9713b5d6b1dc601e4804250cda master foo
     ├─╯
-    ○  230dd059e1b059aefc0da06a2e5a7dbf22362f22 HEAD@git
+    ◌  230dd059e1b059aefc0da06a2e5a7dbf22362f22 HEAD@git
     ◆  0000000000000000000000000000000000000000
-    "###);
+    "#);
     insta::assert_snapshot!(stderr, @r###"
     Abandoned 1 commits that are no longer reachable.
     Working copy now at: yqosqzyt 096dc80d (empty) (no description set)
@@ -373,11 +373,11 @@ fn test_git_colocated_branch_forget() {
     test_env.jj_cmd_ok(&workspace_root, &["git", "init", "--git-repo", "."]);
     test_env.jj_cmd_ok(&workspace_root, &["new"]);
     test_env.jj_cmd_ok(&workspace_root, &["branch", "create", "foo"]);
-    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r#"
     @  65b6b74e08973b88d38404430f119c8c79465250 foo
-    ○  230dd059e1b059aefc0da06a2e5a7dbf22362f22 HEAD@git
+    ◌  230dd059e1b059aefc0da06a2e5a7dbf22362f22 HEAD@git
     ◆  0000000000000000000000000000000000000000
-    "###);
+    "#);
     insta::assert_snapshot!(get_branch_output(&test_env, &workspace_root), @r###"
     foo: rlvkpnrz 65b6b74e (empty) (no description set)
       @git: rlvkpnrz 65b6b74e (empty) (no description set)
@@ -524,15 +524,15 @@ fn test_git_colocated_fetch_deleted_or_moved_branch() {
     git2::Repository::clone(origin_path.to_str().unwrap(), &clone_path).unwrap();
     test_env.jj_cmd_ok(&clone_path, &["git", "init", "--git-repo=."]);
     test_env.jj_cmd_ok(&clone_path, &["new", "A"]);
-    insta::assert_snapshot!(get_log_output(&test_env, &clone_path), @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &clone_path), @r#"
     @  9c2de797c3c299a40173c5af724329012b77cbdd
-    │ ○  4a191a9013d3f3398ccf5e172792a61439dbcf3a C_to_move original C
+    │ ◌  4a191a9013d3f3398ccf5e172792a61439dbcf3a C_to_move original C
     ├─╯
-    │ ○  c49ec4fb50844d0e693f1609da970b11878772ee B_to_delete B_to_delete
+    │ ◌  c49ec4fb50844d0e693f1609da970b11878772ee B_to_delete B_to_delete
     ├─╯
     ◆  a7e4cec4256b7995129b9d1e1bda7e1df6e60678 A HEAD@git A
     ◆  0000000000000000000000000000000000000000
-    "###);
+    "#);
 
     test_env.jj_cmd_ok(&origin_path, &["branch", "delete", "B_to_delete"]);
     // Move branch C sideways
@@ -546,13 +546,13 @@ fn test_git_colocated_fetch_deleted_or_moved_branch() {
     "###);
     // "original C" and "B_to_delete" are abandoned, as the corresponding branches
     // were deleted or moved on the remote (#864)
-    insta::assert_snapshot!(get_log_output(&test_env, &clone_path), @r###"
-    ○  4f3d13296f978cbc351c46a43b4619c91b888475 C_to_move moved C
+    insta::assert_snapshot!(get_log_output(&test_env, &clone_path), @r#"
+    ◌  4f3d13296f978cbc351c46a43b4619c91b888475 C_to_move moved C
     │ @  9c2de797c3c299a40173c5af724329012b77cbdd
     ├─╯
     ◆  a7e4cec4256b7995129b9d1e1bda7e1df6e60678 A HEAD@git A
     ◆  0000000000000000000000000000000000000000
-    "###);
+    "#);
 }
 
 #[test]
@@ -621,13 +621,13 @@ fn test_git_colocated_external_checkout() {
     test_env.jj_cmd_ok(&repo_path, &["new"]);
 
     // Checked out anonymous branch
-    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r#"
     @  f8a23336e41840ed1757ef323402a770427dc89a
-    ○  eccedddfa5152d99fc8ddd1081b375387a8a382a HEAD@git B
-    │ ○  a7e4cec4256b7995129b9d1e1bda7e1df6e60678 master A
+    ◌  eccedddfa5152d99fc8ddd1081b375387a8a382a HEAD@git B
+    │ ◌  a7e4cec4256b7995129b9d1e1bda7e1df6e60678 master A
     ├─╯
     ◆  0000000000000000000000000000000000000000
-    "###);
+    "#);
 
     // Check out another branch by external command
     git_check_out_ref("refs/heads/master");
@@ -635,13 +635,13 @@ fn test_git_colocated_external_checkout() {
     // The old working-copy commit gets abandoned, but the whole branch should not
     // be abandoned. (#1042)
     let (stdout, stderr) = get_log_output_with_stderr(&test_env, &repo_path);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @r#"
     @  8bb9e8d42a37c2a4e8dcfad97fce0b8f49bc7afa
-    ○  a7e4cec4256b7995129b9d1e1bda7e1df6e60678 master HEAD@git A
-    │ ○  eccedddfa5152d99fc8ddd1081b375387a8a382a B
+    ◌  a7e4cec4256b7995129b9d1e1bda7e1df6e60678 master HEAD@git A
+    │ ◌  eccedddfa5152d99fc8ddd1081b375387a8a382a B
     ├─╯
     ◆  0000000000000000000000000000000000000000
-    "###);
+    "#);
     insta::assert_snapshot!(stderr, @r###"
     Reset the working copy parent to the new Git HEAD.
     "###);
@@ -649,29 +649,29 @@ fn test_git_colocated_external_checkout() {
     // Edit non-head commit
     test_env.jj_cmd_ok(&repo_path, &["new", "description(B)"]);
     test_env.jj_cmd_ok(&repo_path, &["new", "-m=C", "--no-edit"]);
-    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    ○  99a813753d6db988d8fc436b0d6b30a54d6b2707 C
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r#"
+    ◌  99a813753d6db988d8fc436b0d6b30a54d6b2707 C
     @  81e086b7f9b1dd7fde252e28bdcf4ba4abd86ce5
-    ○  eccedddfa5152d99fc8ddd1081b375387a8a382a HEAD@git B
-    │ ○  a7e4cec4256b7995129b9d1e1bda7e1df6e60678 master A
+    ◌  eccedddfa5152d99fc8ddd1081b375387a8a382a HEAD@git B
+    │ ◌  a7e4cec4256b7995129b9d1e1bda7e1df6e60678 master A
     ├─╯
     ◆  0000000000000000000000000000000000000000
-    "###);
+    "#);
 
     // Check out another branch by external command
     git_check_out_ref("refs/heads/master");
 
     // The old working-copy commit shouldn't be abandoned. (#3747)
     let (stdout, stderr) = get_log_output_with_stderr(&test_env, &repo_path);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @r#"
     @  ca2a4e32f08688c6fb795c4c034a0a7e09c0d804
-    ○  a7e4cec4256b7995129b9d1e1bda7e1df6e60678 master HEAD@git A
-    │ ○  99a813753d6db988d8fc436b0d6b30a54d6b2707 C
-    │ ○  81e086b7f9b1dd7fde252e28bdcf4ba4abd86ce5
-    │ ○  eccedddfa5152d99fc8ddd1081b375387a8a382a B
+    ◌  a7e4cec4256b7995129b9d1e1bda7e1df6e60678 master HEAD@git A
+    │ ◌  99a813753d6db988d8fc436b0d6b30a54d6b2707 C
+    │ ◌  81e086b7f9b1dd7fde252e28bdcf4ba4abd86ce5
+    │ ◌  eccedddfa5152d99fc8ddd1081b375387a8a382a B
     ├─╯
     ◆  0000000000000000000000000000000000000000
-    "###);
+    "#);
     insta::assert_snapshot!(stderr, @r###"
     Reset the working copy parent to the new Git HEAD.
     "###);
@@ -685,26 +685,26 @@ fn test_git_colocated_squash_undo() {
     test_env.jj_cmd_ok(&repo_path, &["git", "init", "--git-repo=."]);
     test_env.jj_cmd_ok(&repo_path, &["ci", "-m=A"]);
     // Test the setup
-    insta::assert_snapshot!(get_log_output_divergence(&test_env, &repo_path), @r###"
+    insta::assert_snapshot!(get_log_output_divergence(&test_env, &repo_path), @r#"
     @  rlvkpnrzqnoo 9670380ac379
-    ○  qpvuntsmwlqt a7e4cec4256b A HEAD@git
+    ◌  qpvuntsmwlqt a7e4cec4256b A HEAD@git
     ◆  zzzzzzzzzzzz 000000000000
-    "###);
+    "#);
 
     test_env.jj_cmd_ok(&repo_path, &["squash"]);
-    insta::assert_snapshot!(get_log_output_divergence(&test_env, &repo_path), @r###"
+    insta::assert_snapshot!(get_log_output_divergence(&test_env, &repo_path), @r#"
     @  zsuskulnrvyr 6ee662324e5a
-    ○  qpvuntsmwlqt 13ab6b96d82e A HEAD@git
+    ◌  qpvuntsmwlqt 13ab6b96d82e A HEAD@git
     ◆  zzzzzzzzzzzz 000000000000
-    "###);
+    "#);
     test_env.jj_cmd_ok(&repo_path, &["undo"]);
     // TODO: There should be no divergence here; 2f376ea1478c should be hidden
     // (#922)
-    insta::assert_snapshot!(get_log_output_divergence(&test_env, &repo_path), @r###"
+    insta::assert_snapshot!(get_log_output_divergence(&test_env, &repo_path), @r#"
     @  rlvkpnrzqnoo 9670380ac379
-    ○  qpvuntsmwlqt a7e4cec4256b A HEAD@git
+    ◌  qpvuntsmwlqt a7e4cec4256b A HEAD@git
     ◆  zzzzzzzzzzzz 000000000000
-    "###);
+    "#);
 }
 
 #[test]
@@ -719,11 +719,11 @@ fn test_git_colocated_undo_head_move() {
     insta::assert_snapshot!(
         git_repo.head().unwrap().target().unwrap().to_string(),
         @"230dd059e1b059aefc0da06a2e5a7dbf22362f22");
-    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r#"
     @  65b6b74e08973b88d38404430f119c8c79465250
-    ○  230dd059e1b059aefc0da06a2e5a7dbf22362f22 HEAD@git
+    ◌  230dd059e1b059aefc0da06a2e5a7dbf22362f22 HEAD@git
     ◆  0000000000000000000000000000000000000000
-    "###);
+    "#);
 
     // HEAD should be unset
     test_env.jj_cmd_ok(&repo_path, &["undo"]);
@@ -736,12 +736,12 @@ fn test_git_colocated_undo_head_move() {
     // Create commit on non-root commit
     test_env.jj_cmd_ok(&repo_path, &["new"]);
     test_env.jj_cmd_ok(&repo_path, &["new"]);
-    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r#"
     @  69b19f73cf584f162f078fb0d91c55ca39d10bc7
-    ○  eb08b363bb5ef8ee549314260488980d7bbe8f63 HEAD@git
-    ○  230dd059e1b059aefc0da06a2e5a7dbf22362f22
+    ◌  eb08b363bb5ef8ee549314260488980d7bbe8f63 HEAD@git
+    ◌  230dd059e1b059aefc0da06a2e5a7dbf22362f22
     ◆  0000000000000000000000000000000000000000
-    "###);
+    "#);
     insta::assert_snapshot!(
         git_repo.head().unwrap().target().unwrap().to_string(),
         @"eb08b363bb5ef8ee549314260488980d7bbe8f63");
@@ -756,11 +756,11 @@ fn test_git_colocated_undo_head_move() {
     insta::assert_snapshot!(
         git_repo.head().unwrap().target().unwrap().to_string(),
         @"230dd059e1b059aefc0da06a2e5a7dbf22362f22");
-    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r#"
     @  eb08b363bb5ef8ee549314260488980d7bbe8f63
-    ○  230dd059e1b059aefc0da06a2e5a7dbf22362f22 HEAD@git
+    ◌  230dd059e1b059aefc0da06a2e5a7dbf22362f22 HEAD@git
     ◆  0000000000000000000000000000000000000000
-    "###);
+    "#);
 }
 
 fn get_log_output_divergence(test_env: &TestEnvironment, repo_path: &Path) -> String {
@@ -845,11 +845,11 @@ fn test_git_colocated_unreachable_commits() {
 
     // Import the repo while there is no path to the second commit
     test_env.jj_cmd_ok(&workspace_root, &["git", "init", "--git-repo", "."]);
-    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r#"
     @  66ae47cee4f8c28ee8d7e4f5d9401b03c07e22f2
-    ○  2ee37513d2b5e549f7478c671a780053614bff19 master HEAD@git initial
+    ◌  2ee37513d2b5e549f7478c671a780053614bff19 master HEAD@git initial
     ◆  0000000000000000000000000000000000000000
-    "###);
+    "#);
     insta::assert_snapshot!(
         git_repo.head().unwrap().peel_to_commit().unwrap().id().to_string(),
         @"2ee37513d2b5e549f7478c671a780053614bff19"

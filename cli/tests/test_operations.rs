@@ -677,15 +677,15 @@ fn test_op_recover_from_bad_gc() {
 
     // The repo should no longer be corrupt.
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["log"]);
-    insta::assert_snapshot!(stdout, @r###"
-    ○  mzvwutvl?? test.user@example.com 2001-02-03 08:05:15 dc2c6d52
+    insta::assert_snapshot!(stdout, @r#"
+    ◌  mzvwutvl?? test.user@example.com 2001-02-03 08:05:15 dc2c6d52
     │  (empty) 4.1
     │ @  mzvwutvl?? test.user@example.com 2001-02-03 08:05:12 6d868f04
     ├─╯  (empty) 4
-    ○  zsuskuln test.user@example.com 2001-02-03 08:05:10 HEAD@git f652c321
+    ◌  zsuskuln test.user@example.com 2001-02-03 08:05:10 HEAD@git f652c321
     │  (empty) (no description set)
     ◆  zzzzzzzz root() 00000000
-    "###);
+    "#);
     insta::assert_snapshot!(stderr, @r###"
     Concurrent modification detected, resolving automatically.
     "###);

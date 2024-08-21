@@ -765,11 +765,11 @@ fn test_log_reversed() {
     test_env.jj_cmd_ok(&repo_path, &["new", "-m", "second"]);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "description", "--reversed"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @r#"
     ◆
-    ○  first
+    ◌  first
     @  second
-    "###);
+    "#);
 
     let stdout = test_env.jj_cmd_success(
         &repo_path,
@@ -1105,27 +1105,27 @@ fn test_multiple_revsets() {
 
     insta::assert_snapshot!(
         test_env.jj_cmd_success(&repo_path, &["log", "-T", "branches", "-rfoo"]),
-        @r###"
-    ○  foo
+        @r#"
+    ◌  foo
     │
     ~
-    "###);
+    "#);
     insta::assert_snapshot!(
         test_env.jj_cmd_success(&repo_path, &["log", "-T", "branches", "-rfoo", "-rbar", "-rbaz"]),
-        @r###"
+        @r#"
     @  baz
-    ○  bar
-    ○  foo
+    ◌  bar
+    ◌  foo
     │
     ~
-    "###);
+    "#);
     insta::assert_snapshot!(
         test_env.jj_cmd_success(&repo_path, &["log", "-T", "branches", "-rfoo", "-rfoo"]),
-        @r###"
-    ○  foo
+        @r#"
+    ◌  foo
     │
     ~
-    "###);
+    "#);
 }
 
 #[test]
@@ -1151,29 +1151,29 @@ fn test_graph_template_color() {
     // First test without color for comparison
     let template = r#"label(if(current_working_copy, "working_copy"), description)"#;
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", template]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @r#"
     @  single line
-    ○  first line
+    ◌  first line
     │  second line
     │  third line
     ◆
-    "###);
+    "#);
     let stdout = test_env.jj_cmd_success(&repo_path, &["--color=always", "log", "-T", template]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @r#"
     [1m[38;5;2m@[0m  [1m[38;5;2msingle line[0m
-    ○  [38;5;1mfirst line[39m
+    ◌  [38;5;1mfirst line[39m
     │  [38;5;1msecond line[39m
     │  [38;5;1mthird line[39m
     [1m[38;5;14m◆[0m
-    "###);
+    "#);
     let stdout = test_env.jj_cmd_success(&repo_path, &["--color=debug", "log", "-T", template]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @r#"
     [1m[38;5;2m<<node working_copy::@>>[0m  [1m[38;5;2m<<log working_copy description::single line>>[0m
-    <<node::○>>  [38;5;1m<<log description::first line>>[39m
+    <<node::◌>>  [38;5;1m<<log description::first line>>[39m
     │  [38;5;1m<<log description::second line>>[39m
     │  [38;5;1m<<log description::third line>>[39m
     [1m[38;5;14m<<node immutable::◆>>[0m
-    "###);
+    "#);
 }
 
 #[test]
@@ -1197,19 +1197,19 @@ fn test_graph_styles() {
 
     // Default (curved) style
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T=description"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @r#"
     @    merge
     ├─╮
-    │ ○  side branch
+    │ ◌  side branch
     │ │  with
     │ │  long
     │ │  description
-    │ ○  main branch 2
+    │ ◌  main branch 2
     ├─╯
-    ○  main branch 1
-    ○  initial
+    ◌  main branch 1
+    ◌  initial
     ◆
-    "###);
+    "#);
 
     // ASCII style
     test_env.add_config(r#"ui.graph.style = "ascii""#);
@@ -1250,36 +1250,36 @@ fn test_graph_styles() {
     // Curved style
     test_env.add_config(r#"ui.graph.style = "curved""#);
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T=description"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @r#"
     @    merge
     ├─╮
-    │ ○  side branch
+    │ ◌  side branch
     │ │  with
     │ │  long
     │ │  description
-    │ ○  main branch 2
+    │ ◌  main branch 2
     ├─╯
-    ○  main branch 1
-    ○  initial
+    ◌  main branch 1
+    ◌  initial
     ◆
-    "###);
+    "#);
 
     // Square style
     test_env.add_config(r#"ui.graph.style = "square""#);
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T=description"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @r#"
     @    merge
     ├─┐
-    │ ○  side branch
+    │ ◌  side branch
     │ │  with
     │ │  long
     │ │  description
-    │ ○  main branch 2
+    │ ◌  main branch 2
     ├─┘
-    ○  main branch 1
-    ○  initial
+    ◌  main branch 1
+    ◌  initial
     ◆
-    "###);
+    "#);
 }
 
 #[test]
@@ -1336,26 +1336,26 @@ fn test_log_word_wrap() {
 
     // Graph width should be subtracted from the term width
     let template = r#""0 1 2 3 4 5 6 7 8 9""#;
-    insta::assert_snapshot!(render(&["log", "-T", template], 10, true), @r###"
+    insta::assert_snapshot!(render(&["log", "-T", template], 10, true), @r#"
     @    0 1 2
     ├─╮  3 4 5
     │ │  6 7 8
     │ │  9
-    │ ○  0 1 2
+    │ ◌  0 1 2
     │ │  3 4 5
     │ │  6 7 8
     │ │  9
-    │ ○  0 1 2
+    │ ◌  0 1 2
     ├─╯  3 4 5
     │    6 7 8
     │    9
-    ○  0 1 2 3
+    ◌  0 1 2 3
     │  4 5 6 7
     │  8 9
     ◆  0 1 2 3
        4 5 6 7
        8 9
-    "###);
+    "#);
 
     // Shouldn't panic with $COLUMNS < graph_width
     insta::assert_snapshot!(render(&["log", "-r@"], 0, true), @r###"
@@ -1450,78 +1450,78 @@ fn test_elided() {
     };
 
     // Test the setup
-    insta::assert_snapshot!(get_log("::"), @r###"
+    insta::assert_snapshot!(get_log("::"), @r#"
     @    merge
     ├─╮
-    │ ○  side branch 2
+    │ ◌  side branch 2
     │ │
-    │ ○  side branch 1
+    │ ◌  side branch 1
     │ │
-    ○ │  main branch 2
+    ◌ │  main branch 2
     │ │
-    ○ │  main branch 1
+    ◌ │  main branch 1
     ├─╯
-    ○  initial
+    ◌  initial
     │
     ◆
-    "###);
+    "#);
 
     // Elide some commits from each side of the merge. It's unclear that a revision
     // was skipped on the left side.
     test_env.add_config("ui.log-synthetic-elided-nodes = false");
-    insta::assert_snapshot!(get_log("@ | @- | description(initial)"), @r###"
+    insta::assert_snapshot!(get_log("@ | @- | description(initial)"), @r#"
     @    merge
     ├─╮
-    │ ○  side branch 2
+    │ ◌  side branch 2
     │ ╷
-    ○ ╷  main branch 2
+    ◌ ╷  main branch 2
     ├─╯
-    ○  initial
+    ◌  initial
     │
     ~
-    "###);
+    "#);
 
     // Elide shared commits. It's unclear that a revision was skipped on the right
     // side (#1252).
-    insta::assert_snapshot!(get_log("@-- | root()"), @r###"
-    ○  side branch 1
+    insta::assert_snapshot!(get_log("@-- | root()"), @r#"
+    ◌  side branch 1
     ╷
-    ╷ ○  main branch 1
+    ╷ ◌  main branch 1
     ╭─╯
     ◆
-    "###);
+    "#);
 
     // Now test the same thing with synthetic nodes for elided commits
 
     // Elide some commits from each side of the merge
     test_env.add_config("ui.log-synthetic-elided-nodes = true");
-    insta::assert_snapshot!(get_log("@ | @- | description(initial)"), @r###"
+    insta::assert_snapshot!(get_log("@ | @- | description(initial)"), @r#"
     @    merge
     ├─╮
-    │ ○  side branch 2
+    │ ◌  side branch 2
     │ │
     │ ~  (elided revisions)
-    ○ │  main branch 2
+    ◌ │  main branch 2
     │ │
     ~ │  (elided revisions)
     ├─╯
-    ○  initial
+    ◌  initial
     │
     ~
-    "###);
+    "#);
 
     // Elide shared commits. To keep the implementation simple, it still gets
     // rendered as two synthetic nodes.
-    insta::assert_snapshot!(get_log("@-- | root()"), @r###"
-    ○  side branch 1
+    insta::assert_snapshot!(get_log("@-- | root()"), @r#"
+    ◌  side branch 1
     │
     ~  (elided revisions)
-    │ ○  main branch 1
+    │ ◌  main branch 1
     │ │
     │ ~  (elided revisions)
     ├─╯
     ◆
-    "###);
+    "#);
 }
 
 #[test]

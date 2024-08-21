@@ -188,12 +188,12 @@ fn test_describe_multiple_commits() {
     // Initial setup
     test_env.jj_cmd_ok(&repo_path, &["new"]);
     test_env.jj_cmd_ok(&repo_path, &["new"]);
-    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r#"
     @  c6349e79bbfd
-    ○  65b6b74e0897
-    ○  230dd059e1b0
+    ◌  65b6b74e0897
+    ◌  230dd059e1b0
     ◆  000000000000
-    "###);
+    "#);
 
     // Set the description of multiple commits using `-m` flag
     let (stdout, stderr) = test_env.jj_cmd_ok(
@@ -207,12 +207,12 @@ fn test_describe_multiple_commits() {
     Working copy now at: kkmpptxz 41659b84 (empty) description from CLI
     Parent commit      : rlvkpnrz 8d650510 (empty) (no description set)
     "###);
-    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r#"
     @  41659b846096 description from CLI
-    ○  8d650510daad
-    ○  a42f5755e688 description from CLI
+    ◌  8d650510daad
+    ◌  a42f5755e688 description from CLI
     ◆  000000000000
-    "###);
+    "#);
 
     // Check that the text file gets initialized with the current description of
     // each commit and doesn't update commits if no changes are made.
@@ -268,16 +268,16 @@ fn test_describe_multiple_commits() {
     Working copy now at: kkmpptxz f203494a (empty) description from editor of @
     Parent commit      : rlvkpnrz 0d76a92c (empty) description from editor of @-
     "###);
-    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r#"
     @  f203494a4507 description from editor of @
     │
     │  further commit message of @
-    ○  0d76a92ca7cc description from editor of @-
+    ◌  0d76a92ca7cc description from editor of @-
     │
     │  further commit message of @-
-    ○  a42f5755e688 description from CLI
+    ◌  a42f5755e688 description from CLI
     ◆  000000000000
-    "###);
+    "#);
 
     // Fails if the edited message has a commit with multiple descriptions
     std::fs::write(
@@ -513,17 +513,17 @@ fn test_describe_author() {
     test_env.jj_cmd_ok(&repo_path, &["new"]);
     test_env.jj_cmd_ok(&repo_path, &["new"]);
     test_env.jj_cmd_ok(&repo_path, &["new"]);
-    insta::assert_snapshot!(get_signatures(), @r###"
+    insta::assert_snapshot!(get_signatures(), @r#"
     @  Test User test.user@example.com 2001-02-03 04:05:10.000 +07:00
     │  Test User test.user@example.com 2001-02-03 04:05:10.000 +07:00
-    ○  Test User test.user@example.com 2001-02-03 04:05:09.000 +07:00
+    ◌  Test User test.user@example.com 2001-02-03 04:05:09.000 +07:00
     │  Test User test.user@example.com 2001-02-03 04:05:09.000 +07:00
-    ○  Test User test.user@example.com 2001-02-03 04:05:08.000 +07:00
+    ◌  Test User test.user@example.com 2001-02-03 04:05:08.000 +07:00
     │  Test User test.user@example.com 2001-02-03 04:05:08.000 +07:00
-    ○  Test User test.user@example.com 2001-02-03 04:05:07.000 +07:00
+    ◌  Test User test.user@example.com 2001-02-03 04:05:07.000 +07:00
     │  Test User test.user@example.com 2001-02-03 04:05:07.000 +07:00
     ~
-    "###);
+    "#);
 
     // Reset the author for the latest commit (the committer is always reset)
     test_env.jj_cmd_ok(
@@ -537,17 +537,17 @@ fn test_describe_author() {
             "--reset-author",
         ],
     );
-    insta::assert_snapshot!(get_signatures(), @r###"
+    insta::assert_snapshot!(get_signatures(), @r#"
     @  Ove Ridder ove.ridder@example.com 2001-02-03 04:05:12.000 +07:00
     │  Ove Ridder ove.ridder@example.com 2001-02-03 04:05:12.000 +07:00
-    ○  Test User test.user@example.com 2001-02-03 04:05:09.000 +07:00
+    ◌  Test User test.user@example.com 2001-02-03 04:05:09.000 +07:00
     │  Test User test.user@example.com 2001-02-03 04:05:09.000 +07:00
-    ○  Test User test.user@example.com 2001-02-03 04:05:08.000 +07:00
+    ◌  Test User test.user@example.com 2001-02-03 04:05:08.000 +07:00
     │  Test User test.user@example.com 2001-02-03 04:05:08.000 +07:00
-    ○  Test User test.user@example.com 2001-02-03 04:05:07.000 +07:00
+    ◌  Test User test.user@example.com 2001-02-03 04:05:07.000 +07:00
     │  Test User test.user@example.com 2001-02-03 04:05:07.000 +07:00
     ~
-    "###);
+    "#);
 
     // Reset the author for multiple commits (the committer is always reset)
     test_env.jj_cmd_ok(
@@ -563,17 +563,17 @@ fn test_describe_author() {
             "--reset-author",
         ],
     );
-    insta::assert_snapshot!(get_signatures(), @r###"
+    insta::assert_snapshot!(get_signatures(), @r#"
     @  Ove Ridder ove.ridder@example.com 2001-02-03 04:05:14.000 +07:00
     │  Ove Ridder ove.ridder@example.com 2001-02-03 04:05:14.000 +07:00
-    ○  Ove Ridder ove.ridder@example.com 2001-02-03 04:05:14.000 +07:00
+    ◌  Ove Ridder ove.ridder@example.com 2001-02-03 04:05:14.000 +07:00
     │  Ove Ridder ove.ridder@example.com 2001-02-03 04:05:14.000 +07:00
-    ○  Test User test.user@example.com 2001-02-03 04:05:08.000 +07:00
+    ◌  Test User test.user@example.com 2001-02-03 04:05:08.000 +07:00
     │  Ove Ridder ove.ridder@example.com 2001-02-03 04:05:14.000 +07:00
-    ○  Ove Ridder ove.ridder@example.com 2001-02-03 04:05:14.000 +07:00
+    ◌  Ove Ridder ove.ridder@example.com 2001-02-03 04:05:14.000 +07:00
     │  Ove Ridder ove.ridder@example.com 2001-02-03 04:05:14.000 +07:00
     ~
-    "###);
+    "#);
 }
 
 #[test]

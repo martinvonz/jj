@@ -231,9 +231,9 @@ fn test_git_remote_named_git() {
     "###);
     // @git branch shouldn't be removed.
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-rmain@git", "-Tbranches"]);
-    insta::assert_snapshot!(stdout, @r###"
-    ○  main
+    insta::assert_snapshot!(stdout, @r#"
+    ◌  main
     │
     ~
-    "###);
+    "#);
 }

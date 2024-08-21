@@ -485,11 +485,11 @@ fn test_init_git_external_but_git_dir_exists() {
     // Check that Git HEAD is not set because this isn't a colocated repo
     test_env.jj_cmd_ok(&workspace_root, &["new"]);
     let stdout = test_env.jj_cmd_success(&workspace_root, &["log", "-r", "@-"]);
-    insta::assert_snapshot!(stdout, @r###"
-    ○  qpvuntsm test.user@example.com 2001-02-03 08:05:07 230dd059
+    insta::assert_snapshot!(stdout, @r#"
+    ◌  qpvuntsm test.user@example.com 2001-02-03 08:05:07 230dd059
     │  (empty) (no description set)
     ~
-    "###);
+    "#);
 }
 
 #[test]

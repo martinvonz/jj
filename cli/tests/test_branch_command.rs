@@ -40,11 +40,11 @@ fn test_branch_multiple_names() {
     Moved 2 branches to zsuskuln 8bb159bc bar foo | (empty) (no description set)
     Hint: Use -r to specify the target revision.
     "###);
-    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r#"
     @  bar foo 8bb159bc30a9
-    ○   230dd059e1b0
+    ◌   230dd059e1b0
     ◆   000000000000
-    "###);
+    "#);
 
     let (stdout, stderr) =
         test_env.jj_cmd_ok(&repo_path, &["branch", "delete", "foo", "bar", "foo"]);
@@ -52,11 +52,11 @@ fn test_branch_multiple_names() {
     insta::assert_snapshot!(stderr, @r###"
     Deleted 2 branches.
     "###);
-    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r#"
     @   8bb159bc30a9
-    ○   230dd059e1b0
+    ◌   230dd059e1b0
     ◆   000000000000
-    "###);
+    "#);
 
     // Hint should be omitted if -r is specified
     let (_stdout, stderr) =
@@ -245,15 +245,15 @@ fn test_branch_move_matching() {
     test_env.jj_cmd_ok(&repo_path, &["new"]);
     test_env.jj_cmd_ok(&repo_path, &["branch", "create", "c1"]);
     test_env.jj_cmd_ok(&repo_path, &["new", "-mhead2"]);
-    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r#"
     @   a2781dd9ee37
-    ○  c1 f4f38657a3dd
-    ○  b1 f652c32197cf
-    │ ○   6b5e840ea72b
-    │ ○  a1 a2 230dd059e1b0
+    ◌  c1 f4f38657a3dd
+    ◌  b1 f652c32197cf
+    │ ◌   6b5e840ea72b
+    │ ◌  a1 a2 230dd059e1b0
     ├─╯
     ◆   000000000000
-    "###);
+    "#);
 
     // The default could be considered "--from=all() glob:*", but is disabled
     let stderr = test_env.jj_cmd_cli_error(&repo_path, &["branch", "move"]);
@@ -290,15 +290,15 @@ fn test_branch_move_matching() {
     Moved 2 branches to vruxwmqv a2781dd9 b1 c1 | (empty) head2
     Hint: Specify branch by name to update just one of the branches.
     "###);
-    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r#"
     @  b1 c1 a2781dd9ee37
-    ○   f4f38657a3dd
-    ○   f652c32197cf
-    │ ○   6b5e840ea72b
-    │ ○  a1 a2 230dd059e1b0
+    ◌   f4f38657a3dd
+    ◌   f652c32197cf
+    │ ◌   6b5e840ea72b
+    │ ◌  a1 a2 230dd059e1b0
     ├─╯
     ◆   000000000000
-    "###);
+    "#);
     test_env.jj_cmd_ok(&repo_path, &["undo"]);
 
     // Try to move multiple branches, but one of them isn't fast-forward
@@ -307,15 +307,15 @@ fn test_branch_move_matching() {
     Error: Refusing to move branch backwards or sideways: a1
     Hint: Use --allow-backwards to allow it.
     "###);
-    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r#"
     @   a2781dd9ee37
-    ○  c1 f4f38657a3dd
-    ○  b1 f652c32197cf
-    │ ○   6b5e840ea72b
-    │ ○  a1 a2 230dd059e1b0
+    ◌  c1 f4f38657a3dd
+    ◌  b1 f652c32197cf
+    │ ◌   6b5e840ea72b
+    │ ◌  a1 a2 230dd059e1b0
     ├─╯
     ◆   000000000000
-    "###);
+    "#);
 
     // Select by revision and name
     let (_stdout, stderr) = test_env.jj_cmd_ok(
@@ -325,15 +325,15 @@ fn test_branch_move_matching() {
     insta::assert_snapshot!(stderr, @r###"
     Moved 1 branches to kkmpptxz 6b5e840e a1 | (empty) head1
     "###);
-    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r#"
     @   a2781dd9ee37
-    ○  c1 f4f38657a3dd
-    ○  b1 f652c32197cf
-    │ ○  a1 6b5e840ea72b
-    │ ○  a2 230dd059e1b0
+    ◌  c1 f4f38657a3dd
+    ◌  b1 f652c32197cf
+    │ ◌  a1 6b5e840ea72b
+    │ ◌  a2 230dd059e1b0
     ├─╯
     ◆   000000000000
-    "###);
+    "#);
 }
 
 #[test]
@@ -361,15 +361,15 @@ fn test_branch_move_conflicting() {
         &repo_path,
         &["branch", "create", "--at-op=@-", "-rdescription(B0)", "foo"],
     );
-    insta::assert_snapshot!(get_log(), @r###"
+    insta::assert_snapshot!(get_log(), @r#"
     @  A1
-    ○  A0 foo??
-    │ ○  C0
+    ◌  A0 foo??
+    │ ◌  C0
     ├─╯
-    │ ○  B0 foo??
+    │ ◌  B0 foo??
     ├─╯
     ◆
-    "###);
+    "#);
 
     // Can't move the branch to C0 since it's sibling.
     let stderr =
@@ -386,15 +386,15 @@ fn test_branch_move_conflicting() {
     insta::assert_snapshot!(stderr, @r###"
     Moved 1 branches to mzvwutvl 9328d344 foo | (empty) A1
     "###);
-    insta::assert_snapshot!(get_log(), @r###"
+    insta::assert_snapshot!(get_log(), @r#"
     @  A1 foo
-    ○  A0
-    │ ○  C0
+    ◌  A0
+    │ ◌  C0
     ├─╯
-    │ ○  B0
+    │ ◌  B0
     ├─╯
     ◆
-    "###);
+    "#);
 }
 
 #[test]
@@ -1433,18 +1433,18 @@ fn test_branch_list_filtered() {
             &local_path,
             &["log", "-r::(branches() | remote_branches())", "-T", template],
         ),
-        @r###"
-    ○  e31634b64294 remote-rewrite*
+        @r#"
+    ◌  e31634b64294 remote-rewrite*
     │ @  c7b4c09cd77c local-keep
     ├─╯
-    │ ○  3e9a5af6ef15 remote-rewrite@origin (hidden)
+    │ ◌  3e9a5af6ef15 remote-rewrite@origin (hidden)
     ├─╯
-    │ ○  dad5f298ca57 remote-delete@origin
+    │ ◌  dad5f298ca57 remote-delete@origin
     ├─╯
-    │ ○  911e912015fb remote-keep
+    │ ◌  911e912015fb remote-keep
     ├─╯
     ◆  000000000000
-    "###);
+    "#);
 
     // All branches are listed by default.
     let (stdout, stderr) = test_env.jj_cmd_ok(&local_path, &["branch", "list"]);
