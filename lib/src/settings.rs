@@ -44,14 +44,14 @@ pub struct RepoSettings {
 
 #[derive(Debug, Clone)]
 pub struct GitSettings {
-    pub auto_local_branch: bool,
+    pub auto_local_bookmark: bool,
     pub abandon_unreachable_commits: bool,
 }
 
 impl GitSettings {
     pub fn from_config(config: &config::Config) -> Self {
         GitSettings {
-            auto_local_branch: config.get_bool("git.auto-local-branch").unwrap_or(false),
+            auto_local_bookmark: config.get_bool("git.auto-local-branch").unwrap_or(false),
             abandon_unreachable_commits: config
                 .get_bool("git.abandon-unreachable-commits")
                 .unwrap_or(true),
@@ -62,7 +62,7 @@ impl GitSettings {
 impl Default for GitSettings {
     fn default() -> Self {
         GitSettings {
-            auto_local_branch: false,
+            auto_local_bookmark: false,
             abandon_unreachable_commits: true,
         }
     }
@@ -190,9 +190,9 @@ impl UserSettings {
             .unwrap_or_else(|_| whoami::username())
     }
 
-    pub fn push_branch_prefix(&self) -> String {
+    pub fn push_bookmark_prefix(&self) -> String {
         self.config
-            .get_string("git.push-branch-prefix")
+            .get_string("git.push-bookmark-prefix")
             .unwrap_or_else(|_| "push-".to_string())
     }
 

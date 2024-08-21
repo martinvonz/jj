@@ -16,45 +16,45 @@ use std::collections::HashMap;
 
 use itertools::Itertools as _;
 
-use super::find_remote_branches;
+use super::find_remote_bookmarks;
 use crate::cli_util::CommandHelper;
-use crate::cli_util::RemoteBranchNamePattern;
+use crate::cli_util::RemoteBookmarkNamePattern;
 use crate::command_error::CommandError;
 use crate::commit_templater::CommitTemplateLanguage;
 use crate::commit_templater::RefName;
 use crate::ui::Ui;
 
-/// Start tracking given remote branches
+/// Start tracking given remote bookmarks
 ///
-/// A tracking remote branch will be imported as a local branch of the same
-/// name. Changes to it will propagate to the existing local branch on future
+/// A tracking remote bookmark will be imported as a local bookmark of the same
+/// name. Changes to it will propagate to the existing local bookmark on future
 /// pulls.
 #[derive(clap::Args, Clone, Debug)]
-pub struct BranchTrackArgs {
-    /// Remote branches to track
+pub struct BookmarkTrackArgs {
+    /// Remote bookmarks to track
     ///
     /// By default, the specified name matches exactly. Use `glob:` prefix to
-    /// select branches by wildcard pattern. For details, see
+    /// select bookmarks by wildcard pattern. For details, see
     /// https://martinvonz.github.io/jj/latest/revsets/#string-patterns.
     ///
-    /// Examples: branch@remote, glob:main@*, glob:jjfan-*@upstream
+    /// Examples: bookmark@remote, glob:main@*, glob:jjfan-*@upstream
     #[arg(required = true, value_name = "BRANCH@REMOTE")]
-    names: Vec<RemoteBranchNamePattern>,
+    names: Vec<RemoteBookmarkNamePattern>,
 }
 
-pub fn cmd_branch_track(
+pub fn cmd_bookmark_track(
     ui: &mut Ui,
     command: &CommandHelper,
-    args: &BranchTrackArgs,
+    args: &BookmarkTrackArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
     let view = workspace_command.repo().view();
     let mut names = Vec::new();
-    for (name, remote_ref) in find_remote_branches(view, &args.names)? {
+    for (name, remote_ref) in find_remote_bookmarks(view, &args.names)? {
         if remote_ref.is_tracking() {
             writeln!(
                 ui.warning_default(),
-                "Remote branch already tracked: {name}"
+                "Remote bookmark already tracked: {name}"
             )?;
         } else {
             names.push(name);
@@ -63,21 +63,21 @@ pub fn cmd_branch_track(
     let mut tx = workspace_command.start_transaction();
     for name in &names {
         tx.repo_mut()
-            .track_remote_branch(&name.branch, &name.remote);
+            .track_remote_bookmark(&name.bookmark, &name.remote);
     }
     if !names.is_empty() {
         writeln!(
             ui.status(),
-            "Started tracking {} remote branches.",
+            "Started tracking {} remote bookmarks.",
             names.len()
         )?;
     }
     tx.finish(
         ui,
-        format!("track remote branch {}", names.iter().join(", ")),
+        format!("track remote bookmark {}", names.iter().join(", ")),
     )?;
 
-    //show conflicted branches if there are some
+    //show conflicted bookmarks if there are some
 
     if let Some(mut formatter) = ui.status_formatter() {
         let template = {
@@ -85,39 +85,39 @@ pub fn cmd_branch_track(
             let text = command
                 .settings()
                 .config()
-                .get::<String>("templates.branch_list")?;
+                .get::<String>("templates.bookmark_list")?;
             workspace_command
                 .parse_template(&language, &text, CommitTemplateLanguage::wrap_ref_name)?
-                .labeled("branch_list")
+                .labeled("bookmark_list")
         };
 
-        let mut remote_per_branch: HashMap<&str, Vec<&str>> = HashMap::new();
+        let mut remote_per_bookmark: HashMap<&str, Vec<&str>> = HashMap::new();
         for n in names.iter() {
-            remote_per_branch
-                .entry(&n.branch)
+            remote_per_bookmark
+                .entry(&n.bookmark)
                 .or_default()
                 .push(&n.remote);
         }
-        let branches_to_list =
+        let bookmarks_to_list =
             workspace_command
                 .repo()
                 .view()
-                .branches()
+                .bookmarks()
                 .filter(|(name, target)| {
-                    remote_per_branch.contains_key(name) && target.local_target.has_conflict()
+                    remote_per_bookmark.contains_key(name) && target.local_target.has_conflict()
                 });
 
-        for (name, branch_target) in branches_to_list {
-            let local_target = branch_target.local_target;
+        for (name, bookmark_target) in bookmarks_to_list {
+            let local_target = bookmark_target.local_target;
             let ref_name = RefName::local(
                 name,
                 local_target.clone(),
-                branch_target.remote_refs.iter().map(|x| x.1),
+                bookmark_target.remote_refs.iter().map(|x| x.1),
             );
             template.format(&ref_name, formatter.as_mut())?;
 
-            for (remote_name, remote_ref) in branch_target.remote_refs {
-                if remote_per_branch[name].contains(&remote_name) {
+            for (remote_name, remote_ref) in bookmark_target.remote_refs {
+                if remote_per_bookmark[name].contains(&remote_name) {
                     let ref_name =
                         RefName::remote(name, remote_name, remote_ref.clone(), local_target);
                     template.format(&ref_name, formatter.as_mut())?;

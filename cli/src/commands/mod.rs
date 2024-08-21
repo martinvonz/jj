@@ -16,7 +16,7 @@ mod abandon;
 mod backout;
 #[cfg(feature = "bench")]
 mod bench;
-mod branch;
+mod bookmark;
 mod checkout;
 mod commit;
 mod config;
@@ -77,8 +77,10 @@ enum Command {
     #[command(subcommand)]
     Bench(bench::BenchCommand),
     #[command(subcommand)]
-    Branch(branch::BranchCommand),
-    // TODO: Delete `cat` in jj 0.25+
+    Bookmark(bookmark::BookmarkCommand),
+    // TODO: Remove in jj 0.28+
+    #[command(subcommand, hide = true)]
+    Branch(bookmark::BookmarkCommand),
     #[command(alias = "print", hide = true)]
     Cat(file::show::FileShowArgs),
     #[command(hide = true)]
@@ -110,7 +112,7 @@ enum Command {
     Init(init::InitArgs),
     Interdiff(interdiff::InterdiffArgs),
     Log(log::LogArgs),
-    /// Merge work from multiple branches (DEPRECATED, use `jj new`)
+    /// Merge work from multiple bookmarks (DEPRECATED, use `jj new`)
     ///
     /// Unlike most other VCSs, `jj merge` does not implicitly include the
     /// working copy revision's parent as one of the parents of the merge;
@@ -182,7 +184,11 @@ pub fn run_command(ui: &mut Ui, command_helper: &CommandHelper) -> Result<(), Co
         Command::Backout(args) => backout::cmd_backout(ui, command_helper, args),
         #[cfg(feature = "bench")]
         Command::Bench(args) => bench::cmd_bench(ui, command_helper, args),
-        Command::Branch(args) => branch::cmd_branch(ui, command_helper, args),
+        Command::Bookmark(args) => bookmark::cmd_bookmark(ui, command_helper, args),
+        Command::Branch(args) => {
+            let cmd = renamed_cmd("branch", "bookmark", bookmark::cmd_bookmark);
+            cmd(ui, command_helper, args)
+        }
         Command::Cat(args) => {
             let cmd = renamed_cmd("cat", "file show", file::show::cmd_file_show);
             cmd(ui, command_helper, args)
@@ -243,7 +249,7 @@ pub fn run_command(ui: &mut Ui, command_helper: &CommandHelper) -> Result<(), Co
 }
 
 /// Wraps deprecated command of `old_name` which has been renamed to `new_name`.
-fn renamed_cmd<Args>(
+pub(crate) fn renamed_cmd<Args>(
     old_name: &'static str,
     new_name: &'static str,
     cmd: impl Fn(&mut Ui, &CommandHelper, &Args) -> Result<(), CommandError>,

@@ -263,7 +263,7 @@ fn test_reparent_range_linear() {
 }
 
 #[test]
-fn test_reparent_range_branchy() {
+fn test_reparent_range_bookmarky() {
     let settings = testutils::user_settings();
     let test_repo = TestRepo::init();
     let repo_0 = test_repo.repo;
@@ -279,7 +279,7 @@ fn test_reparent_range_branchy() {
         parents.try_into().unwrap()
     }
 
-    // Set up branchy operation graph:
+    // Set up bookmarky operation graph:
     // G
     // |\
     // | F

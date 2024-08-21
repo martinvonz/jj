@@ -1,19 +1,19 @@
 # Frequently asked questions
 
-### Why does my branch not move to the new commit after `jj new/commit`?
+### Why does my bookmark not move to the new commit after `jj new/commit`?
 
-If you're familiar with Git, you might expect the current branch to move forward
-when you commit. However, Jujutsu does not have a concept of a "current branch".
+If you're familiar with Git, you might expect the current bookmark to move forward
+when you commit. However, Jujutsu does not have a concept of a "current bookmark".
 
-To move branches, use `jj branch set`.
+To move bookmarks, use `jj bookmark set`.
 
 ### I made a commit and `jj git push --all` says "Nothing changed" instead of pushing it. What do I do?
 
-`jj git push --all` pushes all _branches_, not all revisions. You have two
+`jj git push --all` pushes all _bookmarks_, not all revisions. You have two
 options:
 
-* Using `jj git push --change` will automatically create a branch and push it.
-* Using `jj branch` commands to create or move a branch to either the commit
+* Using `jj git push --change` will automatically create a bookmark and push it.
+* Using `jj bookmark` commands to create or move a bookmark to either the commit
   you want to push or a descendant on it. Unlike Git, Jujutsu doesn't do this
   automatically (see previous question).
 
@@ -262,15 +262,15 @@ this is to abandon the unneeded commits (using `jj abandon <commit ID>`). If you
 would like to keep both commits with this change ID, you can `jj duplicate` one
 of them before abandoning it.
 
-### How do I deal with conflicted branches ('??' after branch name)?
+### How do I deal with conflicted bookmarks ('??' after bookmark name)?
 
-A [conflicted branch][branches_conflicts] is a branch that refers to multiple
+A [conflicted bookmark][bookmarks_conflicts] is a bookmark that refers to multiple
 different commits because jj couldn't fully resolve its desired position.
-Resolving conflicted branches is usually done by setting the branch to the
-correct commit using `jj branch set <commit ID>`.
+Resolving conflicted bookmarks is usually done by setting the bookmark to the
+correct commit using `jj bookmark set <commit ID>`.
 
-Usually, the different commits associated with the conflicted branch should all
-appear in the log, but if they don't you can use `jj branch list`to show all the
+Usually, the different commits associated with the conflicted bookmark should all
+appear in the log, but if they don't you can use `jj bookmark list`to show all the
 commits associated with it.
 
 ### How do I integrate Jujutsu with Gerrit?
@@ -282,15 +282,15 @@ contributor (look for the `jj signoff` alias).
 
 After you have attached the `Change-Id:` footer to the commit series, you'll
 have to manually invoke `git push` of `HEAD` on the underlying git repository
-into the remote Gerrit branch `refs/for/$BRANCH`, where `$BRANCH` is the base
-branch you want your changes to go to (e.g., `git push origin
+into the remote Gerrit bookmark `refs/for/$BRANCH`, where `$BRANCH` is the base
+bookmark you want your changes to go to (e.g., `git push origin
 HEAD:refs/for/main`). Using a [co-located][co-located] repo
 will make the underlying git repo directly accessible from the working
 directory.
 
 We hope to integrate with Gerrit natively in the future.
 
-[branches_conflicts]: branches.md#conflicts
+[bookmarks_conflicts]: bookmarks.md#conflicts
 
 [change ID]: glossary.md#change-id
 [co-located]: glossary.md#co-located-repos

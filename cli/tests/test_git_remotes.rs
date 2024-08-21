@@ -192,7 +192,7 @@ fn test_git_remote_named_git() {
         .remote("git", "http://example.com/repo/repo")
         .unwrap();
     test_env.jj_cmd_ok(&repo_path, &["git", "init", "--git-repo=."]);
-    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "main"]);
+    test_env.jj_cmd_ok(&repo_path, &["bookmark", "create", "main"]);
 
     // The remote can be renamed.
     let (stdout, stderr) =
@@ -203,8 +203,8 @@ fn test_git_remote_named_git() {
     insta::assert_snapshot!(stdout, @r###"
     bar http://example.com/repo/repo
     "###);
-    // @git branch shouldn't be renamed.
-    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-rmain@git", "-Tbranches"]);
+    // @git bookmark shouldn't be renamed.
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-rmain@git", "-Tbookmarks"]);
     insta::assert_snapshot!(stdout, @r###"
     @  main
     │
@@ -229,8 +229,8 @@ fn test_git_remote_named_git() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["git", "remote", "list"]);
     insta::assert_snapshot!(stdout, @r###"
     "###);
-    // @git branch shouldn't be removed.
-    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-rmain@git", "-Tbranches"]);
+    // @git bookmark shouldn't be removed.
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-rmain@git", "-Tbookmarks"]);
     insta::assert_snapshot!(stdout, @r###"
     ○  main
     │

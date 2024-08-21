@@ -19,20 +19,20 @@ use jj_lib::backend::CommitId;
 use crate::common::TestEnvironment;
 
 #[test]
-fn test_resolution_of_git_tracking_branches() {
+fn test_resolution_of_git_tracking_bookmarks() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
-    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "main"]);
+    test_env.jj_cmd_ok(&repo_path, &["bookmark", "create", "main"]);
     test_env.jj_cmd_ok(&repo_path, &["describe", "-r", "main", "-m", "old_message"]);
 
-    // Create local-git tracking branch
+    // Create local-git tracking bookmark
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["git", "export"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @"");
-    // Move the local branch somewhere else
+    // Move the local bookmark somewhere else
     test_env.jj_cmd_ok(&repo_path, &["describe", "-r", "main", "-m", "new_message"]);
-    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    insta::assert_snapshot!(get_bookmark_output(&test_env, &repo_path), @r###"
     main: qpvuntsm b61d21b6 (empty) new_message
       @git (ahead by 1 commits, behind by 1 commits): qpvuntsm hidden 03757d22 (empty) old_message
     "###);
@@ -51,8 +51,8 @@ fn test_resolution_of_git_tracking_branches() {
     insta::assert_snapshot!(query("main@git"), @r###"
     03757d2212d89990ec158e97795b612a38446652 old_message
     "###);
-    // Can't be selected by remote_branches()
-    insta::assert_snapshot!(query(r#"remote_branches(exact:"main", exact:"git")"#), @"");
+    // Can't be selected by remote_bookmarks()
+    insta::assert_snapshot!(query(r#"remote_bookmarks(exact:"main", exact:"git")"#), @"");
 }
 
 #[test]
@@ -61,8 +61,8 @@ fn test_git_export_conflicting_git_refs() {
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
 
-    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "main"]);
-    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "main/sub"]);
+    test_env.jj_cmd_ok(&repo_path, &["bookmark", "create", "main"]);
+    test_env.jj_cmd_ok(&repo_path, &["bookmark", "create", "main/sub"]);
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["git", "export"]);
     insta::assert_snapshot!(stdout, @"");
     insta::with_settings!({filters => vec![("Failed to set: .*", "Failed to set: ...")]}, {
@@ -83,8 +83,8 @@ fn test_git_export_undo() {
     let repo_path = test_env.env_root().join("repo");
     let git_repo = git2::Repository::open(repo_path.join(".jj/repo/store/git")).unwrap();
 
-    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "a"]);
-    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    test_env.jj_cmd_ok(&repo_path, &["bookmark", "create", "a"]);
+    insta::assert_snapshot!(get_bookmark_output(&test_env, &repo_path), @r###"
     a: qpvuntsm 230dd059 (empty) (no description set)
     "###);
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["git", "export"]);
@@ -97,7 +97,7 @@ fn test_git_export_undo() {
     "###);
 
     // Exported refs won't be removed by undoing the export, but the git-tracking
-    // branch is. This is the same as remote-tracking branches.
+    // bookmark is. This is the same as remote-tracking bookmarks.
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["op", "undo"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @"");
@@ -116,7 +116,7 @@ fn test_git_export_undo() {
     Hint: Did you mean "a"?
     "###);
 
-    // This would re-export branch "a" and create git-tracking branch.
+    // This would re-export bookmark "a" and create git-tracking bookmark.
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["git", "export"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @"");
@@ -134,7 +134,7 @@ fn test_git_import_undo() {
     let repo_path = test_env.env_root().join("repo");
     let git_repo = git2::Repository::open(repo_path.join(".jj/repo/store/git")).unwrap();
 
-    // Create branch "a" in git repo
+    // Create bookmark "a" in git repo
     let commit_id =
         test_env.jj_cmd_success(&repo_path, &["log", "-Tcommit_id", "--no-graph", "-r@"]);
     let commit = git_repo
@@ -142,8 +142,8 @@ fn test_git_import_undo() {
         .unwrap();
     git_repo.branch("a", &commit, true).unwrap();
 
-    // Initial state we will return to after `undo`. There are no branches.
-    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @"");
+    // Initial state we will return to after `undo`. There are no bookmarks.
+    insta::assert_snapshot!(get_bookmark_output(&test_env, &repo_path), @"");
     let base_operation_id = test_env.current_operation_id(&repo_path);
 
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["git", "import"]);
@@ -151,7 +151,7 @@ fn test_git_import_undo() {
     insta::assert_snapshot!(stderr, @r###"
     branch: a [new] tracked
     "###);
-    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    insta::assert_snapshot!(get_bookmark_output(&test_env, &repo_path), @r###"
     a: qpvuntsm 230dd059 (empty) (no description set)
       @git: qpvuntsm 230dd059 (empty) (no description set)
     "###);
@@ -160,14 +160,14 @@ fn test_git_import_undo() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["op", "restore", &base_operation_id]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @"");
-    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @"");
-    // Try "git import" again, which should re-import the branch "a".
+    insta::assert_snapshot!(get_bookmark_output(&test_env, &repo_path), @"");
+    // Try "git import" again, which should re-import the bookmark "a".
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["git", "import"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     branch: a [new] tracked
     "###);
-    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    insta::assert_snapshot!(get_bookmark_output(&test_env, &repo_path), @r###"
     a: qpvuntsm 230dd059 (empty) (no description set)
       @git: qpvuntsm 230dd059 (empty) (no description set)
     "###);
@@ -180,7 +180,7 @@ fn test_git_import_move_export_with_default_undo() {
     let repo_path = test_env.env_root().join("repo");
     let git_repo = git2::Repository::open(repo_path.join(".jj/repo/store/git")).unwrap();
 
-    // Create branch "a" in git repo
+    // Create bookmark "a" in git repo
     let commit_id =
         test_env.jj_cmd_success(&repo_path, &["log", "-Tcommit_id", "--no-graph", "-r@"]);
     let commit = git_repo
@@ -189,8 +189,8 @@ fn test_git_import_move_export_with_default_undo() {
     git_repo.branch("a", &commit, true).unwrap();
 
     // Initial state we will try to return to after `op restore`. There are no
-    // branches.
-    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @"");
+    // bookmarks.
+    insta::assert_snapshot!(get_bookmark_output(&test_env, &repo_path), @"");
     let base_operation_id = test_env.current_operation_id(&repo_path);
 
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["git", "import"]);
@@ -198,28 +198,28 @@ fn test_git_import_move_export_with_default_undo() {
     insta::assert_snapshot!(stderr, @r###"
     branch: a [new] tracked
     "###);
-    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    insta::assert_snapshot!(get_bookmark_output(&test_env, &repo_path), @r###"
     a: qpvuntsm 230dd059 (empty) (no description set)
       @git: qpvuntsm 230dd059 (empty) (no description set)
     "###);
 
-    // Move branch "a" and export to git repo
+    // Move bookmark "a" and export to git repo
     test_env.jj_cmd_ok(&repo_path, &["new"]);
-    test_env.jj_cmd_ok(&repo_path, &["branch", "set", "a"]);
-    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    test_env.jj_cmd_ok(&repo_path, &["bookmark", "set", "a"]);
+    insta::assert_snapshot!(get_bookmark_output(&test_env, &repo_path), @r###"
     a: yqosqzyt 096dc80d (empty) (no description set)
       @git (behind by 1 commits): qpvuntsm 230dd059 (empty) (no description set)
     "###);
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["git", "export"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @"");
-    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    insta::assert_snapshot!(get_bookmark_output(&test_env, &repo_path), @r###"
     a: yqosqzyt 096dc80d (empty) (no description set)
       @git: yqosqzyt 096dc80d (empty) (no description set)
     "###);
 
     // "git import" can be undone with the default `restore` behavior, as shown in
-    // the previous test. However, "git export" can't: the branches in the git
+    // the previous test. However, "git export" can't: the bookmarks in the git
     // repo stay where they were.
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["op", "restore", &base_operation_id]);
     insta::assert_snapshot!(stdout, @"");
@@ -227,7 +227,7 @@ fn test_git_import_move_export_with_default_undo() {
     Working copy now at: qpvuntsm 230dd059 (empty) (no description set)
     Parent commit      : zzzzzzzz 00000000 (empty) (no description set)
     "###);
-    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @"");
+    insta::assert_snapshot!(get_bookmark_output(&test_env, &repo_path), @"");
     insta::assert_debug_snapshot!(get_git_repo_refs(&git_repo), @r###"
     [
         (
@@ -239,21 +239,21 @@ fn test_git_import_move_export_with_default_undo() {
     ]
     "###);
 
-    // The last branch "a" state is imported from git. No idea what's the most
+    // The last bookmark "a" state is imported from git. No idea what's the most
     // intuitive result here.
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["git", "import"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     branch: a [new] tracked
     "###);
-    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    insta::assert_snapshot!(get_bookmark_output(&test_env, &repo_path), @r###"
     a: yqosqzyt 096dc80d (empty) (no description set)
       @git: yqosqzyt 096dc80d (empty) (no description set)
     "###);
 }
 
-fn get_branch_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
-    test_env.jj_cmd_success(repo_path, &["branch", "list", "--all-remotes"])
+fn get_bookmark_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
+    test_env.jj_cmd_success(repo_path, &["bookmark", "list", "--all-remotes"])
 }
 
 fn get_git_repo_refs(git_repo: &git2::Repository) -> Vec<(String, CommitId)> {

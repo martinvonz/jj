@@ -46,7 +46,7 @@ fn init_git_repo_with_opts(
     .unwrap();
     git_repo
         .commit(
-            Some("refs/heads/my-branch"),
+            Some("refs/heads/my-bookmark"),
             &git_signature,
             &git_signature,
             "My commit message",
@@ -55,16 +55,16 @@ fn init_git_repo_with_opts(
         )
         .unwrap();
     drop(git_tree);
-    git_repo.set_head("refs/heads/my-branch").unwrap();
+    git_repo.set_head("refs/heads/my-bookmark").unwrap();
     git_repo
 }
 
-fn get_branch_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
-    test_env.jj_cmd_success(repo_path, &["branch", "list", "--all-remotes"])
+fn get_bookmark_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
+    test_env.jj_cmd_success(repo_path, &["bookmark", "list", "--all-remotes"])
 }
 
 fn get_log_output(test_env: &TestEnvironment, workspace_root: &Path) -> String {
-    let template = r#"separate(" ", commit_id.short(), branches, git_head, description)"#;
+    let template = r#"separate(" ", commit_id.short(), bookmarks, git_head, description)"#;
     test_env.jj_cmd_success(workspace_root, &["log", "-T", template, "-r=all()"])
 }
 
@@ -144,7 +144,7 @@ fn test_git_init_external(bare: bool) {
         insta::assert_snapshot!(stderr, @r###"
         Done importing changes from the underlying Git repo.
         Working copy now at: sqpuoqvx f6950fc1 (empty) (no description set)
-        Parent commit      : mwrttmos 8d698d4a my-branch | My commit message
+        Parent commit      : mwrttmos 8d698d4a my-bookmark | My commit message
         Added 1 files, modified 0 files, removed 0 files
         Initialized repo in "repo"
         "###);
@@ -170,7 +170,7 @@ fn test_git_init_external(bare: bool) {
     insta::allow_duplicates! {
         insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
         @  f6950fc115ae
-        ○  8d698d4a8ee1 my-branch HEAD@git My commit message
+        ○  8d698d4a8ee1 my-bookmark HEAD@git My commit message
         ◆  000000000000
         "###);
     }
@@ -183,9 +183,9 @@ fn test_git_init_external_import_trunk(bare: bool) {
     let git_repo_path = test_env.env_root().join("git-repo");
     let git_repo = init_git_repo(&git_repo_path, bare);
 
-    // Add remote branch "trunk" for remote "origin", and set it as "origin/HEAD"
+    // Add remote bookmark "trunk" for remote "origin", and set it as "origin/HEAD"
     let oid = git_repo
-        .find_reference("refs/heads/my-branch")
+        .find_reference("refs/heads/my-bookmark")
         .unwrap()
         .target()
         .unwrap();
@@ -217,13 +217,13 @@ fn test_git_init_external_import_trunk(bare: bool) {
         Done importing changes from the underlying Git repo.
         Setting the revset alias "trunk()" to "trunk@origin"
         Working copy now at: sqpuoqvx f6950fc1 (empty) (no description set)
-        Parent commit      : mwrttmos 8d698d4a my-branch trunk@origin | My commit message
+        Parent commit      : mwrttmos 8d698d4a my-bookmark trunk@origin | My commit message
         Added 1 files, modified 0 files, removed 0 files
         Initialized repo in "repo"
         "###);
     }
 
-    // "trunk()" alias should be set to remote "origin"'s default branch "trunk"
+    // "trunk()" alias should be set to remote "origin"'s default bookmark "trunk"
     let stdout = test_env.jj_cmd_success(
         &test_env.env_root().join("repo"),
         &["config", "list", "--repo", "revset-aliases.\"trunk()\""],
@@ -344,7 +344,7 @@ fn test_git_init_colocated_via_git_repo_path() {
     // Check that the Git repo's HEAD got checked out
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  f61b77cd4bb5
-    ○  8d698d4a8ee1 my-branch HEAD@git My commit message
+    ○  8d698d4a8ee1 my-bookmark HEAD@git My commit message
     ◆  000000000000
     "###);
 
@@ -353,7 +353,7 @@ fn test_git_init_colocated_via_git_repo_path() {
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
     @  f1c7aa7c62d8
     ○  f61b77cd4bb5 HEAD@git
-    ○  8d698d4a8ee1 my-branch My commit message
+    ○  8d698d4a8ee1 my-bookmark My commit message
     ◆  000000000000
     "###);
 }
@@ -380,7 +380,7 @@ fn test_git_init_colocated_via_git_repo_path_gitlink() {
     // Check that the Git repo's HEAD got checked out
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
     @  f61b77cd4bb5
-    ○  8d698d4a8ee1 my-branch HEAD@git My commit message
+    ○  8d698d4a8ee1 my-bookmark HEAD@git My commit message
     ◆  000000000000
     "###);
 
@@ -389,7 +389,7 @@ fn test_git_init_colocated_via_git_repo_path_gitlink() {
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
     @  f1c7aa7c62d8
     ○  f61b77cd4bb5 HEAD@git
-    ○  8d698d4a8ee1 my-branch My commit message
+    ○  8d698d4a8ee1 my-bookmark My commit message
     ◆  000000000000
     "###);
 }
@@ -415,7 +415,7 @@ fn test_git_init_colocated_via_git_repo_path_symlink_directory() {
     // Check that the Git repo's HEAD got checked out
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
     @  f61b77cd4bb5
-    ○  8d698d4a8ee1 my-branch HEAD@git My commit message
+    ○  8d698d4a8ee1 my-bookmark HEAD@git My commit message
     ◆  000000000000
     "###);
 
@@ -424,7 +424,7 @@ fn test_git_init_colocated_via_git_repo_path_symlink_directory() {
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
     @  f1c7aa7c62d8
     ○  f61b77cd4bb5 HEAD@git
-    ○  8d698d4a8ee1 my-branch My commit message
+    ○  8d698d4a8ee1 my-bookmark My commit message
     ◆  000000000000
     "###);
 }
@@ -453,7 +453,7 @@ fn test_git_init_colocated_via_git_repo_path_symlink_directory_without_bare_conf
     // Check that the Git repo's HEAD got checked out
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
     @  f61b77cd4bb5
-    ○  8d698d4a8ee1 my-branch HEAD@git My commit message
+    ○  8d698d4a8ee1 my-bookmark HEAD@git My commit message
     ◆  000000000000
     "###);
 
@@ -462,7 +462,7 @@ fn test_git_init_colocated_via_git_repo_path_symlink_directory_without_bare_conf
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
     @  f1c7aa7c62d8
     ○  f61b77cd4bb5 HEAD@git
-    ○  8d698d4a8ee1 my-branch My commit message
+    ○  8d698d4a8ee1 my-bookmark My commit message
     ◆  000000000000
     "###);
 }
@@ -493,7 +493,7 @@ fn test_git_init_colocated_via_git_repo_path_symlink_gitlink() {
     // Check that the Git repo's HEAD got checked out
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
     @  f61b77cd4bb5
-    ○  8d698d4a8ee1 my-branch HEAD@git My commit message
+    ○  8d698d4a8ee1 my-bookmark HEAD@git My commit message
     ◆  000000000000
     "###);
 
@@ -502,7 +502,7 @@ fn test_git_init_colocated_via_git_repo_path_symlink_gitlink() {
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
     @  f1c7aa7c62d8
     ○  f61b77cd4bb5 HEAD@git
-    ○  8d698d4a8ee1 my-branch My commit message
+    ○  8d698d4a8ee1 my-bookmark My commit message
     ◆  000000000000
     "###);
 }
@@ -517,7 +517,7 @@ fn test_git_init_colocated_via_git_repo_path_imported_refs() {
     let remote_path = test_env.env_root().join("remote");
     test_env.jj_cmd_ok(
         &remote_path,
-        &["branch", "create", "local-remote", "remote-only"],
+        &["bookmark", "create", "local-remote", "remote-only"],
     );
     test_env.jj_cmd_ok(&remote_path, &["new"]);
     test_env.jj_cmd_ok(&remote_path, &["git", "export"]);
@@ -547,7 +547,7 @@ fn test_git_init_colocated_via_git_repo_path_imported_refs() {
     Done importing changes from the underlying Git repo.
     Initialized repo in "."
     "###);
-    insta::assert_snapshot!(get_branch_output(&test_env, &local_path), @r###"
+    insta::assert_snapshot!(get_bookmark_output(&test_env, &local_path), @r###"
     local-remote: vvkvtnvv 230dd059 (empty) (no description set)
       @git: vvkvtnvv 230dd059 (empty) (no description set)
       @origin: vvkvtnvv 230dd059 (empty) (no description set)
@@ -563,12 +563,12 @@ fn test_git_init_colocated_via_git_repo_path_imported_refs() {
     let (_stdout, stderr) = test_env.jj_cmd_ok(&local_path, &["git", "init", "--git-repo=."]);
     insta::assert_snapshot!(stderr, @r###"
     Done importing changes from the underlying Git repo.
-    Hint: The following remote branches aren't associated with the existing local branches:
+    Hint: The following remote bookmarks aren't associated with the existing local bookmarks:
       local-remote@origin
-    Hint: Run `jj branch track local-remote@origin` to keep local branches updated on future pulls.
+    Hint: Run `jj bookmark track local-remote@origin` to keep local bookmarks updated on future pulls.
     Initialized repo in "."
     "###);
-    insta::assert_snapshot!(get_branch_output(&test_env, &local_path), @r###"
+    insta::assert_snapshot!(get_bookmark_output(&test_env, &local_path), @r###"
     local-remote: vvkvtnvv 230dd059 (empty) (no description set)
       @git: vvkvtnvv 230dd059 (empty) (no description set)
     local-remote@origin: vvkvtnvv 230dd059 (empty) (no description set)
@@ -620,7 +620,7 @@ fn test_git_init_colocated_dirty_working_copy() {
     │  C {some-file => new-staged-file}
     │  M some-file
     │  C {some-file => unstaged-file}
-    ○  mwrttmos git.user@example.com 1970-01-01 11:02:03 my-branch HEAD@git 8d698d4a
+    ○  mwrttmos git.user@example.com 1970-01-01 11:02:03 my-bookmark HEAD@git 8d698d4a
     │  My commit message
     │  A some-file
     ◆  zzzzzzzz root() 00000000
@@ -719,7 +719,7 @@ fn test_git_init_colocated_via_flag_git_dir_exists() {
     // Check that the Git repo's HEAD got checked out
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
     @  f61b77cd4bb5
-    ○  8d698d4a8ee1 my-branch HEAD@git My commit message
+    ○  8d698d4a8ee1 my-bookmark HEAD@git My commit message
     ◆  000000000000
     "###);
 
@@ -728,7 +728,7 @@ fn test_git_init_colocated_via_flag_git_dir_exists() {
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
     @  f1c7aa7c62d8
     ○  f61b77cd4bb5 HEAD@git
-    ○  8d698d4a8ee1 my-branch My commit message
+    ○  8d698d4a8ee1 my-bookmark My commit message
     ◆  000000000000
     "###);
 }
@@ -749,10 +749,10 @@ fn test_git_init_colocated_via_flag_git_dir_not_exists() {
     ◆  000000000000
     "###);
 
-    // Create the default branch (create both in case we change the default)
-    test_env.jj_cmd_ok(&workspace_root, &["branch", "create", "main", "master"]);
+    // Create the default bookmark (create both in case we change the default)
+    test_env.jj_cmd_ok(&workspace_root, &["bookmark", "create", "main", "master"]);
 
-    // If .git/HEAD pointed to the default branch, new working-copy commit would
+    // If .git/HEAD pointed to the default bookmark, new working-copy commit would
     // be created on top.
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
     @  230dd059e1b0 main master

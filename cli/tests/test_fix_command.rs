@@ -468,13 +468,13 @@ fn test_fix_parent_commit() {
     let (test_env, repo_path, redact) = init_with_fake_formatter(&["--uppercase"]);
     // Using one file name for all commits adds coverage of some possible bugs.
     std::fs::write(repo_path.join("file"), "parent").unwrap();
-    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "parent"]);
+    test_env.jj_cmd_ok(&repo_path, &["bookmark", "create", "parent"]);
     test_env.jj_cmd_ok(&repo_path, &["new"]);
     std::fs::write(repo_path.join("file"), "child1").unwrap();
-    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "child1"]);
+    test_env.jj_cmd_ok(&repo_path, &["bookmark", "create", "child1"]);
     test_env.jj_cmd_ok(&repo_path, &["new", "-r", "parent"]);
     std::fs::write(repo_path.join("file"), "child2").unwrap();
-    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "child2"]);
+    test_env.jj_cmd_ok(&repo_path, &["bookmark", "create", "child2"]);
 
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["fix", "-s", "parent"]);
     insta::assert_snapshot!(stdout, @"");
@@ -502,13 +502,13 @@ fn test_fix_parent_commit() {
 fn test_fix_sibling_commit() {
     let (test_env, repo_path, redact) = init_with_fake_formatter(&["--uppercase"]);
     std::fs::write(repo_path.join("file"), "parent").unwrap();
-    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "parent"]);
+    test_env.jj_cmd_ok(&repo_path, &["bookmark", "create", "parent"]);
     test_env.jj_cmd_ok(&repo_path, &["new"]);
     std::fs::write(repo_path.join("file"), "child1").unwrap();
-    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "child1"]);
+    test_env.jj_cmd_ok(&repo_path, &["bookmark", "create", "child1"]);
     test_env.jj_cmd_ok(&repo_path, &["new", "-r", "parent"]);
     std::fs::write(repo_path.join("file"), "child2").unwrap();
-    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "child2"]);
+    test_env.jj_cmd_ok(&repo_path, &["bookmark", "create", "child2"]);
 
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["fix", "-s", "child1"]);
     insta::assert_snapshot!(stdout, @"");
@@ -533,22 +533,22 @@ fn test_fix_sibling_commit() {
 fn test_default_revset() {
     let (test_env, repo_path, redact) = init_with_fake_formatter(&["--uppercase"]);
     std::fs::write(repo_path.join("file"), "trunk1").unwrap();
-    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "trunk1"]);
+    test_env.jj_cmd_ok(&repo_path, &["bookmark", "create", "trunk1"]);
     test_env.jj_cmd_ok(&repo_path, &["new"]);
     std::fs::write(repo_path.join("file"), "trunk2").unwrap();
-    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "trunk2"]);
+    test_env.jj_cmd_ok(&repo_path, &["bookmark", "create", "trunk2"]);
     test_env.jj_cmd_ok(&repo_path, &["new", "trunk1"]);
     std::fs::write(repo_path.join("file"), "foo").unwrap();
-    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "foo"]);
+    test_env.jj_cmd_ok(&repo_path, &["bookmark", "create", "foo"]);
     test_env.jj_cmd_ok(&repo_path, &["new", "trunk1"]);
     std::fs::write(repo_path.join("file"), "bar1").unwrap();
-    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "bar1"]);
+    test_env.jj_cmd_ok(&repo_path, &["bookmark", "create", "bar1"]);
     test_env.jj_cmd_ok(&repo_path, &["new"]);
     std::fs::write(repo_path.join("file"), "bar2").unwrap();
-    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "bar2"]);
+    test_env.jj_cmd_ok(&repo_path, &["bookmark", "create", "bar2"]);
     test_env.jj_cmd_ok(&repo_path, &["new"]);
     std::fs::write(repo_path.join("file"), "bar3").unwrap();
-    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "bar3"]);
+    test_env.jj_cmd_ok(&repo_path, &["bookmark", "create", "bar3"]);
     test_env.jj_cmd_ok(&repo_path, &["edit", "bar2"]);
 
     // With no args and no revset configuration, we fix `reachable(@, mutable())`,
@@ -588,10 +588,10 @@ fn test_custom_default_revset() {
     let (test_env, repo_path, redact) = init_with_fake_formatter(&["--uppercase"]);
 
     std::fs::write(repo_path.join("file"), "foo").unwrap();
-    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "foo"]);
+    test_env.jj_cmd_ok(&repo_path, &["bookmark", "create", "foo"]);
     test_env.jj_cmd_ok(&repo_path, &["new"]);
     std::fs::write(repo_path.join("file"), "bar").unwrap();
-    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "bar"]);
+    test_env.jj_cmd_ok(&repo_path, &["bookmark", "create", "bar"]);
 
     // Check out a different commit so that the schema default `reachable(@,
     // mutable())` would behave differently from our customized default.
@@ -619,10 +619,10 @@ fn test_custom_default_revset() {
 fn test_fix_immutable_commit() {
     let (test_env, repo_path, redact) = init_with_fake_formatter(&["--uppercase"]);
     std::fs::write(repo_path.join("file"), "immutable").unwrap();
-    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "immutable"]);
+    test_env.jj_cmd_ok(&repo_path, &["bookmark", "create", "immutable"]);
     test_env.jj_cmd_ok(&repo_path, &["new"]);
     std::fs::write(repo_path.join("file"), "mutable").unwrap();
-    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "mutable"]);
+    test_env.jj_cmd_ok(&repo_path, &["bookmark", "create", "mutable"]);
     test_env.add_config(r#"revset-aliases."immutable_heads()" = "immutable""#);
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["fix", "-s", "immutable"]);
@@ -742,16 +742,16 @@ fn test_deduplication() {
     // There are at least two interesting cases: the content is repeated immediately
     // in the child commit, or later in another descendant.
     std::fs::write(repo_path.join("file"), "foo\n").unwrap();
-    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "a"]);
+    test_env.jj_cmd_ok(&repo_path, &["bookmark", "create", "a"]);
     test_env.jj_cmd_ok(&repo_path, &["new"]);
     std::fs::write(repo_path.join("file"), "bar\n").unwrap();
-    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "b"]);
+    test_env.jj_cmd_ok(&repo_path, &["bookmark", "create", "b"]);
     test_env.jj_cmd_ok(&repo_path, &["new"]);
     std::fs::write(repo_path.join("file"), "bar\n").unwrap();
-    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "c"]);
+    test_env.jj_cmd_ok(&repo_path, &["bookmark", "create", "c"]);
     test_env.jj_cmd_ok(&repo_path, &["new"]);
     std::fs::write(repo_path.join("file"), "foo\n").unwrap();
-    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "d"]);
+    test_env.jj_cmd_ok(&repo_path, &["bookmark", "create", "d"]);
 
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["fix", "-s", "a"]);
     insta::assert_snapshot!(stdout, @"");
@@ -971,11 +971,11 @@ fn test_fix_trivial_merge_commit() {
     let (test_env, repo_path, redact) = init_with_fake_formatter(&["--uppercase"]);
     std::fs::write(repo_path.join("file_a"), "content a").unwrap();
     std::fs::write(repo_path.join("file_c"), "content c").unwrap();
-    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "a"]);
+    test_env.jj_cmd_ok(&repo_path, &["bookmark", "create", "a"]);
     test_env.jj_cmd_ok(&repo_path, &["new", "@-"]);
     std::fs::write(repo_path.join("file_b"), "content b").unwrap();
     std::fs::write(repo_path.join("file_c"), "content c").unwrap();
-    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "b"]);
+    test_env.jj_cmd_ok(&repo_path, &["bookmark", "create", "b"]);
     test_env.jj_cmd_ok(&repo_path, &["new", "a", "b"]);
 
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["fix", "-s", "@"]);
@@ -1005,11 +1005,11 @@ fn test_fix_adding_merge_commit() {
     let (test_env, repo_path, redact) = init_with_fake_formatter(&["--uppercase"]);
     std::fs::write(repo_path.join("file_a"), "content a").unwrap();
     std::fs::write(repo_path.join("file_c"), "content c").unwrap();
-    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "a"]);
+    test_env.jj_cmd_ok(&repo_path, &["bookmark", "create", "a"]);
     test_env.jj_cmd_ok(&repo_path, &["new", "@-"]);
     std::fs::write(repo_path.join("file_b"), "content b").unwrap();
     std::fs::write(repo_path.join("file_c"), "content c").unwrap();
-    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "b"]);
+    test_env.jj_cmd_ok(&repo_path, &["bookmark", "create", "b"]);
     test_env.jj_cmd_ok(&repo_path, &["new", "a", "b"]);
     std::fs::write(repo_path.join("file_a"), "change a").unwrap();
     std::fs::write(repo_path.join("file_b"), "change b").unwrap();
@@ -1045,10 +1045,10 @@ fn test_fix_adding_merge_commit() {
 fn test_fix_both_sides_of_conflict() {
     let (test_env, repo_path, redact) = init_with_fake_formatter(&["--uppercase"]);
     std::fs::write(repo_path.join("file"), "content a\n").unwrap();
-    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "a"]);
+    test_env.jj_cmd_ok(&repo_path, &["bookmark", "create", "a"]);
     test_env.jj_cmd_ok(&repo_path, &["new", "@-"]);
     std::fs::write(repo_path.join("file"), "content b\n").unwrap();
-    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "b"]);
+    test_env.jj_cmd_ok(&repo_path, &["bookmark", "create", "b"]);
     test_env.jj_cmd_ok(&repo_path, &["new", "a", "b"]);
 
     // The conflicts are not different from the merged parent, so they would not be
@@ -1095,10 +1095,10 @@ fn test_fix_resolve_conflict() {
     // will be resolved.
     let (test_env, repo_path, redact) = init_with_fake_formatter(&["--uppercase"]);
     std::fs::write(repo_path.join("file"), "Content\n").unwrap();
-    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "a"]);
+    test_env.jj_cmd_ok(&repo_path, &["bookmark", "create", "a"]);
     test_env.jj_cmd_ok(&repo_path, &["new", "@-"]);
     std::fs::write(repo_path.join("file"), "cOnTeNt\n").unwrap();
-    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "b"]);
+    test_env.jj_cmd_ok(&repo_path, &["bookmark", "create", "b"]);
     test_env.jj_cmd_ok(&repo_path, &["new", "a", "b"]);
 
     // The conflicts are not different from the merged parent, so they would not be

@@ -278,9 +278,9 @@ fn create_commit(
     for (name, content) in files {
         std::fs::write(repo_path.join(name), content).unwrap();
     }
-    test_env.jj_cmd_ok(repo_path, &["branch", "create", name]);
+    test_env.jj_cmd_ok(repo_path, &["bookmark", "create", name]);
 }
 
 fn get_log_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
-    test_env.jj_cmd_success(repo_path, &["log", "-T", "branches"])
+    test_env.jj_cmd_success(repo_path, &["log", "-T", "bookmarks"])
 }

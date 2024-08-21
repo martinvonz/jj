@@ -15,48 +15,49 @@
 use itertools::Itertools as _;
 use jj_lib::git;
 
-use super::find_remote_branches;
+use super::find_remote_bookmarks;
 use crate::cli_util::CommandHelper;
-use crate::cli_util::RemoteBranchNamePattern;
+use crate::cli_util::RemoteBookmarkNamePattern;
 use crate::command_error::CommandError;
 use crate::ui::Ui;
 
-/// Stop tracking given remote branches
+/// Stop tracking given remote bookmarks
 ///
-/// A non-tracking remote branch is just a pointer to the last-fetched remote
-/// branch. It won't be imported as a local branch on future pulls.
+/// A non-tracking remote bookmark is just a pointer to the last-fetched remote
+/// bookmark. It won't be imported as a local bookmark on future pulls.
 #[derive(clap::Args, Clone, Debug)]
-pub struct BranchUntrackArgs {
-    /// Remote branches to untrack
+pub struct BookmarkUntrackArgs {
+    /// Remote bookmarks to untrack
     ///
     /// By default, the specified name matches exactly. Use `glob:` prefix to
-    /// select branches by wildcard pattern. For details, see
+    /// select bookmarks by wildcard pattern. For details, see     
     /// https://martinvonz.github.io/jj/latest/revsets/#string-patterns.
     ///
-    /// Examples: branch@remote, glob:main@*, glob:jjfan-*@upstream
+    /// Examples: bookmark@remote, glob:main@*, glob:jjfan-*@upstream
     #[arg(required = true, value_name = "BRANCH@REMOTE")]
-    names: Vec<RemoteBranchNamePattern>,
+    names: Vec<RemoteBookmarkNamePattern>,
 }
 
-pub fn cmd_branch_untrack(
+pub fn cmd_bookmark_untrack(
     ui: &mut Ui,
     command: &CommandHelper,
-    args: &BranchUntrackArgs,
+    args: &BookmarkUntrackArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
     let view = workspace_command.repo().view();
     let mut names = Vec::new();
-    for (name, remote_ref) in find_remote_branches(view, &args.names)? {
+    for (name, remote_ref) in find_remote_bookmarks(view, &args.names)? {
         if name.remote == git::REMOTE_NAME_FOR_LOCAL_GIT_REPO {
-            // This restriction can be lifted if we want to support untracked @git branches.
+            // This restriction can be lifted if we want to support untracked @git
+            // bookmarks.
             writeln!(
                 ui.warning_default(),
-                "Git-tracking branch cannot be untracked: {name}"
+                "Git-tracking bookmark cannot be untracked: {name}"
             )?;
         } else if !remote_ref.is_tracking() {
             writeln!(
                 ui.warning_default(),
-                "Remote branch not tracked yet: {name}"
+                "Remote bookmark not tracked yet: {name}"
             )?;
         } else {
             names.push(name);
@@ -65,18 +66,18 @@ pub fn cmd_branch_untrack(
     let mut tx = workspace_command.start_transaction();
     for name in &names {
         tx.repo_mut()
-            .untrack_remote_branch(&name.branch, &name.remote);
+            .untrack_remote_bookmark(&name.bookmark, &name.remote);
     }
     if !names.is_empty() {
         writeln!(
             ui.status(),
-            "Stopped tracking {} remote branches.",
+            "Stopped tracking {} remote bookmarks.",
             names.len()
         )?;
     }
     tx.finish(
         ui,
-        format!("untrack remote branch {}", names.iter().join(", ")),
+        format!("untrack remote bookmark {}", names.iter().join(", ")),
     )?;
     Ok(())
 }

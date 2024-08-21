@@ -22,19 +22,19 @@ various use cases.
   to an intermediate commit between `HEAD` and the working copy, so workflows
   that depend on it can be modeled using proper commits instead. Jujutsu has
   excellent support for moving changes between commits. [Details](#the-index).
-* **No need for branch names (but they are supported).** Git lets you check out
-  a commit without attaching a branch. It calls this state "detached HEAD". This
+* **No need for bookmark names (but they are supported).** Git lets you check out
+  a commit without attaching a bookmark. It calls this state "detached HEAD". This
   is the normal state in Jujutsu (there's actually no way -- yet, at least -- to
-  have an active branch). However, Jujutsu keeps track of all visible heads
+  have an active bookmark). However, Jujutsu keeps track of all visible heads
   (leaves) of the commit graph, so the commits won't get lost or
   garbage-collected.
-* **No current branch.** Git lets you check out a branch, making it the 'current
-  branch', and new commits will automatically update the branch. This is
+* **No current bookmark.** Git lets you check out a bookmark, making it the 'current
+  bookmark', and new commits will automatically update the bookmark. This is
   necessary in Git because Git might otherwise lose track of the new commits.
-  Jujutsu does not have a 'current branch'; instead, you update branches
-  manually. For example, if you start work on top of a commit with a branch,
-  new commits are created on top of the branch, then you issue a later command
-  to update the branch.
+  Jujutsu does not have a 'current bookmark'; instead, you update bookmarks
+  manually. For example, if you start work on top of a commit with a bookmark,
+  new commits are created on top of the bookmark, then you issue a later command
+  to update the bookmark.
 * **Conflicts can be committed.** No commands fail because of merge conflicts.
   The conflicts are instead recorded in commits and you can resolve them later.
   [Details](conflicts.md).
@@ -44,10 +44,10 @@ various use cases.
   updated, and so will the working copy if it points to any of the rebased
   commits.
 * **Branches are identified by their names (across remotes).** For example, if
-  you pull from a remote that has a `main` branch, you'll get a branch by that
+  you pull from a remote that has a `main` bookmark, you'll get a bookmark by that
   name in your local repo as well. If you then move it and push back to the
-  remote, the `main` branch on the remote will be updated.
- [Details](branches.md).
+  remote, the `main` bookmark on the remote will be updated.
+ [Details](bookmarks.md).
 * **The operation log replaces reflogs.** The operation log is similar to
   reflogs, but is much more powerful. It keeps track of atomic updates to all
   refs at once (Jujutsu thus improves on Git's per-ref history much in the same
@@ -56,7 +56,7 @@ various use cases.
 * **There's a single, virtual root commit.** Like Mercurial, Jujutsu has a
   virtual commit (with a hash consisting of only zeros) called the "root commit"
   (called the "null revision" in Mercurial). This commit is a common ancestor of
-  all commits. That removes the awkward state Git calls the "unborn branch"
+  all commits. That removes the awkward state Git calls the "unborn bookmark"
   state (which is the state a newly initialized Git repo is in), and related
   command-line flags (e.g. `git rebase --root`, `git checkout --orphan`).
 
@@ -110,23 +110,23 @@ parent.
       <td><code>git clone &lt;source&gt; &lt;destination&gt;</code></td>
     </tr>
     <tr>
-      <td>Update the local repo with all branches from a remote</td>
+      <td>Update the local repo with all bookmarks from a remote</td>
       <td><code>jj git fetch [--remote &lt;remote&gt;]</code> (there is no
           support for fetching into non-Git repos yet)</td>
       <td><code>git fetch [&lt;remote&gt;]</code></td>
     </tr>
     <tr>
-      <td>Update a remote repo with all branches from the local repo</td>
+      <td>Update a remote repo with all bookmarks from the local repo</td>
       <td><code>jj git push --all [--remote &lt;remote&gt;]</code> (there is no
           support for pushing from non-Git repos yet)</td>
       <td><code>git push --all [&lt;remote&gt;]</code></td>
     </tr>
     <tr>
-      <td>Update a remote repo with a single branch from the local repo</td>
-      <td><code>jj git push --branch &lt;branch name&gt;
+      <td>Update a remote repo with a single bookmark from the local repo</td>
+      <td><code>jj git push --bookmark &lt;bookmark name&gt;
                 [--remote &lt;remote&gt;]</code> (there is no support for
                 pushing from non-Git repos yet)</td>
-      <td><code>git push &lt;remote&gt; &lt;branch name&gt;</code></td>
+      <td><code>git push &lt;remote&gt; &lt;bookmark name&gt;</code></td>
     </tr>
     <tr>
       <td>Show summary of current work and repo status</td>
@@ -187,10 +187,10 @@ parent.
     <tr>
       <td>See log of all reachable commits</td>
       <td><code>jj log -r 'all()'</code> or <code>jj log -r ::</code></td>
-      <td><code>git log --oneline --graph --decorate --branches</code></td>
+      <td><code>git log --oneline --graph --decorate --bookmarks</code></td>
     </tr>
     <tr>
-      <td>Show log of commits not on the main branch</td>
+      <td>Show log of commits not on the main bookmark</td>
       <td><code>jj log</code></td>
       <td>(TODO)</td>
     </tr>
@@ -243,23 +243,23 @@ parent.
       <td><code>git stash</code></td>
     </tr>
     <tr>
-      <td>Start working on a new change based on the &lt;main&gt; branch</td>
+      <td>Start working on a new change based on the &lt;main&gt; bookmark</td>
       <td><code>jj new main</code></td>
       <td><code>git switch -c topic main</code> or
         <code>git checkout -b topic main</code> (may need to stash or commit
         first)</td>
     </tr>
     <tr>
-      <td>Move branch A onto branch B</td>
+      <td>Move bookmark A onto bookmark B</td>
       <td><code>jj rebase -b A -d B</code></td>
       <td><code>git rebase B A</code>
-          (may need to rebase other descendant branches separately)</td>
+          (may need to rebase other descendant bookmarks separately)</td>
     </tr>
     <tr>
       <td>Move change A and its descendants onto change B</td>
       <td><code>jj rebase -s A -d B</code></td>
-      <td><code>git rebase --onto B A^ &lt;some descendant branch&gt;</code>
-          (may need to rebase other descendant branches separately)</td>
+      <td><code>git rebase --onto B A^ &lt;some descendant bookmark&gt;</code>
+          (may need to rebase other descendant bookmarks separately)</td>
     </tr>
     <tr>
       <td>Reorder changes from A-B-C-D to A-C-B-D</td>
@@ -324,29 +324,29 @@ parent.
       <td><code>git rev-parse --show-toplevel</code></td>
     </tr>
     <tr>
-      <td>List branches</td>
-      <td><code>jj branch list</code></td>
-      <td><code>git branch</code></td>
+      <td>List bookmarks</td>
+      <td><code>jj bookmark list</code></td>
+      <td><code>git bookmark</code></td>
     </tr>
     <tr>
-      <td>Create a branch</td>
-      <td><code>jj branch create &lt;name&gt; -r &lt;revision&gt;</code></td>
-      <td><code>git branch &lt;name&gt; &lt;revision&gt;</code></td>
+      <td>Create a bookmark</td>
+      <td><code>jj bookmark create &lt;name&gt; -r &lt;revision&gt;</code></td>
+      <td><code>git bookmark &lt;name&gt; &lt;revision&gt;</code></td>
     </tr>
     <tr>
-      <td>Move a branch forward</td>
-      <td><code>jj branch set &lt;name&gt; -r &lt;revision&gt;</code></td>
-      <td><code>git branch -f &lt;name&gt; &lt;revision&gt;</code></td>
+      <td>Move a bookmark forward</td>
+      <td><code>jj bookmark set &lt;name&gt; -r &lt;revision&gt;</code></td>
+      <td><code>git bookmark -f &lt;name&gt; &lt;revision&gt;</code></td>
     </tr>
     <tr>
-      <td>Move a branch backward or sideways</td>
-      <td><code>jj branch set &lt;name&gt; -r &lt;revision&gt; --allow-backwards</code></td>
-      <td><code>git branch -f &lt;name&gt; &lt;revision&gt;</code></td>
+      <td>Move a bookmark backward or sideways</td>
+      <td><code>jj bookmark set &lt;name&gt; -r &lt;revision&gt; --allow-backwards</code></td>
+      <td><code>git bookmark -f &lt;name&gt; &lt;revision&gt;</code></td>
     </tr>
     <tr>
-      <td>Delete a branch</td>
-      <td><code>jj branch delete &lt;name&gt; </code></td>
-      <td><code>git branch --delete &lt;name&gt;</code></td>
+      <td>Delete a bookmark</td>
+      <td><code>jj bookmark delete &lt;name&gt; </code></td>
+      <td><code>git bookmark --delete &lt;name&gt;</code></td>
     </tr>
     <tr>
       <td>See log of operations performed on the repo</td>

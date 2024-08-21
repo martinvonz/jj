@@ -80,11 +80,11 @@ This type cannot be printed. The following methods are defined.
   working-copy commit as `<workspace name>@`.
 * `current_working_copy() -> Boolean`: True for the working-copy commit of the
   current workspace.
-* `branches() -> List<RefName>`: Local and remote branches pointing to the commit.
-  A tracking remote branch will be included only if its target is different
-  from the local one.
-* `local_branches() -> List<RefName>`: All local branches pointing to the commit.
-* `remote_branches() -> List<RefName>`: All remote branches pointing to the commit.
+* `bookmarks() -> List<RefName>`: Local and remote bookmarks pointing to the 
+  commit. A tracking remote branch will be included only if its target is 
+  different from the local one.
+* `local_bookmarks() -> List<RefName>`: All local bookmarks pointing to the commit.
+* `remote_bookmarks() -> List<RefName>`: All remote bookmarks pointing to the commit.
 * `tags() -> List<RefName>`
 * `git_refs() -> List<RefName>`
 * `git_head() -> Option<RefName>`
@@ -162,7 +162,7 @@ The following methods are defined.
 * `.remote() -> String`: Remote name or empty if this is a local ref.
 * `.present() -> Boolean`: True if the ref points to any commit.
 * `.conflict() -> Boolean`: True if [the branch or tag is
-  conflicted](branches.md#conflicts).
+  conflicted](bookmarks.md#conflicts).
 * `.normal_target() -> Option<Commit>`: Target commit if the ref is not
   conflicted and points to a commit.
 * `.removed_targets() -> List<Commit>`: Old target commits if conflicted.

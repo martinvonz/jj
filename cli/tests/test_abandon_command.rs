@@ -25,7 +25,7 @@ fn create_commit(test_env: &TestEnvironment, repo_path: &Path, name: &str, paren
         test_env.jj_cmd_ok(repo_path, &args);
     }
     std::fs::write(repo_path.join(name), format!("{name}\n")).unwrap();
-    test_env.jj_cmd_ok(repo_path, &["branch", "create", name]);
+    test_env.jj_cmd_ok(repo_path, &["bookmark", "create", name]);
 }
 
 #[test]
@@ -291,7 +291,7 @@ fn test_bug_2600() {
     ○  [rlv] nottherootcommit
     ◆  [zzz]
     "###);
-    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["branch", "list", "b"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["bookmark", "list", "b"]);
     insta::assert_snapshot!(stdout, @r###"
     b: zsuskuln 73c929fc base
     "###);
@@ -370,7 +370,7 @@ fn get_log_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
         &[
             "log",
             "-T",
-            r#"separate(" ", "[" ++ change_id.short(3) ++ "]", branches)"#,
+            r#"separate(" ", "[" ++ change_id.short(3) ++ "]", bookmarks)"#,
         ],
     )
 }

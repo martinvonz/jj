@@ -70,9 +70,9 @@ impl View {
         &self.data.head_ids
     }
 
-    /// Iterates pair of local and remote branches by branch name.
-    pub fn branches(&self) -> impl Iterator<Item = (&str, BranchTarget<'_>)> {
-        op_store::merge_join_branch_views(&self.data.local_branches, &self.data.remote_views)
+    /// Iterates pair of local and remote bookmarks by bookmark name.
+    pub fn bookmarks(&self) -> impl Iterator<Item = (&str, BranchTarget<'_>)> {
+        op_store::merge_join_bookmark_views(&self.data.local_bookmarks, &self.data.remote_views)
     }
 
     pub fn tags(&self) -> &BTreeMap<String, RefTarget> {
@@ -103,63 +103,64 @@ impl View {
         self.data.head_ids.remove(head_id);
     }
 
-    /// Iterates local branch `(name, target)`s in lexicographical order.
-    pub fn local_branches(&self) -> impl Iterator<Item = (&str, &RefTarget)> {
+    /// Iterates local bookmark `(name, target)`s in lexicographical order.
+    pub fn local_bookmarks(&self) -> impl Iterator<Item = (&str, &RefTarget)> {
         self.data
-            .local_branches
+            .local_bookmarks
             .iter()
             .map(|(name, target)| (name.as_ref(), target))
     }
 
-    /// Iterates local branches `(name, target)` in lexicographical order where
+    /// Iterates local bookmarks `(name, target)` in lexicographical order where
     /// the target adds `commit_id`.
-    pub fn local_branches_for_commit<'a: 'b, 'b>(
+    pub fn local_bookmarks_for_commit<'a: 'b, 'b>(
         &'a self,
         commit_id: &'b CommitId,
     ) -> impl Iterator<Item = (&'a str, &'a RefTarget)> + 'b {
-        self.local_branches()
+        self.local_bookmarks()
             .filter(|(_, target)| target.added_ids().contains(commit_id))
     }
 
-    /// Iterates local branch `(name, target)`s matching the given pattern.
+    /// Iterates local bookmark `(name, target)`s matching the given pattern.
     /// Entries are sorted by `name`.
-    pub fn local_branches_matching<'a: 'b, 'b>(
+    pub fn local_bookmarks_matching<'a: 'b, 'b>(
         &'a self,
         pattern: &'b StringPattern,
     ) -> impl Iterator<Item = (&'a str, &'a RefTarget)> + 'b {
         pattern
-            .filter_btree_map(&self.data.local_branches)
+            .filter_btree_map(&self.data.local_bookmarks)
             .map(|(name, target)| (name.as_ref(), target))
     }
 
-    pub fn get_local_branch(&self, name: &str) -> &RefTarget {
-        self.data.local_branches.get(name).flatten()
+    pub fn get_local_bookmark(&self, name: &str) -> &RefTarget {
+        self.data.local_bookmarks.get(name).flatten()
     }
 
-    /// Sets local branch to point to the given target. If the target is absent,
-    /// and if no associated remote branches exist, the branch will be removed.
-    pub fn set_local_branch_target(&mut self, name: &str, target: RefTarget) {
+    /// Sets local bookmark to point to the given target. If the target is
+    /// absent, and if no associated remote bookmarks exist, the bookmark
+    /// will be removed.
+    pub fn set_local_bookmark_target(&mut self, name: &str, target: RefTarget) {
         if target.is_present() {
-            self.data.local_branches.insert(name.to_owned(), target);
+            self.data.local_bookmarks.insert(name.to_owned(), target);
         } else {
-            self.data.local_branches.remove(name);
+            self.data.local_bookmarks.remove(name);
         }
     }
 
     /// Iterates over `((name, remote_name), remote_ref)` for all remote
-    /// branches in lexicographical order.
-    pub fn all_remote_branches(&self) -> impl Iterator<Item = ((&str, &str), &RemoteRef)> {
-        op_store::flatten_remote_branches(&self.data.remote_views)
+    /// bookmarks in lexicographical order.
+    pub fn all_remote_bookmarks(&self) -> impl Iterator<Item = ((&str, &str), &RemoteRef)> {
+        op_store::flatten_remote_bookmarks(&self.data.remote_views)
     }
 
-    /// Iterates over `(name, remote_ref)`s for all remote branches of the
+    /// Iterates over `(name, remote_ref)`s for all remote bookmarks of the
     /// specified remote in lexicographical order.
-    pub fn remote_branches(&self, remote_name: &str) -> impl Iterator<Item = (&str, &RemoteRef)> {
+    pub fn remote_bookmarks(&self, remote_name: &str) -> impl Iterator<Item = (&str, &RemoteRef)> {
         let maybe_remote_view = self.data.remote_views.get(remote_name);
         maybe_remote_view
             .map(|remote_view| {
                 remote_view
-                    .branches
+                    .bookmarks
                     .iter()
                     .map(|(name, remote_ref)| (name.as_ref(), remote_ref))
             })
@@ -167,94 +168,97 @@ impl View {
             .flatten()
     }
 
-    /// Iterates over `(name, remote_ref)`s for all remote branches of the
+    /// Iterates over `(name, remote_ref)`s for all remote bookmarks of the
     /// specified remote that match the given pattern.
     ///
     /// Entries are sorted by `(name, remote_name)`.
-    pub fn remote_branches_matching<'a: 'b, 'b>(
+    pub fn remote_bookmarks_matching<'a: 'b, 'b>(
         &'a self,
-        branch_pattern: &'b StringPattern,
+        bookmark_pattern: &'b StringPattern,
         remote_pattern: &'b StringPattern,
     ) -> impl Iterator<Item = ((&'a str, &'a str), &'a RemoteRef)> + 'b {
-        // Use kmerge instead of flat_map for consistency with all_remote_branches().
+        // Use kmerge instead of flat_map for consistency with all_remote_bookmarks().
         remote_pattern
             .filter_btree_map(&self.data.remote_views)
             .map(|(remote_name, remote_view)| {
-                branch_pattern.filter_btree_map(&remote_view.branches).map(
-                    |(branch_name, remote_ref)| {
-                        let full_name = (branch_name.as_ref(), remote_name.as_ref());
+                bookmark_pattern
+                    .filter_btree_map(&remote_view.bookmarks)
+                    .map(|(bookmark_name, remote_ref)| {
+                        let full_name = (bookmark_name.as_ref(), remote_name.as_ref());
                         (full_name, remote_ref)
-                    },
-                )
+                    })
             })
             .kmerge_by(|(full_name1, _), (full_name2, _)| full_name1 < full_name2)
     }
 
-    pub fn get_remote_branch(&self, name: &str, remote_name: &str) -> &RemoteRef {
+    pub fn get_remote_bookmark(&self, name: &str, remote_name: &str) -> &RemoteRef {
         if let Some(remote_view) = self.data.remote_views.get(remote_name) {
-            remote_view.branches.get(name).flatten()
+            remote_view.bookmarks.get(name).flatten()
         } else {
             RemoteRef::absent_ref()
         }
     }
 
-    /// Sets remote-tracking branch to the given target and state. If the target
-    /// is absent, the branch will be removed.
-    pub fn set_remote_branch(&mut self, name: &str, remote_name: &str, remote_ref: RemoteRef) {
+    /// Sets remote-tracking bookmark to the given target and state. If the
+    /// target is absent, the bookmark will be removed.
+    pub fn set_remote_bookmark(&mut self, name: &str, remote_name: &str, remote_ref: RemoteRef) {
         if remote_ref.is_present() {
             let remote_view = self
                 .data
                 .remote_views
                 .entry(remote_name.to_owned())
                 .or_default();
-            remote_view.branches.insert(name.to_owned(), remote_ref);
+            remote_view.bookmarks.insert(name.to_owned(), remote_ref);
         } else if let Some(remote_view) = self.data.remote_views.get_mut(remote_name) {
-            remote_view.branches.remove(name);
+            remote_view.bookmarks.remove(name);
         }
     }
 
-    /// Iterates over `(name, {local_ref, remote_ref})`s for every branch
+    /// Iterates over `(name, {local_ref, remote_ref})`s for every bookmark
     /// present locally and/or on the specified remote, in lexicographical
     /// order.
     ///
-    /// Note that this does *not* take into account whether the local branch
-    /// tracks the remote branch or not. Missing values are represented as
+    /// Note that this does *not* take into account whether the local bookmark
+    /// tracks the remote bookmark or not. Missing values are represented as
     /// RefTarget::absent_ref() or RemoteRef::absent_ref().
-    pub fn local_remote_branches<'a>(
+    pub fn local_remote_bookmarks<'a>(
         &'a self,
         remote_name: &str,
     ) -> impl Iterator<Item = (&'a str, LocalAndRemoteRef<'a>)> + 'a {
-        refs::iter_named_local_remote_refs(self.local_branches(), self.remote_branches(remote_name))
-            .map(|(name, (local_target, remote_ref))| {
-                let targets = LocalAndRemoteRef {
-                    local_target,
-                    remote_ref,
-                };
-                (name, targets)
-            })
+        refs::iter_named_local_remote_refs(
+            self.local_bookmarks(),
+            self.remote_bookmarks(remote_name),
+        )
+        .map(|(name, (local_target, remote_ref))| {
+            let targets = LocalAndRemoteRef {
+                local_target,
+                remote_ref,
+            };
+            (name, targets)
+        })
     }
 
     /// Iterates over `(name, TrackingRefPair {local_ref, remote_ref})`s for
-    /// every branch with a name that matches the given pattern, and that is
+    /// every bookmark with a name that matches the given pattern, and that is
     /// present locally and/or on the specified remote.
     ///
     /// Entries are sorted by `name`.
     ///
-    /// Note that this does *not* take into account whether the local branch
-    /// tracks the remote branch or not. Missing values are represented as
+    /// Note that this does *not* take into account whether the local bookmark
+    /// tracks the remote bookmark or not. Missing values are represented as
     /// RefTarget::absent_ref() or RemoteRef::absent_ref().
-    pub fn local_remote_branches_matching<'a: 'b, 'b>(
+    pub fn local_remote_bookmarks_matching<'a: 'b, 'b>(
         &'a self,
-        branch_pattern: &'b StringPattern,
+        bookmark_pattern: &'b StringPattern,
         remote_name: &str,
     ) -> impl Iterator<Item = (&'a str, LocalAndRemoteRef<'a>)> + 'b {
         // Change remote_name to StringPattern if needed, but merge-join adapter won't
         // be usable.
         let maybe_remote_view = self.data.remote_views.get(remote_name);
         refs::iter_named_local_remote_refs(
-            branch_pattern.filter_btree_map(&self.data.local_branches),
+            bookmark_pattern.filter_btree_map(&self.data.local_bookmarks),
             maybe_remote_view
-                .map(|remote_view| branch_pattern.filter_btree_map(&remote_view.branches))
+                .map(|remote_view| bookmark_pattern.filter_btree_map(&remote_view.bookmarks))
                 .into_iter()
                 .flatten(),
         )
@@ -313,10 +317,10 @@ impl View {
 
     /// Iterates all commit ids referenced by this view.
     ///
-    /// This can include hidden commits referenced by remote branches, previous
-    /// positions of conflicted branches, etc. The ancestors and predecessors of
-    /// the returned commits should be considered reachable from the view. Use
-    /// this to build commit index from scratch.
+    /// This can include hidden commits referenced by remote bookmarks, previous
+    /// positions of conflicted bookmarks, etc. The ancestors and predecessors
+    /// of the returned commits should be considered reachable from the
+    /// view. Use this to build commit index from scratch.
     ///
     /// The iteration order is unspecified, and may include duplicated entries.
     pub fn all_referenced_commit_ids(&self) -> impl Iterator<Item = &CommitId> {
@@ -330,7 +334,7 @@ impl View {
         // not be smart here. Callers will build a larger set of commits anyway.
         let op_store::View {
             head_ids,
-            local_branches,
+            local_bookmarks,
             tags,
             remote_views,
             git_refs,
@@ -339,11 +343,11 @@ impl View {
         } = &self.data;
         itertools::chain!(
             head_ids,
-            local_branches.values().flat_map(ref_target_ids),
+            local_bookmarks.values().flat_map(ref_target_ids),
             tags.values().flat_map(ref_target_ids),
             remote_views.values().flat_map(|remote_view| {
-                let op_store::RemoteView { branches } = remote_view;
-                branches
+                let op_store::RemoteView { bookmarks } = remote_view;
+                bookmarks
                     .values()
                     .flat_map(|remote_ref| ref_target_ids(&remote_ref.target))
             }),

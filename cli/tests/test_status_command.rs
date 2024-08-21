@@ -33,7 +33,7 @@ fn create_commit(
     for (name, content) in files {
         std::fs::write(repo_path.join(name), content).unwrap();
     }
-    test_env.jj_cmd_ok(repo_path, &["branch", "create", name]);
+    test_env.jj_cmd_ok(repo_path, &["bookmark", "create", name]);
 }
 
 #[test]
@@ -77,7 +77,7 @@ fn test_status_merge() {
 
     std::fs::write(repo_path.join("file"), "base").unwrap();
     test_env.jj_cmd_ok(&repo_path, &["new", "-m=left"]);
-    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "left"]);
+    test_env.jj_cmd_ok(&repo_path, &["bookmark", "create", "left"]);
     test_env.jj_cmd_ok(&repo_path, &["new", "@-", "-m=right"]);
     std::fs::write(repo_path.join("file"), "right").unwrap();
     test_env.jj_cmd_ok(&repo_path, &["new", "left", "@"]);

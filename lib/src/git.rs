@@ -312,18 +312,22 @@ pub fn import_some_refs(
         match ref_name {
             RefName::LocalBranch(branch) => {
                 if new_remote_ref.is_tracking() {
-                    mut_repo.merge_local_branch(branch, base_target, &new_remote_ref.target);
+                    mut_repo.merge_local_bookmark(branch, base_target, &new_remote_ref.target);
                 }
                 // Update Git-tracking branch like the other remote branches.
-                mut_repo.set_remote_branch(branch, REMOTE_NAME_FOR_LOCAL_GIT_REPO, new_remote_ref);
+                mut_repo.set_remote_bookmark(
+                    branch,
+                    REMOTE_NAME_FOR_LOCAL_GIT_REPO,
+                    new_remote_ref,
+                );
             }
             RefName::RemoteBranch { branch, remote } => {
                 if new_remote_ref.is_tracking() {
-                    mut_repo.merge_local_branch(branch, base_target, &new_remote_ref.target);
+                    mut_repo.merge_local_bookmark(branch, base_target, &new_remote_ref.target);
                 }
                 // Remote-tracking branch is the last known state of the branch in the remote.
                 // It shouldn't diverge even if we had inconsistent view.
-                mut_repo.set_remote_branch(branch, remote, new_remote_ref);
+                mut_repo.set_remote_bookmark(branch, remote, new_remote_ref);
             }
             RefName::Tag(name) => {
                 if new_remote_ref.is_tracking() {
@@ -400,7 +404,7 @@ fn diff_refs_to_import(
         .collect();
     // TODO: migrate tags to the remote view, and don't destructure &RemoteRef
     let mut known_remote_refs: HashMap<RefName, (&RefTarget, RemoteRefState)> = itertools::chain(
-        view.all_remote_branches()
+        view.all_remote_bookmarks()
             .map(|((branch, remote), remote_ref)| {
                 // TODO: want to abstract local ref as "git" tracking remote, but
                 // we'll probably need to refactor the git_ref_filter API first.
@@ -496,7 +500,7 @@ fn default_remote_ref_state_for(ref_name: &RefName, git_settings: &GitSettings) 
         // LocalBranch means Git-tracking branch
         RefName::LocalBranch(_) | RefName::Tag(_) => RemoteRefState::Tracking,
         RefName::RemoteBranch { .. } => {
-            if git_settings.auto_local_branch {
+            if git_settings.auto_local_bookmark {
                 RemoteRefState::Tracking
             } else {
                 RemoteRefState::New
@@ -512,7 +516,7 @@ fn default_remote_ref_state_for(ref_name: &RefName, git_settings: &GitSettings) 
 /// tracking remotes, and such mutation isn't applied to `view.git_refs()` yet.
 fn pinned_commit_ids(view: &View) -> Vec<CommitId> {
     itertools::chain(
-        view.local_branches().map(|(_, target)| target),
+        view.local_bookmarks().map(|(_, target)| target),
         view.tags().values(),
     )
     .flat_map(|target| target.added_ids())
@@ -527,7 +531,7 @@ fn pinned_commit_ids(view: &View) -> Vec<CommitId> {
 /// propagate to the other remotes on later push. OTOH, untracked remote
 /// branches are considered independent refs.
 fn remotely_pinned_commit_ids(view: &View) -> Vec<CommitId> {
-    view.all_remote_branches()
+    view.all_remote_bookmarks()
         .filter(|(_, remote_ref)| !remote_ref.is_tracking())
         .map(|(_, remote_ref)| &remote_ref.target)
         .flat_map(|target| target.added_ids())
@@ -747,7 +751,7 @@ fn copy_exportable_local_branches_to_remote_view(
 ) {
     let new_local_branches = mut_repo
         .view()
-        .local_remote_branches(remote_name)
+        .local_remote_bookmarks(remote_name)
         .filter_map(|(branch, targets)| {
             // TODO: filter out untracked branches (if we add support for untracked @git
             // branches)
@@ -763,7 +767,7 @@ fn copy_exportable_local_branches_to_remote_view(
             target: new_target,
             state: RemoteRefState::Tracking,
         };
-        mut_repo.set_remote_branch(&branch, remote_name, new_remote_ref);
+        mut_repo.set_remote_bookmark(&branch, remote_name, new_remote_ref);
     }
 }
 
@@ -776,9 +780,9 @@ fn diff_refs_to_export(
     // Local targets will be copied to the "git" remote if successfully exported. So
     // the local branches are considered to be the new "git" remote branches.
     let mut all_branch_targets: HashMap<RefName, (&RefTarget, &RefTarget)> = itertools::chain(
-        view.local_branches()
+        view.local_bookmarks()
             .map(|(branch, target)| (RefName::LocalBranch(branch.to_owned()), target)),
-        view.all_remote_branches()
+        view.all_remote_bookmarks()
             .filter(|&((_, remote), _)| remote != REMOTE_NAME_FOR_LOCAL_GIT_REPO)
             .map(|((branch, remote), remote_ref)| {
                 let ref_name = RefName::RemoteBranch {
@@ -1379,7 +1383,7 @@ pub fn push_branches(
             state: RemoteRefState::Tracking,
         };
         mut_repo.set_git_ref_target(&git_ref_name, new_remote_ref.target.clone());
-        mut_repo.set_remote_branch(branch_name, remote_name, new_remote_ref);
+        mut_repo.set_remote_bookmark(branch_name, remote_name, new_remote_ref);
     }
 
     Ok(())

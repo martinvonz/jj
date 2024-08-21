@@ -119,9 +119,9 @@ pub enum RevsetCommitRef {
     },
     VisibleHeads,
     Root,
-    Branches(StringPattern),
-    RemoteBranches {
-        branch_pattern: StringPattern,
+    Bookmarks(StringPattern),
+    RemoteBookmarks {
+        bookmark_pattern: StringPattern,
         remote_pattern: StringPattern,
         remote_ref_state: Option<RemoteRefState>,
     },
@@ -256,20 +256,20 @@ impl RevsetExpression {
         Rc::new(RevsetExpression::CommitRef(RevsetCommitRef::Root))
     }
 
-    pub fn branches(pattern: StringPattern) -> Rc<RevsetExpression> {
-        Rc::new(RevsetExpression::CommitRef(RevsetCommitRef::Branches(
+    pub fn bookmarks(pattern: StringPattern) -> Rc<RevsetExpression> {
+        Rc::new(RevsetExpression::CommitRef(RevsetCommitRef::Bookmarks(
             pattern,
         )))
     }
 
-    pub fn remote_branches(
-        branch_pattern: StringPattern,
+    pub fn remote_bookmarks(
+        bookmark_pattern: StringPattern,
         remote_pattern: StringPattern,
         remote_ref_state: Option<RemoteRefState>,
     ) -> Rc<RevsetExpression> {
         Rc::new(RevsetExpression::CommitRef(
-            RevsetCommitRef::RemoteBranches {
-                branch_pattern,
+            RevsetCommitRef::RemoteBookmarks {
+                bookmark_pattern,
                 remote_pattern,
                 remote_ref_state,
             },
@@ -460,7 +460,7 @@ impl RevsetExpression {
     }
 
     /// Resolve a programmatically created revset expression. In particular, the
-    /// expression must not contain any symbols (branches, tags, change/commit
+    /// expression must not contain any symbols (bookmarks, tags, change/commit
     /// prefixes). Callers must not include `RevsetExpression::symbol()` in
     /// the expression, and should instead resolve symbols to `CommitId`s and
     /// pass them into `RevsetExpression::commits()`. Similarly, the expression
@@ -644,24 +644,34 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
         function.expect_no_arguments()?;
         Ok(RevsetExpression::root())
     });
-    map.insert("branches", |function, _context| {
+    map.insert("bookmarks", |function, _context| {
         let ([], [opt_arg]) = function.expect_arguments()?;
         let pattern = if let Some(arg) = opt_arg {
             expect_string_pattern(arg)?
         } else {
             StringPattern::everything()
         };
-        Ok(RevsetExpression::branches(pattern))
+        Ok(RevsetExpression::bookmarks(pattern))
     });
-    map.insert("remote_branches", |function, _context| {
-        parse_remote_branches_arguments(function, None)
+    map.insert("remote_bookmarks", |function, _context| {
+        parse_remote_bookmarks_arguments(function, None)
     });
-    map.insert("tracked_remote_branches", |function, _context| {
-        parse_remote_branches_arguments(function, Some(RemoteRefState::Tracking))
+    map.insert("tracked_remote_bookmarks", |function, _context| {
+        parse_remote_bookmarks_arguments(function, Some(RemoteRefState::Tracking))
     });
-    map.insert("untracked_remote_branches", |function, _context| {
-        parse_remote_branches_arguments(function, Some(RemoteRefState::New))
+    map.insert("untracked_remote_bookmarks", |function, _context| {
+        parse_remote_bookmarks_arguments(function, Some(RemoteRefState::New))
     });
+
+    // TODO: Remove in jj 0.28+
+    map.insert("branches", map["bookmarks"]);
+    map.insert("remote_branches", map["remote_bookmarks"]);
+    map.insert("tracked_remote_branches", map["tracked_remote_bookmarks"]);
+    map.insert(
+        "untracked_remote_branches",
+        map["untracked_remote_bookmarks"],
+    );
+
     map.insert("tags", |function, _context| {
         function.expect_no_arguments()?;
         Ok(RevsetExpression::tags())
@@ -822,14 +832,14 @@ pub fn expect_date_pattern(
     revset_parser::expect_pattern_with("date pattern", node, parse_pattern)
 }
 
-fn parse_remote_branches_arguments(
+fn parse_remote_bookmarks_arguments(
     function: &FunctionCallNode,
     remote_ref_state: Option<RemoteRefState>,
 ) -> Result<Rc<RevsetExpression>, RevsetParseError> {
-    let ([], [branch_opt_arg, remote_opt_arg]) =
+    let ([], [bookmark_opt_arg, remote_opt_arg]) =
         function.expect_named_arguments(&["", "remote"])?;
-    let branch_pattern = if let Some(branch_arg) = branch_opt_arg {
-        expect_string_pattern(branch_arg)?
+    let bookmark_pattern = if let Some(bookmark_arg) = bookmark_opt_arg {
+        expect_string_pattern(bookmark_arg)?
     } else {
         StringPattern::everything()
     };
@@ -838,8 +848,8 @@ fn parse_remote_branches_arguments(
     } else {
         StringPattern::everything()
     };
-    Ok(RevsetExpression::remote_branches(
-        branch_pattern,
+    Ok(RevsetExpression::remote_bookmarks(
+        bookmark_pattern,
         remote_pattern,
         remote_ref_state,
     ))
@@ -1411,29 +1421,29 @@ pub fn walk_revs<'index>(
         .evaluate_programmatic(repo)
 }
 
-fn resolve_remote_branch(repo: &dyn Repo, name: &str, remote: &str) -> Option<Vec<CommitId>> {
+fn resolve_remote_bookmark(repo: &dyn Repo, name: &str, remote: &str) -> Option<Vec<CommitId>> {
     let view = repo.view();
     let target = match (name, remote) {
         #[cfg(feature = "git")]
         ("HEAD", crate::git::REMOTE_NAME_FOR_LOCAL_GIT_REPO) => view.git_head(),
-        (name, remote) => &view.get_remote_branch(name, remote).target,
+        (name, remote) => &view.get_remote_bookmark(name, remote).target,
     };
     target
         .is_present()
         .then(|| target.added_ids().cloned().collect())
 }
 
-fn all_branch_symbols(
+fn all_bookmark_symbols(
     repo: &dyn Repo,
     include_synced_remotes: bool,
 ) -> impl Iterator<Item = String> + '_ {
     let view = repo.view();
-    view.branches()
-        .flat_map(move |(name, branch_target)| {
-            // Remote branch "x"@"y" may conflict with local "x@y" in unquoted form.
-            let local_target = branch_target.local_target;
+    view.bookmarks()
+        .flat_map(move |(name, bookmark_target)| {
+            // Remote bookmark "x"@"y" may conflict with local "x@y" in unquoted form.
+            let local_target = bookmark_target.local_target;
             let local_symbol = local_target.is_present().then(|| name.to_owned());
-            let remote_symbols = branch_target
+            let remote_symbols = bookmark_target
                 .remote_refs
                 .into_iter()
                 .filter(move |&(_, remote_ref)| {
@@ -1450,8 +1460,8 @@ fn all_branch_symbols(
 fn make_no_such_symbol_error(repo: &dyn Repo, name: impl Into<String>) -> RevsetResolutionError {
     let name = name.into();
     // TODO: include tags?
-    let branch_names = all_branch_symbols(repo, name.contains('@'));
-    let candidates = collect_similar(&name, branch_names);
+    let bookmark_names = all_bookmark_symbols(repo, name.contains('@'));
+    let candidates = collect_similar(&name, bookmark_names);
     RevsetResolutionError::NoSuchRevision { name, candidates }
 }
 
@@ -1508,7 +1518,7 @@ impl PartialSymbolResolver for BranchResolver {
         repo: &dyn Repo,
         symbol: &str,
     ) -> Result<Option<Vec<CommitId>>, RevsetResolutionError> {
-        let target = repo.view().get_local_branch(symbol);
+        let target = repo.view().get_local_bookmark(symbol);
         Ok(target
             .is_present()
             .then(|| target.added_ids().cloned().collect()))
@@ -1603,7 +1613,7 @@ impl PartialSymbolResolver for ChangePrefixResolver<'_> {
 /// Each PartialSymbolResolver will be invoked in order, its result used if one
 /// is provided. Native resolvers are always invoked first. In the future, we
 /// may provide a way for extensions to override native resolvers like tags and
-/// branches.
+/// bookmarks.
 pub trait SymbolResolverExtension {
     /// PartialSymbolResolvers can capture `repo` for caching purposes if
     /// desired, but they do not have to since `repo` is passed into
@@ -1611,8 +1621,8 @@ pub trait SymbolResolverExtension {
     fn new_resolvers<'a>(&self, repo: &'a dyn Repo) -> Vec<Box<dyn PartialSymbolResolver + 'a>>;
 }
 
-/// Resolves branches, remote branches, tags, git refs, and full and abbreviated
-/// commit and change ids.
+/// Resolves bookmarks, remote bookmarks, tags, git refs, and full and
+/// abbreviated commit and change ids.
 pub struct DefaultSymbolResolver<'a> {
     repo: &'a dyn Repo,
     commit_id_resolver: CommitPrefixResolver<'a>,
@@ -1673,8 +1683,10 @@ fn resolve_commit_ref(
 ) -> Result<Vec<CommitId>, RevsetResolutionError> {
     match commit_ref {
         RevsetCommitRef::Symbol(symbol) => symbol_resolver.resolve_symbol(symbol),
-        RevsetCommitRef::RemoteSymbol { name, remote } => resolve_remote_branch(repo, name, remote)
-            .ok_or_else(|| make_no_such_symbol_error(repo, format!("{name}@{remote}"))),
+        RevsetCommitRef::RemoteSymbol { name, remote } => {
+            resolve_remote_bookmark(repo, name, remote)
+                .ok_or_else(|| make_no_such_symbol_error(repo, format!("{name}@{remote}")))
+        }
         RevsetCommitRef::WorkingCopy(workspace_id) => {
             if let Some(commit_id) = repo.view().get_wc_commit_id(workspace_id) {
                 Ok(vec![commit_id.clone()])
@@ -1690,24 +1702,24 @@ fn resolve_commit_ref(
         }
         RevsetCommitRef::VisibleHeads => Ok(repo.view().heads().iter().cloned().collect_vec()),
         RevsetCommitRef::Root => Ok(vec![repo.store().root_commit_id().clone()]),
-        RevsetCommitRef::Branches(pattern) => {
+        RevsetCommitRef::Bookmarks(pattern) => {
             let commit_ids = repo
                 .view()
-                .local_branches_matching(pattern)
+                .local_bookmarks_matching(pattern)
                 .flat_map(|(_, target)| target.added_ids())
                 .cloned()
                 .collect();
             Ok(commit_ids)
         }
-        RevsetCommitRef::RemoteBranches {
-            branch_pattern,
+        RevsetCommitRef::RemoteBookmarks {
+            bookmark_pattern,
             remote_pattern,
             remote_ref_state,
         } => {
-            // TODO: should we allow to select @git branches explicitly?
+            // TODO: should we allow to select @git bookmarks explicitly?
             let commit_ids = repo
                 .view()
-                .remote_branches_matching(branch_pattern, remote_pattern)
+                .remote_bookmarks_matching(bookmark_pattern, remote_pattern)
                 .filter(|(_, remote_ref)| {
                     remote_ref_state.map_or(true, |state| remote_ref.state == state)
                 })
@@ -1903,7 +1915,7 @@ impl VisibilityResolutionContext<'_> {
         // transformation rules may subtly change the evaluated set. For example,
         // `all() & x` is not `x` if `x` is hidden. This wouldn't matter in practice,
         // but if it does, the heads set could be extended to include the commits
-        // (and `remote_branches()`) specified in the revset expression. Alternatively,
+        // (and `remote_bookmarks()`) specified in the revset expression. Alternatively,
         // some optimization rules could be removed, but that means `author(_) & x`
         // would have to test `::visible_heads() & x`.
         ResolvedExpression::Ancestors {
@@ -2411,32 +2423,32 @@ mod tests {
         insta::assert_debug_snapshot!(
             parse("foo").unwrap(),
             @r###"CommitRef(Symbol("foo"))"###);
-        // Default arguments for *branches() are all ""
+        // Default arguments for *bookmarks() are all ""
         insta::assert_debug_snapshot!(
-            parse("branches()").unwrap(),
-            @r###"CommitRef(Branches(Substring("")))"###);
-        insta::assert_debug_snapshot!(parse("remote_branches()").unwrap(), @r###"
+            parse("bookmarks()").unwrap(),
+            @r###"CommitRef(Bookmarks(Substring("")))"###);
+        insta::assert_debug_snapshot!(parse("remote_bookmarks()").unwrap(), @r###"
         CommitRef(
-            RemoteBranches {
-                branch_pattern: Substring(""),
+            RemoteBookmarks {
+                bookmark_pattern: Substring(""),
                 remote_pattern: Substring(""),
                 remote_ref_state: None,
             },
         )
         "###);
-        insta::assert_debug_snapshot!(parse("tracked_remote_branches()").unwrap(), @r###"
+        insta::assert_debug_snapshot!(parse("tracked_remote_bookmarks()").unwrap(), @r###"
         CommitRef(
-            RemoteBranches {
-                branch_pattern: Substring(""),
+            RemoteBookmarks {
+                bookmark_pattern: Substring(""),
                 remote_pattern: Substring(""),
                 remote_ref_state: Some(Tracking),
             },
         )
         "###);
-        insta::assert_debug_snapshot!(parse("untracked_remote_branches()").unwrap(), @r###"
+        insta::assert_debug_snapshot!(parse("untracked_remote_bookmarks()").unwrap(), @r###"
         CommitRef(
-            RemoteBranches {
-                branch_pattern: Substring(""),
+            RemoteBookmarks {
+                bookmark_pattern: Substring(""),
                 remote_pattern: Substring(""),
                 remote_ref_state: Some(New),
             },
@@ -2565,22 +2577,22 @@ mod tests {
         let _guard = settings.bind_to_scope();
 
         insta::assert_debug_snapshot!(
-            parse(r#"branches("foo")"#).unwrap(),
-            @r###"CommitRef(Branches(Substring("foo")))"###);
+            parse(r#"bookmarks("foo")"#).unwrap(),
+            @r###"CommitRef(Bookmarks(Substring("foo")))"###);
         insta::assert_debug_snapshot!(
-            parse(r#"branches(exact:"foo")"#).unwrap(),
-            @r###"CommitRef(Branches(Exact("foo")))"###);
+            parse(r#"bookmarks(exact:"foo")"#).unwrap(),
+            @r###"CommitRef(Bookmarks(Exact("foo")))"###);
         insta::assert_debug_snapshot!(
-            parse(r#"branches(substring:"foo")"#).unwrap(),
-            @r###"CommitRef(Branches(Substring("foo")))"###);
+            parse(r#"bookmarks(substring:"foo")"#).unwrap(),
+            @r###"CommitRef(Bookmarks(Substring("foo")))"###);
         insta::assert_debug_snapshot!(
-            parse(r#"branches(bad:"foo")"#).unwrap_err().kind(),
+            parse(r#"bookmarks(bad:"foo")"#).unwrap_err().kind(),
             @r###"Expression("Invalid string pattern")"###);
         insta::assert_debug_snapshot!(
-            parse(r#"branches(exact::"foo")"#).unwrap_err().kind(),
+            parse(r#"bookmarks(exact::"foo")"#).unwrap_err().kind(),
             @r###"Expression("Expected expression of string pattern")"###);
         insta::assert_debug_snapshot!(
-            parse(r#"branches(exact:"foo"+)"#).unwrap_err().kind(),
+            parse(r#"bookmarks(exact:"foo"+)"#).unwrap_err().kind(),
             @r###"Expression("Expected expression of string pattern")"###);
 
         // String pattern isn't allowed at top level.
@@ -2698,74 +2710,74 @@ mod tests {
         let _guard = settings.bind_to_scope();
 
         insta::assert_debug_snapshot!(
-            parse("remote_branches(remote=foo)").unwrap(), @r###"
+            parse("remote_bookmarks(remote=foo)").unwrap(), @r###"
         CommitRef(
-            RemoteBranches {
-                branch_pattern: Substring(""),
+            RemoteBookmarks {
+                bookmark_pattern: Substring(""),
                 remote_pattern: Substring("foo"),
                 remote_ref_state: None,
             },
         )
         "###);
         insta::assert_debug_snapshot!(
-            parse("remote_branches(foo, remote=bar)").unwrap(), @r###"
+            parse("remote_bookmarks(foo, remote=bar)").unwrap(), @r###"
         CommitRef(
-            RemoteBranches {
-                branch_pattern: Substring("foo"),
+            RemoteBookmarks {
+                bookmark_pattern: Substring("foo"),
                 remote_pattern: Substring("bar"),
                 remote_ref_state: None,
             },
         )
         "###);
         insta::assert_debug_snapshot!(
-            parse("tracked_remote_branches(foo, remote=bar)").unwrap(), @r###"
+            parse("tracked_remote_bookmarks(foo, remote=bar)").unwrap(), @r###"
         CommitRef(
-            RemoteBranches {
-                branch_pattern: Substring("foo"),
+            RemoteBookmarks {
+                bookmark_pattern: Substring("foo"),
                 remote_pattern: Substring("bar"),
                 remote_ref_state: Some(Tracking),
             },
         )
         "###);
         insta::assert_debug_snapshot!(
-            parse("untracked_remote_branches(foo, remote=bar)").unwrap(), @r###"
+            parse("untracked_remote_bookmarks(foo, remote=bar)").unwrap(), @r###"
         CommitRef(
-            RemoteBranches {
-                branch_pattern: Substring("foo"),
+            RemoteBookmarks {
+                bookmark_pattern: Substring("foo"),
                 remote_pattern: Substring("bar"),
                 remote_ref_state: Some(New),
             },
         )
         "###);
         insta::assert_debug_snapshot!(
-            parse(r#"remote_branches(remote=foo, bar)"#).unwrap_err().kind(),
+            parse(r#"remote_bookmarks(remote=foo, bar)"#).unwrap_err().kind(),
             @r###"
         InvalidFunctionArguments {
-            name: "remote_branches",
+            name: "remote_bookmarks",
             message: "Positional argument follows keyword argument",
         }
         "###);
         insta::assert_debug_snapshot!(
-            parse(r#"remote_branches("", foo, remote=bar)"#).unwrap_err().kind(),
+            parse(r#"remote_bookmarks("", foo, remote=bar)"#).unwrap_err().kind(),
             @r###"
         InvalidFunctionArguments {
-            name: "remote_branches",
+            name: "remote_bookmarks",
             message: "Got multiple values for keyword \"remote\"",
         }
         "###);
         insta::assert_debug_snapshot!(
-            parse(r#"remote_branches(remote=bar, remote=bar)"#).unwrap_err().kind(),
+            parse(r#"remote_bookmarks(remote=bar, remote=bar)"#).unwrap_err().kind(),
             @r###"
         InvalidFunctionArguments {
-            name: "remote_branches",
+            name: "remote_bookmarks",
             message: "Got multiple values for keyword \"remote\"",
         }
         "###);
         insta::assert_debug_snapshot!(
-            parse(r#"remote_branches(unknown=bar)"#).unwrap_err().kind(),
+            parse(r#"remote_bookmarks(unknown=bar)"#).unwrap_err().kind(),
             @r###"
         InvalidFunctionArguments {
-            name: "remote_branches",
+            name: "remote_bookmarks",
             message: "Unexpected keyword argument \"unknown\"",
         }
         "###);
@@ -2833,61 +2845,61 @@ mod tests {
         // (e.g. Range -> DagRange) nor reorders arguments unintentionally.
 
         insta::assert_debug_snapshot!(
-            optimize(parse("parents(branches() & all())").unwrap()), @r###"
+            optimize(parse("parents(bookmarks() & all())").unwrap()), @r###"
         Ancestors {
-            heads: CommitRef(Branches(Substring(""))),
+            heads: CommitRef(Bookmarks(Substring(""))),
             generation: 1..2,
         }
         "###);
         insta::assert_debug_snapshot!(
-            optimize(parse("children(branches() & all())").unwrap()), @r###"
+            optimize(parse("children(bookmarks() & all())").unwrap()), @r###"
         Descendants {
-            roots: CommitRef(Branches(Substring(""))),
+            roots: CommitRef(Bookmarks(Substring(""))),
             generation: 1..2,
         }
         "###);
         insta::assert_debug_snapshot!(
-            optimize(parse("ancestors(branches() & all())").unwrap()), @r###"
+            optimize(parse("ancestors(bookmarks() & all())").unwrap()), @r###"
         Ancestors {
-            heads: CommitRef(Branches(Substring(""))),
+            heads: CommitRef(Bookmarks(Substring(""))),
             generation: 0..18446744073709551615,
         }
         "###);
         insta::assert_debug_snapshot!(
-            optimize(parse("descendants(branches() & all())").unwrap()), @r###"
+            optimize(parse("descendants(bookmarks() & all())").unwrap()), @r###"
         Descendants {
-            roots: CommitRef(Branches(Substring(""))),
+            roots: CommitRef(Bookmarks(Substring(""))),
             generation: 0..18446744073709551615,
         }
         "###);
 
         insta::assert_debug_snapshot!(
-            optimize(parse("(branches() & all())..(all() & tags())").unwrap()), @r###"
+            optimize(parse("(bookmarks() & all())..(all() & tags())").unwrap()), @r###"
         Range {
-            roots: CommitRef(Branches(Substring(""))),
+            roots: CommitRef(Bookmarks(Substring(""))),
             heads: CommitRef(Tags),
             generation: 0..18446744073709551615,
         }
         "###);
         insta::assert_debug_snapshot!(
-            optimize(parse("(branches() & all())::(all() & tags())").unwrap()), @r###"
+            optimize(parse("(bookmarks() & all())::(all() & tags())").unwrap()), @r###"
         DagRange {
-            roots: CommitRef(Branches(Substring(""))),
+            roots: CommitRef(Bookmarks(Substring(""))),
             heads: CommitRef(Tags),
         }
         "###);
 
         insta::assert_debug_snapshot!(
-            optimize(parse("heads(branches() & all())").unwrap()),
-            @r###"Heads(CommitRef(Branches(Substring(""))))"###);
+            optimize(parse("heads(bookmarks() & all())").unwrap()),
+            @r###"Heads(CommitRef(Bookmarks(Substring(""))))"###);
         insta::assert_debug_snapshot!(
-            optimize(parse("roots(branches() & all())").unwrap()),
-            @r###"Roots(CommitRef(Branches(Substring(""))))"###);
+            optimize(parse("roots(bookmarks() & all())").unwrap()),
+            @r###"Roots(CommitRef(Bookmarks(Substring(""))))"###);
 
         insta::assert_debug_snapshot!(
-            optimize(parse("latest(branches() & all(), 2)").unwrap()), @r###"
+            optimize(parse("latest(bookmarks() & all(), 2)").unwrap()), @r###"
         Latest {
-            candidates: CommitRef(Branches(Substring(""))),
+            candidates: CommitRef(Bookmarks(Substring(""))),
             count: 2,
         }
         "###);
@@ -2902,30 +2914,30 @@ mod tests {
         )
         "###);
         insta::assert_debug_snapshot!(
-            optimize(parse("present(branches() & all())").unwrap()),
-            @r###"Present(CommitRef(Branches(Substring(""))))"###);
+            optimize(parse("present(bookmarks() & all())").unwrap()),
+            @r###"Present(CommitRef(Bookmarks(Substring(""))))"###);
 
         insta::assert_debug_snapshot!(
-            optimize(parse("~branches() & all()").unwrap()),
-            @r###"NotIn(CommitRef(Branches(Substring(""))))"###);
+            optimize(parse("~bookmarks() & all()").unwrap()),
+            @r###"NotIn(CommitRef(Bookmarks(Substring(""))))"###);
         insta::assert_debug_snapshot!(
-            optimize(parse("(branches() & all()) | (all() & tags())").unwrap()), @r###"
+            optimize(parse("(bookmarks() & all()) | (all() & tags())").unwrap()), @r###"
         Union(
-            CommitRef(Branches(Substring(""))),
+            CommitRef(Bookmarks(Substring(""))),
             CommitRef(Tags),
         )
         "###);
         insta::assert_debug_snapshot!(
-            optimize(parse("(branches() & all()) & (all() & tags())").unwrap()), @r###"
+            optimize(parse("(bookmarks() & all()) & (all() & tags())").unwrap()), @r###"
         Intersection(
-            CommitRef(Branches(Substring(""))),
+            CommitRef(Bookmarks(Substring(""))),
             CommitRef(Tags),
         )
         "###);
         insta::assert_debug_snapshot!(
-            optimize(parse("(branches() & all()) ~ (all() & tags())").unwrap()), @r###"
+            optimize(parse("(bookmarks() & all()) ~ (all() & tags())").unwrap()), @r###"
         Difference(
-            CommitRef(Branches(Substring(""))),
+            CommitRef(Bookmarks(Substring(""))),
             CommitRef(Tags),
         )
         "###);
@@ -2947,20 +2959,20 @@ mod tests {
         let optimized = optimize(parsed.clone());
         assert!(Rc::ptr_eq(&parsed, &optimized));
 
-        let parsed = parse("branches() | tags()").unwrap();
+        let parsed = parse("bookmarks() | tags()").unwrap();
         let optimized = optimize(parsed.clone());
         assert!(Rc::ptr_eq(&parsed, &optimized));
 
-        let parsed = parse("branches() & tags()").unwrap();
+        let parsed = parse("bookmarks() & tags()").unwrap();
         let optimized = optimize(parsed.clone());
         assert!(Rc::ptr_eq(&parsed, &optimized));
 
         // Only left subtree should be rewritten.
-        let parsed = parse("(branches() & all()) | tags()").unwrap();
+        let parsed = parse("(bookmarks() & all()) | tags()").unwrap();
         let optimized = optimize(parsed.clone());
         assert_matches!(
             unwrap_union(&optimized).0.as_ref(),
-            RevsetExpression::CommitRef(RevsetCommitRef::Branches(_))
+            RevsetExpression::CommitRef(RevsetCommitRef::Bookmarks(_))
         );
         assert!(Rc::ptr_eq(
             unwrap_union(&parsed).1,
@@ -2968,7 +2980,7 @@ mod tests {
         ));
 
         // Only right subtree should be rewritten.
-        let parsed = parse("branches() | (all() & tags())").unwrap();
+        let parsed = parse("bookmarks() | (all() & tags())").unwrap();
         let optimized = optimize(parsed.clone());
         assert!(Rc::ptr_eq(
             unwrap_union(&parsed).0,

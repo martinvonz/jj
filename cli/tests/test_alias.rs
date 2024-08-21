@@ -24,11 +24,11 @@ fn test_alias_basic() {
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
 
-    test_env.add_config(r#"aliases.b = ["log", "-r", "@", "-T", "branches"]"#);
-    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "my-branch"]);
+    test_env.add_config(r#"aliases.b = ["log", "-r", "@", "-T", "bookmarks"]"#);
+    test_env.jj_cmd_ok(&repo_path, &["bookmark", "create", "my-bookmark"]);
     let stdout = test_env.jj_cmd_success(&repo_path, &["b"]);
     insta::assert_snapshot!(stdout, @r###"
-    @  my-branch
+    @  my-bookmark
     │
     ~
     "###);
@@ -41,17 +41,17 @@ fn test_alias_legacy_section() {
     let repo_path = test_env.env_root().join("repo");
 
     // Can define aliases in [alias] section
-    test_env.add_config(r#"alias.b = ["log", "-r", "@", "-T", "branches"]"#);
-    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "my-branch"]);
+    test_env.add_config(r#"alias.b = ["log", "-r", "@", "-T", "bookmarks"]"#);
+    test_env.jj_cmd_ok(&repo_path, &["bookmark", "create", "my-bookmark"]);
     let stdout = test_env.jj_cmd_success(&repo_path, &["b"]);
     insta::assert_snapshot!(stdout, @r###"
-    @  my-branch
+    @  my-bookmark
     │
     ~
     "###);
 
     // The same alias (name) in both [alias] and [aliases] sections is an error
-    test_env.add_config(r#"aliases.b = ["branch", "list"]"#);
+    test_env.add_config(r#"aliases.b = ["bookmark", "list"]"#);
     let stderr = test_env.jj_cmd_failure(&repo_path, &["b"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: Alias "b" is defined in both [aliases] and [alias]

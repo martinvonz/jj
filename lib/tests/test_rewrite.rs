@@ -264,7 +264,7 @@ fn test_rebase_descendants_backward() {
 }
 
 #[test]
-fn test_rebase_descendants_chain_becomes_branchy() {
+fn test_rebase_descendants_chain_becomes_bookmarky() {
     let settings = testutils::user_settings();
     let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
@@ -972,7 +972,7 @@ fn test_rebase_descendants_contents() {
 }
 
 #[test]
-fn test_rebase_descendants_basic_branch_update() {
+fn test_rebase_descendants_basic_bookmark_update() {
     let settings = testutils::user_settings();
     let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
@@ -988,7 +988,7 @@ fn test_rebase_descendants_basic_branch_update() {
     let commit_a = graph_builder.initial_commit();
     let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
     tx.repo_mut()
-        .set_local_branch_target("main", RefTarget::normal(commit_b.id().clone()));
+        .set_local_bookmark_target("main", RefTarget::normal(commit_b.id().clone()));
     let repo = tx.commit("test");
 
     let mut tx = repo.start_transaction(&settings);
@@ -999,7 +999,7 @@ fn test_rebase_descendants_basic_branch_update() {
         .unwrap();
     tx.repo_mut().rebase_descendants(&settings).unwrap();
     assert_eq!(
-        tx.repo_mut().get_local_branch("main"),
+        tx.repo_mut().get_local_bookmark("main"),
         RefTarget::normal(commit_b2.id().clone())
     );
 
@@ -1010,14 +1010,14 @@ fn test_rebase_descendants_basic_branch_update() {
 }
 
 #[test]
-fn test_rebase_descendants_branch_move_two_steps() {
+fn test_rebase_descendants_bookmark_move_two_steps() {
     let settings = testutils::user_settings();
     let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
-    // Branch "main" points to branch C. C gets rewritten as C2 and B gets rewritten
-    // as B2. C2 should be rebased onto B2, creating C3, and main should be
-    // updated to point to C3.
+    // Branch "main" points to bookmark C. C gets rewritten as C2 and B gets
+    // rewritten as B2. C2 should be rebased onto B2, creating C3, and main
+    // should be updated to point to C3.
     //
     // C2 C main      C3 main
     // | /            |
@@ -1031,7 +1031,7 @@ fn test_rebase_descendants_branch_move_two_steps() {
     let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
     let commit_c = graph_builder.commit_with_parents(&[&commit_b]);
     tx.repo_mut()
-        .set_local_branch_target("main", RefTarget::normal(commit_c.id().clone()));
+        .set_local_bookmark_target("main", RefTarget::normal(commit_c.id().clone()));
     let repo = tx.commit("test");
 
     let mut tx = repo.start_transaction(&settings);
@@ -1055,19 +1055,19 @@ fn test_rebase_descendants_branch_move_two_steps() {
     assert_ne!(commit_c3.id(), commit_c2.id());
     assert_eq!(commit_c3.parent_ids(), vec![commit_b2.id().clone()]);
     assert_eq!(
-        tx.repo_mut().get_local_branch("main"),
+        tx.repo_mut().get_local_bookmark("main"),
         RefTarget::normal(commit_c3.id().clone())
     );
 }
 
 #[test]
-fn test_rebase_descendants_basic_branch_update_with_non_local_branch() {
+fn test_rebase_descendants_basic_bookmark_update_with_non_local_bookmark() {
     let settings = testutils::user_settings();
     let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
     // Branch "main" points to commit B. B gets rewritten as B2. Branch main should
-    // be updated to point to B2. Remote branch main@origin and tag v1 should not
+    // be updated to point to B2. Remote bookmark main@origin and tag v1 should not
     // get updated.
     //
     //                                B2 main
@@ -1083,9 +1083,9 @@ fn test_rebase_descendants_basic_branch_update_with_non_local_branch() {
         state: RemoteRefState::Tracking,
     };
     tx.repo_mut()
-        .set_local_branch_target("main", RefTarget::normal(commit_b.id().clone()));
+        .set_local_bookmark_target("main", RefTarget::normal(commit_b.id().clone()));
     tx.repo_mut()
-        .set_remote_branch("main", "origin", commit_b_remote_ref.clone());
+        .set_remote_bookmark("main", "origin", commit_b_remote_ref.clone());
     tx.repo_mut()
         .set_tag_target("v1", RefTarget::normal(commit_b.id().clone()));
     let repo = tx.commit("test");
@@ -1098,12 +1098,12 @@ fn test_rebase_descendants_basic_branch_update_with_non_local_branch() {
         .unwrap();
     tx.repo_mut().rebase_descendants(&settings).unwrap();
     assert_eq!(
-        tx.repo_mut().get_local_branch("main"),
+        tx.repo_mut().get_local_bookmark("main"),
         RefTarget::normal(commit_b2.id().clone())
     );
-    // The remote branch and tag should not get updated
+    // The remote bookmark and tag should not get updated
     assert_eq!(
-        tx.repo_mut().get_remote_branch("main", "origin"),
+        tx.repo_mut().get_remote_bookmark("main", "origin"),
         commit_b_remote_ref,
     );
     assert_eq!(
@@ -1111,8 +1111,8 @@ fn test_rebase_descendants_basic_branch_update_with_non_local_branch() {
         RefTarget::normal(commit_b.id().clone())
     );
 
-    // Commit B is no longer visible even though the remote branch points to it.
-    // (The user can still see it using e.g. the `remote_branches()` revset.)
+    // Commit B is no longer visible even though the remote bookmark points to it.
+    // (The user can still see it using e.g. the `remote_bookmarks()` revset.)
     assert_eq!(
         *tx.repo_mut().view().heads(),
         hashset! {commit_b2.id().clone()}
@@ -1120,7 +1120,7 @@ fn test_rebase_descendants_basic_branch_update_with_non_local_branch() {
 }
 
 #[test]
-fn test_rebase_descendants_update_branch_after_abandon() {
+fn test_rebase_descendants_update_bookmark_after_abandon() {
     let settings = testutils::user_settings();
     let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
@@ -1136,14 +1136,14 @@ fn test_rebase_descendants_update_branch_after_abandon() {
     let commit_a = graph_builder.initial_commit();
     let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
     tx.repo_mut()
-        .set_local_branch_target("main", RefTarget::normal(commit_b.id().clone()));
+        .set_local_bookmark_target("main", RefTarget::normal(commit_b.id().clone()));
     let repo = tx.commit("test");
 
     let mut tx = repo.start_transaction(&settings);
     tx.repo_mut().record_abandoned_commit(commit_b.id().clone());
     tx.repo_mut().rebase_descendants(&settings).unwrap();
     assert_eq!(
-        tx.repo_mut().get_local_branch("main"),
+        tx.repo_mut().get_local_bookmark("main"),
         RefTarget::normal(commit_a.id().clone())
     );
 
@@ -1154,7 +1154,7 @@ fn test_rebase_descendants_update_branch_after_abandon() {
 }
 
 #[test]
-fn test_rebase_descendants_update_branches_after_divergent_rewrite() {
+fn test_rebase_descendants_update_bookmarks_after_divergent_rewrite() {
     let settings = testutils::user_settings();
     let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
@@ -1176,9 +1176,9 @@ fn test_rebase_descendants_update_branches_after_divergent_rewrite() {
     let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
     let commit_c = graph_builder.commit_with_parents(&[&commit_b]);
     tx.repo_mut()
-        .set_local_branch_target("main", RefTarget::normal(commit_b.id().clone()));
+        .set_local_bookmark_target("main", RefTarget::normal(commit_b.id().clone()));
     tx.repo_mut()
-        .set_local_branch_target("other", RefTarget::normal(commit_c.id().clone()));
+        .set_local_bookmark_target("other", RefTarget::normal(commit_c.id().clone()));
     let repo = tx.commit("test");
 
     let mut tx = repo.start_transaction(&settings);
@@ -1226,7 +1226,7 @@ fn test_rebase_descendants_update_branches_after_divergent_rewrite() {
     );
     tx.repo_mut().rebase_descendants(&settings).unwrap();
 
-    let main_target = tx.repo_mut().get_local_branch("main");
+    let main_target = tx.repo_mut().get_local_bookmark("main");
     assert!(main_target.has_conflict());
     // If the branch were moved at each rewrite point, there would be separate
     // negative terms: { commit_b => 2, commit_b4 => 1 }. Since we flatten
@@ -1245,7 +1245,7 @@ fn test_rebase_descendants_update_branches_after_divergent_rewrite() {
         },
     );
 
-    let other_target = tx.repo_mut().get_local_branch("other");
+    let other_target = tx.repo_mut().get_local_bookmark("other");
     assert_eq!(other_target.as_normal(), Some(commit_c.id()));
 
     assert_eq!(
@@ -1261,20 +1261,20 @@ fn test_rebase_descendants_update_branches_after_divergent_rewrite() {
 }
 
 #[test]
-fn test_rebase_descendants_rewrite_updates_branch_conflict() {
+fn test_rebase_descendants_rewrite_updates_bookmark_conflict() {
     let settings = testutils::user_settings();
     let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
     // Branch "main" is a conflict removing commit A and adding commits B and C.
-    // A gets rewritten as A2 and A3. B gets rewritten as B2 and B2. The branch
+    // A gets rewritten as A2 and A3. B gets rewritten as B2 and B2. The bookmark
     // should become a conflict removing A and B, and adding B2, B3, C.
     let mut tx = repo.start_transaction(&settings);
     let mut graph_builder = CommitGraphBuilder::new(&settings, tx.repo_mut());
     let commit_a = graph_builder.initial_commit();
     let commit_b = graph_builder.initial_commit();
     let commit_c = graph_builder.initial_commit();
-    tx.repo_mut().set_local_branch_target(
+    tx.repo_mut().set_local_bookmark_target(
         "main",
         RefTarget::from_legacy_form(
             [commit_a.id().clone()],
@@ -1318,7 +1318,7 @@ fn test_rebase_descendants_rewrite_updates_branch_conflict() {
     );
     tx.repo_mut().rebase_descendants(&settings).unwrap();
 
-    let target = tx.repo_mut().get_local_branch("main");
+    let target = tx.repo_mut().get_local_bookmark("main");
     assert!(target.has_conflict());
     assert_eq!(
         target.removed_ids().counts(),
@@ -1346,7 +1346,7 @@ fn test_rebase_descendants_rewrite_updates_branch_conflict() {
 }
 
 #[test]
-fn test_rebase_descendants_rewrite_resolves_branch_conflict() {
+fn test_rebase_descendants_rewrite_resolves_bookmark_conflict() {
     let settings = testutils::user_settings();
     let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
@@ -1363,7 +1363,7 @@ fn test_rebase_descendants_rewrite_resolves_branch_conflict() {
     let commit_a = graph_builder.initial_commit();
     let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
     let commit_c = graph_builder.commit_with_parents(&[&commit_a]);
-    tx.repo_mut().set_local_branch_target(
+    tx.repo_mut().set_local_bookmark_target(
         "main",
         RefTarget::from_legacy_form(
             [commit_a.id().clone()],
@@ -1381,7 +1381,7 @@ fn test_rebase_descendants_rewrite_resolves_branch_conflict() {
         .unwrap();
     tx.repo_mut().rebase_descendants(&settings).unwrap();
     assert_eq!(
-        tx.repo_mut().get_local_branch("main"),
+        tx.repo_mut().get_local_bookmark("main"),
         RefTarget::normal(commit_b2.id().clone())
     );
 
@@ -1392,21 +1392,21 @@ fn test_rebase_descendants_rewrite_resolves_branch_conflict() {
 }
 
 #[test]
-fn test_rebase_descendants_branch_delete_modify_abandon() {
+fn test_rebase_descendants_bookmark_delete_modify_abandon() {
     let settings = testutils::user_settings();
     let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
     // Branch "main" initially points to commit A. One operation rewrites it to
-    // point to B (child of A). A concurrent operation deletes the branch. That
-    // leaves the branch pointing to "-A+B". We now abandon B. That should
-    // result in the branch pointing to "-A+A=0", so the branch should
+    // point to B (child of A). A concurrent operation deletes the bookmark. That
+    // leaves the bookmark pointing to "-A+B". We now abandon B. That should
+    // result in the bookmark pointing to "-A+A=0", so the bookmark should
     // be deleted.
     let mut tx = repo.start_transaction(&settings);
     let mut graph_builder = CommitGraphBuilder::new(&settings, tx.repo_mut());
     let commit_a = graph_builder.initial_commit();
     let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
-    tx.repo_mut().set_local_branch_target(
+    tx.repo_mut().set_local_bookmark_target(
         "main",
         RefTarget::from_legacy_form([commit_a.id().clone()], [commit_b.id().clone()]),
     );
@@ -1415,7 +1415,14 @@ fn test_rebase_descendants_branch_delete_modify_abandon() {
     let mut tx = repo.start_transaction(&settings);
     tx.repo_mut().record_abandoned_commit(commit_b.id().clone());
     tx.repo_mut().rebase_descendants(&settings).unwrap();
-    assert_eq!(tx.repo_mut().get_local_branch("main"), RefTarget::absent());
+    assert_eq!(
+        tx.repo_mut().get_local_bookmark("main"),
+        RefTarget::absent()
+    );
+    assert_eq!(
+        tx.repo_mut().get_local_bookmark("main"),
+        RefTarget::absent()
+    );
 }
 
 #[test]

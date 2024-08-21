@@ -172,7 +172,7 @@ pub(crate) fn cmd_new(
         if should_advance_branches {
             advance_branches_target = Some(parent_commit_ids[0].clone());
             advanceable_branches =
-                workspace_command.get_advanceable_branches(parent_commits[0].parent_ids())?;
+                workspace_command.get_advanceable_bookmarks(parent_commits[0].parent_ids())?;
         }
     };
     workspace_command.check_rewritable(children_commits.iter().ids())?;
@@ -222,7 +222,7 @@ pub(crate) fn cmd_new(
 
     // Does nothing if there's no branches to advance.
     if let Some(target) = advance_branches_target {
-        tx.advance_branches(advanceable_branches, &target);
+        tx.advance_bookmarks(advanceable_branches, &target);
     }
 
     tx.finish(ui, "new empty commit")?;

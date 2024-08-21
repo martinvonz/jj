@@ -19,60 +19,60 @@ use jj_lib::op_store::RemoteRef;
 use jj_lib::str_util::StringPattern;
 use jj_lib::view::View;
 
-use super::find_branches_with;
+use super::find_bookmarks_with;
 use crate::cli_util::CommandHelper;
 use crate::command_error::CommandError;
 use crate::ui::Ui;
 
-/// Forget everything about a branch, including its local and remote
+/// Forget everything about a bookmark, including its local and remote
 /// targets
 ///
-/// A forgotten branch will not impact remotes on future pushes. It will be
+/// A forgotten bookmark will not impact remotes on future pushes. It will be
 /// recreated on future pulls if it still exists in the remote.
 #[derive(clap::Args, Clone, Debug)]
-pub struct BranchForgetArgs {
-    /// The branches to forget
+pub struct BookmarkForgetArgs {
+    /// The bookmarks to forget
     ///
     /// By default, the specified name matches exactly. Use `glob:` prefix to
-    /// select branches by wildcard pattern. For details, see
-    /// https://martinvonz.github.io/jj/latest/revsets/#string-patterns.
+    /// select bookmarks by wildcard pattern. For details, see
+    /// https://martinvonz.github.io/jj/latest/revsets/#string-patterns.    
     #[arg(required = true, value_parser = StringPattern::parse)]
     names: Vec<StringPattern>,
 }
 
-pub fn cmd_branch_forget(
+pub fn cmd_bookmark_forget(
     ui: &mut Ui,
     command: &CommandHelper,
-    args: &BranchForgetArgs,
+    args: &BookmarkForgetArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
     let repo = workspace_command.repo().clone();
-    let matched_branches = find_forgettable_branches(repo.view(), &args.names)?;
+    let matched_bookmarks = find_forgettable_bookmarks(repo.view(), &args.names)?;
     let mut tx = workspace_command.start_transaction();
-    for (name, branch_target) in &matched_branches {
+    for (name, bookmark_target) in &matched_bookmarks {
         tx.repo_mut()
-            .set_local_branch_target(name, RefTarget::absent());
-        for (remote_name, _) in &branch_target.remote_refs {
+            .set_local_bookmark_target(name, RefTarget::absent());
+        for (remote_name, _) in &bookmark_target.remote_refs {
             tx.repo_mut()
-                .set_remote_branch(name, remote_name, RemoteRef::absent());
+                .set_remote_bookmark(name, remote_name, RemoteRef::absent());
         }
     }
-    writeln!(ui.status(), "Forgot {} branches.", matched_branches.len())?;
+    writeln!(ui.status(), "Forgot {} bookmarks.", matched_bookmarks.len())?;
     tx.finish(
         ui,
         format!(
-            "forget branch {}",
-            matched_branches.iter().map(|(name, _)| name).join(", ")
+            "forget bookmark {}",
+            matched_bookmarks.iter().map(|(name, _)| name).join(", ")
         ),
     )?;
     Ok(())
 }
 
-fn find_forgettable_branches<'a>(
+fn find_forgettable_bookmarks<'a>(
     view: &'a View,
     name_patterns: &[StringPattern],
 ) -> Result<Vec<(&'a str, BranchTarget<'a>)>, CommandError> {
-    find_branches_with(name_patterns, |pattern| {
-        view.branches().filter(|(name, _)| pattern.matches(name))
+    find_bookmarks_with(name_patterns, |pattern| {
+        view.bookmarks().filter(|(name, _)| pattern.matches(name))
     })
 }

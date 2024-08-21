@@ -23,13 +23,13 @@ fn test_interdiff_basic() {
     std::fs::write(repo_path.join("file1"), "foo\n").unwrap();
     test_env.jj_cmd_ok(&repo_path, &["new"]);
     std::fs::write(repo_path.join("file2"), "foo\n").unwrap();
-    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "left"]);
+    test_env.jj_cmd_ok(&repo_path, &["bookmark", "create", "left"]);
 
     test_env.jj_cmd_ok(&repo_path, &["checkout", "root()"]);
     std::fs::write(repo_path.join("file3"), "foo\n").unwrap();
     test_env.jj_cmd_ok(&repo_path, &["new"]);
     std::fs::write(repo_path.join("file2"), "foo\nbar\n").unwrap();
-    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "right"]);
+    test_env.jj_cmd_ok(&repo_path, &["bookmark", "create", "right"]);
 
     // implicit --to
     let stdout = test_env.jj_cmd_success(&repo_path, &["interdiff", "--from", "left"]);
@@ -87,7 +87,7 @@ fn test_interdiff_paths() {
     test_env.jj_cmd_ok(&repo_path, &["new"]);
     std::fs::write(repo_path.join("file1"), "bar\n").unwrap();
     std::fs::write(repo_path.join("file2"), "bar\n").unwrap();
-    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "left"]);
+    test_env.jj_cmd_ok(&repo_path, &["bookmark", "create", "left"]);
 
     test_env.jj_cmd_ok(&repo_path, &["checkout", "root()"]);
     std::fs::write(repo_path.join("file1"), "foo\n").unwrap();
@@ -95,7 +95,7 @@ fn test_interdiff_paths() {
     test_env.jj_cmd_ok(&repo_path, &["new"]);
     std::fs::write(repo_path.join("file1"), "baz\n").unwrap();
     std::fs::write(repo_path.join("file2"), "baz\n").unwrap();
-    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "right"]);
+    test_env.jj_cmd_ok(&repo_path, &["bookmark", "create", "right"]);
 
     let stdout = test_env.jj_cmd_success(
         &repo_path,
@@ -135,13 +135,13 @@ fn test_interdiff_conflicting() {
     std::fs::write(repo_path.join("file"), "foo\n").unwrap();
     test_env.jj_cmd_ok(&repo_path, &["new"]);
     std::fs::write(repo_path.join("file"), "bar\n").unwrap();
-    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "left"]);
+    test_env.jj_cmd_ok(&repo_path, &["bookmark", "create", "left"]);
 
     test_env.jj_cmd_ok(&repo_path, &["checkout", "root()"]);
     std::fs::write(repo_path.join("file"), "abc\n").unwrap();
     test_env.jj_cmd_ok(&repo_path, &["new"]);
     std::fs::write(repo_path.join("file"), "def\n").unwrap();
-    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "right"]);
+    test_env.jj_cmd_ok(&repo_path, &["bookmark", "create", "right"]);
 
     let stdout = test_env.jj_cmd_success(
         &repo_path,

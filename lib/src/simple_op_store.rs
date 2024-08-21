@@ -436,7 +436,7 @@ fn view_to_proto(view: &View) -> crate::protos::op_store::View {
         proto.head_ids.push(head_id.to_bytes());
     }
 
-    proto.branches = branch_views_to_proto_legacy(&view.local_branches, &view.remote_views);
+    proto.branches = bookmark_views_to_proto_legacy(&view.local_bookmarks, &view.remote_views);
 
     for (name, target) in &view.tags {
         proto.tags.push(crate::protos::op_store::Tag {
@@ -475,8 +475,8 @@ fn view_from_proto(proto: crate::protos::op_store::View) -> View {
         view.head_ids.insert(CommitId::new(head_id_bytes));
     }
 
-    let (local_branches, remote_views) = branch_views_from_proto_legacy(proto.branches);
-    view.local_branches = local_branches;
+    let (local_bookmarks, remote_views) = bookmark_views_from_proto_legacy(proto.branches);
+    view.local_bookmarks = local_bookmarks;
     view.remote_views = remote_views;
 
     for tag_proto in proto.tags {
@@ -508,14 +508,14 @@ fn view_from_proto(proto: crate::protos::op_store::View) -> View {
     view
 }
 
-fn branch_views_to_proto_legacy(
-    local_branches: &BTreeMap<String, RefTarget>,
+fn bookmark_views_to_proto_legacy(
+    local_bookmarks: &BTreeMap<String, RefTarget>,
     remote_views: &BTreeMap<String, RemoteView>,
 ) -> Vec<crate::protos::op_store::Branch> {
-    op_store::merge_join_branch_views(local_branches, remote_views)
-        .map(|(name, branch_target)| {
-            let local_target = ref_target_to_proto(branch_target.local_target);
-            let remote_branches = branch_target
+    op_store::merge_join_bookmark_views(local_bookmarks, remote_views)
+        .map(|(name, bookmark_target)| {
+            let local_target = ref_target_to_proto(bookmark_target.local_target);
+            let remote_bookmarks = bookmark_target
                 .remote_refs
                 .iter()
                 .map(
@@ -529,29 +529,30 @@ fn branch_views_to_proto_legacy(
             crate::protos::op_store::Branch {
                 name: name.to_owned(),
                 local_target,
-                remote_branches,
+                remote_branches: remote_bookmarks,
             }
         })
         .collect()
 }
 
-fn branch_views_from_proto_legacy(
-    branches_legacy: Vec<crate::protos::op_store::Branch>,
+fn bookmark_views_from_proto_legacy(
+    bookmarks_legacy: Vec<crate::protos::op_store::Branch>,
 ) -> (BTreeMap<String, RefTarget>, BTreeMap<String, RemoteView>) {
-    let mut local_branches: BTreeMap<String, RefTarget> = BTreeMap::new();
+    let mut local_bookmarks: BTreeMap<String, RefTarget> = BTreeMap::new();
     let mut remote_views: BTreeMap<String, RemoteView> = BTreeMap::new();
-    for branch_proto in branches_legacy {
-        let local_target = ref_target_from_proto(branch_proto.local_target);
-        for remote_branch in branch_proto.remote_branches {
-            let state = remote_ref_state_from_proto(remote_branch.state).unwrap_or_else(|| {
-                // If local branch doesn't exist, we assume that the remote branch hasn't been
-                // merged because git.auto-local-branch was off. That's probably more common
-                // than deleted but yet-to-be-pushed local branch. Alternatively, we could read
-                // git.auto-local-branch setting here, but that wouldn't always work since the
-                // setting could be toggled after the branch got merged.
+    for bookmark_proto in bookmarks_legacy {
+        let local_target = ref_target_from_proto(bookmark_proto.local_target);
+        for remote_bookmark in bookmark_proto.remote_branches {
+            let state = remote_ref_state_from_proto(remote_bookmark.state).unwrap_or_else(|| {
+                // If local bookmark doesn't exist, we assume that the remote bookmark hasn't
+                // been merged because git.auto-local-bookmark was off. That's
+                // probably more common than deleted but yet-to-be-pushed local
+                // bookmark. Alternatively, we could read
+                // git.auto-local-bookmark setting here, but that wouldn't always work since the
+                // setting could be toggled after the bookmark got merged.
                 #[cfg(feature = "git")]
                 let is_git_tracking =
-                    remote_branch.remote_name == crate::git::REMOTE_NAME_FOR_LOCAL_GIT_REPO;
+                    remote_bookmark.remote_name == crate::git::REMOTE_NAME_FOR_LOCAL_GIT_REPO;
                 #[cfg(not(feature = "git"))]
                 let is_git_tracking = false;
                 let default_state = if is_git_tracking || local_target.is_present() {
@@ -560,27 +561,27 @@ fn branch_views_from_proto_legacy(
                     RemoteRefState::New
                 };
                 tracing::trace!(
-                    ?branch_proto.name,
-                    ?remote_branch.remote_name,
+                    ?bookmark_proto.name,
+                    ?remote_bookmark.remote_name,
                     ?default_state,
                     "generated tracking state",
                 );
                 default_state
             });
-            let remote_view = remote_views.entry(remote_branch.remote_name).or_default();
+            let remote_view = remote_views.entry(remote_bookmark.remote_name).or_default();
             let remote_ref = RemoteRef {
-                target: ref_target_from_proto(remote_branch.target),
+                target: ref_target_from_proto(remote_bookmark.target),
                 state,
             };
             remote_view
-                .branches
-                .insert(branch_proto.name.clone(), remote_ref);
+                .bookmarks
+                .insert(bookmark_proto.name.clone(), remote_ref);
         }
         if local_target.is_present() {
-            local_branches.insert(branch_proto.name, local_target);
+            local_bookmarks.insert(bookmark_proto.name, local_target);
         }
     }
-    (local_branches, remote_views)
+    (local_bookmarks, remote_views)
 }
 
 fn migrate_git_refs_to_remote(view: &mut View) {
@@ -589,17 +590,17 @@ fn migrate_git_refs_to_remote(view: &mut View) {
         return;
     }
 
-    tracing::info!("migrating Git-tracking branches");
+    tracing::info!("migrating Git-tracking bookmarks");
     let mut git_view = RemoteView::default();
     for (full_name, target) in &view.git_refs {
         if let Some(name) = full_name.strip_prefix("refs/heads/") {
             assert!(!name.is_empty());
             let remote_ref = RemoteRef {
                 target: target.clone(),
-                // Git-tracking branches should never be untracked.
+                // Git-tracking bookmarks should never be untracked.
                 state: RemoteRefState::Tracking,
             };
-            git_view.branches.insert(name.to_owned(), remote_ref);
+            git_view.bookmarks.insert(name.to_owned(), remote_ref);
         }
     }
     #[cfg(feature = "git")]
@@ -731,9 +732,9 @@ mod tests {
         };
         let head_id1 = CommitId::from_hex("aaa111");
         let head_id2 = CommitId::from_hex("aaa222");
-        let branch_main_local_target = RefTarget::normal(CommitId::from_hex("ccc111"));
-        let branch_main_origin_target = RefTarget::normal(CommitId::from_hex("ccc222"));
-        let branch_deleted_origin_target = RefTarget::normal(CommitId::from_hex("ccc333"));
+        let bookmark_main_local_target = RefTarget::normal(CommitId::from_hex("ccc111"));
+        let bookmark_main_origin_target = RefTarget::normal(CommitId::from_hex("ccc222"));
+        let bookmark_deleted_origin_target = RefTarget::normal(CommitId::from_hex("ccc333"));
         let tag_v1_target = RefTarget::normal(CommitId::from_hex("ddd111"));
         let git_refs_main_target = RefTarget::normal(CommitId::from_hex("fff111"));
         let git_refs_feature_target = RefTarget::from_legacy_form(
@@ -744,17 +745,17 @@ mod tests {
         let test_wc_commit_id = CommitId::from_hex("abc222");
         View {
             head_ids: hashset! {head_id1, head_id2},
-            local_branches: btreemap! {
-                "main".to_string() => branch_main_local_target,
+            local_bookmarks: btreemap! {
+                "main".to_string() => bookmark_main_local_target,
             },
             tags: btreemap! {
                 "v1.0".to_string() => tag_v1_target,
             },
             remote_views: btreemap! {
                 "origin".to_string() => RemoteView {
-                    branches: btreemap! {
-                        "main".to_string() => tracking_remote_ref(&branch_main_origin_target),
-                        "deleted".to_string() => new_remote_ref(&branch_deleted_origin_target),
+                    bookmarks: btreemap! {
+                        "main".to_string() => tracking_remote_ref(&bookmark_main_origin_target),
+                        "deleted".to_string() => new_remote_ref(&bookmark_deleted_origin_target),
                     },
                 },
             },
@@ -837,7 +838,7 @@ mod tests {
     }
 
     #[test]
-    fn test_branch_views_legacy_roundtrip() {
+    fn test_bookmark_views_legacy_roundtrip() {
         let new_remote_ref = |target: &RefTarget| RemoteRef {
             target: target.clone(),
             state: RemoteRefState::New,
@@ -846,49 +847,49 @@ mod tests {
             target: target.clone(),
             state: RemoteRefState::Tracking,
         };
-        let local_branch1_target = RefTarget::normal(CommitId::from_hex("111111"));
-        let local_branch3_target = RefTarget::normal(CommitId::from_hex("222222"));
-        let git_branch1_target = RefTarget::normal(CommitId::from_hex("333333"));
-        let remote1_branch1_target = RefTarget::normal(CommitId::from_hex("444444"));
-        let remote2_branch2_target = RefTarget::normal(CommitId::from_hex("555555"));
-        let remote2_branch4_target = RefTarget::normal(CommitId::from_hex("666666"));
-        let local_branches = btreemap! {
-            "branch1".to_owned() => local_branch1_target.clone(),
-            "branch3".to_owned() => local_branch3_target.clone(),
+        let local_bookmark1_target = RefTarget::normal(CommitId::from_hex("111111"));
+        let local_bookmark3_target = RefTarget::normal(CommitId::from_hex("222222"));
+        let git_bookmark1_target = RefTarget::normal(CommitId::from_hex("333333"));
+        let remote1_bookmark1_target = RefTarget::normal(CommitId::from_hex("444444"));
+        let remote2_bookmark2_target = RefTarget::normal(CommitId::from_hex("555555"));
+        let remote2_bookmark4_target = RefTarget::normal(CommitId::from_hex("666666"));
+        let local_bookmarks = btreemap! {
+            "bookmark1".to_owned() => local_bookmark1_target.clone(),
+            "bookmark3".to_owned() => local_bookmark3_target.clone(),
         };
         let remote_views = btreemap! {
             "git".to_owned() => RemoteView {
-                branches: btreemap! {
-                    "branch1".to_owned() => tracking_remote_ref(&git_branch1_target),
+                bookmarks: btreemap! {
+                    "bookmark1".to_owned() => tracking_remote_ref(&git_bookmark1_target),
                 },
             },
             "remote1".to_owned() => RemoteView {
-                branches: btreemap! {
-                    "branch1".to_owned() => tracking_remote_ref(&remote1_branch1_target),
+                bookmarks: btreemap! {
+                    "bookmark1".to_owned() => tracking_remote_ref(&remote1_bookmark1_target),
                 },
             },
             "remote2".to_owned() => RemoteView {
-                branches: btreemap! {
-                    // "branch2" is non-tracking. "branch4" is tracking, but locally deleted.
-                    "branch2".to_owned() => new_remote_ref(&remote2_branch2_target),
-                    "branch4".to_owned() => tracking_remote_ref(&remote2_branch4_target),
+                bookmarks: btreemap! {
+                    // "bookmark2" is non-tracking. "bookmark4" is tracking, but locally deleted.
+                    "bookmark2".to_owned() => new_remote_ref(&remote2_bookmark2_target),
+                    "bookmark4".to_owned() => tracking_remote_ref(&remote2_bookmark4_target),
                 },
             },
         };
 
-        let branches_legacy = branch_views_to_proto_legacy(&local_branches, &remote_views);
+        let bookmarks_legacy = bookmark_views_to_proto_legacy(&local_bookmarks, &remote_views);
         assert_eq!(
-            branches_legacy
+            bookmarks_legacy
                 .iter()
                 .map(|proto| &proto.name)
                 .sorted()
                 .collect_vec(),
-            vec!["branch1", "branch2", "branch3", "branch4"],
+            vec!["bookmark1", "bookmark2", "bookmark3", "bookmark4"],
         );
 
-        let (local_branches_reconstructed, remote_views_reconstructed) =
-            branch_views_from_proto_legacy(branches_legacy);
-        assert_eq!(local_branches_reconstructed, local_branches);
+        let (local_bookmarks_reconstructed, remote_views_reconstructed) =
+            bookmark_views_from_proto_legacy(bookmarks_legacy);
+        assert_eq!(local_bookmarks_reconstructed, local_bookmarks);
         assert_eq!(remote_views_reconstructed, remote_views);
     }
 
@@ -903,17 +904,17 @@ mod tests {
             target: normal_ref_target(id_hex),
             state: RemoteRefState::Tracking,
         };
-        let branch_to_proto =
+        let bookmark_to_proto =
             |name: &str, local_ref_target, remote_branches| crate::protos::op_store::Branch {
                 name: name.to_owned(),
                 local_target: ref_target_to_proto(local_ref_target),
                 remote_branches,
             };
-        let remote_branch_to_proto =
+        let remote_bookmark_to_proto =
             |remote_name: &str, ref_target| crate::protos::op_store::RemoteBranch {
                 remote_name: remote_name.to_owned(),
                 target: ref_target_to_proto(ref_target),
-                state: None, // to be generated based on local branch existence
+                state: None, // to be generated based on local bookmark existence
             };
         let git_ref_to_proto = |name: &str, ref_target| crate::protos::op_store::GitRef {
             name: name.to_owned(),
@@ -923,18 +924,21 @@ mod tests {
 
         let proto = crate::protos::op_store::View {
             branches: vec![
-                branch_to_proto(
+                bookmark_to_proto(
                     "main",
                     &normal_ref_target("111111"),
                     vec![
-                        remote_branch_to_proto("git", &normal_ref_target("222222")),
-                        remote_branch_to_proto("gita", &normal_ref_target("333333")),
+                        remote_bookmark_to_proto("git", &normal_ref_target("222222")),
+                        remote_bookmark_to_proto("gita", &normal_ref_target("333333")),
                     ],
                 ),
-                branch_to_proto(
+                bookmark_to_proto(
                     "untracked",
                     RefTarget::absent_ref(),
-                    vec![remote_branch_to_proto("gita", &normal_ref_target("777777"))],
+                    vec![remote_bookmark_to_proto(
+                        "gita",
+                        &normal_ref_target("777777"),
+                    )],
                 ),
             ],
             git_refs: vec![
@@ -949,7 +953,7 @@ mod tests {
 
         let view = view_from_proto(proto);
         assert_eq!(
-            view.local_branches,
+            view.local_bookmarks,
             btreemap! {
                 "main".to_owned() => normal_ref_target("111111"),
             },
@@ -958,12 +962,12 @@ mod tests {
             view.remote_views,
             btreemap! {
                 "git".to_owned() => RemoteView {
-                    branches: btreemap! {
+                    bookmarks: btreemap! {
                         "main".to_owned() => normal_tracking_remote_ref("444444"), // refs/heads/main
                     },
                 },
                 "gita".to_owned() => RemoteView {
-                    branches: btreemap! {
+                    bookmarks: btreemap! {
                         "main".to_owned() => normal_tracking_remote_ref("333333"),
                         "untracked".to_owned() => normal_new_remote_ref("777777"),
                     },
@@ -979,7 +983,7 @@ mod tests {
             },
         );
 
-        // Once migrated, "git" remote branches shouldn't be populated again.
+        // Once migrated, "git" remote bookmarks shouldn't be populated again.
         let mut proto = view_to_proto(&view);
         assert!(proto.has_git_refs_migrated_to_remote);
         proto.branches.clear();
