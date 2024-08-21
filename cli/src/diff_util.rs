@@ -19,6 +19,7 @@ use std::ops::Range;
 use std::path::{Path, PathBuf};
 use std::{io, mem};
 
+use futures::executor::block_on_stream;
 use futures::stream::BoxStream;
 use futures::StreamExt;
 use itertools::Itertools;
@@ -369,11 +370,11 @@ impl<'a> DiffRenderer<'a> {
         let to_tree = commit.tree()?;
         let mut copy_records = CopyRecords::default();
         for parent_id in commit.parent_ids() {
-            copy_records.add_records(self.repo.store().get_copy_records(
-                None,
-                parent_id,
-                commit.id(),
-            )?)?;
+            let stream = self
+                .repo
+                .store()
+                .get_copy_records(None, parent_id, commit.id())?;
+            copy_records.add_records(block_on_stream(stream))?;
         }
         self.show_diff(
             ui,

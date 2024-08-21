@@ -18,8 +18,6 @@ use std::collections::HashMap;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
-use futures::executor::block_on_stream;
-use futures::stream::BoxStream;
 use futures::Stream;
 
 use crate::backend::{BackendResult, CopyRecord};
@@ -37,13 +35,13 @@ pub struct CopyRecords {
 }
 
 impl CopyRecords {
-    /// Adds information about a stream of CopyRecords to `self`.  A target with
-    /// multiple conflicts is discarded and treated as not having an origin.
+    /// Adds information about `CopyRecord`s to `self`. A target with multiple
+    /// conflicts is discarded and treated as not having an origin.
     pub fn add_records(
         &mut self,
-        stream: BoxStream<BackendResult<CopyRecord>>,
+        copy_records: impl IntoIterator<Item = BackendResult<CopyRecord>>,
     ) -> BackendResult<()> {
-        for record in block_on_stream(stream) {
+        for record in copy_records {
             let r = record?;
             let value = self
                 .targets
