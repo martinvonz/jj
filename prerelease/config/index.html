@@ -793,6 +793,21 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Diff format">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#color-words-diff-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      Color-words diff options
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
         
           <li class="md-nav__item">
@@ -1969,6 +1984,21 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Diff format">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#color-words-diff-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      Color-words diff options
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
         
           <li class="md-nav__item">
@@ -2577,6 +2607,28 @@ can override the default style with the following keys:</p>
 <h3 id="diff-format">Diff format<a class="headerlink" href="#diff-format" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><span class="c1"># Possible values: &quot;color-words&quot; (default), &quot;git&quot;, &quot;summary&quot;</span>
 <span class="n">ui</span><span class="p">.</span><span class="n">diff</span><span class="p">.</span><span class="n">format</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;git&quot;</span>
+</code></pre></div>
+<h4 id="color-words-diff-options">Color-words diff options<a class="headerlink" href="#color-words-diff-options" title="Permanent link">&para;</a></h4>
+<p>In color-words diffs, changed words are displayed inline by default. Because
+it's difficult to read a diff line with many removed/added words, there's a
+threshold to switch to traditional separate-line format.</p>
+<ul>
+<li>
+<p><code>max-inline-alternation</code>: Maximum number of removed/added word alternation to
+  inline. For example, <code>&lt;added&gt; ... &lt;added&gt;</code> sequence has 1 alternation, so the
+  line will be inline if <code>max-inline-alternation &gt;= 1</code>. <code>&lt;added&gt; ... &lt;removed&gt;
+  ... &lt;added&gt;</code> sequence has 3 alternation.</p>
+<ul>
+<li><code>0</code>: disable inlining, making <code>--color-words</code> more similar to <code>--git</code></li>
+<li><code>1</code>: inline removes-only or adds-only lines</li>
+<li><code>2</code>, <code>3</code>, ..: inline up to <code>2</code>, <code>3</code>, .. alternation</li>
+<li><code>-1</code>: inline all lines (default)</li>
+</ul>
+<p><strong>This parameter is experimental.</strong> The definition is subject to change.</p>
+</li>
+</ul>
+<div class="highlight"><pre><span></span><code><span class="k">[diff.color-words]</span>
+<span class="n">max-inline-alternation</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">3</span>
 </code></pre></div>
 <h3 id="generating-diffs-by-external-command">Generating diffs by external command<a class="headerlink" href="#generating-diffs-by-external-command" title="Permanent link">&para;</a></h3>
 <p>If <code>ui.diff.tool</code> is set, the specified diff command will be called instead of
