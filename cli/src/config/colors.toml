@@ -25,6 +25,11 @@
 "username" = "yellow"
 "timestamp" = "cyan"
 "working_copies" = "green"
+"bookmark" = "magenta"
+"bookmarks" = "magenta"
+"local_bookmarks" = "magenta"
+"remote_bookmarks" = "magenta"
+#  TODO: Remove in jj 0.28+
 "branch" = "magenta"
 "branches" = "magenta"
 "local_branches" = "magenta"

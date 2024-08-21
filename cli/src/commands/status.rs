@@ -33,8 +33,7 @@ use crate::ui::Ui;
 ///
 ///  * The working copy commit and its (first) parent, and a summary of the
 ///    changes between them
-///
-///  * Conflicted branches (see https://martinvonz.github.io/jj/latest/branches/)
+///  * Conflicted bookmarks (see https://martinvonz.github.io/jj/latest/bookmarks/)
 #[derive(clap::Args, Clone, Debug)]
 #[command(visible_alias = "st")]
 pub(crate) struct StatusArgs {
@@ -143,47 +142,50 @@ pub(crate) fn cmd_status(
         writeln!(formatter, "No working copy")?;
     }
 
-    let conflicted_local_branches = repo
+    let conflicted_local_bookmarks = repo
         .view()
-        .local_branches()
+        .local_bookmarks()
         .filter(|(_, target)| target.has_conflict())
-        .map(|(branch_name, _)| branch_name)
+        .map(|(bookmark_name, _)| bookmark_name)
         .collect_vec();
-    let conflicted_remote_branches = repo
+    let conflicted_remote_bookmarks = repo
         .view()
-        .all_remote_branches()
+        .all_remote_bookmarks()
         .filter(|(_, remote_ref)| remote_ref.target.has_conflict())
         .map(|(full_name, _)| full_name)
         .collect_vec();
-    if !conflicted_local_branches.is_empty() {
+    if !conflicted_local_bookmarks.is_empty() {
         writeln!(
             formatter.labeled("conflict"),
-            "These branches have conflicts:"
+            "These bookmarks have conflicts:"
         )?;
-        for branch_name in conflicted_local_branches {
+        for bookmark_name in conflicted_local_bookmarks {
             write!(formatter, "  ")?;
-            write!(formatter.labeled("branch"), "{branch_name}")?;
+            write!(formatter.labeled("bookmark"), "{bookmark_name}")?;
             writeln!(formatter)?;
         }
         writeln!(
             formatter,
-            "  Use `jj branch list` to see details. Use `jj branch set <name> -r <rev>` to \
+            "  Use `jj bookmark list` to see details. Use `jj bookmark set <name> -r <rev>` to \
              resolve."
         )?;
     }
-    if !conflicted_remote_branches.is_empty() {
+    if !conflicted_remote_bookmarks.is_empty() {
         writeln!(
             formatter.labeled("conflict"),
-            "These remote branches have conflicts:"
+            "These remote bookmarks have conflicts:"
         )?;
-        for (branch_name, remote_name) in conflicted_remote_branches {
+        for (bookmark_name, remote_name) in conflicted_remote_bookmarks {
             write!(formatter, "  ")?;
-            write!(formatter.labeled("branch"), "{branch_name}@{remote_name}")?;
+            write!(
+                formatter.labeled("bookmark"),
+                "{bookmark_name}@{remote_name}"
+            )?;
             writeln!(formatter)?;
         }
         writeln!(
             formatter,
-            "  Use `jj branch list` to see details. Use `jj git fetch` to resolve."
+            "  Use `jj bookmark list` to see details. Use `jj git fetch` to resolve."
         )?;
     }
 

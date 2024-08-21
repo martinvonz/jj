@@ -202,8 +202,8 @@ fn test_merge_views_checkout() {
 }
 
 #[test]
-fn test_merge_views_branches() {
-    // Tests merging of branches (by performing divergent operations). See
+fn test_merge_views_bookmarks() {
+    // Tests merging of bookmarks (by performing concurrent operations). See
     // test_refs.rs for tests of merging of individual ref targets.
     let settings = testutils::user_settings();
     let test_repo = TestRepo::init();
@@ -211,84 +211,87 @@ fn test_merge_views_branches() {
 
     let mut tx = repo.start_transaction(&settings);
     let mut_repo = tx.repo_mut();
-    let main_branch_local_tx0 = write_random_commit(mut_repo, &settings);
-    let main_branch_origin_tx0 = write_random_commit(mut_repo, &settings);
-    let main_branch_alternate_tx0 = write_random_commit(mut_repo, &settings);
-    let main_branch_origin_tx0_remote_ref = RemoteRef {
-        target: RefTarget::normal(main_branch_origin_tx0.id().clone()),
+    let main_bookmark_local_tx0 = write_random_commit(mut_repo, &settings);
+    let main_bookmark_origin_tx0 = write_random_commit(mut_repo, &settings);
+    let main_bookmark_alternate_tx0 = write_random_commit(mut_repo, &settings);
+    let main_bookmark_origin_tx0_remote_ref = RemoteRef {
+        target: RefTarget::normal(main_bookmark_origin_tx0.id().clone()),
         state: RemoteRefState::New,
     };
-    let main_branch_alternate_tx0_remote_ref = RemoteRef {
-        target: RefTarget::normal(main_branch_alternate_tx0.id().clone()),
+    let main_bookmark_alternate_tx0_remote_ref = RemoteRef {
+        target: RefTarget::normal(main_bookmark_alternate_tx0.id().clone()),
         state: RemoteRefState::Tracking,
     };
-    mut_repo.set_local_branch_target(
+    mut_repo.set_local_bookmark_target(
         "main",
-        RefTarget::normal(main_branch_local_tx0.id().clone()),
+        RefTarget::normal(main_bookmark_local_tx0.id().clone()),
     );
-    mut_repo.set_remote_branch("main", "origin", main_branch_origin_tx0_remote_ref);
-    mut_repo.set_remote_branch(
+    mut_repo.set_remote_bookmark("main", "origin", main_bookmark_origin_tx0_remote_ref);
+    mut_repo.set_remote_bookmark(
         "main",
         "alternate",
-        main_branch_alternate_tx0_remote_ref.clone(),
+        main_bookmark_alternate_tx0_remote_ref.clone(),
     );
-    let feature_branch_local_tx0 = write_random_commit(mut_repo, &settings);
-    mut_repo.set_local_branch_target(
+    let feature_bookmark_local_tx0 = write_random_commit(mut_repo, &settings);
+    mut_repo.set_local_bookmark_target(
         "feature",
-        RefTarget::normal(feature_branch_local_tx0.id().clone()),
+        RefTarget::normal(feature_bookmark_local_tx0.id().clone()),
     );
     let repo = tx.commit("test");
 
     let mut tx1 = repo.start_transaction(&settings);
-    let main_branch_local_tx1 = write_random_commit(tx1.repo_mut(), &settings);
-    tx1.repo_mut().set_local_branch_target(
+    let main_bookmark_local_tx1 = write_random_commit(tx1.repo_mut(), &settings);
+    tx1.repo_mut().set_local_bookmark_target(
         "main",
-        RefTarget::normal(main_branch_local_tx1.id().clone()),
+        RefTarget::normal(main_bookmark_local_tx1.id().clone()),
     );
-    let feature_branch_tx1 = write_random_commit(tx1.repo_mut(), &settings);
-    tx1.repo_mut().set_local_branch_target(
+    let feature_bookmark_tx1 = write_random_commit(tx1.repo_mut(), &settings);
+    tx1.repo_mut().set_local_bookmark_target(
         "feature",
-        RefTarget::normal(feature_branch_tx1.id().clone()),
+        RefTarget::normal(feature_bookmark_tx1.id().clone()),
     );
 
     let mut tx2 = repo.start_transaction(&settings);
-    let main_branch_local_tx2 = write_random_commit(tx2.repo_mut(), &settings);
-    let main_branch_origin_tx2 = write_random_commit(tx2.repo_mut(), &settings);
-    let main_branch_origin_tx2_remote_ref = RemoteRef {
-        target: RefTarget::normal(main_branch_origin_tx2.id().clone()),
+    let main_bookmark_local_tx2 = write_random_commit(tx2.repo_mut(), &settings);
+    let main_bookmark_origin_tx2 = write_random_commit(tx2.repo_mut(), &settings);
+    let main_bookmark_origin_tx2_remote_ref = RemoteRef {
+        target: RefTarget::normal(main_bookmark_origin_tx2.id().clone()),
         state: RemoteRefState::Tracking,
     };
-    tx2.repo_mut().set_local_branch_target(
+    tx2.repo_mut().set_local_bookmark_target(
         "main",
-        RefTarget::normal(main_branch_local_tx2.id().clone()),
+        RefTarget::normal(main_bookmark_local_tx2.id().clone()),
     );
-    tx2.repo_mut()
-        .set_remote_branch("main", "origin", main_branch_origin_tx2_remote_ref.clone());
+    tx2.repo_mut().set_remote_bookmark(
+        "main",
+        "origin",
+        main_bookmark_origin_tx2_remote_ref.clone(),
+    );
 
     let repo = commit_transactions(&settings, vec![tx1, tx2]);
-    let expected_main_branch = BranchTarget {
+    let expected_main_bookmark = BranchTarget {
         local_target: &RefTarget::from_legacy_form(
-            [main_branch_local_tx0.id().clone()],
+            [main_bookmark_local_tx0.id().clone()],
             [
-                main_branch_local_tx1.id().clone(),
-                main_branch_local_tx2.id().clone(),
+                main_bookmark_local_tx1.id().clone(),
+                main_bookmark_local_tx2.id().clone(),
             ],
         ),
         remote_refs: vec![
-            ("alternate", &main_branch_alternate_tx0_remote_ref),
+            ("alternate", &main_bookmark_alternate_tx0_remote_ref),
             // tx1: unchanged, tx2: new -> tracking
-            ("origin", &main_branch_origin_tx2_remote_ref),
+            ("origin", &main_bookmark_origin_tx2_remote_ref),
         ],
     };
-    let expected_feature_branch = BranchTarget {
-        local_target: &RefTarget::normal(feature_branch_tx1.id().clone()),
+    let expected_feature_bookmark = BranchTarget {
+        local_target: &RefTarget::normal(feature_bookmark_tx1.id().clone()),
         remote_refs: vec![],
     };
     assert_eq!(
-        repo.view().branches().collect::<BTreeMap<_, _>>(),
+        repo.view().bookmarks().collect::<BTreeMap<_, _>>(),
         btreemap! {
-            "main" => expected_main_branch,
-            "feature" => expected_feature_branch,
+            "main" => expected_main_bookmark,
+            "feature" => expected_feature_bookmark,
         }
     );
 }
@@ -347,48 +350,51 @@ fn test_merge_views_git_refs() {
 
     let mut tx = repo.start_transaction(&settings);
     let mut_repo = tx.repo_mut();
-    let main_branch_tx0 = write_random_commit(mut_repo, &settings);
+    let main_bookmark_tx0 = write_random_commit(mut_repo, &settings);
     mut_repo.set_git_ref_target(
         "refs/heads/main",
-        RefTarget::normal(main_branch_tx0.id().clone()),
+        RefTarget::normal(main_bookmark_tx0.id().clone()),
     );
-    let feature_branch_tx0 = write_random_commit(mut_repo, &settings);
+    let feature_bookmark_tx0 = write_random_commit(mut_repo, &settings);
     mut_repo.set_git_ref_target(
         "refs/heads/feature",
-        RefTarget::normal(feature_branch_tx0.id().clone()),
+        RefTarget::normal(feature_bookmark_tx0.id().clone()),
     );
     let repo = tx.commit("test");
 
     let mut tx1 = repo.start_transaction(&settings);
-    let main_branch_tx1 = write_random_commit(tx1.repo_mut(), &settings);
+    let main_bookmark_tx1 = write_random_commit(tx1.repo_mut(), &settings);
     tx1.repo_mut().set_git_ref_target(
         "refs/heads/main",
-        RefTarget::normal(main_branch_tx1.id().clone()),
+        RefTarget::normal(main_bookmark_tx1.id().clone()),
     );
-    let feature_branch_tx1 = write_random_commit(tx1.repo_mut(), &settings);
+    let feature_bookmark_tx1 = write_random_commit(tx1.repo_mut(), &settings);
     tx1.repo_mut().set_git_ref_target(
         "refs/heads/feature",
-        RefTarget::normal(feature_branch_tx1.id().clone()),
+        RefTarget::normal(feature_bookmark_tx1.id().clone()),
     );
 
     let mut tx2 = repo.start_transaction(&settings);
-    let main_branch_tx2 = write_random_commit(tx2.repo_mut(), &settings);
+    let main_bookmark_tx2 = write_random_commit(tx2.repo_mut(), &settings);
     tx2.repo_mut().set_git_ref_target(
         "refs/heads/main",
-        RefTarget::normal(main_branch_tx2.id().clone()),
+        RefTarget::normal(main_bookmark_tx2.id().clone()),
     );
 
     let repo = commit_transactions(&settings, vec![tx1, tx2]);
-    let expected_main_branch = RefTarget::from_legacy_form(
-        [main_branch_tx0.id().clone()],
-        [main_branch_tx1.id().clone(), main_branch_tx2.id().clone()],
+    let expected_main_bookmark = RefTarget::from_legacy_form(
+        [main_bookmark_tx0.id().clone()],
+        [
+            main_bookmark_tx1.id().clone(),
+            main_bookmark_tx2.id().clone(),
+        ],
     );
-    let expected_feature_branch = RefTarget::normal(feature_branch_tx1.id().clone());
+    let expected_feature_bookmark = RefTarget::normal(feature_bookmark_tx1.id().clone());
     assert_eq!(
         repo.view().git_refs(),
         &btreemap! {
-            "refs/heads/main".to_string() => expected_main_branch,
-            "refs/heads/feature".to_string() => expected_feature_branch,
+            "refs/heads/main".to_string() => expected_main_bookmark,
+            "refs/heads/feature".to_string() => expected_feature_bookmark,
         }
     );
 }

@@ -300,15 +300,15 @@ pub fn show_op_diff(
         }
     }
 
-    let changed_local_branches = diff_named_ref_targets(
-        from_repo.view().local_branches(),
-        to_repo.view().local_branches(),
+    let changed_local_bookmarks = diff_named_ref_targets(
+        from_repo.view().local_bookmarks(),
+        to_repo.view().local_bookmarks(),
     )
     .collect_vec();
-    if !changed_local_branches.is_empty() {
+    if !changed_local_bookmarks.is_empty() {
         writeln!(formatter)?;
         writeln!(formatter, "Changed local branches:")?;
-        for (name, (from_target, to_target)) in changed_local_branches {
+        for (name, (from_target, to_target)) in changed_local_bookmarks {
             writeln!(formatter, "{}:", name)?;
             write_ref_target_summary(
                 formatter,
@@ -357,8 +357,8 @@ pub fn show_op_diff(
     }
 
     let changed_remote_branches = diff_named_remote_refs(
-        from_repo.view().all_remote_branches(),
-        to_repo.view().all_remote_branches(),
+        from_repo.view().all_remote_bookmarks(),
+        to_repo.view().all_remote_bookmarks(),
     )
     // Skip updates to the local git repo, since they should typically be covered in
     // local branches.

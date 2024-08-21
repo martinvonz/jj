@@ -191,9 +191,9 @@ fn test_edit_previous_empty_with_description() {
 }
 
 #[test]
-fn test_edit_previous_empty_with_local_branch() {
+fn test_edit_previous_empty_with_local_bookmark() {
     // Test that MutableRepo::edit() does not abandon the previous commit if it
-    // is pointed by local branch.
+    // is pointed by local bookmark.
     let settings = testutils::user_settings();
     let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
@@ -208,7 +208,7 @@ fn test_edit_previous_empty_with_local_branch() {
         )
         .write()
         .unwrap();
-    mut_repo.set_local_branch_target("b", RefTarget::normal(old_wc_commit.id().clone()));
+    mut_repo.set_local_bookmark_target("b", RefTarget::normal(old_wc_commit.id().clone()));
     let ws_id = WorkspaceId::default();
     mut_repo.edit(ws_id.clone(), &old_wc_commit).unwrap();
     let repo = tx.commit("test");
@@ -467,7 +467,7 @@ fn test_remove_head() {
 #[test]
 fn test_has_changed() {
     // Test that MutableRepo::has_changed() reports changes iff the view has changed
-    // (e.g. not after setting a branch to point to where it was already
+    // (e.g. not after setting a bookmark to point to where it was already
     // pointing).
     let settings = testutils::user_settings();
     let test_repo = TestRepo::init();
@@ -486,8 +486,8 @@ fn test_has_changed() {
     mut_repo
         .set_wc_commit(ws_id.clone(), commit1.id().clone())
         .unwrap();
-    mut_repo.set_local_branch_target("main", RefTarget::normal(commit1.id().clone()));
-    mut_repo.set_remote_branch("main", "origin", normal_remote_ref(commit1.id()));
+    mut_repo.set_local_bookmark_target("main", RefTarget::normal(commit1.id().clone()));
+    mut_repo.set_remote_bookmark("main", "origin", normal_remote_ref(commit1.id()));
     let repo = tx.commit("test");
     // Test the setup
     assert_eq!(repo.view().heads(), &hashset! {commit1.id().clone()});
@@ -499,13 +499,13 @@ fn test_has_changed() {
     mut_repo
         .set_wc_commit(ws_id.clone(), commit1.id().clone())
         .unwrap();
-    mut_repo.set_local_branch_target("main", RefTarget::normal(commit1.id().clone()));
-    mut_repo.set_remote_branch("main", "origin", normal_remote_ref(commit1.id()));
+    mut_repo.set_local_bookmark_target("main", RefTarget::normal(commit1.id().clone()));
+    mut_repo.set_remote_bookmark("main", "origin", normal_remote_ref(commit1.id()));
     assert!(!mut_repo.has_changes());
 
     mut_repo.remove_head(commit2.id());
-    mut_repo.set_local_branch_target("stable", RefTarget::absent());
-    mut_repo.set_remote_branch("stable", "origin", RemoteRef::absent());
+    mut_repo.set_local_bookmark_target("stable", RefTarget::absent());
+    mut_repo.set_remote_bookmark("stable", "origin", RemoteRef::absent());
     assert!(!mut_repo.has_changes());
 
     mut_repo.add_head(&commit2).unwrap();
@@ -520,14 +520,14 @@ fn test_has_changed() {
     mut_repo.set_wc_commit(ws_id, commit1.id().clone()).unwrap();
     assert!(!mut_repo.has_changes());
 
-    mut_repo.set_local_branch_target("main", RefTarget::normal(commit2.id().clone()));
+    mut_repo.set_local_bookmark_target("main", RefTarget::normal(commit2.id().clone()));
     assert!(mut_repo.has_changes());
-    mut_repo.set_local_branch_target("main", RefTarget::normal(commit1.id().clone()));
+    mut_repo.set_local_bookmark_target("main", RefTarget::normal(commit1.id().clone()));
     assert!(!mut_repo.has_changes());
 
-    mut_repo.set_remote_branch("main", "origin", normal_remote_ref(commit2.id()));
+    mut_repo.set_remote_bookmark("main", "origin", normal_remote_ref(commit2.id()));
     assert!(mut_repo.has_changes());
-    mut_repo.set_remote_branch("main", "origin", normal_remote_ref(commit1.id()));
+    mut_repo.set_remote_bookmark("main", "origin", normal_remote_ref(commit1.id()));
     assert!(!mut_repo.has_changes());
 }
 
@@ -617,11 +617,11 @@ fn test_rename_remote() {
         target: RefTarget::normal(commit.id().clone()),
         state: RemoteRefState::Tracking, // doesn't matter
     };
-    mut_repo.set_remote_branch("main", "origin", remote_ref.clone());
+    mut_repo.set_remote_bookmark("main", "origin", remote_ref.clone());
     mut_repo.rename_remote("origin", "upstream");
-    assert_eq!(mut_repo.get_remote_branch("main", "upstream"), remote_ref);
+    assert_eq!(mut_repo.get_remote_bookmark("main", "upstream"), remote_ref);
     assert_eq!(
-        mut_repo.get_remote_branch("main", "origin"),
+        mut_repo.get_remote_bookmark("main", "origin"),
         RemoteRef::absent()
     );
 }

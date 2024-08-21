@@ -266,7 +266,7 @@ diff-invocation-mode = "file-by-file"
 
 You can configure the set of immutable commits via
 `revset-aliases."immutable_heads()"`. The default set of immutable heads is
-`trunk() | tags() | untracked_remote_branches()`. For example, to prevent
+`trunk() | tags() | untracked_remote_bookmarks()`. For example, to prevent
 rewriting commits on `main@origin` and commits authored by other users:
 
 ```toml
@@ -357,7 +357,7 @@ To customize these separately, use the `format_short_commit_id()` and
 To get shorter prefixes for certain revisions, set `revsets.short-prefixes`:
 
 ```toml
-# Prioritize the current branch
+# Prioritize the current bookmark
 revsets.short-prefixes = "(main..@)::"
 ```
 
@@ -475,8 +475,8 @@ format = "git"
 You can define aliases for commands, including their arguments. For example:
 
 ```toml
-# `jj l` shows commits on the working-copy commit's (anonymous) branch
-# compared to the `main` branch
+# `jj l` shows commits on the working-copy commit's (anonymous) bookmark
+# compared to the `main` bookmark
 aliases.l = ["log", "-r", "(main..@):: | (main..@)-"]
 ```
 
@@ -861,32 +861,32 @@ Note that unlike `git.fetch`, `git.push` can currently only be a single remote.
 This is not a hard limitation, and could be changed in the future if there is
 demand.
 
-### Automatic local branch creation
+### Automatic local bookmark creation
 
-When `jj` imports a new remote-tracking branch from Git, it can also create a
-local branch with the same name. This feature is disabled by default because it
+When `jj` imports a new remote-tracking bookmark from Git, it can also create a
+local bookmark with the same name. This feature is disabled by default because it
 may be undesirable in some repositories, e.g.:
 
-- There is a remote with a lot of historical branches that you don't
+- There is a remote with a lot of historical bookmarks that you don't
   want to be exported to the co-located Git repo.
-- There are multiple remotes with conflicting views of that branch,
+- There are multiple remotes with conflicting views of that bookmark,
   resulting in an unhelpful conflicted state.
 
-You can enable this behavior by setting `git.auto-local-branch` like so,
+You can enable this behavior by setting `git.auto-local-bookmark` like so,
 
 ```toml
-git.auto-local-branch = true
+git.auto-local-bookmark = true
 ```
 
-This setting is applied only to new remote branches. Existing remote branches
-can be tracked individually by using `jj branch track`/`untrack` commands.
+This setting is applied only to new remote bookmarks. Existing remote bookmarks
+can be tracked individually by using `jj bookmark track`/`untrack` commands.
 
 ```shell
-# import feature1 branch and start tracking it
-jj branch track feature1@origin
-# delete local gh-pages branch and stop tracking it
-jj branch delete gh-pages
-jj branch untrack gh-pages@upstream
+# import feature1 bookmark and start tracking it
+jj bookmark track feature1@origin
+# delete local gh-pages bookmark and stop tracking it
+jj bookmark delete gh-pages
+jj bookmark untrack gh-pages@upstream
 ```
 
 ### Abandon commits that became unreachable in Git
@@ -903,13 +903,13 @@ git.abandon-unreachable-commits = false
 
 [reachable]: https://git-scm.com/docs/gitglossary/#Documentation/gitglossary.txt-aiddefreachableareachable
 
-### Prefix for generated branches on push
+### Prefix for generated bookmarks on push
 
-`jj git push --change` generates branch names with a prefix of "push-" by
-default. You can pick a different prefix by setting `git.push-branch-prefix`. For
+`jj git push --change` generates bookmark names with a prefix of "push-" by
+default. You can pick a different prefix by setting `git.push-bookmark-prefix`. For
 example:
 
-    git.push-branch-prefix = "martinvonz/push-"
+    git.push-bookmark-prefix = "martinvonz/push-"
 
 ### Set of private commits
 

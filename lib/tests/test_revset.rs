@@ -255,7 +255,7 @@ fn test_resolve_symbol_change_id(readonly: bool) {
     for i in &[133, 664, 840, 5085] {
         let git_commit_id = git_repo
             .commit(
-                Some(&format!("refs/heads/branch{i}")),
+                Some(&format!("refs/heads/bookmark{i}")),
                 &git_author,
                 &git_committer,
                 &format!("test {i}"),
@@ -445,7 +445,7 @@ fn test_resolve_working_copies() {
 }
 
 #[test]
-fn test_resolve_symbol_branches() {
+fn test_resolve_symbol_bookmarks() {
     let settings = testutils::user_settings();
     let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
@@ -469,42 +469,42 @@ fn test_resolve_symbol_branches() {
     let commit4 = write_random_commit(mut_repo, &settings);
     let commit5 = write_random_commit(mut_repo, &settings);
 
-    mut_repo.set_local_branch_target("local", RefTarget::normal(commit1.id().clone()));
-    mut_repo.set_remote_branch("remote", "origin", normal_tracking_remote_ref(commit2.id()));
-    mut_repo.set_local_branch_target("local-remote", RefTarget::normal(commit3.id().clone()));
-    mut_repo.set_remote_branch(
+    mut_repo.set_local_bookmark_target("local", RefTarget::normal(commit1.id().clone()));
+    mut_repo.set_remote_bookmark("remote", "origin", normal_tracking_remote_ref(commit2.id()));
+    mut_repo.set_local_bookmark_target("local-remote", RefTarget::normal(commit3.id().clone()));
+    mut_repo.set_remote_bookmark(
         "local-remote",
         "origin",
         normal_tracking_remote_ref(commit4.id()),
     );
-    mut_repo.set_local_branch_target(
-        "local-remote@origin", // not a remote branch
+    mut_repo.set_local_bookmark_target(
+        "local-remote@origin", // not a remote bookmark
         RefTarget::normal(commit5.id().clone()),
     );
-    mut_repo.set_remote_branch(
+    mut_repo.set_remote_bookmark(
         "local-remote",
         "mirror",
-        tracking_remote_ref(mut_repo.get_local_branch("local-remote")),
+        tracking_remote_ref(mut_repo.get_local_bookmark("local-remote")),
     );
-    mut_repo.set_remote_branch(
+    mut_repo.set_remote_bookmark(
         "local-remote",
         "untracked",
-        new_remote_ref(mut_repo.get_local_branch("local-remote")),
+        new_remote_ref(mut_repo.get_local_bookmark("local-remote")),
     );
-    mut_repo.set_remote_branch(
+    mut_repo.set_remote_bookmark(
         "local-remote",
         git::REMOTE_NAME_FOR_LOCAL_GIT_REPO,
-        tracking_remote_ref(mut_repo.get_local_branch("local-remote")),
+        tracking_remote_ref(mut_repo.get_local_bookmark("local-remote")),
     );
 
-    mut_repo.set_local_branch_target(
+    mut_repo.set_local_bookmark_target(
         "local-conflicted",
         RefTarget::from_legacy_form(
             [commit1.id().clone()],
             [commit3.id().clone(), commit2.id().clone()],
         ),
     );
-    mut_repo.set_remote_branch(
+    mut_repo.set_remote_bookmark(
         "remote-conflicted",
         "origin",
         tracking_remote_ref(RefTarget::from_legacy_form(
@@ -580,11 +580,11 @@ fn test_resolve_symbol_branches() {
         vec![commit5.id().clone(), commit4.id().clone()],
     );
 
-    // Typo of local/remote branch name:
+    // Typo of local/remote bookmark name:
     // For "local-emote" (without @remote part), "local-remote@mirror"/"@git" aren't
     // suggested since they point to the same target as "local-remote". OTOH,
-    // "local-remote@untracked" is suggested because non-tracking branch is
-    // unrelated to the local branch of the same name.
+    // "local-remote@untracked" is suggested because non-tracking bookmark is
+    // unrelated to the local bookmark of the same name.
     insta::assert_debug_snapshot!(
         resolve_symbol(mut_repo, "local-emote").unwrap_err(), @r###"
     NoSuchRevision {
@@ -643,7 +643,7 @@ fn test_resolve_symbol_branches() {
     }
     "###);
 
-    // Typo of remote-only branch name
+    // Typo of remote-only bookmark name
     insta::assert_debug_snapshot!(
         resolve_symbol(mut_repo, "emote").unwrap_err(), @r###"
     NoSuchRevision {
@@ -690,16 +690,16 @@ fn test_resolve_symbol_tags() {
     let commit2 = write_random_commit(mut_repo, &settings);
     let commit3 = write_random_commit(mut_repo, &settings);
 
-    mut_repo.set_tag_target("tag-branch", RefTarget::normal(commit1.id().clone()));
-    mut_repo.set_local_branch_target("tag-branch", RefTarget::normal(commit2.id().clone()));
+    mut_repo.set_tag_target("tag-bookmark", RefTarget::normal(commit1.id().clone()));
+    mut_repo.set_local_bookmark_target("tag-bookmark", RefTarget::normal(commit2.id().clone()));
     mut_repo.set_git_ref_target(
         "refs/tags/unimported",
         RefTarget::normal(commit3.id().clone()),
     );
 
-    // Tag precedes branch
+    // Tag precedes bookmark
     assert_eq!(
-        resolve_symbol(mut_repo, "tag-branch").unwrap(),
+        resolve_symbol(mut_repo, "tag-bookmark").unwrap(),
         vec![commit1.id().clone()],
     );
 
@@ -785,11 +785,11 @@ fn test_resolve_symbol_git_refs() {
     let commit4 = write_random_commit(mut_repo, &settings);
     let commit5 = write_random_commit(mut_repo, &settings);
     mut_repo.set_git_ref_target(
-        "refs/heads/branch1",
+        "refs/heads/bookmark1",
         RefTarget::normal(commit1.id().clone()),
     );
     mut_repo.set_git_ref_target(
-        "refs/heads/branch2",
+        "refs/heads/bookmark2",
         RefTarget::normal(commit2.id().clone()),
     );
     mut_repo.set_git_ref_target(
@@ -801,7 +801,7 @@ fn test_resolve_symbol_git_refs() {
     );
     mut_repo.set_git_ref_target("refs/tags/tag1", RefTarget::normal(commit2.id().clone()));
     mut_repo.set_git_ref_target(
-        "refs/tags/remotes/origin/branch1",
+        "refs/tags/remotes/origin/bookmark1",
         RefTarget::normal(commit3.id().clone()),
     );
 
@@ -813,26 +813,35 @@ fn test_resolve_symbol_git_refs() {
     );
 
     // Full ref
-    mut_repo.set_git_ref_target("refs/heads/branch", RefTarget::normal(commit4.id().clone()));
+    mut_repo.set_git_ref_target(
+        "refs/heads/bookmark",
+        RefTarget::normal(commit4.id().clone()),
+    );
     assert_eq!(
-        resolve_symbol(mut_repo, "refs/heads/branch").unwrap(),
+        resolve_symbol(mut_repo, "refs/heads/bookmark").unwrap(),
         vec![commit4.id().clone()]
     );
 
     // Qualified with only heads/
-    mut_repo.set_git_ref_target("refs/heads/branch", RefTarget::normal(commit5.id().clone()));
-    mut_repo.set_git_ref_target("refs/tags/branch", RefTarget::normal(commit4.id().clone()));
-    // branch alone is not recognized
+    mut_repo.set_git_ref_target(
+        "refs/heads/bookmark",
+        RefTarget::normal(commit5.id().clone()),
+    );
+    mut_repo.set_git_ref_target(
+        "refs/tags/bookmark",
+        RefTarget::normal(commit4.id().clone()),
+    );
+    // bookmark alone is not recognized
     insta::assert_debug_snapshot!(
-        resolve_symbol(mut_repo, "branch").unwrap_err(), @r###"
+        resolve_symbol(mut_repo, "bookmark").unwrap_err(), @r###"
     NoSuchRevision {
-        name: "branch",
+        name: "bookmark",
         candidates: [],
     }
     "###);
-    // heads/branch does get resolved to the git ref refs/heads/branch
+    // heads/bookmark does get resolved to the git ref refs/heads/bookmark
     assert_eq!(
-        resolve_symbol(mut_repo, "heads/branch").unwrap(),
+        resolve_symbol(mut_repo, "heads/bookmark").unwrap(),
         vec![commit5.id().clone()]
     );
 
@@ -843,13 +852,13 @@ fn test_resolve_symbol_git_refs() {
         Err(RevsetResolutionError::NoSuchRevision { .. })
     );
 
-    // Unqualified remote-tracking branch name
+    // Unqualified remote-tracking bookmark name
     mut_repo.set_git_ref_target(
-        "refs/remotes/origin/remote-branch",
+        "refs/remotes/origin/remote-bookmark",
         RefTarget::normal(commit2.id().clone()),
     );
     assert_matches!(
-        resolve_symbol(mut_repo, "origin/remote-branch"),
+        resolve_symbol(mut_repo, "origin/remote-bookmark"),
         Err(RevsetResolutionError::NoSuchRevision { .. })
     );
 
@@ -1941,7 +1950,7 @@ fn test_evaluate_expression_git_refs() {
     assert_eq!(resolve_commit_ids(mut_repo, "git_refs()"), vec![]);
     // Can get a mix of git refs
     mut_repo.set_git_ref_target(
-        "refs/heads/branch1",
+        "refs/heads/bookmark1",
         RefTarget::normal(commit1.id().clone()),
     );
     mut_repo.set_git_ref_target("refs/tags/tag1", RefTarget::normal(commit2.id().clone()));
@@ -1958,7 +1967,7 @@ fn test_evaluate_expression_git_refs() {
     );
     // Can get git refs when there are conflicted refs
     mut_repo.set_git_ref_target(
-        "refs/heads/branch1",
+        "refs/heads/bookmark1",
         RefTarget::from_legacy_form(
             [commit1.id().clone()],
             [commit2.id().clone(), commit3.id().clone()],
@@ -2003,7 +2012,7 @@ fn test_evaluate_expression_git_head() {
 }
 
 #[test]
-fn test_evaluate_expression_branches() {
+fn test_evaluate_expression_bookmarks() {
     let settings = testutils::user_settings();
     let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
@@ -2016,75 +2025,75 @@ fn test_evaluate_expression_branches() {
     let commit3 = write_random_commit(mut_repo, &settings);
     let commit4 = write_random_commit(mut_repo, &settings);
 
-    // Can get branches when there are none
-    assert_eq!(resolve_commit_ids(mut_repo, "branches()"), vec![]);
-    // Can get a few branches
-    mut_repo.set_local_branch_target("branch1", RefTarget::normal(commit1.id().clone()));
-    mut_repo.set_local_branch_target("branch2", RefTarget::normal(commit2.id().clone()));
+    // Can get bookmarks when there are none
+    assert_eq!(resolve_commit_ids(mut_repo, "bookmarks()"), vec![]);
+    // Can get a few bookmarks
+    mut_repo.set_local_bookmark_target("bookmark1", RefTarget::normal(commit1.id().clone()));
+    mut_repo.set_local_bookmark_target("bookmark2", RefTarget::normal(commit2.id().clone()));
     assert_eq!(
-        resolve_commit_ids(mut_repo, "branches()"),
+        resolve_commit_ids(mut_repo, "bookmarks()"),
         vec![commit2.id().clone(), commit1.id().clone()]
     );
-    // Can get branches with matching names
+    // Can get bookmarks with matching names
     assert_eq!(
-        resolve_commit_ids(mut_repo, "branches(branch1)"),
+        resolve_commit_ids(mut_repo, "bookmarks(bookmark1)"),
         vec![commit1.id().clone()]
     );
     assert_eq!(
-        resolve_commit_ids(mut_repo, "branches(branch)"),
+        resolve_commit_ids(mut_repo, "bookmarks(bookmark)"),
         vec![commit2.id().clone(), commit1.id().clone()]
     );
     assert_eq!(
-        resolve_commit_ids(mut_repo, "branches(exact:branch1)"),
+        resolve_commit_ids(mut_repo, "bookmarks(exact:bookmark1)"),
         vec![commit1.id().clone()]
     );
     assert_eq!(
-        resolve_commit_ids(mut_repo, r#"branches(glob:"Branch?")"#),
+        resolve_commit_ids(mut_repo, r#"bookmarks(glob:"Bookmark?")"#),
         vec![]
     );
     assert_eq!(
-        resolve_commit_ids(mut_repo, r#"branches(glob-i:"Branch?")"#),
+        resolve_commit_ids(mut_repo, r#"bookmarks(glob-i:"Bookmark?")"#),
         vec![commit2.id().clone(), commit1.id().clone()]
     );
     assert_eq!(
-        resolve_commit_ids(mut_repo, "branches(regex:'ranch')"),
+        resolve_commit_ids(mut_repo, "bookmarks(regex:'ookmark')"),
         vec![commit2.id().clone(), commit1.id().clone()]
     );
     assert_eq!(
-        resolve_commit_ids(mut_repo, "branches(regex:'^[Bb]ranch1$')"),
+        resolve_commit_ids(mut_repo, "bookmarks(regex:'^[Bb]ookmark1$')"),
         vec![commit1.id().clone()]
     );
     // Can silently resolve to an empty set if there's no matches
-    assert_eq!(resolve_commit_ids(mut_repo, "branches(branch3)"), vec![]);
+    assert_eq!(resolve_commit_ids(mut_repo, "bookmarks(bookmark3)"), vec![]);
     assert_eq!(
-        resolve_commit_ids(mut_repo, "branches(exact:ranch1)"),
+        resolve_commit_ids(mut_repo, "bookmarks(exact:ookmark1)"),
         vec![]
     );
-    // Two branches pointing to the same commit does not result in a duplicate in
+    // Two bookmarks pointing to the same commit does not result in a duplicate in
     // the revset
-    mut_repo.set_local_branch_target("branch3", RefTarget::normal(commit2.id().clone()));
+    mut_repo.set_local_bookmark_target("bookmark3", RefTarget::normal(commit2.id().clone()));
     assert_eq!(
-        resolve_commit_ids(mut_repo, "branches()"),
+        resolve_commit_ids(mut_repo, "bookmarks()"),
         vec![commit2.id().clone(), commit1.id().clone()]
     );
-    // Can get branches when there are conflicted refs
-    mut_repo.set_local_branch_target(
-        "branch1",
+    // Can get bookmarks when there are conflicted refs
+    mut_repo.set_local_bookmark_target(
+        "bookmark1",
         RefTarget::from_legacy_form(
             [commit1.id().clone()],
             [commit2.id().clone(), commit3.id().clone()],
         ),
     );
-    mut_repo.set_local_branch_target(
-        "branch2",
+    mut_repo.set_local_bookmark_target(
+        "bookmark2",
         RefTarget::from_legacy_form(
             [commit2.id().clone()],
             [commit3.id().clone(), commit4.id().clone()],
         ),
     );
-    mut_repo.set_local_branch_target("branch3", RefTarget::absent());
+    mut_repo.set_local_bookmark_target("bookmark3", RefTarget::absent());
     assert_eq!(
-        resolve_commit_ids(mut_repo, "branches()"),
+        resolve_commit_ids(mut_repo, "bookmarks()"),
         vec![
             commit4.id().clone(),
             commit3.id().clone(),
@@ -2094,7 +2103,7 @@ fn test_evaluate_expression_branches() {
 }
 
 #[test]
-fn test_evaluate_expression_remote_branches() {
+fn test_evaluate_expression_remote_bookmarks() {
     let settings = testutils::user_settings();
     let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
@@ -2114,11 +2123,11 @@ fn test_evaluate_expression_remote_branches() {
     let commit4 = write_random_commit(mut_repo, &settings);
     let commit_git_remote = write_random_commit(mut_repo, &settings);
 
-    // Can get branches when there are none
-    assert_eq!(resolve_commit_ids(mut_repo, "remote_branches()"), vec![]);
+    // Can get bookmarks when there are none
+    assert_eq!(resolve_commit_ids(mut_repo, "remote_bookmarks()"), vec![]);
     // Branch 1 is untracked on remote origin
-    mut_repo.set_remote_branch(
-        "branch1",
+    mut_repo.set_remote_bookmark(
+        "bookmark1",
         "origin",
         RemoteRef {
             target: RefTarget::normal(commit1.id().clone()),
@@ -2126,144 +2135,147 @@ fn test_evaluate_expression_remote_branches() {
         },
     );
     // Branch 2 is tracked on remote private
-    mut_repo.set_remote_branch(
-        "branch2",
+    mut_repo.set_remote_bookmark(
+        "bookmark2",
         "private",
         normal_tracking_remote_ref(commit2.id()),
     );
-    // Git-tracking branches aren't included
-    mut_repo.set_remote_branch(
-        "branch",
+    // Git-tracking bookmarks aren't included
+    mut_repo.set_remote_bookmark(
+        "bookmark",
         git::REMOTE_NAME_FOR_LOCAL_GIT_REPO,
         normal_tracking_remote_ref(commit_git_remote.id()),
     );
-    // Can get a few branches
+    // Can get a few bookmarks
     assert_eq!(
-        resolve_commit_ids(mut_repo, "remote_branches()"),
+        resolve_commit_ids(mut_repo, "remote_bookmarks()"),
         vec![commit2.id().clone(), commit1.id().clone()]
     );
-    // Can get branches with matching names
+    // Can get bookmarks with matching names
     assert_eq!(
-        resolve_commit_ids(mut_repo, "remote_branches(branch1)"),
+        resolve_commit_ids(mut_repo, "remote_bookmarks(bookmark1)"),
         vec![commit1.id().clone()]
     );
     assert_eq!(
-        resolve_commit_ids(mut_repo, "remote_branches(branch)"),
-        vec![commit2.id().clone(), commit1.id().clone()]
-    );
-    assert_eq!(
-        resolve_commit_ids(mut_repo, "remote_branches(exact:branch1)"),
-        vec![commit1.id().clone()]
-    );
-    // Can get branches from matching remotes
-    assert_eq!(
-        resolve_commit_ids(mut_repo, r#"remote_branches("", origin)"#),
-        vec![commit1.id().clone()]
-    );
-    assert_eq!(
-        resolve_commit_ids(mut_repo, r#"remote_branches("", ri)"#),
+        resolve_commit_ids(mut_repo, "remote_bookmarks(bookmark)"),
         vec![commit2.id().clone(), commit1.id().clone()]
     );
     assert_eq!(
-        resolve_commit_ids(mut_repo, r#"remote_branches("", exact:origin)"#),
+        resolve_commit_ids(mut_repo, "remote_bookmarks(exact:bookmark1)"),
         vec![commit1.id().clone()]
     );
-    // Can get branches with matching names from matching remotes
+    // Can get bookmarks from matching remotes
     assert_eq!(
-        resolve_commit_ids(mut_repo, "remote_branches(branch1, ri)"),
+        resolve_commit_ids(mut_repo, r#"remote_bookmarks("", origin)"#),
         vec![commit1.id().clone()]
     );
     assert_eq!(
-        resolve_commit_ids(mut_repo, r#"remote_branches(branch, private)"#),
+        resolve_commit_ids(mut_repo, r#"remote_bookmarks("", ri)"#),
+        vec![commit2.id().clone(), commit1.id().clone()]
+    );
+    assert_eq!(
+        resolve_commit_ids(mut_repo, r#"remote_bookmarks("", exact:origin)"#),
+        vec![commit1.id().clone()]
+    );
+    // Can get bookmarks with matching names from matching remotes
+    assert_eq!(
+        resolve_commit_ids(mut_repo, "remote_bookmarks(bookmark1, ri)"),
+        vec![commit1.id().clone()]
+    );
+    assert_eq!(
+        resolve_commit_ids(mut_repo, r#"remote_bookmarks(bookmark, private)"#),
         vec![commit2.id().clone()]
     );
     assert_eq!(
-        resolve_commit_ids(mut_repo, r#"remote_branches(exact:branch1, exact:origin)"#),
+        resolve_commit_ids(
+            mut_repo,
+            r#"remote_bookmarks(exact:bookmark1, exact:origin)"#
+        ),
         vec![commit1.id().clone()]
     );
-    // Can filter branches by tracked and untracked
+    // Can filter bookmarks by tracked and untracked
     assert_eq!(
-        resolve_commit_ids(mut_repo, "tracked_remote_branches()"),
+        resolve_commit_ids(mut_repo, "tracked_remote_bookmarks()"),
         vec![commit2.id().clone()]
     );
     assert_eq!(
-        resolve_commit_ids(mut_repo, "untracked_remote_branches()"),
+        resolve_commit_ids(mut_repo, "untracked_remote_bookmarks()"),
         vec![commit1.id().clone()]
     );
     assert_eq!(
-        resolve_commit_ids(mut_repo, "untracked_remote_branches(branch1, origin)"),
+        resolve_commit_ids(mut_repo, "untracked_remote_bookmarks(bookmark1, origin)"),
         vec![commit1.id().clone()]
     );
     assert_eq!(
-        resolve_commit_ids(mut_repo, "tracked_remote_branches(branch2, private)"),
+        resolve_commit_ids(mut_repo, "tracked_remote_bookmarks(bookmark2, private)"),
         vec![commit2.id().clone()]
     );
     // Can silently resolve to an empty set if there's no matches
     assert_eq!(
-        resolve_commit_ids(mut_repo, "remote_branches(branch3)"),
+        resolve_commit_ids(mut_repo, "remote_bookmarks(bookmark3)"),
         vec![]
     );
     assert_eq!(
-        resolve_commit_ids(mut_repo, r#"remote_branches("", upstream)"#),
+        resolve_commit_ids(mut_repo, r#"remote_bookmarks("", upstream)"#),
         vec![]
     );
     assert_eq!(
-        resolve_commit_ids(mut_repo, r#"remote_branches(branch1, private)"#),
+        resolve_commit_ids(mut_repo, r#"remote_bookmarks(bookmark1, private)"#),
         vec![]
     );
     assert_eq!(
-        resolve_commit_ids(mut_repo, r#"remote_branches(exact:ranch1, exact:origin)"#),
+        resolve_commit_ids(mut_repo, r#"remote_bookmarks(exact:ranch1, exact:origin)"#),
         vec![]
     );
     assert_eq!(
-        resolve_commit_ids(mut_repo, r#"remote_branches(exact:branch1, exact:orig)"#),
+        resolve_commit_ids(mut_repo, r#"remote_bookmarks(exact:bookmark1, exact:orig)"#),
         vec![]
     );
     assert_eq!(
-        resolve_commit_ids(mut_repo, "tracked_remote_branches(branch1)"),
+        resolve_commit_ids(mut_repo, "tracked_remote_bookmarks(bookmark1)"),
         vec![]
     );
     assert_eq!(
-        resolve_commit_ids(mut_repo, "untracked_remote_branches(branch2)"),
+        resolve_commit_ids(mut_repo, "untracked_remote_bookmarks(bookmark2)"),
         vec![]
     );
-    // Two branches pointing to the same commit does not result in a duplicate in
+    // Two bookmarks pointing to the same commit does not result in a duplicate in
     // the revset
-    mut_repo.set_remote_branch(
-        "branch3",
+    mut_repo.set_remote_bookmark(
+        "bookmark3",
         "origin",
         normal_tracking_remote_ref(commit2.id()),
     );
     assert_eq!(
-        resolve_commit_ids(mut_repo, "remote_branches()"),
+        resolve_commit_ids(mut_repo, "remote_bookmarks()"),
         vec![commit2.id().clone(), commit1.id().clone()]
     );
     // The commits don't have to be in the current set of heads to be included.
     mut_repo.remove_head(commit2.id());
     assert_eq!(
-        resolve_commit_ids(mut_repo, "remote_branches()"),
+        resolve_commit_ids(mut_repo, "remote_bookmarks()"),
         vec![commit2.id().clone(), commit1.id().clone()]
     );
-    // Can get branches when there are conflicted refs
-    mut_repo.set_remote_branch(
-        "branch1",
+    // Can get bookmarks when there are conflicted refs
+    mut_repo.set_remote_bookmark(
+        "bookmark1",
         "origin",
         tracking_remote_ref(RefTarget::from_legacy_form(
             [commit1.id().clone()],
             [commit2.id().clone(), commit3.id().clone()],
         )),
     );
-    mut_repo.set_remote_branch(
-        "branch2",
+    mut_repo.set_remote_bookmark(
+        "bookmark2",
         "private",
         tracking_remote_ref(RefTarget::from_legacy_form(
             [commit2.id().clone()],
             [commit3.id().clone(), commit4.id().clone()],
         )),
     );
-    mut_repo.set_remote_branch("branch3", "origin", RemoteRef::absent());
+    mut_repo.set_remote_bookmark("bookmark3", "origin", RemoteRef::absent());
     assert_eq!(
-        resolve_commit_ids(mut_repo, "remote_branches()"),
+        resolve_commit_ids(mut_repo, "remote_bookmarks()"),
         vec![
             commit4.id().clone(),
             commit3.id().clone(),
@@ -3513,8 +3525,8 @@ fn test_no_such_revision_suggestion() {
     let mut_repo = tx.repo_mut();
     let commit = write_random_commit(mut_repo, &settings);
 
-    for branch_name in ["foo", "bar", "baz"] {
-        mut_repo.set_local_branch_target(branch_name, RefTarget::normal(commit.id().clone()));
+    for bookmark_name in ["foo", "bar", "baz"] {
+        mut_repo.set_local_bookmark_target(bookmark_name, RefTarget::normal(commit.id().clone()));
     }
 
     assert_matches!(resolve_symbol(mut_repo, "bar"), Ok(_));

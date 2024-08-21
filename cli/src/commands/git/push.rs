@@ -26,7 +26,7 @@ use jj_lib::git::GitBranchPushTargets;
 use jj_lib::git::GitPushError;
 use jj_lib::object_id::ObjectId;
 use jj_lib::op_store::RefTarget;
-use jj_lib::refs::classify_branch_push_action;
+use jj_lib::refs::classify_bookmark_push_action;
 use jj_lib::refs::BranchPushAction;
 use jj_lib::refs::BranchPushUpdate;
 use jj_lib::refs::LocalAndRemoteRef;
@@ -56,51 +56,52 @@ use crate::ui::Ui;
 
 /// Push to a Git remote
 ///
-/// By default, pushes any branches pointing to
-/// `remote_branches(remote=<remote>)..@`. Use `--branch` to push specific
-/// branches. Use `--all` to push all branches. Use `--change` to generate
-/// branch names based on the change IDs of specific commits.
+/// By default, pushes any bookmarks pointing to
+/// `remote_bookmarks(remote=<remote>)..@`. Use `--bookmark` to push specific
+/// bookmarks. Use `--all` to push all bookmarks. Use `--change` to generate
+/// bookmark names based on the change IDs of specific commits.
 ///
-/// Before the command actually moves, creates, or deletes a remote branch, it
+/// Before the command actually moves, creates, or deletes a remote bookmark, it
 /// makes several [safety checks]. If there is a problem, you may need to run
-/// `jj git fetch --remote <remote name>` and/or resolve some [branch
+/// `jj git fetch --remote <remote name>` and/or resolve some [bookmark
 /// conflicts].
 ///
 /// [safety checks]:
-///     https://martinvonz.github.io/jj/latest/branches/#pushing-branches-safety-checks
+///     https://martinvonz.github.io/jj/latest/bookmarks/#pushing-bookmarks-safety-checks
 ///
-/// [branch conflicts]:
-///     https://martinvonz.github.io/jj/latest/branches/#conflicts
+/// [bookmark conflicts]:
+///     https://martinvonz.github.io/jj/latest/bookmarks/#conflicts
 
 #[derive(clap::Args, Clone, Debug)]
-#[command(group(ArgGroup::new("specific").args(&["branch", "change", "revisions"]).multiple(true)))]
+#[command(group(ArgGroup::new("specific").args(&["bookmark", "change", "revisions"]).multiple(true)))]
 #[command(group(ArgGroup::new("what").args(&["all", "deleted", "tracked"]).conflicts_with("specific")))]
 pub struct GitPushArgs {
     /// The remote to push to (only named remotes are supported)
     #[arg(long)]
     remote: Option<String>,
-    /// Push only this branch, or branches matching a pattern (can be repeated)
+    /// Push only this bookmark, or bookmarks matching a pattern (can be
+    /// repeated)
     ///
     /// By default, the specified name matches exactly. Use `glob:` prefix to
-    /// select branches by wildcard pattern. For details, see
+    /// select bookmarks by wildcard pattern. For details, see
     /// https://martinvonz.github.io/jj/latest/revsets#string-patterns.
     #[arg(long, short, value_parser = StringPattern::parse)]
-    branch: Vec<StringPattern>,
-    /// Push all branches (including deleted branches)
+    bookmark: Vec<StringPattern>,
+    /// Push all bookmarks (including deleted bookmarks)
     #[arg(long)]
     all: bool,
-    /// Push all tracked branches (including deleted branches)
+    /// Push all tracked bookmarks (including deleted bookmarks)
     ///
-    /// This usually means that the branch was already pushed to or fetched from
-    /// the relevant remote. For details, see
-    /// https://martinvonz.github.io/jj/latest/branches#remotes-and-tracked-branches
+    /// This usually means that the bookmark was already pushed to or fetched
+    /// from the relevant remote. For details, see
+    /// https://martinvonz.github.io/jj/latest/bookmarks#remotes-and-tracked-bookmarks
     #[arg(long)]
     tracked: bool,
-    /// Push all deleted branches
+    /// Push all deleted bookmarks
     ///
-    /// Only tracked branches can be successfully deleted on the remote. A
-    /// warning will be printed if any untracked branches on the remote
-    /// correspond to missing local branches.
+    /// Only tracked bookmarks can be successfully deleted on the remote. A
+    /// warning will be printed if any untracked bookmarks on the remote
+    /// correspond to missing local bookmarks.
     #[arg(long)]
     deleted: bool,
     /// Allow pushing commits with empty descriptions
@@ -109,10 +110,10 @@ pub struct GitPushArgs {
     /// Allow pushing commits that are private
     #[arg(long)]
     allow_private: bool,
-    /// Push branches pointing to these commits (can be repeated)
+    /// Push bookmarks pointing to these commits (can be repeated)
     #[arg(long, short)]
     revisions: Vec<RevisionArg>,
-    /// Push this commit by creating a branch based on its change ID (can be
+    /// Push this commit by creating a bookmark based on its change ID (can be
     /// repeated)
     #[arg(long, short)]
     change: Vec<RevisionArg>,
@@ -121,10 +122,10 @@ pub struct GitPushArgs {
     dry_run: bool,
 }
 
-fn make_branch_term(branch_names: &[impl fmt::Display]) -> String {
-    match branch_names {
-        [branch_name] => format!("branch {}", branch_name),
-        branch_names => format!("branches {}", branch_names.iter().join(", ")),
+fn make_bookmark_term(bookmark_names: &[impl fmt::Display]) -> String {
+    match bookmark_names {
+        [bookmark_name] => format!("bookmark {}", bookmark_name),
+        bookmark_names => format!("bookmarks {}", bookmark_names.iter().join(", ")),
     }
 }
 
@@ -156,85 +157,85 @@ pub fn cmd_git_push(
     let tx_description;
     let mut branch_updates = vec![];
     if args.all {
-        for (branch_name, targets) in repo.view().local_remote_branches(&remote) {
-            match classify_branch_update(branch_name, &remote, targets) {
-                Ok(Some(update)) => branch_updates.push((branch_name.to_owned(), update)),
+        for (bookmark_name, targets) in repo.view().local_remote_bookmarks(&remote) {
+            match classify_bookmark_update(bookmark_name, &remote, targets) {
+                Ok(Some(update)) => branch_updates.push((bookmark_name.to_owned(), update)),
                 Ok(None) => {}
                 Err(reason) => reason.print(ui)?,
             }
         }
-        tx_description = format!("push all branches to git remote {remote}");
+        tx_description = format!("push all bookmarks to git remote {remote}");
     } else if args.tracked {
-        for (branch_name, targets) in repo.view().local_remote_branches(&remote) {
+        for (bookmark_name, targets) in repo.view().local_remote_bookmarks(&remote) {
             if !targets.remote_ref.is_tracking() {
                 continue;
             }
-            match classify_branch_update(branch_name, &remote, targets) {
-                Ok(Some(update)) => branch_updates.push((branch_name.to_owned(), update)),
+            match classify_bookmark_update(bookmark_name, &remote, targets) {
+                Ok(Some(update)) => branch_updates.push((bookmark_name.to_owned(), update)),
                 Ok(None) => {}
                 Err(reason) => reason.print(ui)?,
             }
         }
-        tx_description = format!("push all tracked branches to git remote {remote}");
+        tx_description = format!("push all tracked bookmarks to git remote {remote}");
     } else if args.deleted {
-        for (branch_name, targets) in repo.view().local_remote_branches(&remote) {
+        for (bookmark_name, targets) in repo.view().local_remote_bookmarks(&remote) {
             if targets.local_target.is_present() {
                 continue;
             }
-            match classify_branch_update(branch_name, &remote, targets) {
-                Ok(Some(update)) => branch_updates.push((branch_name.to_owned(), update)),
+            match classify_bookmark_update(bookmark_name, &remote, targets) {
+                Ok(Some(update)) => branch_updates.push((bookmark_name.to_owned(), update)),
                 Ok(None) => {}
                 Err(reason) => reason.print(ui)?,
             }
         }
-        tx_description = format!("push all deleted branches to git remote {remote}");
+        tx_description = format!("push all deleted bookmarks to git remote {remote}");
     } else {
-        let mut seen_branches: HashSet<&str> = HashSet::new();
+        let mut seen_bookmarks: HashSet<&str> = HashSet::new();
 
-        // Process --change branches first because matching branches can be moved.
-        let change_branch_names = update_change_branches(
+        // Process --change bookmarks first because matching bookmarks can be moved.
+        let change_bookmark_names = update_change_bookmarks(
             ui,
             &mut tx,
             &args.change,
-            &command.settings().push_branch_prefix(),
+            &command.settings().push_bookmark_prefix(),
         )?;
-        let change_branches = change_branch_names.iter().map(|branch_name| {
+        let change_bookmarks = change_bookmark_names.iter().map(|bookmark_name| {
             let targets = LocalAndRemoteRef {
-                local_target: tx.repo().view().get_local_branch(branch_name),
-                remote_ref: tx.repo().view().get_remote_branch(branch_name, &remote),
+                local_target: tx.repo().view().get_local_bookmark(bookmark_name),
+                remote_ref: tx.repo().view().get_remote_bookmark(bookmark_name, &remote),
             };
-            (branch_name.as_ref(), targets)
+            (bookmark_name.as_ref(), targets)
         });
-        let branches_by_name = find_branches_to_push(repo.view(), &args.branch, &remote)?;
-        for (branch_name, targets) in change_branches.chain(branches_by_name.iter().copied()) {
-            if !seen_branches.insert(branch_name) {
+        let bookmarks_by_name = find_bookmarks_to_push(repo.view(), &args.bookmark, &remote)?;
+        for (bookmark_name, targets) in change_bookmarks.chain(bookmarks_by_name.iter().copied()) {
+            if !seen_bookmarks.insert(bookmark_name) {
                 continue;
             }
-            match classify_branch_update(branch_name, &remote, targets) {
-                Ok(Some(update)) => branch_updates.push((branch_name.to_owned(), update)),
+            match classify_bookmark_update(bookmark_name, &remote, targets) {
+                Ok(Some(update)) => branch_updates.push((bookmark_name.to_owned(), update)),
                 Ok(None) => writeln!(
                     ui.status(),
-                    "Branch {branch_name}@{remote} already matches {branch_name}",
+                    "Branch {bookmark_name}@{remote} already matches {bookmark_name}",
                 )?,
                 Err(reason) => return Err(reason.into()),
             }
         }
 
         let use_default_revset =
-            args.branch.is_empty() && args.change.is_empty() && args.revisions.is_empty();
-        let branches_targeted = find_branches_targeted_by_revisions(
+            args.bookmark.is_empty() && args.change.is_empty() && args.revisions.is_empty();
+        let bookmarks_targeted = find_bookmarks_targeted_by_revisions(
             ui,
             tx.base_workspace_helper(),
             &remote,
             &args.revisions,
             use_default_revset,
         )?;
-        for &(branch_name, targets) in &branches_targeted {
-            if !seen_branches.insert(branch_name) {
+        for &(bookmark_name, targets) in &bookmarks_targeted {
+            if !seen_bookmarks.insert(bookmark_name) {
                 continue;
             }
-            match classify_branch_update(branch_name, &remote, targets) {
-                Ok(Some(update)) => branch_updates.push((branch_name.to_owned(), update)),
+            match classify_bookmark_update(bookmark_name, &remote, targets) {
+                Ok(Some(update)) => branch_updates.push((bookmark_name.to_owned(), update)),
                 Ok(None) => {}
                 Err(reason) => reason.print(ui)?,
             }
@@ -242,10 +243,10 @@ pub fn cmd_git_push(
 
         tx_description = format!(
             "push {} to git remote {}",
-            make_branch_term(
+            make_bookmark_term(
                 &branch_updates
                     .iter()
-                    .map(|(branch, _)| branch.as_str())
+                    .map(|(bookmark, _)| bookmark.as_str())
                     .collect_vec()
             ),
             &remote
@@ -256,8 +257,8 @@ pub fn cmd_git_push(
         return Ok(());
     }
 
-    let mut branch_push_direction = HashMap::new();
-    for (branch_name, update) in &branch_updates {
+    let mut bookmark_push_direction = HashMap::new();
+    for (bookmark_name, update) in &branch_updates {
         let BranchPushUpdate {
             old_target: Some(old_target),
             new_target: Some(new_target),
@@ -266,8 +267,8 @@ pub fn cmd_git_push(
             continue;
         };
         assert_ne!(old_target, new_target);
-        branch_push_direction.insert(
-            branch_name.to_string(),
+        bookmark_push_direction.insert(
+            bookmark_name.to_string(),
             if repo.index().is_ancestor(old_target, new_target) {
                 BranchMoveDirection::Forward
             } else if repo.index().is_ancestor(new_target, old_target) {
@@ -281,25 +282,26 @@ pub fn cmd_git_push(
     validate_commits_ready_to_push(&branch_updates, &remote, &tx, command, args)?;
 
     writeln!(ui.status(), "Branch changes to push to {}:", &remote)?;
-    for (branch_name, update) in &branch_updates {
+    for (bookmark_name, update) in &branch_updates {
         match (&update.old_target, &update.new_target) {
             (Some(old_target), Some(new_target)) => {
                 let old = short_commit_hash(old_target);
                 let new = short_commit_hash(new_target);
-                // TODO(ilyagr): Add color. Once there is color, "Move branch ... sideways" may
-                // read more naturally than "Move sideways branch ...". Without color, it's hard
-                // to see at a glance if one branch among many was moved sideways (say).
-                // TODO: People on Discord suggest "Move branch ... forward by n commits",
-                // possibly "Move branch ... sideways (X forward, Y back)".
-                let msg = match branch_push_direction.get(branch_name).unwrap() {
+                // TODO(ilyagr): Add color. Once there is color, "Move bookmark ... sideways"
+                // may read more naturally than "Move sideways bookmark ...".
+                // Without color, it's hard to see at a glance if one bookmark
+                // among many was moved sideways (say). TODO: People on Discord
+                // suggest "Move bookmark ... forward by n commits",
+                // possibly "Move bookmark ... sideways (X forward, Y back)".
+                let msg = match bookmark_push_direction.get(bookmark_name).unwrap() {
                     BranchMoveDirection::Forward => {
-                        format!("Move forward branch {branch_name} from {old} to {new}")
+                        format!("Move forward bookmark {bookmark_name} from {old} to {new}")
                     }
                     BranchMoveDirection::Backward => {
-                        format!("Move backward branch {branch_name} from {old} to {new}")
+                        format!("Move backward bookmark {bookmark_name} from {old} to {new}")
                     }
                     BranchMoveDirection::Sideways => {
-                        format!("Move sideways branch {branch_name} from {old} to {new}")
+                        format!("Move sideways bookmark {bookmark_name} from {old} to {new}")
                     }
                 };
                 writeln!(ui.status(), "  {msg}")?;
@@ -307,19 +309,19 @@ pub fn cmd_git_push(
             (Some(old_target), None) => {
                 writeln!(
                     ui.status(),
-                    "  Delete branch {branch_name} from {}",
+                    "  Delete bookmark {bookmark_name} from {}",
                     short_commit_hash(old_target)
                 )?;
             }
             (None, Some(new_target)) => {
                 writeln!(
                     ui.status(),
-                    "  Add branch {branch_name} to {}",
+                    "  Add bookmark {bookmark_name} to {}",
                     short_commit_hash(new_target)
                 )?;
             }
             (None, None) => {
-                panic!("Not pushing any change to branch {branch_name}");
+                panic!("Not pushing any change to bookmark {bookmark_name}");
             }
         }
     }
@@ -341,12 +343,12 @@ pub fn cmd_git_push(
         GitPushError::InternalGitError(err) => map_git_error(err),
         GitPushError::RefInUnexpectedLocation(refs) => user_error_with_hint(
             format!(
-                "Refusing to push a branch that unexpectedly moved on the remote. Affected refs: \
-                 {}",
+                "Refusing to push a bookmark that unexpectedly moved on the remote. Affected \
+                 refs: {}",
                 refs.join(", ")
             ),
-            "Try fetching from the remote, then make the branch point to where you want it to be, \
-             and push again.",
+            "Try fetching from the remote, then make the bookmark point to where you want it to \
+             be, and push again.",
         ),
         _ => user_error(err),
     })?;
@@ -358,7 +360,7 @@ pub fn cmd_git_push(
 /// Validates that the commits that will be pushed are ready (have authorship
 /// information, are not conflicted, etc.)
 fn validate_commits_ready_to_push(
-    branch_updates: &[(String, BranchPushUpdate)],
+    bookmark_updates: &[(String, BranchPushUpdate)],
     remote: &str,
     tx: &WorkspaceCommandTransaction,
     command: &CommandHelper,
@@ -367,13 +369,13 @@ fn validate_commits_ready_to_push(
     let workspace_helper = tx.base_workspace_helper();
     let repo = workspace_helper.repo();
 
-    let new_heads = branch_updates
+    let new_heads = bookmark_updates
         .iter()
         .filter_map(|(_, update)| update.new_target.clone())
         .collect_vec();
     let old_heads = repo
         .view()
-        .remote_branches(remote)
+        .remote_bookmarks(remote)
         .flat_map(|(_, old_head)| old_head.target.added_ids())
         .cloned()
         .collect_vec();
@@ -476,40 +478,42 @@ impl From<RejectedBranchUpdateReason> for CommandError {
     }
 }
 
-fn classify_branch_update(
-    branch_name: &str,
+fn classify_bookmark_update(
+    bookmark_name: &str,
     remote_name: &str,
     targets: LocalAndRemoteRef,
 ) -> Result<Option<BranchPushUpdate>, RejectedBranchUpdateReason> {
-    let push_action = classify_branch_push_action(targets);
+    let push_action = classify_bookmark_push_action(targets);
     match push_action {
         BranchPushAction::AlreadyMatches => Ok(None),
         BranchPushAction::LocalConflicted => Err(RejectedBranchUpdateReason {
-            message: format!("Branch {branch_name} is conflicted"),
+            message: format!("Branch {bookmark_name} is conflicted"),
             hint: Some(
-                "Run `jj branch list` to inspect, and use `jj branch set` to fix it up.".to_owned(),
+                "Run `jj bookmark list` to inspect, and use `jj bookmark set` to fix it up."
+                    .to_owned(),
             ),
         }),
         BranchPushAction::RemoteConflicted => Err(RejectedBranchUpdateReason {
-            message: format!("Branch {branch_name}@{remote_name} is conflicted"),
-            hint: Some("Run `jj git fetch` to update the conflicted remote branch.".to_owned()),
+            message: format!("Branch {bookmark_name}@{remote_name} is conflicted"),
+            hint: Some("Run `jj git fetch` to update the conflicted remote bookmark.".to_owned()),
         }),
         BranchPushAction::RemoteUntracked => Err(RejectedBranchUpdateReason {
-            message: format!("Non-tracking remote branch {branch_name}@{remote_name} exists"),
+            message: format!("Non-tracking remote bookmark {bookmark_name}@{remote_name} exists"),
             hint: Some(format!(
-                "Run `jj branch track {branch_name}@{remote_name}` to import the remote branch."
+                "Run `jj bookmark track {bookmark_name}@{remote_name}` to import the remote \
+                 bookmark."
             )),
         }),
         BranchPushAction::Update(update) => Ok(Some(update)),
     }
 }
 
-/// Creates or moves branches based on the change IDs.
-fn update_change_branches(
+/// Creates or moves bookmarks based on the change IDs.
+fn update_change_bookmarks(
     ui: &Ui,
     tx: &mut WorkspaceCommandTransaction,
     changes: &[RevisionArg],
-    branch_prefix: &str,
+    bookmark_prefix: &str,
 ) -> Result<Vec<String>, CommandError> {
     if changes.is_empty() {
         // NOTE: we don't want resolve_some_revsets_default_single to fail if the
@@ -517,71 +521,71 @@ fn update_change_branches(
         return Ok(vec![]);
     }
 
-    let mut branch_names = Vec::new();
+    let mut bookmark_names = Vec::new();
     let workspace_command = tx.base_workspace_helper();
     let all_commits = workspace_command.resolve_some_revsets_default_single(changes)?;
 
     for commit in all_commits {
         let workspace_command = tx.base_workspace_helper();
         let short_change_id = short_change_hash(commit.change_id());
-        let mut branch_name = format!("{branch_prefix}{}", commit.change_id().hex());
+        let mut bookmark_name = format!("{bookmark_prefix}{}", commit.change_id().hex());
         let view = tx.base_repo().view();
-        if view.get_local_branch(&branch_name).is_absent() {
-            // A local branch with the full change ID doesn't exist already, so use the
+        if view.get_local_bookmark(&bookmark_name).is_absent() {
+            // A local bookmark with the full change ID doesn't exist already, so use the
             // short ID if it's not ambiguous (which it shouldn't be most of the time).
             if workspace_command
                 .resolve_single_rev(&RevisionArg::from(short_change_id.clone()))
                 .is_ok()
             {
-                // Short change ID is not ambiguous, so update the branch name to use it.
-                branch_name = format!("{branch_prefix}{short_change_id}");
+                // Short change ID is not ambiguous, so update the bookmark name to use it.
+                bookmark_name = format!("{bookmark_prefix}{short_change_id}");
             };
         }
-        if view.get_local_branch(&branch_name).is_absent() {
+        if view.get_local_bookmark(&bookmark_name).is_absent() {
             writeln!(
                 ui.status(),
-                "Creating branch {branch_name} for revision {short_change_id}",
+                "Creating bookmark {bookmark_name} for revision {short_change_id}",
             )?;
         }
         tx.repo_mut()
-            .set_local_branch_target(&branch_name, RefTarget::normal(commit.id().clone()));
-        branch_names.push(branch_name);
+            .set_local_bookmark_target(&bookmark_name, RefTarget::normal(commit.id().clone()));
+        bookmark_names.push(bookmark_name);
     }
-    Ok(branch_names)
+    Ok(bookmark_names)
 }
 
-fn find_branches_to_push<'a>(
+fn find_bookmarks_to_push<'a>(
     view: &'a View,
-    branch_patterns: &[StringPattern],
+    bookmark_patterns: &[StringPattern],
     remote_name: &str,
 ) -> Result<Vec<(&'a str, LocalAndRemoteRef<'a>)>, CommandError> {
-    let mut matching_branches = vec![];
+    let mut matching_bookmarks = vec![];
     let mut unmatched_patterns = vec![];
-    for pattern in branch_patterns {
+    for pattern in bookmark_patterns {
         let mut matches = view
-            .local_remote_branches_matching(pattern, remote_name)
+            .local_remote_bookmarks_matching(pattern, remote_name)
             .filter(|(_, targets)| {
                 // If the remote exists but is not tracking, the absent local shouldn't
-                // be considered a deleted branch.
+                // be considered a deleted bookmark.
                 targets.local_target.is_present() || targets.remote_ref.is_tracking()
             })
             .peekable();
         if matches.peek().is_none() {
             unmatched_patterns.push(pattern);
         }
-        matching_branches.extend(matches);
+        matching_bookmarks.extend(matches);
     }
     match &unmatched_patterns[..] {
-        [] => Ok(matching_branches),
-        [pattern] if pattern.is_exact() => Err(user_error(format!("No such branch: {pattern}"))),
+        [] => Ok(matching_bookmarks),
+        [pattern] if pattern.is_exact() => Err(user_error(format!("No such bookmark: {pattern}"))),
         patterns => Err(user_error(format!(
-            "No matching branches for patterns: {}",
+            "No matching bookmarks for patterns: {}",
             patterns.iter().join(", ")
         ))),
     }
 }
 
-fn find_branches_targeted_by_revisions<'a>(
+fn find_bookmarks_targeted_by_revisions<'a>(
     ui: &Ui,
     workspace_command: &'a WorkspaceCommandHelper,
     remote_name: &str,
@@ -593,44 +597,44 @@ fn find_branches_targeted_by_revisions<'a>(
         let Some(wc_commit_id) = workspace_command.get_wc_commit_id().cloned() else {
             return Err(user_error("Nothing checked out in this workspace"));
         };
-        let current_branches_expression = RevsetExpression::remote_branches(
+        let current_bookmarks_expression = RevsetExpression::remote_bookmarks(
             StringPattern::everything(),
             StringPattern::exact(remote_name),
             None,
         )
         .range(&RevsetExpression::commit(wc_commit_id))
-        .intersection(&RevsetExpression::branches(StringPattern::everything()));
-        let current_branches_revset =
-            current_branches_expression.evaluate_programmatic(workspace_command.repo().as_ref())?;
-        revision_commit_ids.extend(current_branches_revset.iter());
+        .intersection(&RevsetExpression::bookmarks(StringPattern::everything()));
+        let current_bookmarks_revset = current_bookmarks_expression
+            .evaluate_programmatic(workspace_command.repo().as_ref())?;
+        revision_commit_ids.extend(current_bookmarks_revset.iter());
         if revision_commit_ids.is_empty() {
             writeln!(
                 ui.warning_default(),
-                "No branches found in the default push revset: \
-                 remote_branches(remote={remote_name})..@"
+                "No bookmarks found in the default push revset: \
+                 remote_bookmarks(remote={remote_name})..@"
             )?;
         }
     }
     for rev_arg in revisions {
         let mut expression = workspace_command.parse_revset(rev_arg)?;
-        expression.intersect_with(&RevsetExpression::branches(StringPattern::everything()));
+        expression.intersect_with(&RevsetExpression::bookmarks(StringPattern::everything()));
         let mut commit_ids = expression.evaluate_to_commit_ids()?.peekable();
         if commit_ids.peek().is_none() {
             writeln!(
                 ui.warning_default(),
-                "No branches point to the specified revisions: {rev_arg}"
+                "No bookmarks point to the specified revisions: {rev_arg}"
             )?;
         }
         revision_commit_ids.extend(commit_ids);
     }
-    let branches_targeted = workspace_command
+    let bookmarks_targeted = workspace_command
         .repo()
         .view()
-        .local_remote_branches(remote_name)
+        .local_remote_bookmarks(remote_name)
         .filter(|(_, targets)| {
             let mut local_ids = targets.local_target.added_ids();
             local_ids.any(|id| revision_commit_ids.contains(id))
         })
         .collect_vec();
-    Ok(branches_targeted)
+    Ok(bookmarks_targeted)
 }

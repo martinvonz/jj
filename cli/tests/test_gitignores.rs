@@ -104,7 +104,7 @@ fn test_gitignores_ignored_file_in_target_commit() {
 
     // Create a commit with file "ignored" in it
     std::fs::write(workspace_root.join("ignored"), "committed contents\n").unwrap();
-    test_env.jj_cmd_ok(&workspace_root, &["branch", "create", "with-file"]);
+    test_env.jj_cmd_ok(&workspace_root, &["bookmark", "create", "with-file"]);
     let target_commit_id = test_env.jj_cmd_success(
         &workspace_root,
         &["log", "--no-graph", "-T=commit_id", "-r=@"],

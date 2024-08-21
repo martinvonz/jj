@@ -1,12 +1,12 @@
 # Glossary
 
-## Anonymous branch
+## Anonymous bookmark
 
-An anonymous branch is a chain of commits that doesn't have any
-[named branches](#branch) pointing to it or to any of its descendants. Unlike
-Git, Jujutsu keeps commits on anonymous branches around until they are
-explicitly abandoned. Visible anonymous branches are tracked by the
-[view](#view), which stores a list of [heads](#head) of such branches.
+An anonymous bookmark is a chain of commits that doesn't have any
+[named bookmarks](#bookmark) pointing to it or to any of its descendants. Unlike
+Git, Jujutsu keeps commits on anonymous bookmarks around until they are
+explicitly abandoned. Visible anonymous bookmarks are tracked by the
+[view](#view), which stores a list of [heads](#head) of such bookmarks.
 
 ## Backend
 
@@ -20,15 +20,15 @@ There are also pluggable backends for storing other information than commits,
 such as the "operation store backend" for storing
 [the operation log](#operation-log).
 
-## Branch
+## Bookmark
 
-A branch is a named pointer to a [commit](#commit). They automatically follow
+A bookmark is a named pointer to a [commit](#commit). They automatically follow
 the commit if it gets [rewritten](#rewrite). Branches are sometimes called
-"named branches" to distinguish them from
-[anonymous branches](#anonymous-branch), but note that they are more similar
-to Git's branches than to
-[Mercurial's named branches](https://www.mercurial-scm.org/wiki/Branch#Named_branches).
-See [here](branches.md) for details.
+"named bookmarks" to distinguish them from
+[anonymous bookmarks](#anonymous-bookmark), but note that they are more similar
+to Git's bookmarks than to
+[Mercurial's named bookmarks](https://www.mercurial-scm.org/wiki/Branch#Named_bookmarks).
+See [here](bookmarks.md) for details.
 
 ## Change
 
@@ -85,12 +85,12 @@ Those are the conflicts that users coming from other VCSs are usually familiar
 with. You can see them in `jj status` and in `jj log` (the red "conflict"
 label at the end of the line). See [here](conflicts.md) for details.
 
-Conflicts can also occur in [branches](#branch). For example, if you moved a
-branch locally, and it was also moved on the remote, then the branch will be
+Conflicts can also occur in [bookmarks](#bookmark). For example, if you moved a
+bookmark locally, and it was also moved on the remote, then the bookmark will be
 in a conflicted state after you pull from the remote.
-See [here](branches.md#conflicts) for details.
+See [here](bookmarks.md#conflicts) for details.
 
-Similar to a branch conflict, when a [change](#change) is rewritten locally
+Similar to a bookmark conflict, when a [change](#change) is rewritten locally
 and remotely, for example, then the change will be in a conflicted state. We
 call that a [divergent change](#divergent-change).
 
@@ -105,7 +105,7 @@ A head is a commit with no descendants. The context in which it has no
 descendants varies. For example, the `heads(X)`
 [revset function](revsets.md#functions) returns commits that have no descendants
 within the set `X` itself. The [view](#view) records which
-anonymous heads (heads without a branch pointing to them) are visible at a
+anonymous heads (heads without a bookmark pointing to them) are visible at a
 given [operation](#operation). Note that this is quite different from Git's
 [HEAD](https://git-scm.com/book/en/v2/Git-Internals-Git-References#ref_the_ref).
 
@@ -115,7 +115,7 @@ See [visible commits](#visible-commits).
 
 ## Operation
 
-A snapshot of the [visible commits](#visible-commits) and [branches](#branch)
+A snapshot of the [visible commits](#visible-commits) and [bookmarks](#bookmark)
 at a given point in time (technically a [view object](#view)), together with
 some metadata. The metadata includes the username, hostname, timestamps, and
 pointers to the operation's parents.
@@ -173,12 +173,12 @@ A tree object represents a snapshot of a directory in the repository. Tree
 objects are defined recursively; each tree object only has the files and
 directories contained directly in the directory it represents.
 
-## Tracked branches and tracking branches
+## Tracked bookmarks and tracking bookmarks
 
-A remote branch can be made "tracked" with the `jj branch track` command. This
-results in a "tracking" local branch that tracks the remote branch.
+A remote bookmark can be made "tracked" with the `jj bookmark track` command. This
+results in a "tracking" local bookmark that tracks the remote bookmark.
 
-See [the branches documentation](branches.md#terminology-summary) for a more
+See [the bookmarks documentation](bookmarks.md#terminology-summary) for a more
 detailed definition of these terms.
 
 ## Visible commits
@@ -195,7 +195,7 @@ accessible by their [commit id](#commit-id).
 
 ## View
 
-A view is a snapshot of branches and their targets, anonymous heads,
+A view is a snapshot of bookmarks and their targets, anonymous heads,
 and working-copy commits. The anonymous heads define which commits
 are [visible](#visible-commits).
 

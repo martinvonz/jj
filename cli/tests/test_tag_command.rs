@@ -32,20 +32,20 @@ fn test_tag_list() {
     };
 
     test_env.jj_cmd_ok(&repo_path, &["new", "root()", "-mcommit1"]);
-    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "branch1"]);
+    test_env.jj_cmd_ok(&repo_path, &["bookmark", "create", "bookmark1"]);
     test_env.jj_cmd_ok(&repo_path, &["new", "root()", "-mcommit2"]);
-    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "branch2"]);
+    test_env.jj_cmd_ok(&repo_path, &["bookmark", "create", "bookmark2"]);
     test_env.jj_cmd_ok(&repo_path, &["new", "root()", "-mcommit3"]);
-    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "branch3"]);
+    test_env.jj_cmd_ok(&repo_path, &["bookmark", "create", "bookmark3"]);
     test_env.jj_cmd_ok(&repo_path, &["git", "export"]);
 
-    copy_ref("refs/heads/branch1", "refs/tags/test_tag");
-    copy_ref("refs/heads/branch2", "refs/tags/test_tag2");
-    copy_ref("refs/heads/branch1", "refs/tags/conflicted_tag");
+    copy_ref("refs/heads/bookmark1", "refs/tags/test_tag");
+    copy_ref("refs/heads/bookmark2", "refs/tags/test_tag2");
+    copy_ref("refs/heads/bookmark1", "refs/tags/conflicted_tag");
     test_env.jj_cmd_ok(&repo_path, &["git", "import"]);
-    copy_ref("refs/heads/branch2", "refs/tags/conflicted_tag");
+    copy_ref("refs/heads/bookmark2", "refs/tags/conflicted_tag");
     test_env.jj_cmd_ok(&repo_path, &["git", "import"]);
-    copy_ref("refs/heads/branch3", "refs/tags/conflicted_tag");
+    copy_ref("refs/heads/bookmark3", "refs/tags/conflicted_tag");
     test_env.jj_cmd_ok(&repo_path, &["git", "import", "--at-op=@-"]);
     test_env.jj_cmd_ok(&repo_path, &["status"]); // resolve concurrent ops
 

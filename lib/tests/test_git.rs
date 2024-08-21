@@ -114,7 +114,7 @@ fn get_git_repo(repo: &Arc<ReadonlyRepo>) -> git2::Repository {
 fn test_import_refs() {
     let settings = testutils::user_settings();
     let git_settings = GitSettings {
-        auto_local_branch: true,
+        auto_local_bookmark: true,
         ..Default::default()
     };
     let test_repo = TestRepo::init_with_backend(TestRepoBackend::Git);
@@ -150,56 +150,56 @@ fn test_import_refs() {
     };
     assert_eq!(*view.heads(), expected_heads);
 
-    assert_eq!(view.branches().count(), 4);
+    assert_eq!(view.bookmarks().count(), 4);
     assert_eq!(
-        view.get_local_branch("main"),
+        view.get_local_bookmark("main"),
         &RefTarget::normal(jj_id(&commit2))
     );
     assert_eq!(
-        view.get_remote_branch("main", "git"),
+        view.get_remote_bookmark("main", "git"),
         &RemoteRef {
             target: RefTarget::normal(jj_id(&commit2)),
             state: RemoteRefState::Tracking,
         },
     );
     assert_eq!(
-        view.get_remote_branch("main", "origin"),
+        view.get_remote_bookmark("main", "origin"),
         &RemoteRef {
             target: RefTarget::normal(jj_id(&commit1)),
             state: RemoteRefState::Tracking,
         },
     );
     assert_eq!(
-        view.get_local_branch("feature1"),
+        view.get_local_bookmark("feature1"),
         &RefTarget::normal(jj_id(&commit3))
     );
     assert_eq!(
-        view.get_remote_branch("feature1", "git"),
+        view.get_remote_bookmark("feature1", "git"),
         &RemoteRef {
             target: RefTarget::normal(jj_id(&commit3)),
             state: RemoteRefState::Tracking,
         },
     );
-    assert!(view.get_remote_branch("feature1", "origin").is_absent());
+    assert!(view.get_remote_bookmark("feature1", "origin").is_absent());
     assert_eq!(
-        view.get_local_branch("feature2"),
+        view.get_local_bookmark("feature2"),
         &RefTarget::normal(jj_id(&commit4))
     );
     assert_eq!(
-        view.get_remote_branch("feature2", "git"),
+        view.get_remote_bookmark("feature2", "git"),
         &RemoteRef {
             target: RefTarget::normal(jj_id(&commit4)),
             state: RemoteRefState::Tracking,
         },
     );
-    assert!(view.get_remote_branch("feature2", "origin").is_absent());
+    assert!(view.get_remote_bookmark("feature2", "origin").is_absent());
     assert_eq!(
-        view.get_local_branch("feature3"),
+        view.get_local_bookmark("feature3"),
         &RefTarget::normal(jj_id(&commit6))
     );
-    assert!(view.get_remote_branch("feature3", "git").is_absent());
+    assert!(view.get_remote_bookmark("feature3", "git").is_absent());
     assert_eq!(
-        view.get_remote_branch("feature3", "origin"),
+        view.get_remote_bookmark("feature3", "origin"),
         &RemoteRef {
             target: RefTarget::normal(jj_id(&commit6)),
             state: RemoteRefState::Tracking,
@@ -240,7 +240,7 @@ fn test_import_refs() {
 fn test_import_refs_reimport() {
     let settings = testutils::user_settings();
     let git_settings = GitSettings {
-        auto_local_branch: true,
+        auto_local_bookmark: true,
         ..Default::default()
     };
     let test_workspace = TestRepo::init_with_backend(TestRepoBackend::Git);
@@ -282,7 +282,7 @@ fn test_import_refs_reimport() {
         .write()
         .unwrap();
     tx.repo_mut()
-        .set_local_branch_target("feature2", RefTarget::normal(commit6.id().clone()));
+        .set_local_bookmark_target("feature2", RefTarget::normal(commit6.id().clone()));
     let repo = tx.commit("test");
 
     let mut tx = repo.start_transaction(&settings);
@@ -305,39 +305,39 @@ fn test_import_refs_reimport() {
     };
     assert_eq!(*view.heads(), expected_heads);
 
-    assert_eq!(view.branches().count(), 2);
+    assert_eq!(view.bookmarks().count(), 2);
     let commit1_target = RefTarget::normal(jj_id(&commit1));
     let commit2_target = RefTarget::normal(jj_id(&commit2));
     assert_eq!(
-        view.get_local_branch("main"),
+        view.get_local_bookmark("main"),
         &RefTarget::normal(jj_id(&commit2))
     );
     assert_eq!(
-        view.get_remote_branch("main", "git"),
+        view.get_remote_bookmark("main", "git"),
         &RemoteRef {
             target: RefTarget::normal(jj_id(&commit2)),
             state: RemoteRefState::Tracking,
         },
     );
     assert_eq!(
-        view.get_remote_branch("main", "origin"),
+        view.get_remote_bookmark("main", "origin"),
         &RemoteRef {
             target: commit1_target.clone(),
             state: RemoteRefState::Tracking,
         },
     );
     assert_eq!(
-        view.get_local_branch("feature2"),
+        view.get_local_bookmark("feature2"),
         &RefTarget::from_legacy_form([jj_id(&commit4)], [commit6.id().clone(), jj_id(&commit5)])
     );
     assert_eq!(
-        view.get_remote_branch("feature2", "git"),
+        view.get_remote_bookmark("feature2", "git"),
         &RemoteRef {
             target: RefTarget::normal(jj_id(&commit5)),
             state: RemoteRefState::Tracking,
         },
     );
-    assert!(view.get_remote_branch("feature2", "origin").is_absent());
+    assert!(view.get_remote_bookmark("feature2", "origin").is_absent());
 
     assert!(view.tags().is_empty());
 
@@ -377,7 +377,7 @@ fn test_import_refs_reimport_head_removed() {
 
 #[test]
 fn test_import_refs_reimport_git_head_does_not_count() {
-    // Test that if a branch is removed, the corresponding commit is abandoned
+    // Test that if a bookmark is removed, the corresponding commit is abandoned
     // no matter if the Git HEAD points to the commit (or a descendant of it.)
     let settings = testutils::user_settings();
     let git_settings = GitSettings::default();
@@ -393,8 +393,8 @@ fn test_import_refs_reimport_git_head_does_not_count() {
     git::import_refs(tx.repo_mut(), &git_settings).unwrap();
     tx.repo_mut().rebase_descendants(&settings).unwrap();
 
-    // Delete the branch and re-import. The commit should still be there since HEAD
-    // points to it
+    // Delete the bookmark and re-import. The commit should still be there since
+    // HEAD points to it
     git_repo
         .find_reference("refs/heads/main")
         .unwrap()
@@ -408,7 +408,7 @@ fn test_import_refs_reimport_git_head_does_not_count() {
 
 #[test]
 fn test_import_refs_reimport_git_head_without_ref() {
-    // Simulate external `git checkout` in colocated repo, from anonymous branch.
+    // Simulate external `git checkout` in colocated repo, from anonymous bookmark.
     let settings = testutils::user_settings();
     let git_settings = GitSettings::default();
     let test_repo = TestRepo::init_with_backend(TestRepoBackend::Git);
@@ -479,13 +479,19 @@ fn test_import_refs_reimport_git_head_with_moved_ref() {
     tx.repo_mut().rebase_descendants(&settings).unwrap();
     assert!(!tx.repo_mut().view().heads().contains(commit1.id()));
     assert!(tx.repo_mut().view().heads().contains(commit2.id()));
+    // Reimport HEAD and main, which abandons the old main bookmark.
+    git::import_head(tx.repo_mut()).unwrap();
+    git::import_refs(tx.repo_mut(), &git_settings).unwrap();
+    tx.repo_mut().rebase_descendants(&settings).unwrap();
+    assert!(!tx.repo_mut().view().heads().contains(commit1.id()));
+    assert!(tx.repo_mut().view().heads().contains(commit2.id()));
 }
 
 #[test]
 fn test_import_refs_reimport_with_deleted_remote_ref() {
     let settings = testutils::user_settings();
     let git_settings = GitSettings {
-        auto_local_branch: true,
+        auto_local_bookmark: true,
         ..Default::default()
     };
     let test_workspace = TestRepo::init_with_backend(TestRepoBackend::Git);
@@ -522,47 +528,47 @@ fn test_import_refs_reimport_with_deleted_remote_ref() {
     };
     let view = repo.view();
     assert_eq!(*view.heads(), expected_heads);
-    assert_eq!(view.branches().count(), 3);
-    // Even though the git repo does not have a local branch for
+    assert_eq!(view.bookmarks().count(), 3);
+    // Even though the git repo does not have a local bookmark for
     // `feature-remote-only`, jj creates one. This follows the model explained
-    // in docs/branches.md.
+    // in docs/bookmarks.md.
     assert_eq!(
-        view.get_local_branch("feature-remote-only"),
+        view.get_local_bookmark("feature-remote-only"),
         &RefTarget::normal(jj_id(&commit_remote_only))
     );
     assert!(view
-        .get_remote_branch("feature-remote-only", "git")
+        .get_remote_bookmark("feature-remote-only", "git")
         .is_absent());
     assert_eq!(
-        view.get_remote_branch("feature-remote-only", "origin"),
+        view.get_remote_bookmark("feature-remote-only", "origin"),
         &RemoteRef {
             target: RefTarget::normal(jj_id(&commit_remote_only)),
             state: RemoteRefState::Tracking,
         },
     );
     assert_eq!(
-        view.get_local_branch("feature-remote-and-local"),
+        view.get_local_bookmark("feature-remote-and-local"),
         &RefTarget::normal(jj_id(&commit_remote_and_local))
     );
     assert_eq!(
-        view.get_remote_branch("feature-remote-and-local", "git"),
+        view.get_remote_bookmark("feature-remote-and-local", "git"),
         &RemoteRef {
             target: RefTarget::normal(jj_id(&commit_remote_and_local)),
             state: RemoteRefState::Tracking,
         },
     );
     assert_eq!(
-        view.get_remote_branch("feature-remote-and-local", "origin"),
+        view.get_remote_bookmark("feature-remote-and-local", "origin"),
         &RemoteRef {
             target: RefTarget::normal(jj_id(&commit_remote_and_local)),
             state: RemoteRefState::Tracking,
         },
     );
-    assert!(view.get_local_branch("main").is_present()); // branch #3 of 3
+    assert!(view.get_local_bookmark("main").is_present()); // bookmark #3 of 3
 
     // Simulate fetching from a remote where feature-remote-only and
-    // feature-remote-and-local branches were deleted. This leads to the
-    // following import deleting the corresponding local branches.
+    // feature-remote-and-local bookmarks were deleted. This leads to the
+    // following import deleting the corresponding local bookmarks.
     delete_git_ref(&git_repo, "refs/remotes/origin/feature-remote-only");
     delete_git_ref(&git_repo, "refs/remotes/origin/feature-remote-and-local");
 
@@ -572,25 +578,25 @@ fn test_import_refs_reimport_with_deleted_remote_ref() {
     let repo = tx.commit("test");
 
     let view = repo.view();
-    // The local branches were indeed deleted
-    assert_eq!(view.branches().count(), 2);
-    assert!(view.get_local_branch("main").is_present());
-    assert!(view.get_local_branch("feature-remote-only").is_absent());
+    // The local bookmarks were indeed deleted
+    assert_eq!(view.bookmarks().count(), 2);
+    assert!(view.get_local_bookmark("main").is_present());
+    assert!(view.get_local_bookmark("feature-remote-only").is_absent());
     assert!(view
-        .get_remote_branch("feature-remote-only", "origin")
+        .get_remote_bookmark("feature-remote-only", "origin")
         .is_absent());
     assert!(view
-        .get_local_branch("feature-remote-and-local")
+        .get_local_bookmark("feature-remote-and-local")
         .is_absent());
     assert_eq!(
-        view.get_remote_branch("feature-remote-and-local", "git"),
+        view.get_remote_bookmark("feature-remote-and-local", "git"),
         &RemoteRef {
             target: RefTarget::normal(jj_id(&commit_remote_and_local)),
             state: RemoteRefState::Tracking,
         },
     );
     assert!(view
-        .get_remote_branch("feature-remote-and-local", "origin")
+        .get_remote_bookmark("feature-remote-and-local", "origin")
         .is_absent());
     let expected_heads = hashset! {
             jj_id(&commit_main),
@@ -601,13 +607,13 @@ fn test_import_refs_reimport_with_deleted_remote_ref() {
     assert_eq!(*view.heads(), expected_heads);
 }
 
-/// This test is nearly identical to the previous one, except the branches are
+/// This test is nearly identical to the previous one, except the bookmarks are
 /// moved sideways instead of being deleted.
 #[test]
 fn test_import_refs_reimport_with_moved_remote_ref() {
     let settings = testutils::user_settings();
     let git_settings = GitSettings {
-        auto_local_branch: true,
+        auto_local_bookmark: true,
         ..Default::default()
     };
     let test_workspace = TestRepo::init_with_backend(TestRepoBackend::Git);
@@ -644,47 +650,47 @@ fn test_import_refs_reimport_with_moved_remote_ref() {
     };
     let view = repo.view();
     assert_eq!(*view.heads(), expected_heads);
-    assert_eq!(view.branches().count(), 3);
-    // Even though the git repo does not have a local branch for
+    assert_eq!(view.bookmarks().count(), 3);
+    // Even though the git repo does not have a local bookmark for
     // `feature-remote-only`, jj creates one. This follows the model explained
-    // in docs/branches.md.
+    // in docs/bookmarks.md.
     assert_eq!(
-        view.get_local_branch("feature-remote-only"),
+        view.get_local_bookmark("feature-remote-only"),
         &RefTarget::normal(jj_id(&commit_remote_only))
     );
     assert!(view
-        .get_remote_branch("feature-remote-only", "git")
+        .get_remote_bookmark("feature-remote-only", "git")
         .is_absent());
     assert_eq!(
-        view.get_remote_branch("feature-remote-only", "origin"),
+        view.get_remote_bookmark("feature-remote-only", "origin"),
         &RemoteRef {
             target: RefTarget::normal(jj_id(&commit_remote_only)),
             state: RemoteRefState::Tracking,
         },
     );
     assert_eq!(
-        view.get_local_branch("feature-remote-and-local"),
+        view.get_local_bookmark("feature-remote-and-local"),
         &RefTarget::normal(jj_id(&commit_remote_and_local))
     );
     assert_eq!(
-        view.get_remote_branch("feature-remote-and-local", "git"),
+        view.get_remote_bookmark("feature-remote-and-local", "git"),
         &RemoteRef {
             target: RefTarget::normal(jj_id(&commit_remote_and_local)),
             state: RemoteRefState::Tracking,
         },
     );
     assert_eq!(
-        view.get_remote_branch("feature-remote-and-local", "origin"),
+        view.get_remote_bookmark("feature-remote-and-local", "origin"),
         &RemoteRef {
             target: RefTarget::normal(jj_id(&commit_remote_and_local)),
             state: RemoteRefState::Tracking,
         },
     );
-    assert!(view.get_local_branch("main").is_present()); // branch #3 of 3
+    assert!(view.get_local_bookmark("main").is_present()); // bookmark #3 of 3
 
     // Simulate fetching from a remote where feature-remote-only and
-    // feature-remote-and-local branches were moved. This leads to the
-    // following import moving the corresponding local branches.
+    // feature-remote-and-local bookmarks were moved. This leads to the
+    // following import moving the corresponding local bookmarks.
     delete_git_ref(&git_repo, "refs/remotes/origin/feature-remote-only");
     delete_git_ref(&git_repo, "refs/remotes/origin/feature-remote-and-local");
     let new_commit_remote_only = empty_git_commit(
@@ -704,41 +710,41 @@ fn test_import_refs_reimport_with_moved_remote_ref() {
     let repo = tx.commit("test");
 
     let view = repo.view();
-    assert_eq!(view.branches().count(), 3);
-    // The local branches are moved
+    assert_eq!(view.bookmarks().count(), 3);
+    // The local bookmarks are moved
     assert_eq!(
-        view.get_local_branch("feature-remote-only"),
+        view.get_local_bookmark("feature-remote-only"),
         &RefTarget::normal(jj_id(&new_commit_remote_only))
     );
     assert!(view
-        .get_remote_branch("feature-remote-only", "git")
+        .get_remote_bookmark("feature-remote-only", "git")
         .is_absent());
     assert_eq!(
-        view.get_remote_branch("feature-remote-only", "origin"),
+        view.get_remote_bookmark("feature-remote-only", "origin"),
         &RemoteRef {
             target: RefTarget::normal(jj_id(&new_commit_remote_only)),
             state: RemoteRefState::Tracking,
         },
     );
     assert_eq!(
-        view.get_local_branch("feature-remote-and-local"),
+        view.get_local_bookmark("feature-remote-and-local"),
         &RefTarget::normal(jj_id(&new_commit_remote_and_local))
     );
     assert_eq!(
-        view.get_remote_branch("feature-remote-and-local", "git"),
+        view.get_remote_bookmark("feature-remote-and-local", "git"),
         &RemoteRef {
             target: RefTarget::normal(jj_id(&commit_remote_and_local)),
             state: RemoteRefState::Tracking,
         },
     );
     assert_eq!(
-        view.get_remote_branch("feature-remote-and-local", "origin"),
+        view.get_remote_bookmark("feature-remote-and-local", "origin"),
         &RemoteRef {
             target: RefTarget::normal(jj_id(&new_commit_remote_and_local)),
             state: RemoteRefState::Tracking,
         },
     );
-    assert!(view.get_local_branch("main").is_present()); // branch #3 of 3
+    assert!(view.get_local_bookmark("main").is_present()); // bookmark #3 of 3
     let expected_heads = hashset! {
             jj_id(&commit_main),
             jj_id(&new_commit_remote_and_local),
@@ -754,7 +760,7 @@ fn test_import_refs_reimport_with_moved_remote_ref() {
 fn test_import_refs_reimport_with_moved_untracked_remote_ref() {
     let settings = testutils::user_settings();
     let git_settings = GitSettings {
-        auto_local_branch: false,
+        auto_local_bookmark: false,
         ..Default::default()
     };
     let test_workspace = TestRepo::init_with_backend(TestRepoBackend::Git);
@@ -772,10 +778,10 @@ fn test_import_refs_reimport_with_moved_untracked_remote_ref() {
     let view = repo.view();
 
     assert_eq!(*view.heads(), hashset! { jj_id(&commit_remote_t0) });
-    assert_eq!(view.local_branches().count(), 0);
-    assert_eq!(view.all_remote_branches().count(), 1);
+    assert_eq!(view.local_bookmarks().count(), 0);
+    assert_eq!(view.all_remote_bookmarks().count(), 1);
     assert_eq!(
-        view.get_remote_branch("feature", "origin"),
+        view.get_remote_bookmark("feature", "origin"),
         &RemoteRef {
             target: RefTarget::normal(jj_id(&commit_remote_t0)),
             state: RemoteRefState::New,
@@ -794,10 +800,10 @@ fn test_import_refs_reimport_with_moved_untracked_remote_ref() {
     // commit_remote_t0 should be abandoned, but commit_base shouldn't because
     // it's the ancestor of commit_remote_t1.
     assert_eq!(*view.heads(), hashset! { jj_id(&commit_remote_t1) });
-    assert_eq!(view.local_branches().count(), 0);
-    assert_eq!(view.all_remote_branches().count(), 1);
+    assert_eq!(view.local_bookmarks().count(), 0);
+    assert_eq!(view.all_remote_bookmarks().count(), 1);
     assert_eq!(
-        view.get_remote_branch("feature", "origin"),
+        view.get_remote_bookmark("feature", "origin"),
         &RemoteRef {
             target: RefTarget::normal(jj_id(&commit_remote_t1)),
             state: RemoteRefState::New,
@@ -809,7 +815,7 @@ fn test_import_refs_reimport_with_moved_untracked_remote_ref() {
 fn test_import_refs_reimport_with_deleted_untracked_intermediate_remote_ref() {
     let settings = testutils::user_settings();
     let git_settings = GitSettings {
-        auto_local_branch: false,
+        auto_local_bookmark: false,
         ..Default::default()
     };
     let test_workspace = TestRepo::init_with_backend(TestRepoBackend::Git);
@@ -830,17 +836,17 @@ fn test_import_refs_reimport_with_deleted_untracked_intermediate_remote_ref() {
     let view = repo.view();
 
     assert_eq!(*view.heads(), hashset! { jj_id(&commit_remote_b) });
-    assert_eq!(view.local_branches().count(), 0);
-    assert_eq!(view.all_remote_branches().count(), 2);
+    assert_eq!(view.local_bookmarks().count(), 0);
+    assert_eq!(view.all_remote_bookmarks().count(), 2);
     assert_eq!(
-        view.get_remote_branch("feature-a", "origin"),
+        view.get_remote_bookmark("feature-a", "origin"),
         &RemoteRef {
             target: RefTarget::normal(jj_id(&commit_remote_a)),
             state: RemoteRefState::New,
         },
     );
     assert_eq!(
-        view.get_remote_branch("feature-b", "origin"),
+        view.get_remote_bookmark("feature-b", "origin"),
         &RemoteRef {
             target: RefTarget::normal(jj_id(&commit_remote_b)),
             state: RemoteRefState::New,
@@ -859,10 +865,10 @@ fn test_import_refs_reimport_with_deleted_untracked_intermediate_remote_ref() {
     // Otherwise, feature-b would have to be rebased locally even though the
     // user haven't made any modifications to these commits yet.
     assert_eq!(*view.heads(), hashset! { jj_id(&commit_remote_b) });
-    assert_eq!(view.local_branches().count(), 0);
-    assert_eq!(view.all_remote_branches().count(), 1);
+    assert_eq!(view.local_bookmarks().count(), 0);
+    assert_eq!(view.all_remote_bookmarks().count(), 1);
     assert_eq!(
-        view.get_remote_branch("feature-b", "origin"),
+        view.get_remote_bookmark("feature-b", "origin"),
         &RemoteRef {
             target: RefTarget::normal(jj_id(&commit_remote_b)),
             state: RemoteRefState::New,
@@ -874,7 +880,7 @@ fn test_import_refs_reimport_with_deleted_untracked_intermediate_remote_ref() {
 fn test_import_refs_reimport_with_deleted_abandoned_untracked_remote_ref() {
     let settings = testutils::user_settings();
     let git_settings = GitSettings {
-        auto_local_branch: false,
+        auto_local_bookmark: false,
         ..Default::default()
     };
     let test_workspace = TestRepo::init_with_backend(TestRepoBackend::Git);
@@ -895,17 +901,17 @@ fn test_import_refs_reimport_with_deleted_abandoned_untracked_remote_ref() {
     let view = repo.view();
 
     assert_eq!(*view.heads(), hashset! { jj_id(&commit_remote_b) });
-    assert_eq!(view.local_branches().count(), 0);
-    assert_eq!(view.all_remote_branches().count(), 2);
+    assert_eq!(view.local_bookmarks().count(), 0);
+    assert_eq!(view.all_remote_bookmarks().count(), 2);
     assert_eq!(
-        view.get_remote_branch("feature-a", "origin"),
+        view.get_remote_bookmark("feature-a", "origin"),
         &RemoteRef {
             target: RefTarget::normal(jj_id(&commit_remote_a)),
             state: RemoteRefState::New,
         },
     );
     assert_eq!(
-        view.get_remote_branch("feature-b", "origin"),
+        view.get_remote_bookmark("feature-b", "origin"),
         &RemoteRef {
             target: RefTarget::normal(jj_id(&commit_remote_b)),
             state: RemoteRefState::New,
@@ -922,8 +928,8 @@ fn test_import_refs_reimport_with_deleted_abandoned_untracked_remote_ref() {
     let repo = tx.commit("test");
     let view = repo.view();
     assert_eq!(*view.heads(), hashset! { jj_id(&commit_remote_a) });
-    assert_eq!(view.local_branches().count(), 0);
-    assert_eq!(view.all_remote_branches().count(), 2);
+    assert_eq!(view.local_bookmarks().count(), 0);
+    assert_eq!(view.all_remote_bookmarks().count(), 2);
 
     // Delete feature-a remotely and fetch the changes.
     delete_git_ref(&git_repo, remote_ref_name_a);
@@ -939,10 +945,10 @@ fn test_import_refs_reimport_with_deleted_abandoned_untracked_remote_ref() {
         *view.heads(),
         hashset! { repo.store().root_commit_id().clone() }
     );
-    assert_eq!(view.local_branches().count(), 0);
-    assert_eq!(view.all_remote_branches().count(), 1);
+    assert_eq!(view.local_bookmarks().count(), 0);
+    assert_eq!(view.all_remote_bookmarks().count(), 1);
     assert_eq!(
-        view.get_remote_branch("feature-b", "origin"),
+        view.get_remote_bookmark("feature-b", "origin"),
         &RemoteRef {
             target: RefTarget::normal(jj_id(&commit_remote_b)),
             state: RemoteRefState::New,
@@ -952,7 +958,7 @@ fn test_import_refs_reimport_with_deleted_abandoned_untracked_remote_ref() {
 
 #[test]
 fn test_import_refs_reimport_git_head_with_fixed_ref() {
-    // Simulate external `git checkout` in colocated repo, from named branch.
+    // Simulate external `git checkout` in colocated repo, from named bookmark.
     let settings = testutils::user_settings();
     let git_settings = GitSettings::default();
     let test_repo = TestRepo::init_with_backend(TestRepoBackend::Git);
@@ -1034,7 +1040,7 @@ fn test_import_refs_reimport_abandoning_disabled() {
     // Test the setup
     assert!(tx.repo_mut().view().heads().contains(&jj_id(&commit2)));
 
-    // Remove the `delete-me` branch and re-import
+    // Remove the `delete-me` bookmark and re-import
     git_repo
         .find_reference("refs/heads/delete-me")
         .unwrap()
@@ -1046,10 +1052,10 @@ fn test_import_refs_reimport_abandoning_disabled() {
 }
 
 #[test]
-fn test_import_refs_reimport_conflicted_remote_branch() {
+fn test_import_refs_reimport_conflicted_remote_bookmark() {
     let settings = testutils::user_settings();
     let git_settings = GitSettings {
-        auto_local_branch: true,
+        auto_local_bookmark: true,
         ..Default::default()
     };
     let test_repo = TestRepo::init_with_backend(TestRepoBackend::Git);
@@ -1073,7 +1079,7 @@ fn test_import_refs_reimport_conflicted_remote_branch() {
         &RefTarget::from_legacy_form([], [jj_id(&commit1), jj_id(&commit2)]),
     );
     assert_eq!(
-        repo.view().get_remote_branch("main", "origin"),
+        repo.view().get_remote_bookmark("main", "origin"),
         &RemoteRef {
             target: RefTarget::from_legacy_form([], [jj_id(&commit1), jj_id(&commit2)]),
             state: RemoteRefState::Tracking,
@@ -1089,7 +1095,7 @@ fn test_import_refs_reimport_conflicted_remote_branch() {
         &RefTarget::normal(jj_id(&commit2)),
     );
     assert_eq!(
-        repo.view().get_remote_branch("main", "origin"),
+        repo.view().get_remote_bookmark("main", "origin"),
         &RemoteRef {
             target: RefTarget::normal(jj_id(&commit2)),
             state: RemoteRefState::Tracking,
@@ -1116,7 +1122,7 @@ fn test_import_refs_reserved_remote_name() {
 fn test_import_some_refs() {
     let settings = testutils::user_settings();
     let git_settings = GitSettings {
-        auto_local_branch: true,
+        auto_local_bookmark: true,
         ..Default::default()
     };
     let test_workspace = TestRepo::init_with_backend(TestRepoBackend::Git);
@@ -1135,18 +1141,18 @@ fn test_import_some_refs() {
     // No error should be reported for the refs excluded by git_ref_filter.
     empty_git_commit(&git_repo, "refs/remotes/git/main", &[]);
 
-    fn get_remote_branch(ref_name: &RefName) -> Option<&str> {
+    fn get_remote_bookmark(ref_name: &RefName) -> Option<&str> {
         match ref_name {
             RefName::RemoteBranch { branch, remote } if remote == "origin" => Some(branch),
             _ => None,
         }
     }
 
-    // Import branches feature1, feature2, and feature3.
+    // Import bookmarks feature1, feature2, and feature3.
     let mut tx = repo.start_transaction(&settings);
     git::import_some_refs(tx.repo_mut(), &git_settings, |ref_name| {
-        get_remote_branch(ref_name)
-            .map(|branch| branch.starts_with("feature"))
+        get_remote_bookmark(ref_name)
+            .map(|bookmark| bookmark.starts_with("feature"))
             .unwrap_or(false)
     })
     .unwrap();
@@ -1161,9 +1167,9 @@ fn test_import_some_refs() {
     };
     assert_eq!(*view.heads(), expected_heads);
 
-    // Check that branches feature[1-4] have been locally imported and are known to
+    // Check that bookmarks feature[1-4] have been locally imported and are known to
     // be present on origin as well.
-    assert_eq!(view.branches().count(), 4);
+    assert_eq!(view.bookmarks().count(), 4);
     let commit_feat1_remote_ref = RemoteRef {
         target: RefTarget::normal(jj_id(&commit_feat1)),
         state: RemoteRefState::Tracking,
@@ -1181,112 +1187,112 @@ fn test_import_some_refs() {
         state: RemoteRefState::Tracking,
     };
     assert_eq!(
-        view.get_local_branch("feature1"),
+        view.get_local_bookmark("feature1"),
         &RefTarget::normal(jj_id(&commit_feat1))
     );
     assert_eq!(
-        view.get_remote_branch("feature1", "origin"),
+        view.get_remote_bookmark("feature1", "origin"),
         &commit_feat1_remote_ref
     );
     assert_eq!(
-        view.get_local_branch("feature2"),
+        view.get_local_bookmark("feature2"),
         &RefTarget::normal(jj_id(&commit_feat2))
     );
     assert_eq!(
-        view.get_remote_branch("feature2", "origin"),
+        view.get_remote_bookmark("feature2", "origin"),
         &commit_feat2_remote_ref
     );
     assert_eq!(
-        view.get_local_branch("feature3"),
+        view.get_local_bookmark("feature3"),
         &RefTarget::normal(jj_id(&commit_feat3))
     );
     assert_eq!(
-        view.get_remote_branch("feature3", "origin"),
+        view.get_remote_bookmark("feature3", "origin"),
         &commit_feat3_remote_ref
     );
     assert_eq!(
-        view.get_local_branch("feature4"),
+        view.get_local_bookmark("feature4"),
         &RefTarget::normal(jj_id(&commit_feat4))
     );
     assert_eq!(
-        view.get_remote_branch("feature4", "origin"),
+        view.get_remote_bookmark("feature4", "origin"),
         &commit_feat4_remote_ref
     );
-    assert!(view.get_local_branch("main").is_absent());
-    assert!(view.get_remote_branch("main", "git").is_absent());
-    assert!(view.get_remote_branch("main", "origin").is_absent());
+    assert!(view.get_local_bookmark("main").is_absent());
+    assert!(view.get_remote_bookmark("main", "git").is_absent());
+    assert!(view.get_remote_bookmark("main", "origin").is_absent());
     assert!(!view.heads().contains(&jj_id(&commit_main)));
-    assert!(view.get_local_branch("ignored").is_absent());
-    assert!(view.get_remote_branch("ignored", "git").is_absent());
-    assert!(view.get_remote_branch("ignored", "origin").is_absent());
+    assert!(view.get_local_bookmark("ignored").is_absent());
+    assert!(view.get_remote_bookmark("ignored", "git").is_absent());
+    assert!(view.get_remote_bookmark("ignored", "origin").is_absent());
     assert!(!view.heads().contains(&jj_id(&commit_ign)));
 
-    // Delete branch feature1, feature3 and feature4 in git repository and import
-    // branch feature2 only. That should have no impact on the jj repository.
+    // Delete bookmark feature1, feature3 and feature4 in git repository and import
+    // bookmark feature2 only. That should have no impact on the jj repository.
     delete_git_ref(&git_repo, "refs/remotes/origin/feature1");
     delete_git_ref(&git_repo, "refs/remotes/origin/feature3");
     delete_git_ref(&git_repo, "refs/remotes/origin/feature4");
     let mut tx = repo.start_transaction(&settings);
     git::import_some_refs(tx.repo_mut(), &git_settings, |ref_name| {
-        get_remote_branch(ref_name) == Some("feature2")
+        get_remote_bookmark(ref_name) == Some("feature2")
     })
     .unwrap();
     tx.repo_mut().rebase_descendants(&settings).unwrap();
     let repo = tx.commit("test");
 
-    // feature2 and feature4 will still be heads, and all four branches should be
+    // feature2 and feature4 will still be heads, and all four bookmarks should be
     // present.
     let view = repo.view();
-    assert_eq!(view.branches().count(), 4);
+    assert_eq!(view.bookmarks().count(), 4);
     assert_eq!(*view.heads(), expected_heads);
 
-    // Import feature1: this should cause the branch to be deleted, but the
+    // Import feature1: this should cause the bookmark to be deleted, but the
     // corresponding commit should stay because it is reachable from feature2.
     let mut tx = repo.start_transaction(&settings);
     git::import_some_refs(tx.repo_mut(), &git_settings, |ref_name| {
-        get_remote_branch(ref_name) == Some("feature1")
+        get_remote_bookmark(ref_name) == Some("feature1")
     })
     .unwrap();
     // No descendant should be rewritten.
     assert_eq!(tx.repo_mut().rebase_descendants(&settings).unwrap(), 0);
     let repo = tx.commit("test");
 
-    // feature2 and feature4 should still be the heads, and all three branches
+    // feature2 and feature4 should still be the heads, and all three bookmarks
     // feature2, feature3, and feature3 should exist.
     let view = repo.view();
-    assert_eq!(view.branches().count(), 3);
+    assert_eq!(view.bookmarks().count(), 3);
     assert_eq!(*view.heads(), expected_heads);
 
-    // Import feature3: this should cause the branch to be deleted, but
+    // Import feature3: this should cause the bookmark to be deleted, but
     // feature4 should be left alone even though it is no longer in git.
     let mut tx = repo.start_transaction(&settings);
     git::import_some_refs(tx.repo_mut(), &git_settings, |ref_name| {
-        get_remote_branch(ref_name) == Some("feature3")
+        get_remote_bookmark(ref_name) == Some("feature3")
     })
     .unwrap();
     // No descendant should be rewritten
     assert_eq!(tx.repo_mut().rebase_descendants(&settings).unwrap(), 0);
     let repo = tx.commit("test");
 
-    // feature2 and feature4 should still be the heads, and both branches
+    // feature2 and feature4 should still be the heads, and both bookmarks
     // should exist.
     let view = repo.view();
-    assert_eq!(view.branches().count(), 2);
+    assert_eq!(view.bookmarks().count(), 2);
     assert_eq!(*view.heads(), expected_heads);
 
-    // Import feature4: both the head and the branch will disappear.
+    // Import feature4: both the head and the bookmark will disappear.
     let mut tx = repo.start_transaction(&settings);
     git::import_some_refs(tx.repo_mut(), &git_settings, |ref_name| {
-        get_remote_branch(ref_name) == Some("feature4")
+        get_remote_bookmark(ref_name) == Some("feature4")
     })
     .unwrap();
     // No descendant should be rewritten
     assert_eq!(tx.repo_mut().rebase_descendants(&settings).unwrap(), 0);
     let repo = tx.commit("test");
 
-    // feature2 should now be the only head and only branch.
+    // feature2 should now be the only head and only bookmark.
     let view = repo.view();
-    assert_eq!(view.branches().count(), 1);
+    assert_eq!(view.bookmarks().count(), 1);
     let expected_heads = hashset! {
             jj_id(&commit_feat2),
     };
@@ -1359,7 +1365,7 @@ fn test_import_refs_empty_git_repo() {
         .unwrap();
     let repo = tx.commit("test");
     assert_eq!(*repo.view().heads(), heads_before);
-    assert_eq!(repo.view().branches().count(), 0);
+    assert_eq!(repo.view().bookmarks().count(), 0);
     assert_eq!(repo.view().tags().len(), 0);
     assert_eq!(repo.view().git_refs().len(), 0);
     assert_eq!(repo.view().git_head(), RefTarget::absent_ref());
@@ -1470,7 +1476,7 @@ fn test_import_refs_detached_head() {
 
 #[test]
 fn test_export_refs_no_detach() {
-    // When exporting the branch that's current checked out, don't detach HEAD if
+    // When exporting the bookmark that's current checked out, don't detach HEAD if
     // the target already matches
     let test_data = GitRepoData::create();
     let git_settings = GitSettings::default();
@@ -1497,8 +1503,8 @@ fn test_export_refs_no_detach() {
 }
 
 #[test]
-fn test_export_refs_branch_changed() {
-    // We can export a change to a branch
+fn test_export_refs_bookmark_changed() {
+    // We can export a change to a bookmark
     let test_data = GitRepoData::create();
     let git_settings = GitSettings::default();
     let git_repo = test_data.git_repo;
@@ -1519,7 +1525,7 @@ fn test_export_refs_branch_changed() {
         .set_parents(vec![jj_id(&commit)])
         .write()
         .unwrap();
-    mut_repo.set_local_branch_target("main", RefTarget::normal(new_commit.id().clone()));
+    mut_repo.set_local_bookmark_target("main", RefTarget::normal(new_commit.id().clone()));
     assert!(git::export_refs(mut_repo).unwrap().is_empty());
     assert_eq!(
         mut_repo.get_git_ref("refs/heads/main"),
@@ -1534,13 +1540,14 @@ fn test_export_refs_branch_changed() {
             .id(),
         git_id(&new_commit)
     );
-    // HEAD should be unchanged since its target branch didn't change
+    // HEAD should be unchanged since its target bookmark didn't change
     assert_eq!(git_repo.head().unwrap().name(), Some("refs/heads/feature"));
 }
 
 #[test]
-fn test_export_refs_current_branch_changed() {
-    // If we update a branch that is checked out in the git repo, HEAD gets detached
+fn test_export_refs_current_bookmark_changed() {
+    // If we update a bookmark that is checked out in the git repo, HEAD gets
+    // detached
     let test_data = GitRepoData::create();
     let git_settings = GitSettings::default();
     let git_repo = test_data.git_repo;
@@ -1557,7 +1564,7 @@ fn test_export_refs_current_branch_changed() {
         .set_parents(vec![jj_id(&commit1)])
         .write()
         .unwrap();
-    mut_repo.set_local_branch_target("main", RefTarget::normal(new_commit.id().clone()));
+    mut_repo.set_local_bookmark_target("main", RefTarget::normal(new_commit.id().clone()));
     assert!(git::export_refs(mut_repo).unwrap().is_empty());
     assert_eq!(
         mut_repo.get_git_ref("refs/heads/main"),
@@ -1577,8 +1584,8 @@ fn test_export_refs_current_branch_changed() {
 
 #[test_case(false; "without moved placeholder ref")]
 #[test_case(true; "with moved placeholder ref")]
-fn test_export_refs_unborn_git_branch(move_placeholder_ref: bool) {
-    // Can export to an empty Git repo (we can handle Git's "unborn branch" state)
+fn test_export_refs_unborn_git_bookmark(move_placeholder_ref: bool) {
+    // Can export to an empty Git repo (we can handle Git's "unborn bookmark" state)
     let test_data = GitRepoData::create();
     let git_settings = GitSettings::default();
     let git_repo = test_data.git_repo;
@@ -1592,7 +1599,7 @@ fn test_export_refs_unborn_git_branch(move_placeholder_ref: bool) {
     assert!(git_repo.head().is_err(), "HEAD is unborn");
 
     let new_commit = write_random_commit(mut_repo, &test_data.settings);
-    mut_repo.set_local_branch_target("main", RefTarget::normal(new_commit.id().clone()));
+    mut_repo.set_local_bookmark_target("main", RefTarget::normal(new_commit.id().clone()));
     if move_placeholder_ref {
         git_repo
             .reference("refs/jj/root", git_id(&new_commit), false, "")
@@ -1620,7 +1627,7 @@ fn test_export_refs_unborn_git_branch(move_placeholder_ref: bool) {
 
 #[test]
 fn test_export_import_sequence() {
-    // Import a branch pointing to A, modify it in jj to point to B, export it,
+    // Import a bookmark pointing to A, modify it in jj to point to B, export it,
     // modify it in git to point to C, then import it again. There should be no
     // conflict.
     let test_data = GitRepoData::create();
@@ -1632,7 +1639,7 @@ fn test_export_import_sequence() {
     let commit_b = write_random_commit(mut_repo, &test_data.settings);
     let commit_c = write_random_commit(mut_repo, &test_data.settings);
 
-    // Import the branch pointing to A
+    // Import the bookmark pointing to A
     git_repo
         .reference("refs/heads/main", git_id(&commit_a), true, "test")
         .unwrap();
@@ -1642,17 +1649,17 @@ fn test_export_import_sequence() {
         RefTarget::normal(commit_a.id().clone())
     );
 
-    // Modify the branch in jj to point to B
-    mut_repo.set_local_branch_target("main", RefTarget::normal(commit_b.id().clone()));
+    // Modify the bookmark in jj to point to B
+    mut_repo.set_local_bookmark_target("main", RefTarget::normal(commit_b.id().clone()));
 
-    // Export the branch to git
+    // Export the bookmark to git
     assert!(git::export_refs(mut_repo).unwrap().is_empty());
     assert_eq!(
         mut_repo.get_git_ref("refs/heads/main"),
         RefTarget::normal(commit_b.id().clone())
     );
 
-    // Modify the branch in git to point to C
+    // Modify the bookmark in git to point to C
     git_repo
         .reference("refs/heads/main", git_id(&commit_c), true, "test")
         .unwrap();
@@ -1664,18 +1671,18 @@ fn test_export_import_sequence() {
         RefTarget::normal(commit_c.id().clone())
     );
     assert_eq!(
-        mut_repo.view().get_local_branch("main"),
+        mut_repo.view().get_local_bookmark("main"),
         &RefTarget::normal(commit_c.id().clone())
     );
 }
 
 #[test]
-fn test_import_export_non_tracking_branch() {
-    // Import a remote tracking branch and export it. We should not create a git
-    // branch.
+fn test_import_export_non_tracking_bookmark() {
+    // Import a remote tracking bookmark and export it. We should not create a git
+    // bookmark.
     let test_data = GitRepoData::create();
     let mut git_settings = GitSettings {
-        auto_local_branch: false,
+        auto_local_bookmark: false,
         ..Default::default()
     };
     let git_repo = test_data.git_repo;
@@ -1686,9 +1693,9 @@ fn test_import_export_non_tracking_branch() {
 
     git::import_refs(mut_repo, &git_settings).unwrap();
 
-    assert!(mut_repo.view().get_local_branch("main").is_absent());
+    assert!(mut_repo.view().get_local_bookmark("main").is_absent());
     assert_eq!(
-        mut_repo.view().get_remote_branch("main", "origin"),
+        mut_repo.view().get_remote_bookmark("main", "origin"),
         &RemoteRef {
             target: RefTarget::normal(jj_id(&commit_main_t0)),
             state: RemoteRefState::New,
@@ -1699,58 +1706,58 @@ fn test_import_export_non_tracking_branch() {
         RefTarget::normal(jj_id(&commit_main_t0))
     );
 
-    // Export the branch to git
+    // Export the bookmark to git
     assert!(git::export_refs(mut_repo).unwrap().is_empty());
     assert_eq!(mut_repo.get_git_ref("refs/heads/main"), RefTarget::absent());
 
-    // Reimport with auto-local-branch on. Local branch shouldn't be created for
-    // the known branch "main".
+    // Reimport with auto-local-bookmark on. Local bookmark shouldn't be created for
+    // the known bookmark "main".
     let commit_main_t1 =
         empty_git_commit(&git_repo, "refs/remotes/origin/main", &[&commit_main_t0]);
     let commit_feat_t1 = empty_git_commit(&git_repo, "refs/remotes/origin/feat", &[]);
-    git_settings.auto_local_branch = true;
+    git_settings.auto_local_bookmark = true;
     git::import_refs(mut_repo, &git_settings).unwrap();
-    assert!(mut_repo.view().get_local_branch("main").is_absent());
+    assert!(mut_repo.view().get_local_bookmark("main").is_absent());
     assert_eq!(
-        mut_repo.view().get_local_branch("feat"),
+        mut_repo.view().get_local_bookmark("feat"),
         &RefTarget::normal(jj_id(&commit_feat_t1))
     );
     assert_eq!(
-        mut_repo.view().get_remote_branch("main", "origin"),
+        mut_repo.view().get_remote_bookmark("main", "origin"),
         &RemoteRef {
             target: RefTarget::normal(jj_id(&commit_main_t1)),
             state: RemoteRefState::New,
         },
     );
     assert_eq!(
-        mut_repo.view().get_remote_branch("feat", "origin"),
+        mut_repo.view().get_remote_bookmark("feat", "origin"),
         &RemoteRef {
             target: RefTarget::normal(jj_id(&commit_feat_t1)),
             state: RemoteRefState::Tracking,
         },
     );
 
-    // Reimport with auto-local-branch off. Tracking branch should be imported.
+    // Reimport with auto-local-bookmark off. Tracking bookmark should be imported.
     let commit_main_t2 =
         empty_git_commit(&git_repo, "refs/remotes/origin/main", &[&commit_main_t1]);
     let commit_feat_t2 =
         empty_git_commit(&git_repo, "refs/remotes/origin/feat", &[&commit_feat_t1]);
-    git_settings.auto_local_branch = false;
+    git_settings.auto_local_bookmark = false;
     git::import_refs(mut_repo, &git_settings).unwrap();
-    assert!(mut_repo.view().get_local_branch("main").is_absent());
+    assert!(mut_repo.view().get_local_bookmark("main").is_absent());
     assert_eq!(
-        mut_repo.view().get_local_branch("feat"),
+        mut_repo.view().get_local_bookmark("feat"),
         &RefTarget::normal(jj_id(&commit_feat_t2))
     );
     assert_eq!(
-        mut_repo.view().get_remote_branch("main", "origin"),
+        mut_repo.view().get_remote_bookmark("main", "origin"),
         &RemoteRef {
             target: RefTarget::normal(jj_id(&commit_main_t2)),
             state: RemoteRefState::New,
         },
     );
     assert_eq!(
-        mut_repo.view().get_remote_branch("feat", "origin"),
+        mut_repo.view().get_remote_bookmark("feat", "origin"),
         &RemoteRef {
             target: RefTarget::normal(jj_id(&commit_feat_t2)),
             state: RemoteRefState::Tracking,
@@ -1760,7 +1767,7 @@ fn test_import_export_non_tracking_branch() {
 
 #[test]
 fn test_export_conflicts() {
-    // We skip export of conflicted branches
+    // We skip export of conflicted bookmarks
     let test_data = GitRepoData::create();
     let git_repo = test_data.git_repo;
     let mut tx = test_data.repo.start_transaction(&test_data.settings);
@@ -1768,14 +1775,14 @@ fn test_export_conflicts() {
     let commit_a = write_random_commit(mut_repo, &test_data.settings);
     let commit_b = write_random_commit(mut_repo, &test_data.settings);
     let commit_c = write_random_commit(mut_repo, &test_data.settings);
-    mut_repo.set_local_branch_target("main", RefTarget::normal(commit_a.id().clone()));
-    mut_repo.set_local_branch_target("feature", RefTarget::normal(commit_a.id().clone()));
+    mut_repo.set_local_bookmark_target("main", RefTarget::normal(commit_a.id().clone()));
+    mut_repo.set_local_bookmark_target("feature", RefTarget::normal(commit_a.id().clone()));
     assert!(git::export_refs(mut_repo).unwrap().is_empty());
 
     // Create a conflict and export. It should not be exported, but other changes
     // should be.
-    mut_repo.set_local_branch_target("main", RefTarget::normal(commit_b.id().clone()));
-    mut_repo.set_local_branch_target(
+    mut_repo.set_local_bookmark_target("main", RefTarget::normal(commit_b.id().clone()));
+    mut_repo.set_local_bookmark_target(
         "feature",
         RefTarget::from_legacy_form(
             [commit_a.id().clone()],
@@ -1800,16 +1807,16 @@ fn test_export_conflicts() {
         git_id(&commit_b)
     );
 
-    // Conflicted branches shouldn't be copied to the "git" remote
+    // Conflicted bookmarks shouldn't be copied to the "git" remote
     assert_eq!(
-        mut_repo.get_remote_branch("feature", "git"),
+        mut_repo.get_remote_bookmark("feature", "git"),
         RemoteRef {
             target: RefTarget::normal(commit_a.id().clone()),
             state: RemoteRefState::Tracking,
         },
     );
     assert_eq!(
-        mut_repo.get_remote_branch("main", "git"),
+        mut_repo.get_remote_bookmark("main", "git"),
         RemoteRef {
             target: RefTarget::normal(commit_b.id().clone()),
             state: RemoteRefState::Tracking,
@@ -1818,12 +1825,12 @@ fn test_export_conflicts() {
 }
 
 #[test]
-fn test_export_branch_on_root_commit() {
-    // We skip export of branches pointing to the root commit
+fn test_export_bookmark_on_root_commit() {
+    // We skip export of bookmarks pointing to the root commit
     let test_data = GitRepoData::create();
     let mut tx = test_data.repo.start_transaction(&test_data.settings);
     let mut_repo = tx.repo_mut();
-    mut_repo.set_local_branch_target(
+    mut_repo.set_local_bookmark_target(
         "on_root",
         RefTarget::normal(mut_repo.store().root_commit_id().clone()),
     );
@@ -1835,7 +1842,7 @@ fn test_export_branch_on_root_commit() {
 
 #[test]
 fn test_export_partial_failure() {
-    // Check that we skip branches that fail to export
+    // Check that we skip bookmarks that fail to export
     let test_data = GitRepoData::create();
     let git_repo = test_data.git_repo;
     let mut tx = test_data.repo.start_transaction(&test_data.settings);
@@ -1843,13 +1850,13 @@ fn test_export_partial_failure() {
     let commit_a = write_random_commit(mut_repo, &test_data.settings);
     let target = RefTarget::normal(commit_a.id().clone());
     // Empty string is disallowed by Git
-    mut_repo.set_local_branch_target("", target.clone());
+    mut_repo.set_local_bookmark_target("", target.clone());
     // Branch named HEAD is disallowed by Git CLI
-    mut_repo.set_local_branch_target("HEAD", target.clone());
-    mut_repo.set_local_branch_target("main", target.clone());
+    mut_repo.set_local_bookmark_target("HEAD", target.clone());
+    mut_repo.set_local_bookmark_target("main", target.clone());
     // `main/sub` will conflict with `main` in Git, at least when using loose ref
     // storage
-    mut_repo.set_local_branch_target("main/sub", target.clone());
+    mut_repo.set_local_bookmark_target("main/sub", target.clone());
     let failed = git::export_refs(mut_repo).unwrap();
     assert_eq!(failed.len(), 3);
     assert_eq!(failed[0].name, RefName::LocalBranch("".to_string()));
@@ -1859,7 +1866,7 @@ fn test_export_partial_failure() {
     assert_eq!(failed[2].name, RefName::LocalBranch("main/sub".to_string()));
     assert_matches!(failed[2].reason, FailedRefExportReason::FailedToSet(_));
 
-    // The `main` branch should have succeeded but the other should have failed
+    // The `main` bookmark should have succeeded but the other should have failed
     assert!(git_repo.find_reference("refs/heads/").is_err());
     assert!(git_repo.find_reference("refs/heads/HEAD").is_err());
     assert_eq!(
@@ -1872,21 +1879,21 @@ fn test_export_partial_failure() {
     );
     assert!(git_repo.find_reference("refs/heads/main/sub").is_err());
 
-    // Failed branches shouldn't be copied to the "git" remote
-    assert!(mut_repo.get_remote_branch("", "git").is_absent());
-    assert!(mut_repo.get_remote_branch("HEAD", "git").is_absent());
+    // Failed bookmarks shouldn't be copied to the "git" remote
+    assert!(mut_repo.get_remote_bookmark("", "git").is_absent());
+    assert!(mut_repo.get_remote_bookmark("HEAD", "git").is_absent());
     assert_eq!(
-        mut_repo.get_remote_branch("main", "git"),
+        mut_repo.get_remote_bookmark("main", "git"),
         RemoteRef {
             target: target.clone(),
             state: RemoteRefState::Tracking,
         },
     );
-    assert!(mut_repo.get_remote_branch("main/sub", "git").is_absent());
+    assert!(mut_repo.get_remote_bookmark("main/sub", "git").is_absent());
 
-    // Now remove the `main` branch and make sure that the `main/sub` gets exported
-    // even though it didn't change
-    mut_repo.set_local_branch_target("main", RefTarget::absent());
+    // Now remove the `main` bookmark and make sure that the `main/sub` gets
+    // exported even though it didn't change
+    mut_repo.set_local_bookmark_target("main", RefTarget::absent());
     let failed = git::export_refs(mut_repo).unwrap();
     assert_eq!(failed.len(), 2);
     assert_eq!(failed[0].name, RefName::LocalBranch("".to_string()));
@@ -1905,12 +1912,12 @@ fn test_export_partial_failure() {
         git_id(&commit_a)
     );
 
-    // Failed branches shouldn't be copied to the "git" remote
-    assert!(mut_repo.get_remote_branch("", "git").is_absent());
-    assert!(mut_repo.get_remote_branch("HEAD", "git").is_absent());
-    assert!(mut_repo.get_remote_branch("main", "git").is_absent());
+    // Failed bookmarks shouldn't be copied to the "git" remote
+    assert!(mut_repo.get_remote_bookmark("", "git").is_absent());
+    assert!(mut_repo.get_remote_bookmark("HEAD", "git").is_absent());
+    assert!(mut_repo.get_remote_bookmark("main", "git").is_absent());
     assert_eq!(
-        mut_repo.get_remote_branch("main/sub", "git"),
+        mut_repo.get_remote_bookmark("main/sub", "git"),
         RemoteRef {
             target: target.clone(),
             state: RemoteRefState::Tracking,
@@ -1928,11 +1935,11 @@ fn test_export_reexport_transitions() {
     let commit_a = write_random_commit(mut_repo, &test_data.settings);
     let commit_b = write_random_commit(mut_repo, &test_data.settings);
     let commit_c = write_random_commit(mut_repo, &test_data.settings);
-    // Create a few branches whose names indicate how they change in jj in git. The
-    // first letter represents the branch's target in the last export. The second
-    // letter represents the branch's target in jj. The third letter represents the
-    // branch's target in git. "X" means that the branch doesn't exist. "A", "B", or
-    // "C" means that the branch points to that commit.
+    // Create a few bookmarks whose names indicate how they change in jj in git. The
+    // first letter represents the bookmark's target in the last export. The second
+    // letter represents the bookmark's target in jj. The third letter represents
+    // the bookmark's target in git. "X" means that the bookmark doesn't exist.
+    // "A", "B", or "C" means that the bookmark points to that commit.
     //
     // AAB: Branch modified in git
     // AAX: Branch deleted in git
@@ -1949,48 +1956,63 @@ fn test_export_reexport_transitions() {
     // XXA: Branch added in git
 
     // Create initial state and export it
-    for branch in [
+    for bookmark in [
         "AAB", "AAX", "ABA", "ABB", "ABC", "ABX", "AXA", "AXB", "AXX",
     ] {
-        mut_repo.set_local_branch_target(branch, RefTarget::normal(commit_a.id().clone()));
+        mut_repo.set_local_bookmark_target(bookmark, RefTarget::normal(commit_a.id().clone()));
     }
     assert!(git::export_refs(mut_repo).unwrap().is_empty());
 
     // Make changes on the jj side
-    for branch in ["AXA", "AXB", "AXX"] {
-        mut_repo.set_local_branch_target(branch, RefTarget::absent());
+    for bookmark in ["AXA", "AXB", "AXX"] {
+        mut_repo.set_local_bookmark_target(bookmark, RefTarget::absent());
     }
-    for branch in ["XAA", "XAB", "XAX"] {
-        mut_repo.set_local_branch_target(branch, RefTarget::normal(commit_a.id().clone()));
+    for bookmark in ["XAA", "XAB", "XAX"] {
+        mut_repo.set_local_bookmark_target(bookmark, RefTarget::normal(commit_a.id().clone()));
     }
-    for branch in ["ABA", "ABB", "ABC", "ABX"] {
-        mut_repo.set_local_branch_target(branch, RefTarget::normal(commit_b.id().clone()));
+    for bookmark in ["ABA", "ABB", "ABC", "ABX"] {
+        mut_repo.set_local_bookmark_target(bookmark, RefTarget::normal(commit_b.id().clone()));
     }
 
     // Make changes on the git side
-    for branch in ["AAX", "ABX", "AXX"] {
+    for bookmark in ["AAX", "ABX", "AXX"] {
         git_repo
-            .find_reference(&format!("refs/heads/{branch}"))
+            .find_reference(&format!("refs/heads/{bookmark}"))
             .unwrap()
             .delete()
             .unwrap();
     }
-    for branch in ["XAA", "XXA"] {
+    for bookmark in ["XAA", "XXA"] {
         git_repo
-            .reference(&format!("refs/heads/{branch}"), git_id(&commit_a), true, "")
+            .reference(
+                &format!("refs/heads/{bookmark}"),
+                git_id(&commit_a),
+                true,
+                "",
+            )
             .unwrap();
     }
-    for branch in ["AAB", "ABB", "AXB", "XAB"] {
+    for bookmark in ["AAB", "ABB", "AXB", "XAB"] {
         git_repo
-            .reference(&format!("refs/heads/{branch}"), git_id(&commit_b), true, "")
+            .reference(
+                &format!("refs/heads/{bookmark}"),
+                git_id(&commit_b),
+                true,
+                "",
+            )
             .unwrap();
     }
-    let branch = "ABC";
+    let bookmark = "ABC";
     git_repo
-        .reference(&format!("refs/heads/{branch}"), git_id(&commit_c), true, "")
+        .reference(
+            &format!("refs/heads/{bookmark}"),
+            git_id(&commit_c),
+            true,
+            "",
+        )
         .unwrap();
 
-    // TODO: The branches that we made conflicting changes to should have failed to
+    // TODO: The bookmarks that we made conflicting changes to should have failed to
     // export. They should have been unchanged in git and in
     // mut_repo.view().git_refs().
     assert_eq!(
@@ -2004,42 +2026,42 @@ fn test_export_reexport_transitions() {
             .map(|s| RefName::LocalBranch(s.to_string()))
             .collect_vec()
     );
-    for branch in ["AAX", "ABX", "AXA", "AXX"] {
+    for bookmark in ["AAX", "ABX", "AXA", "AXX"] {
         assert!(
             git_repo
-                .find_reference(&format!("refs/heads/{branch}"))
+                .find_reference(&format!("refs/heads/{bookmark}"))
                 .is_err(),
-            "{branch} should not exist"
+            "{bookmark} should not exist"
         );
     }
-    for branch in ["XAA", "XAX", "XXA"] {
+    for bookmark in ["XAA", "XAX", "XXA"] {
         assert_eq!(
             git_repo
-                .find_reference(&format!("refs/heads/{branch}"))
+                .find_reference(&format!("refs/heads/{bookmark}"))
                 .unwrap()
                 .target(),
             Some(git_id(&commit_a)),
-            "{branch} should point to commit A"
+            "{bookmark} should point to commit A"
         );
     }
-    for branch in ["AAB", "ABA", "AAB", "ABB", "AXB", "XAB"] {
+    for bookmark in ["AAB", "ABA", "AAB", "ABB", "AXB", "XAB"] {
         assert_eq!(
             git_repo
-                .find_reference(&format!("refs/heads/{branch}"))
+                .find_reference(&format!("refs/heads/{bookmark}"))
                 .unwrap()
                 .target(),
             Some(git_id(&commit_b)),
-            "{branch} should point to commit B"
+            "{bookmark} should point to commit B"
         );
     }
-    let branch = "ABC";
+    let bookmark = "ABC";
     assert_eq!(
         git_repo
-            .find_reference(&format!("refs/heads/{branch}"))
+            .find_reference(&format!("refs/heads/{bookmark}"))
             .unwrap()
             .target(),
         Some(git_id(&commit_c)),
-        "{branch} should point to commit C"
+        "{bookmark} should point to commit C"
     );
     assert_eq!(
         *mut_repo.view().git_refs(),
@@ -2067,7 +2089,7 @@ fn test_export_undo_reexport() {
     // Initial export
     let commit_a = write_random_commit(mut_repo, &test_data.settings);
     let target_a = RefTarget::normal(commit_a.id().clone());
-    mut_repo.set_local_branch_target("main", target_a.clone());
+    mut_repo.set_local_bookmark_target("main", target_a.clone());
     assert!(git::export_refs(mut_repo).unwrap().is_empty());
     assert_eq!(
         git_repo.find_reference("refs/heads/main").unwrap().target(),
@@ -2075,7 +2097,7 @@ fn test_export_undo_reexport() {
     );
     assert_eq!(mut_repo.get_git_ref("refs/heads/main"), target_a);
     assert_eq!(
-        mut_repo.get_remote_branch("main", "git"),
+        mut_repo.get_remote_bookmark("main", "git"),
         RemoteRef {
             target: target_a.clone(),
             state: RemoteRefState::Tracking,
@@ -2083,9 +2105,9 @@ fn test_export_undo_reexport() {
     );
 
     // Undo remote changes only
-    mut_repo.set_remote_branch("main", "git", RemoteRef::absent());
+    mut_repo.set_remote_bookmark("main", "git", RemoteRef::absent());
 
-    // Reexport should update the Git-tracking branch
+    // Reexport should update the Git-tracking bookmark
     assert!(git::export_refs(mut_repo).unwrap().is_empty());
     assert_eq!(
         git_repo.find_reference("refs/heads/main").unwrap().target(),
@@ -2093,7 +2115,7 @@ fn test_export_undo_reexport() {
     );
     assert_eq!(mut_repo.get_git_ref("refs/heads/main"), target_a);
     assert_eq!(
-        mut_repo.get_remote_branch("main", "git"),
+        mut_repo.get_remote_bookmark("main", "git"),
         RemoteRef {
             target: target_a.clone(),
             state: RemoteRefState::Tracking,
@@ -2249,18 +2271,18 @@ fn test_fetch_empty_repo() {
         &git_settings,
     )
     .unwrap();
-    // No default branch and no refs
+    // No default bookmark and no refs
     assert_eq!(stats.default_branch, None);
     assert!(stats.import_stats.abandoned_commits.is_empty());
     assert_eq!(*tx.repo_mut().view().git_refs(), btreemap! {});
-    assert_eq!(tx.repo_mut().view().branches().count(), 0);
+    assert_eq!(tx.repo_mut().view().bookmarks().count(), 0);
 }
 
 #[test]
 fn test_fetch_initial_commit() {
     let test_data = GitRepoData::create();
     let git_settings = GitSettings {
-        auto_local_branch: true,
+        auto_local_bookmark: true,
         ..Default::default()
     };
     let initial_git_commit = empty_git_commit(&test_data.origin_repo, "refs/heads/main", &[]);
@@ -2275,7 +2297,7 @@ fn test_fetch_initial_commit() {
         &git_settings,
     )
     .unwrap();
-    // No default branch because the origin repo's HEAD wasn't set
+    // No default bookmark because the origin repo's HEAD wasn't set
     assert_eq!(stats.default_branch, None);
     assert!(stats.import_stats.abandoned_commits.is_empty());
     let repo = tx.commit("test");
@@ -2294,7 +2316,7 @@ fn test_fetch_initial_commit() {
         }
     );
     assert_eq!(
-        view.branches().collect::<BTreeMap<_, _>>(),
+        view.bookmarks().collect::<BTreeMap<_, _>>(),
         btreemap! {
             "main" => BranchTarget {
                 local_target: &initial_commit_target,
@@ -2310,7 +2332,7 @@ fn test_fetch_initial_commit() {
 fn test_fetch_success() {
     let mut test_data = GitRepoData::create();
     let git_settings = GitSettings {
-        auto_local_branch: true,
+        auto_local_bookmark: true,
         ..Default::default()
     };
     let initial_git_commit = empty_git_commit(&test_data.origin_repo, "refs/heads/main", &[]);
@@ -2348,7 +2370,7 @@ fn test_fetch_success() {
         &git_settings,
     )
     .unwrap();
-    // The default branch is "main"
+    // The default bookmark is "main"
     assert_eq!(stats.default_branch, Some("main".to_string()));
     assert!(stats.import_stats.abandoned_commits.is_empty());
     let repo = tx.commit("test");
@@ -2368,7 +2390,7 @@ fn test_fetch_success() {
         }
     );
     assert_eq!(
-        view.branches().collect::<BTreeMap<_, _>>(),
+        view.bookmarks().collect::<BTreeMap<_, _>>(),
         btreemap! {
             "main" => BranchTarget {
                 local_target: &new_commit_target,
@@ -2390,7 +2412,7 @@ fn test_fetch_success() {
 fn test_fetch_prune_deleted_ref() {
     let test_data = GitRepoData::create();
     let git_settings = GitSettings {
-        auto_local_branch: true,
+        auto_local_bookmark: true,
         ..Default::default()
     };
     let commit = empty_git_commit(&test_data.origin_repo, "refs/heads/main", &[]);
@@ -2406,10 +2428,10 @@ fn test_fetch_prune_deleted_ref() {
     )
     .unwrap();
     // Test the setup
-    assert!(tx.repo_mut().get_local_branch("main").is_present());
+    assert!(tx.repo_mut().get_local_bookmark("main").is_present());
     assert!(tx
         .repo_mut()
-        .get_remote_branch("main", "origin")
+        .get_remote_bookmark("main", "origin")
         .is_present());
 
     test_data
@@ -2418,7 +2440,7 @@ fn test_fetch_prune_deleted_ref() {
         .unwrap()
         .delete()
         .unwrap();
-    // After re-fetching, the branch should be deleted
+    // After re-fetching, the bookmark should be deleted
     let stats = git::fetch(
         tx.repo_mut(),
         &test_data.git_repo,
@@ -2429,10 +2451,10 @@ fn test_fetch_prune_deleted_ref() {
     )
     .unwrap();
     assert_eq!(stats.import_stats.abandoned_commits, vec![jj_id(&commit)]);
-    assert!(tx.repo_mut().get_local_branch("main").is_absent());
+    assert!(tx.repo_mut().get_local_bookmark("main").is_absent());
     assert!(tx
         .repo_mut()
-        .get_remote_branch("main", "origin")
+        .get_remote_bookmark("main", "origin")
         .is_absent());
 }
 
@@ -2440,7 +2462,7 @@ fn test_fetch_prune_deleted_ref() {
 fn test_fetch_no_default_branch() {
     let test_data = GitRepoData::create();
     let git_settings = GitSettings {
-        auto_local_branch: true,
+        auto_local_bookmark: true,
         ..Default::default()
     };
     let initial_git_commit = empty_git_commit(&test_data.origin_repo, "refs/heads/main", &[]);
@@ -2462,7 +2484,7 @@ fn test_fetch_no_default_branch() {
         &[&initial_git_commit],
     );
     // It's actually not enough to have a detached HEAD, it also needs to point to a
-    // commit without a branch (that's possibly a bug in Git *and* libgit2), so
+    // commit without a bookmark (that's possibly a bug in Git *and* libgit2), so
     // we point it to initial_git_commit.
     test_data
         .origin_repo
@@ -2478,7 +2500,7 @@ fn test_fetch_no_default_branch() {
         &git_settings,
     )
     .unwrap();
-    // There is no default branch
+    // There is no default bookmark
     assert_eq!(stats.default_branch, None);
 }
 
@@ -2501,13 +2523,13 @@ fn test_fetch_empty_refspecs() {
     .unwrap();
     assert!(tx
         .repo_mut()
-        .get_remote_branch("main", "origin")
+        .get_remote_bookmark("main", "origin")
         .is_absent());
     // No remote refs should have been fetched
     git::import_refs(tx.repo_mut(), &git_settings).unwrap();
     assert!(tx
         .repo_mut()
-        .get_remote_branch("main", "origin")
+        .get_remote_bookmark("main", "origin")
         .is_absent());
 }
 
@@ -2599,12 +2621,12 @@ fn set_up_push_repos(settings: &UserSettings, temp_dir: &TempDir) -> PushTestSet
         "refs/remotes/origin/main",
         RefTarget::normal(main_commit.id().clone()),
     );
-    tx.repo_mut().set_remote_branch(
+    tx.repo_mut().set_remote_bookmark(
         "main",
         "origin",
         RemoteRef {
             target: RefTarget::normal(main_commit.id().clone()),
-            // Caller expects the main branch is tracked. The corresponding local branch will
+            // Caller expects the main bookmark is tracked. The corresponding local bookmark will
             // be created (or left as deleted) by caller.
             state: RemoteRefState::Tracking,
         },
@@ -2621,7 +2643,7 @@ fn set_up_push_repos(settings: &UserSettings, temp_dir: &TempDir) -> PushTestSet
 }
 
 #[test]
-fn test_push_branches_success() {
+fn test_push_bookmarks_success() {
     let settings = testutils::user_settings();
     let temp_dir = testutils::new_temp_dir();
     let mut setup = set_up_push_repos(&settings, &temp_dir);
@@ -2657,7 +2679,7 @@ fn test_push_branches_success() {
 
     // Check that the ref got updated in the cloned repo. This just tests our
     // assumptions about libgit2 because we want the refs/remotes/origin/main
-    // branch to be updated.
+    // bookmark to be updated.
     let new_target = clone_repo
         .find_reference("refs/remotes/origin/main")
         .unwrap()
@@ -2671,7 +2693,7 @@ fn test_push_branches_success() {
         RefTarget::normal(setup.child_of_main_commit.id().clone()),
     );
     assert_eq!(
-        *view.get_remote_branch("main", "origin"),
+        *view.get_remote_bookmark("main", "origin"),
         RemoteRef {
             target: RefTarget::normal(setup.child_of_main_commit.id().clone()),
             state: RemoteRefState::Tracking,
@@ -2686,7 +2708,7 @@ fn test_push_branches_success() {
 }
 
 #[test]
-fn test_push_branches_deletion() {
+fn test_push_bookmarks_deletion() {
     let settings = testutils::user_settings();
     let temp_dir = testutils::new_temp_dir();
     let mut setup = set_up_push_repos(&settings, &temp_dir);
@@ -2720,7 +2742,7 @@ fn test_push_branches_deletion() {
 
     // Check that the ref got deleted in the cloned repo. This just tests our
     // assumptions about libgit2 because we want the refs/remotes/origin/main
-    // branch to be deleted.
+    // bookmark to be deleted.
     assert!(clone_repo
         .find_reference("refs/remotes/origin/main")
         .is_err());
@@ -2728,7 +2750,7 @@ fn test_push_branches_deletion() {
     // Check that the repo view got updated
     let view = tx.repo_mut().view();
     assert!(view.get_git_ref("refs/remotes/origin/main").is_absent());
-    assert!(view.get_remote_branch("main", "origin").is_absent());
+    assert!(view.get_remote_bookmark("main", "origin").is_absent());
 
     // Check that the repo view reflects the changes in the Git repo
     setup.jj_repo = tx.commit("test");
@@ -2738,7 +2760,7 @@ fn test_push_branches_deletion() {
 }
 
 #[test]
-fn test_push_branches_mixed_deletion_and_addition() {
+fn test_push_bookmarks_mixed_deletion_and_addition() {
     let settings = testutils::user_settings();
     let temp_dir = testutils::new_temp_dir();
     let mut setup = set_up_push_repos(&settings, &temp_dir);
@@ -2786,13 +2808,13 @@ fn test_push_branches_mixed_deletion_and_addition() {
     // Check that the repo view got updated
     let view = tx.repo_mut().view();
     assert!(view.get_git_ref("refs/remotes/origin/main").is_absent());
-    assert!(view.get_remote_branch("main", "origin").is_absent());
+    assert!(view.get_remote_bookmark("main", "origin").is_absent());
     assert_eq!(
         *view.get_git_ref("refs/remotes/origin/topic"),
         RefTarget::normal(setup.child_of_main_commit.id().clone()),
     );
     assert_eq!(
-        *view.get_remote_branch("topic", "origin"),
+        *view.get_remote_bookmark("topic", "origin"),
         RemoteRef {
             target: RefTarget::normal(setup.child_of_main_commit.id().clone()),
             state: RemoteRefState::Tracking,
@@ -2807,7 +2829,7 @@ fn test_push_branches_mixed_deletion_and_addition() {
 }
 
 #[test]
-fn test_push_branches_not_fast_forward() {
+fn test_push_bookmarks_not_fast_forward() {
     let settings = testutils::user_settings();
     let temp_dir = testutils::new_temp_dir();
     let setup = set_up_push_repos(&settings, &temp_dir);
@@ -2841,8 +2863,8 @@ fn test_push_branches_not_fast_forward() {
 }
 
 // TODO(ilyagr): More tests for push safety checks were originally planned. We
-// may want to add tests for when a branch unexpectedly moved backwards or
-// unexpectedly does not exist for branch deletion.
+// may want to add tests for when a bookmark unexpectedly moved backwards or
+// unexpectedly does not exist for bookmark deletion.
 
 #[test]
 fn test_push_updates_unexpectedly_moved_sideways_on_remote() {
@@ -2850,7 +2872,7 @@ fn test_push_updates_unexpectedly_moved_sideways_on_remote() {
     let temp_dir = testutils::new_temp_dir();
     let setup = set_up_push_repos(&settings, &temp_dir);
 
-    // The main branch is actually at `main_commit` on the remote. If we expect
+    // The main bookmark is actually at `main_commit` on the remote. If we expect
     // it to be at `sideways_commit`, it unexpectedly moved sideways from our
     // perspective.
     //
@@ -2858,7 +2880,7 @@ fn test_push_updates_unexpectedly_moved_sideways_on_remote() {
     // same place it already is is OK, following the behavior in
     // `test_merge_ref_targets`.
     //
-    // For each test, we check that the push succeeds if and only if the branch
+    // For each test, we check that the push succeeds if and only if the bookmark
     // conflict `jj git fetch` would generate resolves to the push destination.
 
     let attempt_push_expecting_sideways = |target: Option<CommitId>| {
@@ -2886,7 +2908,7 @@ fn test_push_updates_unexpectedly_moved_sideways_on_remote() {
         Err(GitPushError::RefInUnexpectedLocation(_))
     );
 
-    // Here, the local branch hasn't moved from `sideways_commit` from our
+    // Here, the local bookmark hasn't moved from `sideways_commit` from our
     // perspective, but it moved to `main` on the remote. So, the conflict
     // resolves to `main`.
     //
@@ -2902,7 +2924,7 @@ fn test_push_updates_unexpectedly_moved_sideways_on_remote() {
         Err(GitPushError::RefInUnexpectedLocation(_))
     );
 
-    // Moving the branch to the same place it already is is OK.
+    // Moving the bookmark to the same place it already is is OK.
     assert_eq!(
         attempt_push_expecting_sideways(Some(setup.main_commit.id().clone())),
         Ok(())
@@ -2915,7 +2937,7 @@ fn test_push_updates_unexpectedly_moved_forward_on_remote() {
     let temp_dir = testutils::new_temp_dir();
     let setup = set_up_push_repos(&settings, &temp_dir);
 
-    // The main branch is actually at `main_commit` on the remote. If we
+    // The main bookmark is actually at `main_commit` on the remote. If we
     // expected it to be at `parent_of_commit`, it unexpectedly moved forward
     // from our perspective.
     //
@@ -2925,7 +2947,7 @@ fn test_push_updates_unexpectedly_moved_forward_on_remote() {
     // actual location is the descendant of the expected location, and the new
     // location is the descendant of that.
     //
-    // For each test, we check that the push succeeds if and only if the branch
+    // For each test, we check that the push succeeds if and only if the bookmark
     // conflict `jj git fetch` would generate resolves to the push destination.
 
     let attempt_push_expecting_parent = |target: Option<CommitId>| {
@@ -2953,7 +2975,7 @@ fn test_push_updates_unexpectedly_moved_forward_on_remote() {
         Err(GitPushError::RefInUnexpectedLocation(_))
     );
 
-    // Here, the local branch hasn't moved from `parent_of_main_commit`, but it
+    // Here, the local bookmark hasn't moved from `parent_of_main_commit`, but it
     // moved to `main` on the remote. So, the conflict resolves to `main`.
     //
     // `jj` should not actually attempt a push in this case, but if it did, the push
@@ -2963,7 +2985,7 @@ fn test_push_updates_unexpectedly_moved_forward_on_remote() {
         Err(GitPushError::RefInUnexpectedLocation(_))
     );
 
-    // Moving the branch *forwards* is OK, as an exception matching our branch
+    // Moving the bookmark *forwards* is OK, as an exception matching our bookmark
     // conflict resolution rules
     assert_eq!(
         attempt_push_expecting_parent(Some(setup.child_of_main_commit.id().clone())),
@@ -2977,13 +2999,13 @@ fn test_push_updates_unexpectedly_exists_on_remote() {
     let temp_dir = testutils::new_temp_dir();
     let setup = set_up_push_repos(&settings, &temp_dir);
 
-    // The main branch is actually at `main_commit` on the remote. In this test, we
-    // expect it to not exist on the remote at all.
+    // The main bookmark is actually at `main_commit` on the remote. In this test,
+    // we expect it to not exist on the remote at all.
     //
-    // We cannot move the branch backwards or sideways, but we *can* move it forward
-    // (as a special case).
+    // We cannot move the bookmark backwards or sideways, but we *can* move it
+    // forward (as a special case).
     //
-    // For each test, we check that the push succeeds if and only if the branch
+    // For each test, we check that the push succeeds if and only if the bookmark
     // conflict `jj git fetch` would generate resolves to the push destination.
 
     let attempt_push_expecting_absence = |target: Option<CommitId>| {
@@ -3006,7 +3028,7 @@ fn test_push_updates_unexpectedly_exists_on_remote() {
         Err(GitPushError::RefInUnexpectedLocation(_))
     );
 
-    // We *can* move the branch forward even if we didn't expect it to exist
+    // We *can* move the bookmark forward even if we didn't expect it to exist
     assert_eq!(
         attempt_push_expecting_absence(Some(setup.child_of_main_commit.id().clone())),
         Ok(())
@@ -3043,7 +3065,7 @@ fn test_push_updates_success() {
 
     // Check that the ref got updated in the cloned repo. This just tests our
     // assumptions about libgit2 because we want the refs/remotes/origin/main
-    // branch to be updated.
+    // bookmark to be updated.
     let new_target = clone_repo
         .find_reference("refs/remotes/origin/main")
         .unwrap()

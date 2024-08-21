@@ -1,18 +1,18 @@
 [templates]
-branch_list = '''
+bookmark_list = '''
 if(remote,
   if(tracked,
     "  " ++ separate(" ",
-      label("branch", "@" ++ remote),
+      label("bookmark", "@" ++ remote),
       format_tracked_remote_ref_distances(self),
     ) ++ format_ref_targets(self),
-    label("branch", name ++ "@" ++ remote) ++ format_ref_targets(self),
+    label("bookmark", name ++ "@" ++ remote) ++ format_ref_targets(self),
   ),
-  label("branch", name) ++ if(present, format_ref_targets(self), " (deleted)"),
+  label("bookmark", name) ++ if(present, format_ref_targets(self), " (deleted)"),
 ) ++ "\n"
 '''
 
-commit_summary = 'format_commit_summary_with_refs(self, branches)'
+commit_summary = 'format_commit_summary_with_refs(self, bookmarks)'
 
 config_list = '''
 if(overridden,
@@ -51,7 +51,7 @@ if(root,
         format_short_change_id_with_hidden_and_divergent_info(self),
         if(author.email(), author.username(), email_placeholder),
         format_timestamp(committer.timestamp()),
-        branches,
+        bookmarks,
         tags,
         working_copies,
         git_head,
@@ -76,7 +76,7 @@ if(root,
         format_short_change_id_with_hidden_and_divergent_info(self),
         format_short_signature(author),
         format_timestamp(committer.timestamp()),
-        branches,
+        bookmarks,
         tags,
         working_copies,
         git_head,
@@ -99,7 +99,7 @@ builtin_log_detailed = '''
 concat(
   "Commit ID: " ++ commit_id ++ "\n",
   "Change ID: " ++ change_id ++ "\n",
-  surround("Branches: ", "\n", separate(" ", local_branches, remote_branches)),
+  surround("Bookmarks: ", "\n", separate(" ", local_bookmarks, remote_bookmarks)),
   surround("Tags: ", "\n", tags),
   "Author: " ++ format_detailed_signature(author) ++ "\n",
   "Committer: " ++ format_detailed_signature(committer)  ++ "\n",
@@ -163,7 +163,7 @@ separate(" ",
   format_short_change_id(root.change_id()),
   label("root", "root()"),
   format_short_commit_id(root.commit_id()),
-  root.branches()
+  root.bookmarks()
 ) ++ "\n"
 '''
 

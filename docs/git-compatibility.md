@@ -24,7 +24,7 @@ a comparison with Git, including how workflows are different, see the
   only `~/.ssh/id_rsa`, `~/.ssh/id_ed25519` or `~/.ssh/id_ed25519_sk`), or
   a `credential.helper`.
 * **Branches: Yes.** You can read more about
-  [how branches work in Jujutsu](branches.md)
+  [how branches work in Jujutsu](bookmarks.md)
   and [how they interoperate with Git](#branches).
 * **Tags: Partial.** You can check out tagged commits by name (pointed to be
   either annotated or lightweight tags), but you cannot create new tags.

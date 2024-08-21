@@ -27,9 +27,9 @@ fn set_up(trunk_name: &str) -> (TestEnvironment, PathBuf) {
         .join("git");
 
     test_env.jj_cmd_ok(&origin_path, &["describe", "-m=description 1"]);
-    test_env.jj_cmd_ok(&origin_path, &["branch", "create", trunk_name]);
+    test_env.jj_cmd_ok(&origin_path, &["bookmark", "create", trunk_name]);
     test_env.jj_cmd_ok(&origin_path, &["new", "root()", "-m=description 2"]);
-    test_env.jj_cmd_ok(&origin_path, &["branch", "create", "unrelated_branch"]);
+    test_env.jj_cmd_ok(&origin_path, &["bookmark", "create", "unrelated_bookmark"]);
     test_env.jj_cmd_ok(&origin_path, &["git", "export"]);
 
     test_env.jj_cmd_ok(
@@ -87,7 +87,7 @@ fn test_builtin_alias_trunk_matches_exactly_one_commit() {
     let (test_env, workspace_root) = set_up("main");
     let origin_path = test_env.env_root().join("origin");
     test_env.jj_cmd_ok(&origin_path, &["new", "root()", "-m=description 3"]);
-    test_env.jj_cmd_ok(&origin_path, &["branch", "create", "master"]);
+    test_env.jj_cmd_ok(&origin_path, &["bookmark", "create", "master"]);
 
     let stdout = test_env.jj_cmd_success(&workspace_root, &["log", "-r", "trunk()"]);
     insta::assert_snapshot!(stdout, @r###"
@@ -102,7 +102,7 @@ fn test_builtin_alias_trunk_override_alias() {
     let (test_env, workspace_root) = set_up("override-trunk");
 
     test_env.add_config(
-        r#"revset-aliases.'trunk()' = 'latest(remote_branches(exact:"override-trunk", exact:"origin"))'"#,
+        r#"revset-aliases.'trunk()' = 'latest(remote_bookmarks(exact:"override-trunk", exact:"origin"))'"#,
     );
 
     let stdout = test_env.jj_cmd_success(&workspace_root, &["log", "-r", "trunk()"]);

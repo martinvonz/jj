@@ -322,7 +322,11 @@ impl RefStatus {
             RefName::RemoteBranch { branch, remote } => (
                 format!("{branch}@{remote}"),
                 RefKind::Branch,
-                if repo.view().get_remote_branch(branch, remote).is_tracking() {
+                if repo
+                    .view()
+                    .get_remote_bookmark(branch, remote)
+                    .is_tracking()
+                {
                     TrackingStatus::Tracked
                 } else {
                     TrackingStatus::Untracked

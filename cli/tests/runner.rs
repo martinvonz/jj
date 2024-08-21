@@ -10,10 +10,10 @@ fn test_no_forgotten_test_files() {
 
 mod test_abandon_command;
 mod test_acls;
-mod test_advance_branches;
+mod test_advance_bookmarks;
 mod test_alias;
 mod test_backout_command;
-mod test_branch_command;
+mod test_bookmark_command;
 mod test_builtin_aliases;
 mod test_checkout;
 mod test_commit_command;

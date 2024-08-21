@@ -103,7 +103,7 @@ nav:
 
 - Concepts:
       - 'Working Copy': 'working-copy.md'
-      - 'Branches': 'branches.md'
+      - 'Bookmarks': 'bookmarks.md'
       - 'Conflicts': 'conflicts.md'
       - 'Operation Log': 'operation-log.md'
       - 'Glossary': 'glossary.md'

@@ -45,7 +45,7 @@ is typical on GitHub). Instead, please make the changes in the appropriate
 commit. You can do that by creating a new commit on top of the initial commit 
  (`jj new <commit>`) and then squash in the changes when you're done (`jj squash`). 
 `jj git push`
-will automatically force-push the branch.
+will automatically force-push the bookmark.
 
 When your first PR has been approved, we typically give you contributor access,
 so you can address any remaining minor comments and then merge the PR yourself
@@ -284,11 +284,11 @@ Windows, you'll need to understand and adapt the shell script):
 cloned from your fork of `jj` (e.g. `jjfan.github.com/jj`). You can also use a
 pure Git repo if you prefer.
 
-2. Make sure `jjfan.github.com/jj` includes the `gh-pages` branch of the jj repo
+2. Make sure `jjfan.github.com/jj` includes the `gh-pages` bookmark of the jj repo
 and run `git fetch origin gh-pages`.
 
 3. Go to the GitHub repository settings, enable GitHub Pages, and configure them
-to use the `gh-pages` branch (this is usually the default).
+to use the `gh-pages` bookmark (this is usually the default).
 
 4. Run the same `sh` script that is used in GitHub CI (details below):
 
@@ -298,8 +298,8 @@ to use the `gh-pages` branch (this is usually the default).
     ```
 
     This should build the version of the docs from the current commit,
-    deploy it as a new commit to the `gh-pages` branch,
-    and push the `gh-pages` branch to the origin.
+    deploy it as a new commit to the `gh-pages` bookmark,
+    and push the `gh-pages` bookmark to the origin.
 
 5. Now, you should be able to see the full website, including your latest changes
 to the `prerelease` version, at `https://jjfan.github.io/jj/prerelease/`.
@@ -315,18 +315,18 @@ back and forth, you can also rebuild the docs for the latest release as follows.
         v1.33.1 latest --push
     ```
 
-7. (Optional) When you are done, you may want to reset the `gh-branches` to the
+7. (Optional) When you are done, you may want to reset the `gh-bookmarks` to the
 same spot as it is in the upstream. If you configured the `upstream` remote,
 this can be done with:
 
     ```shell
     # This will LOSE any changes you made to `gh-pages`
     jj git fetch --remote upstream
-    jj branch set gh-pages -r gh-pages@upstream
-    jj git push --remote origin --branch gh-pages
+    jj bookmark set gh-pages -r gh-pages@upstream
+    jj git push --remote origin --bookmark gh-pages
     ```
 
-    If you want to preserve some of the changes you made, you can do `jj branch
+    If you want to preserve some of the changes you made, you can do `jj bookmark
     set my-changes -r gh-pages` BEFORE running the above commands.
 
 #### Explanation of the `docs-build-deploy` script
@@ -341,10 +341,10 @@ deploy`, which does the rest of the job. Run `poetry run -- mike help deploy` to
 find out what the arguments do.
 
 If you need to do something more complicated, you can use `poetry run -- mike
-...` commands. You can also edit the `gh-pages` branch directly, but take care
+...` commands. You can also edit the `gh-pages` bookmark directly, but take care
 to avoid files that will be overwritten by future invocations of `mike`. Then,
-you can submit a PR based on the `gh-pages` branch of
-<https://martinvonz.github.com/jj> (instead of the usual `main` branch).
+you can submit a PR based on the `gh-pages` bookmark of
+<https://martinvonz.github.com/jj> (instead of the usual `main` bookmark).
 
 
 ## Modifying protobuffers (this is not common)

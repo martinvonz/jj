@@ -89,9 +89,9 @@ fn test_no_subcommand() {
     assert_eq!(stdout, test_env.jj_cmd_success(&repo_path, &["log"]));
 
     // Command argument that looks like a command name.
-    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "help"]);
-    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "log"]);
-    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "show"]);
+    test_env.jj_cmd_ok(&repo_path, &["bookmark", "create", "help"]);
+    test_env.jj_cmd_ok(&repo_path, &["bookmark", "create", "log"]);
+    test_env.jj_cmd_ok(&repo_path, &["bookmark", "create", "show"]);
     // TODO: test_env.jj_cmd_ok(&repo_path, &["-r", "help"])
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["-r", "log"]), @r###"
     @  qpvuntsm test.user@example.com 2001-02-03 08:05:07 help log show 230dd059

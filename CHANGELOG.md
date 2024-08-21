@@ -13,10 +13,21 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 * Invalid `ui.graph.style` configuration is now an error.
 
+* The builtin template `branch_list` has been renamed to `bookmark_list` in 
+  lieu of the `jj branch` deprecation.
+
 ### Deprecations
 
 * `jj obslog` is now called `jj evolution-log`/`jj evolog`. `jj obslog` remains
   as an alias.
+
+* `jj branch` has been deprecated in favor of `jj bookmark`.
+
+  **Rationale:** Jujutsu's branches don't behave like Git branches, which a 
+  confused many newcomers, as they expected a similar behavior given the name.
+  We've renamed them to "bookmarks" to match the actual behavior, as we think
+  that describes them better, and they also behave similar to Mercurial's 
+  bookmarks. 
 
 ### New features
 

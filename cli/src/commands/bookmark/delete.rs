@@ -16,43 +16,47 @@ use itertools::Itertools as _;
 use jj_lib::op_store::RefTarget;
 use jj_lib::str_util::StringPattern;
 
-use super::find_local_branches;
+use super::find_local_bookmarks;
 use crate::cli_util::CommandHelper;
 use crate::command_error::CommandError;
 use crate::ui::Ui;
 
-/// Delete an existing branch and propagate the deletion to remotes on the
+/// Delete an existing bookmark and propagate the deletion to remotes on the
 /// next push
 #[derive(clap::Args, Clone, Debug)]
-pub struct BranchDeleteArgs {
-    /// The branches to delete
+pub struct BookmarkDeleteArgs {
+    /// The bookmarks to delete
     ///
     /// By default, the specified name matches exactly. Use `glob:` prefix to
-    /// select branches by wildcard pattern. For details, see
-    /// https://martinvonz.github.io/jj/latest/revsets/#string-patterns.
+    /// select bookmarks by wildcard pattern. For details, see
+    /// https://martinvonz.github.io/jj/latest/revsets/#string-patterns.       
     #[arg(required = true, value_parser = StringPattern::parse)]
     names: Vec<StringPattern>,
 }
 
-pub fn cmd_branch_delete(
+pub fn cmd_bookmark_delete(
     ui: &mut Ui,
     command: &CommandHelper,
-    args: &BranchDeleteArgs,
+    args: &BookmarkDeleteArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
     let repo = workspace_command.repo().clone();
-    let matched_branches = find_local_branches(repo.view(), &args.names)?;
+    let matched_bookmarks = find_local_bookmarks(repo.view(), &args.names)?;
     let mut tx = workspace_command.start_transaction();
-    for (name, _) in &matched_branches {
+    for (name, _) in &matched_bookmarks {
         tx.repo_mut()
-            .set_local_branch_target(name, RefTarget::absent());
+            .set_local_bookmark_target(name, RefTarget::absent());
     }
-    writeln!(ui.status(), "Deleted {} branches.", matched_branches.len())?;
+    writeln!(
+        ui.status(),
+        "Deleted {} bookmarks.",
+        matched_bookmarks.len()
+    )?;
     tx.finish(
         ui,
         format!(
-            "delete branch {}",
-            matched_branches.iter().map(|(name, _)| name).join(", ")
+            "delete bookmark {}",
+            matched_bookmarks.iter().map(|(name, _)| name).join(", ")
         ),
     )?;
     Ok(())

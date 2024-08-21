@@ -172,13 +172,13 @@ pub fn cmd_git_clone(
         let default_branch_remote_ref = workspace_command
             .repo()
             .view()
-            .get_remote_branch(default_branch, remote_name);
+            .get_remote_bookmark(default_branch, remote_name);
         if let Some(commit_id) = default_branch_remote_ref.target.as_normal().cloned() {
             let mut checkout_tx = workspace_command.start_transaction();
             // For convenience, create local branch as Git would do.
             checkout_tx
                 .repo_mut()
-                .track_remote_branch(default_branch, remote_name);
+                .track_remote_bookmark(default_branch, remote_name);
             if let Ok(commit) = checkout_tx.repo().store().get_commit(&commit_id) {
                 checkout_tx.check_out(&commit)?;
             }

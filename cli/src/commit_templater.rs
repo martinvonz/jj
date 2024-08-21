@@ -450,16 +450,16 @@ impl<'repo> CommitTemplateBuildFnTable<'repo> {
 #[derive(Default)]
 pub struct CommitKeywordCache<'repo> {
     // Build index lazily, and Rc to get away from &self lifetime.
-    branches_index: OnceCell<Rc<RefNamesIndex>>,
+    bookmarks_index: OnceCell<Rc<RefNamesIndex>>,
     tags_index: OnceCell<Rc<RefNamesIndex>>,
     git_refs_index: OnceCell<Rc<RefNamesIndex>>,
     is_immutable_fn: OnceCell<Rc<RevsetContainingFn<'repo>>>,
 }
 
 impl<'repo> CommitKeywordCache<'repo> {
-    pub fn branches_index(&self, repo: &dyn Repo) -> &Rc<RefNamesIndex> {
-        self.branches_index
-            .get_or_init(|| Rc::new(build_branches_index(repo)))
+    pub fn bookmarks_index(&self, repo: &dyn Repo) -> &Rc<RefNamesIndex> {
+        self.bookmarks_index
+            .get_or_init(|| Rc::new(build_bookmarks_index(repo)))
     }
 
     pub fn tags_index(&self, repo: &dyn Repo) -> &Rc<RefNamesIndex> {
@@ -569,10 +569,13 @@ fn builtin_commit_methods<'repo>() -> CommitTemplateBuildMethodFnMap<'repo, Comm
         },
     );
     map.insert(
-        "branches",
+        "bookmarks",
         |language, _build_ctx, self_property, function| {
             function.expect_no_arguments()?;
-            let index = language.keyword_cache.branches_index(language.repo).clone();
+            let index = language
+                .keyword_cache
+                .bookmarks_index(language.repo)
+                .clone();
             let out_property = self_property.map(move |commit| {
                 index
                     .get(commit.id())
@@ -585,10 +588,13 @@ fn builtin_commit_methods<'repo>() -> CommitTemplateBuildMethodFnMap<'repo, Comm
         },
     );
     map.insert(
-        "local_branches",
+        "local_bookmarks",
         |language, _build_ctx, self_property, function| {
             function.expect_no_arguments()?;
-            let index = language.keyword_cache.branches_index(language.repo).clone();
+            let index = language
+                .keyword_cache
+                .bookmarks_index(language.repo)
+                .clone();
             let out_property = self_property.map(move |commit| {
                 index
                     .get(commit.id())
@@ -601,10 +607,13 @@ fn builtin_commit_methods<'repo>() -> CommitTemplateBuildMethodFnMap<'repo, Comm
         },
     );
     map.insert(
-        "remote_branches",
+        "remote_bookmarks",
         |language, _build_ctx, self_property, function| {
             function.expect_no_arguments()?;
-            let index = language.keyword_cache.branches_index(language.repo).clone();
+            let index = language
+                .keyword_cache
+                .bookmarks_index(language.repo)
+                .clone();
             let out_property = self_property.map(move |commit| {
                 index
                     .get(commit.id())
@@ -616,6 +625,11 @@ fn builtin_commit_methods<'repo>() -> CommitTemplateBuildMethodFnMap<'repo, Comm
             Ok(L::wrap_ref_name_list(out_property))
         },
     );
+    // TODO: Remove the following block after jj 0.28+
+    map.insert("branches", map["bookmarks"]);
+    map.insert("local_branches", map["local_bookmarks"]);
+    map.insert("remote_branches", map["remote_bookmarks"]);
+
     map.insert("tags", |language, _build_ctx, self_property, function| {
         function.expect_no_arguments()?;
         let index = language.keyword_cache.tags_index(language.repo).clone();
@@ -1115,14 +1129,14 @@ impl RefNamesIndex {
     }
 }
 
-fn build_branches_index(repo: &dyn Repo) -> RefNamesIndex {
+fn build_bookmarks_index(repo: &dyn Repo) -> RefNamesIndex {
     let mut index = RefNamesIndex::default();
-    for (branch_name, branch_target) in repo.view().branches() {
-        let local_target = branch_target.local_target;
-        let remote_refs = branch_target.remote_refs;
+    for (bookmark_name, bookmark_target) in repo.view().bookmarks() {
+        let local_target = bookmark_target.local_target;
+        let remote_refs = bookmark_target.remote_refs;
         if local_target.is_present() {
             let ref_name = RefName::local(
-                branch_name,
+                bookmark_name,
                 local_target.clone(),
                 remote_refs.iter().map(|&(_, remote_ref)| remote_ref),
             );
@@ -1130,7 +1144,7 @@ fn build_branches_index(repo: &dyn Repo) -> RefNamesIndex {
         }
         for &(remote_name, remote_ref) in &remote_refs {
             let ref_name =
-                RefName::remote(branch_name, remote_name, remote_ref.clone(), local_target);
+                RefName::remote(bookmark_name, remote_name, remote_ref.clone(), local_target);
             index.insert(remote_ref.target.added_ids(), ref_name);
         }
     }

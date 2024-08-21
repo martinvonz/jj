@@ -152,7 +152,7 @@ impl RefTarget {
     }
 }
 
-/// Remote branch or tag.
+/// Remote bookmark or tag.
 #[derive(ContentHash, Clone, Debug, Eq, Hash, PartialEq)]
 pub struct RemoteRef {
     pub target: RefTarget,
@@ -253,10 +253,10 @@ impl<'a> RefTargetOptionExt for Option<&'a RemoteRef> {
     }
 }
 
-/// Local and remote branches of the same branch name.
+/// Local and remote bookmarks of the same bookmark name.
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub struct BranchTarget<'a> {
-    /// The commit the branch points to locally.
+    /// The commit the bookmark points to locally.
     pub local_target: &'a RefTarget,
     /// `(remote_name, remote_ref)` pairs in lexicographical order.
     pub remote_refs: Vec<(&'a str, &'a RemoteRef)>,
@@ -268,13 +268,13 @@ pub struct BranchTarget<'a> {
 pub struct View {
     /// All head commits
     pub head_ids: HashSet<CommitId>,
-    pub local_branches: BTreeMap<String, RefTarget>,
+    pub local_bookmarks: BTreeMap<String, RefTarget>,
     pub tags: BTreeMap<String, RefTarget>,
     pub remote_views: BTreeMap<String, RemoteView>,
     pub git_refs: BTreeMap<String, RefTarget>,
     /// The commit the Git HEAD points to.
     // TODO: Support multiple Git worktrees?
-    // TODO: Do we want to store the current branch name too?
+    // TODO: Do we want to store the current bookmark name too?
     pub git_head: RefTarget,
     // The commit that *should be* checked out in the workspace. Note that the working copy
     // (.jj/working_copy/) has the source of truth about which commit *is* checked out (to be
@@ -285,60 +285,63 @@ pub struct View {
 /// Represents the state of the remote repo.
 #[derive(ContentHash, Clone, Debug, Default, Eq, PartialEq)]
 pub struct RemoteView {
-    // TODO: Do we need to support tombstones for remote branches? For example, if the branch
+    // TODO: Do we need to support tombstones for remote bookmarks? For example, if the bookmark
     // has been deleted locally and you pull from a remote, maybe it should make a difference
-    // whether the branch is known to have existed on the remote. We may not want to resurrect
-    // the branch if the branch's state on the remote was just not known.
-    pub branches: BTreeMap<String, RemoteRef>,
+    // whether the bookmark is known to have existed on the remote. We may not want to resurrect
+    // the bookmark if the bookmark's state on the remote was just not known.
+    pub bookmarks: BTreeMap<String, RemoteRef>,
     // TODO: pub tags: BTreeMap<String, RemoteRef>,
 }
 
-/// Iterates pair of local and remote branches by branch name.
-pub(crate) fn merge_join_branch_views<'a>(
-    local_branches: &'a BTreeMap<String, RefTarget>,
+/// Iterates pair of local and remote bookmarks by bookmark name.
+pub(crate) fn merge_join_bookmark_views<'a>(
+    local_bookmarks: &'a BTreeMap<String, RefTarget>,
     remote_views: &'a BTreeMap<String, RemoteView>,
 ) -> impl Iterator<Item = (&'a str, BranchTarget<'a>)> {
-    let mut local_branches_iter = local_branches
+    let mut local_bookmarks_iter = local_bookmarks
         .iter()
-        .map(|(branch_name, target)| (branch_name.as_str(), target))
+        .map(|(bookmark_name, target)| (bookmark_name.as_str(), target))
         .peekable();
-    let mut remote_branches_iter = flatten_remote_branches(remote_views).peekable();
+    let mut remote_bookmarks_iter = flatten_remote_bookmarks(remote_views).peekable();
 
     iter::from_fn(move || {
-        // Pick earlier branch name
-        let (branch_name, local_target) =
-            if let Some(&((remote_branch_name, _), _)) = remote_branches_iter.peek() {
-                local_branches_iter
-                    .next_if(|&(local_branch_name, _)| local_branch_name <= remote_branch_name)
-                    .unwrap_or((remote_branch_name, RefTarget::absent_ref()))
-            } else {
-                local_branches_iter.next()?
-            };
-        let remote_refs = remote_branches_iter
-            .peeking_take_while(|&((remote_branch_name, _), _)| remote_branch_name == branch_name)
+        // Pick earlier bookmark name
+        let (bookmark_name, local_target) = if let Some(&((remote_bookmark_name, _), _)) =
+            remote_bookmarks_iter.peek()
+        {
+            local_bookmarks_iter
+                .next_if(|&(local_bookmark_name, _)| local_bookmark_name <= remote_bookmark_name)
+                .unwrap_or((remote_bookmark_name, RefTarget::absent_ref()))
+        } else {
+            local_bookmarks_iter.next()?
+        };
+        let remote_refs = remote_bookmarks_iter
+            .peeking_take_while(|&((remote_bookmark_name, _), _)| {
+                remote_bookmark_name == bookmark_name
+            })
             .map(|((_, remote_name), remote_ref)| (remote_name, remote_ref))
             .collect();
-        let branch_target = BranchTarget {
+        let bookmark_target = BranchTarget {
             local_target,
             remote_refs,
         };
-        Some((branch_name, branch_target))
+        Some((bookmark_name, bookmark_target))
     })
 }
 
-/// Iterates branch `((name, remote_name), remote_ref)`s in lexicographical
+/// Iterates bookmark `((name, remote_name), remote_ref)`s in lexicographical
 /// order.
-pub(crate) fn flatten_remote_branches(
+pub(crate) fn flatten_remote_bookmarks(
     remote_views: &BTreeMap<String, RemoteView>,
 ) -> impl Iterator<Item = ((&str, &str), &RemoteRef)> {
     remote_views
         .iter()
         .map(|(remote_name, remote_view)| {
             remote_view
-                .branches
+                .bookmarks
                 .iter()
-                .map(move |(branch_name, remote_ref)| {
-                    let full_name = (branch_name.as_str(), remote_name.as_str());
+                .map(move |(bookmark_name, remote_ref)| {
+                    let full_name = (bookmark_name.as_str(), remote_name.as_str());
                     (full_name, remote_ref)
                 })
         })
@@ -464,62 +467,62 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_merge_join_branch_views() {
+    fn test_merge_join_bookmark_views() {
         let remote_ref = |target: &RefTarget| RemoteRef {
             target: target.clone(),
             state: RemoteRefState::Tracking, // doesn't matter
         };
-        let local_branch1_target = RefTarget::normal(CommitId::from_hex("111111"));
-        let local_branch2_target = RefTarget::normal(CommitId::from_hex("222222"));
-        let git_branch1_remote_ref = remote_ref(&RefTarget::normal(CommitId::from_hex("333333")));
-        let git_branch2_remote_ref = remote_ref(&RefTarget::normal(CommitId::from_hex("444444")));
-        let remote1_branch1_remote_ref =
+        let local_bookmark1_target = RefTarget::normal(CommitId::from_hex("111111"));
+        let local_bookmark2_target = RefTarget::normal(CommitId::from_hex("222222"));
+        let git_bookmark1_remote_ref = remote_ref(&RefTarget::normal(CommitId::from_hex("333333")));
+        let git_bookmark2_remote_ref = remote_ref(&RefTarget::normal(CommitId::from_hex("444444")));
+        let remote1_bookmark1_remote_ref =
             remote_ref(&RefTarget::normal(CommitId::from_hex("555555")));
-        let remote2_branch2_remote_ref =
+        let remote2_bookmark2_remote_ref =
             remote_ref(&RefTarget::normal(CommitId::from_hex("666666")));
 
-        let local_branches = btreemap! {
-            "branch1".to_owned() => local_branch1_target.clone(),
-            "branch2".to_owned() => local_branch2_target.clone(),
+        let local_bookmarks = btreemap! {
+            "bookmark1".to_owned() => local_bookmark1_target.clone(),
+            "bookmark2".to_owned() => local_bookmark2_target.clone(),
         };
         let remote_views = btreemap! {
             "git".to_owned() => RemoteView {
-                branches: btreemap! {
-                    "branch1".to_owned() => git_branch1_remote_ref.clone(),
-                    "branch2".to_owned() => git_branch2_remote_ref.clone(),
+                bookmarks: btreemap! {
+                    "bookmark1".to_owned() => git_bookmark1_remote_ref.clone(),
+                    "bookmark2".to_owned() => git_bookmark2_remote_ref.clone(),
                 },
             },
             "remote1".to_owned() => RemoteView {
-                branches: btreemap! {
-                    "branch1".to_owned() => remote1_branch1_remote_ref.clone(),
+                bookmarks: btreemap! {
+                    "bookmark1".to_owned() => remote1_bookmark1_remote_ref.clone(),
                 },
             },
             "remote2".to_owned() => RemoteView {
-                branches: btreemap! {
-                    "branch2".to_owned() => remote2_branch2_remote_ref.clone(),
+                bookmarks: btreemap! {
+                    "bookmark2".to_owned() => remote2_bookmark2_remote_ref.clone(),
                 },
             },
         };
         assert_eq!(
-            merge_join_branch_views(&local_branches, &remote_views).collect_vec(),
+            merge_join_bookmark_views(&local_bookmarks, &remote_views).collect_vec(),
             vec![
                 (
-                    "branch1",
+                    "bookmark1",
                     BranchTarget {
-                        local_target: &local_branch1_target,
+                        local_target: &local_bookmark1_target,
                         remote_refs: vec![
-                            ("git", &git_branch1_remote_ref),
-                            ("remote1", &remote1_branch1_remote_ref),
+                            ("git", &git_bookmark1_remote_ref),
+                            ("remote1", &remote1_bookmark1_remote_ref),
                         ],
                     },
                 ),
                 (
-                    "branch2",
+                    "bookmark2",
                     BranchTarget {
-                        local_target: &local_branch2_target.clone(),
+                        local_target: &local_bookmark2_target.clone(),
                         remote_refs: vec![
-                            ("git", &git_branch2_remote_ref),
-                            ("remote2", &remote2_branch2_remote_ref),
+                            ("git", &git_bookmark2_remote_ref),
+                            ("remote2", &remote2_bookmark2_remote_ref),
                         ],
                     },
                 ),
@@ -527,37 +530,37 @@ mod tests {
         );
 
         // Local only
-        let local_branches = btreemap! {
-            "branch1".to_owned() => local_branch1_target.clone(),
+        let local_bookmarks = btreemap! {
+            "bookmark1".to_owned() => local_bookmark1_target.clone(),
         };
         let remote_views = btreemap! {};
         assert_eq!(
-            merge_join_branch_views(&local_branches, &remote_views).collect_vec(),
+            merge_join_bookmark_views(&local_bookmarks, &remote_views).collect_vec(),
             vec![(
-                "branch1",
+                "bookmark1",
                 BranchTarget {
-                    local_target: &local_branch1_target,
+                    local_target: &local_bookmark1_target,
                     remote_refs: vec![],
                 },
             )],
         );
 
         // Remote only
-        let local_branches = btreemap! {};
+        let local_bookmarks = btreemap! {};
         let remote_views = btreemap! {
             "remote1".to_owned() => RemoteView {
-                branches: btreemap! {
-                    "branch1".to_owned() => remote1_branch1_remote_ref.clone(),
+                bookmarks: btreemap! {
+                    "bookmark1".to_owned() => remote1_bookmark1_remote_ref.clone(),
                 },
             },
         };
         assert_eq!(
-            merge_join_branch_views(&local_branches, &remote_views).collect_vec(),
+            merge_join_bookmark_views(&local_bookmarks, &remote_views).collect_vec(),
             vec![(
-                "branch1",
+                "bookmark1",
                 BranchTarget {
                     local_target: RefTarget::absent_ref(),
-                    remote_refs: vec![("remote1", &remote1_branch1_remote_ref)],
+                    remote_refs: vec![("remote1", &remote1_bookmark1_remote_ref)],
                 },
             )],
         );

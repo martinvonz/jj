@@ -209,7 +209,7 @@ fn test_next_exceeding_history() {
 }
 
 // The working copy commit is a child of a "fork" with two children on each
-// branch.
+// bookmark.
 #[test]
 fn test_next_parent_has_multiple_descendants() {
     let test_env = TestEnvironment::default();
@@ -332,7 +332,7 @@ fn test_next_on_merge_commit() {
 }
 
 #[test]
-fn test_next_fails_on_branching_children_no_stdin() {
+fn test_next_fails_on_bookmarking_children_no_stdin() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
@@ -361,7 +361,7 @@ fn test_next_fails_on_branching_children_no_stdin() {
 }
 
 #[test]
-fn test_next_fails_on_branching_children_quit_prompt() {
+fn test_next_fails_on_bookmarking_children_quit_prompt() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
@@ -401,7 +401,7 @@ fn test_next_fails_on_branching_children_quit_prompt() {
 }
 
 #[test]
-fn test_next_choose_branching_child() {
+fn test_next_choose_bookmarking_child() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
@@ -434,9 +434,9 @@ fn test_prev_on_merge_commit() {
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
     test_env.jj_cmd_ok(&repo_path, &["desc", "-m", "first"]);
-    test_env.jj_cmd_ok(&repo_path, &["branch", "c", "left"]);
+    test_env.jj_cmd_ok(&repo_path, &["bookmark", "c", "left"]);
     test_env.jj_cmd_ok(&repo_path, &["new", "root()", "-m", "second"]);
-    test_env.jj_cmd_ok(&repo_path, &["branch", "c", "right"]);
+    test_env.jj_cmd_ok(&repo_path, &["bookmark", "c", "right"]);
     test_env.jj_cmd_ok(&repo_path, &["new", "left", "right"]);
 
     // Check that the graph looks the way we expect.
@@ -1113,6 +1113,6 @@ fn test_movement_edit_mode_false() {
 }
 
 fn get_log_output(test_env: &TestEnvironment, cwd: &Path) -> String {
-    let template = r#"separate(" ", change_id.short(), local_branches, if(conflict, "conflict"), description)"#;
+    let template = r#"separate(" ", change_id.short(), local_bookmarks, if(conflict, "conflict"), description)"#;
     test_env.jj_cmd_success(cwd, &["log", "-T", template])
 }
