@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use futures::executor::block_on_stream;
 use itertools::Itertools;
 use jj_lib::copies::CopyRecords;
 use jj_lib::repo::Repo;
@@ -76,11 +77,11 @@ pub(crate) fn cmd_diff(
         from_tree = from.tree()?;
         to_tree = to.tree()?;
 
-        copy_records.add_records(workspace_command.repo().store().get_copy_records(
-            None,
-            from.id(),
-            to.id(),
-        )?)?;
+        let stream = workspace_command
+            .repo()
+            .store()
+            .get_copy_records(None, from.id(), to.id())?;
+        copy_records.add_records(block_on_stream(stream))?;
     } else {
         let to = resolve_revision(&args.revision)?;
         let parents: Vec<_> = to.parents().try_collect()?;
@@ -88,11 +89,12 @@ pub(crate) fn cmd_diff(
         to_tree = to.tree()?;
 
         for p in &parents {
-            copy_records.add_records(workspace_command.repo().store().get_copy_records(
-                None,
-                p.id(),
-                to.id(),
-            )?)?;
+            let stream =
+                workspace_command
+                    .repo()
+                    .store()
+                    .get_copy_records(None, p.id(), to.id())?;
+            copy_records.add_records(block_on_stream(stream))?;
         }
     }
 
