@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use jj_lib::git;
+use jj_lib::git::{self, sanitize_git_url_if_path};
 use jj_lib::repo::Repo;
 
 use crate::cli_util::CommandHelper;
@@ -37,6 +37,10 @@ pub fn cmd_git_remote_add(
     let workspace_command = command.workspace_helper(ui)?;
     let repo = workspace_command.repo();
     let git_repo = get_git_repo(repo.store())?;
-    git::add_remote(&git_repo, &args.remote, &args.url)?;
+    git::add_remote(
+        &git_repo,
+        &args.remote,
+        &sanitize_git_url_if_path(command.cwd(), &args.url),
+    )?;
     Ok(())
 }
