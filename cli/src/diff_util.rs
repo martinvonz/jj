@@ -23,7 +23,7 @@ use futures::executor::block_on_stream;
 use futures::stream::BoxStream;
 use futures::StreamExt;
 use itertools::Itertools;
-use jj_lib::backend::{BackendError, TreeValue};
+use jj_lib::backend::{BackendError, BackendResult, CommitId, CopyRecord, TreeValue};
 use jj_lib::commit::Commit;
 use jj_lib::conflicts::{
     materialized_diff_stream, MaterializedTreeDiffEntry, MaterializedTreeValue,
@@ -341,7 +341,6 @@ impl<'a> DiffRenderer<'a> {
                                 store,
                                 tree_diff,
                                 path_converter,
-                                matcher,
                                 copy_records,
                                 tool,
                             )
@@ -370,11 +369,8 @@ impl<'a> DiffRenderer<'a> {
         let to_tree = commit.tree()?;
         let mut copy_records = CopyRecords::default();
         for parent_id in commit.parent_ids() {
-            let stream = self
-                .repo
-                .store()
-                .get_copy_records(None, parent_id, commit.id())?;
-            copy_records.add_records(block_on_stream(stream))?;
+            let records = get_copy_records(self.repo.store(), parent_id, commit.id(), matcher)?;
+            copy_records.add_records(records)?;
         }
         self.show_diff(
             ui,
@@ -388,19 +384,22 @@ impl<'a> DiffRenderer<'a> {
     }
 }
 
-fn collect_copied_sources<'a>(
-    copy_records: &'a CopyRecords,
-    matcher: &dyn Matcher,
-) -> HashSet<&'a RepoPath> {
+pub fn get_copy_records<'a>(
+    store: &'a Store,
+    root: &CommitId,
+    head: &CommitId,
+    matcher: &'a dyn Matcher,
+) -> BackendResult<impl Iterator<Item = BackendResult<CopyRecord>> + 'a> {
+    // TODO: teach backend about matching path prefixes?
+    let stream = store.get_copy_records(None, root, head)?;
+    // TODO: test record.source as well? should be AND-ed or OR-ed?
+    Ok(block_on_stream(stream).filter_ok(|record| matcher.matches(&record.target)))
+}
+
+fn collect_copied_sources(copy_records: &CopyRecords) -> HashSet<&RepoPath> {
     copy_records
         .iter()
-        .filter_map(|record| {
-            if matcher.matches(&record.target) {
-                Some(record.source.as_ref())
-            } else {
-                None
-            }
-        })
+        .map(|record| record.source.as_ref())
         .collect()
 }
 
@@ -900,14 +899,12 @@ pub fn show_color_words_diff(
     .block_on()
 }
 
-#[allow(clippy::too_many_arguments)]
 pub fn show_file_by_file_diff(
     ui: &Ui,
     formatter: &mut dyn Formatter,
     store: &Store,
     tree_diff: BoxStream<CopiesTreeDiffEntry>,
     path_converter: &RepoPathUiConverter,
-    matcher: &dyn Matcher,
     copy_records: &CopyRecords,
     tool: &ExternalMergeTool,
 ) -> Result<(), DiffRenderError> {
@@ -922,7 +919,7 @@ pub fn show_file_by_file_diff(
         std::fs::write(&fs_path, content.contents)?;
         Ok(fs_path)
     }
-    let copied_sources = collect_copied_sources(copy_records, matcher);
+    let copied_sources = collect_copied_sources(copy_records);
 
     let temp_dir = new_utf8_temp_dir("jj-diff-")?;
     let left_wc_dir = temp_dir.path().join("left");
@@ -1275,7 +1272,7 @@ pub fn show_git_diff(
 ) -> Result<(), DiffRenderError> {
     let tree_diff = from_tree.diff_stream_with_copies(to_tree, matcher, copy_records);
     let mut diff_stream = materialized_diff_stream(store, tree_diff);
-    let copied_sources = collect_copied_sources(copy_records, matcher);
+    let copied_sources = collect_copied_sources(copy_records);
 
     async {
         while let Some(MaterializedTreeDiffEntry {
@@ -1385,7 +1382,7 @@ pub fn show_diff_summary(
     copy_records: &CopyRecords,
 ) -> Result<(), DiffRenderError> {
     let mut tree_diff = from_tree.diff_stream_with_copies(to_tree, matcher, copy_records);
-    let copied_sources = collect_copied_sources(copy_records, matcher);
+    let copied_sources = collect_copied_sources(copy_records);
 
     async {
         while let Some(CopiesTreeDiffEntry {
@@ -1558,7 +1555,7 @@ pub fn show_types(
     copy_records: &CopyRecords,
 ) -> Result<(), DiffRenderError> {
     let mut tree_diff = from_tree.diff_stream_with_copies(to_tree, matcher, copy_records);
-    let copied_sources = collect_copied_sources(copy_records, matcher);
+    let copied_sources = collect_copied_sources(copy_records);
 
     async {
         while let Some(CopiesTreeDiffEntry {
