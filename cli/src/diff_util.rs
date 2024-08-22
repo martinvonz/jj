@@ -35,6 +35,7 @@ use jj_lib::conflicts::materialized_diff_stream;
 use jj_lib::conflicts::MaterializedTreeDiffEntry;
 use jj_lib::conflicts::MaterializedTreeValue;
 use jj_lib::copies::CopiesTreeDiffEntry;
+use jj_lib::copies::CopyOperation;
 use jj_lib::copies::CopyRecords;
 use jj_lib::diff::Diff;
 use jj_lib::diff::DiffHunk;
@@ -1297,11 +1298,10 @@ pub fn show_git_diff(
                         writeln!(formatter, "index {left_hash}..{right_hash}")?;
                     }
                     (Some(left_mode), Some(right_mode)) => {
-                        if left_path != right_path {
-                            let operation = if to_tree.path_value(left_path)?.is_absent() {
-                                "rename"
-                            } else {
-                                "copy"
+                        if let Some(op) = path.copy_operation() {
+                            let operation = match op {
+                                CopyOperation::Copy => "copy",
+                                CopyOperation::Rename => "rename",
                             };
                             // TODO: include similarity index?
                             writeln!(formatter, "{operation} from {left_path_string}")?;
@@ -1375,13 +1375,13 @@ pub fn show_diff_summary(
             let (before, after) = values?;
             let before_path = path.source();
             let after_path = path.target();
-            if before_path != after_path {
+            if let Some(op) = path.copy_operation() {
+                let (label, sigil) = match op {
+                    CopyOperation::Copy => ("copied", "C"),
+                    CopyOperation::Rename => ("renamed", "R"),
+                };
                 let path = path_converter.format_copied_path(before_path, after_path);
-                if to_tree.path_value(before_path).unwrap().is_absent() {
-                    writeln!(formatter.labeled("renamed"), "R {path}")?
-                } else {
-                    writeln!(formatter.labeled("copied"), "C {path}")?
-                }
+                writeln!(formatter.labeled(label), "{sigil} {path}")?
             } else {
                 let path = path_converter.format_file_path(after_path);
                 match (before.is_present(), after.is_present()) {

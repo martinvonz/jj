@@ -313,6 +313,7 @@ impl MergedTree {
         Box::pin(CopiesTreeDiffStream::new(
             stream,
             self.clone(),
+            other.clone(),
             copy_records,
         ))
     }
