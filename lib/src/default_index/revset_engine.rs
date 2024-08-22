@@ -1170,7 +1170,7 @@ fn has_diff_from_parent(
     let mut tree_diff = from_tree.diff_stream(&to_tree, matcher);
     async {
         while let Some(entry) = tree_diff.next().await {
-            let (from_value, to_value) = entry.value?;
+            let (from_value, to_value) = entry.values?;
             let from_value = resolve_file_values(store, &entry.path, from_value)?;
             if from_value == to_value {
                 continue;
@@ -1197,7 +1197,7 @@ fn matches_diff_from_parent(
     let mut tree_diff = from_tree.diff_stream(&to_tree, files_matcher);
     async {
         while let Some(entry) = tree_diff.next().await {
-            let (left_value, right_value) = entry.value?;
+            let (left_value, right_value) = entry.values?;
             let left_value = resolve_file_values(store, &entry.path, left_value)?;
             if left_value == right_value {
                 continue;

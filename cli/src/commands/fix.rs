@@ -193,10 +193,10 @@ pub(crate) fn cmd_fix(
         async {
             while let Some(TreeDiffEntry {
                 path: repo_path,
-                value: diff,
+                values,
             }) = diff_stream.next().await
             {
-                let (_before, after) = diff?;
+                let (_before, after) = values?;
                 // Deleted files have no file content to fix, and they have no terms in `after`,
                 // so we don't add any tool inputs for them. Conflicted files produce one tool
                 // input for each side of the conflict.

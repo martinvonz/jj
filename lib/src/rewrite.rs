@@ -106,10 +106,10 @@ pub fn restore_tree(
             let mut diff_stream = source.diff_stream(destination, matcher);
             while let Some(TreeDiffEntry {
                 path: repo_path,
-                value: diff,
+                values,
             }) = diff_stream.next().await
             {
-                let (source_value, _destination_value) = diff?;
+                let (source_value, _destination_value) = values?;
                 tree_builder.set_or_remove(repo_path, source_value);
             }
             Ok::<(), BackendError>(())

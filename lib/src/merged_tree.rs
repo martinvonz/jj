@@ -342,7 +342,7 @@ pub struct TreeDiffEntry {
     /// The path.
     pub path: RepoPathBuf,
     /// The resolved tree values if available.
-    pub value: BackendResult<(MergedTreeValue, MergedTreeValue)>,
+    pub values: BackendResult<(MergedTreeValue, MergedTreeValue)>,
 }
 
 /// Type alias for the result from `MergedTree::diff_stream()`. We use a
@@ -778,7 +778,7 @@ impl Iterator for TreeDiffIterator<'_> {
                     if let TreeDiffItem::File(path, before, after) = self.stack.pop().unwrap() {
                         return Some(TreeDiffEntry {
                             path,
-                            value: Ok((before, after)),
+                            values: Ok((before, after)),
                         });
                     } else {
                         unreachable!();
@@ -797,13 +797,13 @@ impl Iterator for TreeDiffIterator<'_> {
                     (Err(before_err), _) => {
                         return Some(TreeDiffEntry {
                             path,
-                            value: Err(before_err),
+                            values: Err(before_err),
                         })
                     }
                     (_, Err(after_err)) => {
                         return Some(TreeDiffEntry {
                             path,
-                            value: Err(after_err),
+                            values: Err(after_err),
                         })
                     }
                 };
@@ -818,7 +818,7 @@ impl Iterator for TreeDiffIterator<'_> {
                 if before.is_present() {
                     return Some(TreeDiffEntry {
                         path,
-                        value: Ok((before, Merge::absent())),
+                        values: Ok((before, Merge::absent())),
                     });
                 }
             } else if tree_before && !tree_after {
@@ -831,7 +831,7 @@ impl Iterator for TreeDiffIterator<'_> {
             } else if !tree_before && !tree_after {
                 return Some(TreeDiffEntry {
                     path,
-                    value: Ok((before, after)),
+                    values: Ok((before, after)),
                 });
             }
         }
@@ -1063,11 +1063,11 @@ impl Stream for TreeDiffStreamImpl<'_> {
                     Poll::Ready(Some(match result {
                         Err(err) => TreeDiffEntry {
                             path: key.path,
-                            value: Err(err),
+                            values: Err(err),
                         },
                         Ok((before, after)) => TreeDiffEntry {
                             path: key.path,
-                            value: Ok((before, after)),
+                            values: Ok((before, after)),
                         },
                     }))
                 }
@@ -1077,11 +1077,11 @@ impl Stream for TreeDiffStreamImpl<'_> {
                     Poll::Ready(Some(match result {
                         Err(err) => TreeDiffEntry {
                             path: key.path,
-                            value: Err(err),
+                            values: Err(err),
                         },
                         Ok((before, after)) => TreeDiffEntry {
                             path: key.path,
-                            value: Ok((before, after)),
+                            values: Ok((before, after)),
                         },
                     }))
                 }
