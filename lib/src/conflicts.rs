@@ -35,6 +35,7 @@ use crate::backend::SymlinkId;
 use crate::backend::TreeId;
 use crate::backend::TreeValue;
 use crate::copies::CopiesTreeDiffEntry;
+use crate::copies::CopiesTreeDiffEntryPath;
 use crate::diff::Diff;
 use crate::diff::DiffHunk;
 use crate::files;
@@ -44,7 +45,6 @@ use crate::merge::Merge;
 use crate::merge::MergeBuilder;
 use crate::merge::MergedTreeValue;
 use crate::repo_path::RepoPath;
-use crate::repo_path::RepoPathBuf;
 use crate::store::Store;
 
 const CONFLICT_START_LINE: &[u8] = b"<<<<<<<";
@@ -343,8 +343,7 @@ fn diff_size(hunks: &[DiffHunk]) -> usize {
 }
 
 pub struct MaterializedTreeDiffEntry {
-    pub source: RepoPathBuf,
-    pub target: RepoPathBuf,
+    pub path: CopiesTreeDiffEntryPath,
     pub values: BackendResult<(MaterializedTreeValue, MaterializedTreeValue)>,
 }
 
@@ -353,31 +352,20 @@ pub fn materialized_diff_stream<'a>(
     tree_diff: BoxStream<'a, CopiesTreeDiffEntry>,
 ) -> impl Stream<Item = MaterializedTreeDiffEntry> + 'a {
     tree_diff
-        .map(
-            |CopiesTreeDiffEntry {
-                 source,
-                 target,
-                 values,
-             }| async {
-                match values {
-                    Err(err) => MaterializedTreeDiffEntry {
-                        source,
-                        target,
-                        values: Err(err),
-                    },
-                    Ok((before, after)) => {
-                        let before_future = materialize_tree_value(store, &source, before);
-                        let after_future = materialize_tree_value(store, &target, after);
-                        let values = try_join!(before_future, after_future);
-                        MaterializedTreeDiffEntry {
-                            source,
-                            target,
-                            values,
-                        }
-                    }
+        .map(|CopiesTreeDiffEntry { path, values }| async {
+            match values {
+                Err(err) => MaterializedTreeDiffEntry {
+                    path,
+                    values: Err(err),
+                },
+                Ok((before, after)) => {
+                    let before_future = materialize_tree_value(store, path.source(), before);
+                    let after_future = materialize_tree_value(store, path.target(), after);
+                    let values = try_join!(before_future, after_future);
+                    MaterializedTreeDiffEntry { path, values }
                 }
-            },
-        )
+            }
+        })
         .buffered((store.concurrency() / 2).max(1))
 }
 

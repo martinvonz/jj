@@ -19,6 +19,7 @@ use jj_lib::backend::CopyRecord;
 use jj_lib::backend::FileId;
 use jj_lib::backend::MergedTreeId;
 use jj_lib::backend::TreeValue;
+use jj_lib::copies::CopiesTreeDiffEntryPath;
 use jj_lib::copies::CopyRecords;
 use jj_lib::files::MergeResult;
 use jj_lib::matchers::EverythingMatcher;
@@ -867,15 +868,17 @@ fn test_diff_copy_tracing() {
 
     let diff: Vec<_> = before_merged
         .diff_stream_with_copies(&after_merged, &EverythingMatcher, &copy_records)
-        .map(|diff| (diff.source, diff.target, diff.values.unwrap()))
+        .map(|diff| (diff.path, diff.values.unwrap()))
         .collect()
         .block_on();
     assert_eq!(diff.len(), 3);
     assert_eq!(
         diff[0].clone(),
         (
-            modified_path.to_owned(),
-            modified_path.to_owned(),
+            CopiesTreeDiffEntryPath {
+                source: modified_path.to_owned(),
+                target: modified_path.to_owned(),
+            },
             (
                 Merge::resolved(before.path_value(modified_path).unwrap()),
                 Merge::resolved(after.path_value(modified_path).unwrap())
@@ -885,8 +888,10 @@ fn test_diff_copy_tracing() {
     assert_eq!(
         diff[1].clone(),
         (
-            modified_path.to_owned(),
-            copied_path.to_owned(),
+            CopiesTreeDiffEntryPath {
+                source: modified_path.to_owned(),
+                target: copied_path.to_owned(),
+            },
             (
                 Merge::resolved(before.path_value(modified_path).unwrap()),
                 Merge::resolved(after.path_value(copied_path).unwrap()),
@@ -896,8 +901,10 @@ fn test_diff_copy_tracing() {
     assert_eq!(
         diff[2].clone(),
         (
-            removed_path.to_owned(),
-            added_path.to_owned(),
+            CopiesTreeDiffEntryPath {
+                source: removed_path.to_owned(),
+                target: added_path.to_owned(),
+            },
             (
                 Merge::resolved(before.path_value(removed_path).unwrap()),
                 Merge::resolved(after.path_value(added_path).unwrap())
