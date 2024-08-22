@@ -14,7 +14,8 @@
 
 //! String helpers.
 
-use std::borrow::{Borrow, Cow};
+use std::borrow::Borrow;
+use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::fmt;
 

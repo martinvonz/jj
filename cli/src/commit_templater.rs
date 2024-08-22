@@ -20,37 +20,59 @@ use std::rc::Rc;
 
 use futures::stream::BoxStream;
 use itertools::Itertools as _;
-use jj_lib::backend::{BackendResult, ChangeId, CommitId};
+use jj_lib::backend::BackendResult;
+use jj_lib::backend::ChangeId;
+use jj_lib::backend::CommitId;
 use jj_lib::commit::Commit;
-use jj_lib::copies::{CopiesTreeDiffEntry, CopyRecords};
+use jj_lib::copies::CopiesTreeDiffEntry;
+use jj_lib::copies::CopyRecords;
 use jj_lib::extensions_map::ExtensionsMap;
-use jj_lib::fileset::{self, FilesetExpression};
+use jj_lib::fileset::FilesetExpression;
+use jj_lib::fileset::{self};
 use jj_lib::git;
 use jj_lib::hex_util::to_reverse_hex;
 use jj_lib::id_prefix::IdPrefixContext;
 use jj_lib::matchers::Matcher;
 use jj_lib::merged_tree::MergedTree;
 use jj_lib::object_id::ObjectId as _;
-use jj_lib::op_store::{RefTarget, RemoteRef, WorkspaceId};
+use jj_lib::op_store::RefTarget;
+use jj_lib::op_store::RemoteRef;
+use jj_lib::op_store::WorkspaceId;
 use jj_lib::repo::Repo;
 use jj_lib::repo_path::RepoPathUiConverter;
-use jj_lib::revset::{self, Revset, RevsetExpression, RevsetModifier, RevsetParseContext};
+use jj_lib::revset::Revset;
+use jj_lib::revset::RevsetExpression;
+use jj_lib::revset::RevsetModifier;
+use jj_lib::revset::RevsetParseContext;
+use jj_lib::revset::{self};
 use jj_lib::store::Store;
 use once_cell::unsync::OnceCell;
 
+use crate::diff_util;
 use crate::formatter::Formatter;
-use crate::template_builder::{
-    self, merge_fn_map, BuildContext, CoreTemplateBuildFnTable, CoreTemplatePropertyKind,
-    IntoTemplateProperty, TemplateBuildMethodFnMap, TemplateLanguage,
-};
-use crate::template_parser::{
-    self, ExpressionNode, FunctionCallNode, TemplateParseError, TemplateParseResult,
-};
-use crate::templater::{
-    self, PlainTextFormattedProperty, SizeHint, Template, TemplateFormatter, TemplateProperty,
-    TemplatePropertyError, TemplatePropertyExt as _,
-};
-use crate::{diff_util, revset_util, text_util};
+use crate::revset_util;
+use crate::template_builder::merge_fn_map;
+use crate::template_builder::BuildContext;
+use crate::template_builder::CoreTemplateBuildFnTable;
+use crate::template_builder::CoreTemplatePropertyKind;
+use crate::template_builder::IntoTemplateProperty;
+use crate::template_builder::TemplateBuildMethodFnMap;
+use crate::template_builder::TemplateLanguage;
+use crate::template_builder::{self};
+use crate::template_parser::ExpressionNode;
+use crate::template_parser::FunctionCallNode;
+use crate::template_parser::TemplateParseError;
+use crate::template_parser::TemplateParseResult;
+use crate::template_parser::{self};
+use crate::templater::PlainTextFormattedProperty;
+use crate::templater::SizeHint;
+use crate::templater::Template;
+use crate::templater::TemplateFormatter;
+use crate::templater::TemplateProperty;
+use crate::templater::TemplatePropertyError;
+use crate::templater::TemplatePropertyExt as _;
+use crate::templater::{self};
+use crate::text_util;
 
 pub trait CommitTemplateLanguageExtension {
     fn build_fn_table<'repo>(&self) -> CommitTemplateBuildFnTable<'repo>;

@@ -17,9 +17,11 @@ use std::collections::HashMap;
 use itertools::Itertools as _;
 
 use super::find_remote_branches;
-use crate::cli_util::{CommandHelper, RemoteBranchNamePattern};
+use crate::cli_util::CommandHelper;
+use crate::cli_util::RemoteBranchNamePattern;
 use crate::command_error::CommandError;
-use crate::commit_templater::{CommitTemplateLanguage, RefName};
+use crate::commit_templater::CommitTemplateLanguage;
+use crate::commit_templater::RefName;
 use crate::ui::Ui;
 
 /// Start tracking given remote branches

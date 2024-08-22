@@ -13,7 +13,8 @@
 // limitations under the License.
 
 use itertools::Itertools as _;
-use jj_lib::commit::{Commit, CommitIteratorExt};
+use jj_lib::commit::Commit;
+use jj_lib::commit::CommitIteratorExt;
 use jj_lib::matchers::Matcher;
 use jj_lib::merged_tree::MergedTree;
 use jj_lib::object_id::ObjectId;
@@ -21,9 +22,14 @@ use jj_lib::repo::Repo;
 use jj_lib::settings::UserSettings;
 use tracing::instrument;
 
-use crate::cli_util::{CommandHelper, DiffSelector, RevisionArg, WorkspaceCommandTransaction};
-use crate::command_error::{user_error, CommandError};
-use crate::description_util::{combine_messages, join_message_paragraphs};
+use crate::cli_util::CommandHelper;
+use crate::cli_util::DiffSelector;
+use crate::cli_util::RevisionArg;
+use crate::cli_util::WorkspaceCommandTransaction;
+use crate::command_error::user_error;
+use crate::command_error::CommandError;
+use crate::description_util::combine_messages;
+use crate::description_util::join_message_paragraphs;
 use crate::ui::Ui;
 
 /// Move changes from a revision into another revision

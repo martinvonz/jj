@@ -14,15 +14,20 @@
 
 #![allow(missing_docs)]
 
-use std::cmp::{max, Reverse};
-use std::collections::{BinaryHeap, HashMap, HashSet};
-use std::iter::{Fuse, FusedIterator};
+use std::cmp::max;
+use std::cmp::Reverse;
+use std::collections::BinaryHeap;
+use std::collections::HashMap;
+use std::collections::HashSet;
+use std::iter::Fuse;
+use std::iter::FusedIterator;
 use std::ops::Range;
 
 use smallvec::SmallVec;
 
 use super::composite::CompositeIndex;
-use super::entry::{IndexPosition, SmallIndexPositionsVec};
+use super::entry::IndexPosition;
+use super::entry::SmallIndexPositionsVec;
 
 /// Like `Iterator`, but doesn't borrow the `index` internally.
 pub(super) trait RevWalk<I: ?Sized> {
@@ -775,7 +780,8 @@ mod tests {
     use super::super::composite::AsCompositeIndex as _;
     use super::super::mutable::DefaultMutableIndex;
     use super::*;
-    use crate::backend::{ChangeId, CommitId};
+    use crate::backend::ChangeId;
+    use crate::backend::CommitId;
 
     /// Generator of unique 16-byte CommitId excluding root id
     fn commit_id_generator() -> impl FnMut() -> CommitId {

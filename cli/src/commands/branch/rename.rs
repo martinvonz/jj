@@ -16,7 +16,8 @@ use jj_lib::op_store::RefTarget;
 
 use super::has_tracked_remote_branches;
 use crate::cli_util::CommandHelper;
-use crate::command_error::{user_error, CommandError};
+use crate::command_error::user_error;
+use crate::command_error::CommandError;
 use crate::ui::Ui;
 
 /// Rename `old` branch name to `new` branch name

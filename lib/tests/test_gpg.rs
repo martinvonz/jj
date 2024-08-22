@@ -3,12 +3,15 @@ use std::fs::Permissions;
 use std::io::Write;
 #[cfg(unix)]
 use std::os::unix::prelude::PermissionsExt;
-use std::process::{Command, Stdio};
+use std::process::Command;
+use std::process::Stdio;
 
 use assert_matches::assert_matches;
 use insta::assert_debug_snapshot;
 use jj_lib::gpg_signing::GpgBackend;
-use jj_lib::signing::{SigStatus, SignError, SigningBackend};
+use jj_lib::signing::SigStatus;
+use jj_lib::signing::SignError;
+use jj_lib::signing::SigningBackend;
 
 static PRIVATE_KEY: &str = r#"-----BEGIN PGP PRIVATE KEY BLOCK-----
 

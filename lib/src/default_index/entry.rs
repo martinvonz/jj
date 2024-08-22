@@ -14,13 +14,17 @@
 
 #![allow(missing_docs)]
 
-use std::fmt::{Debug, Formatter};
-use std::hash::{Hash, Hasher};
+use std::fmt::Debug;
+use std::fmt::Formatter;
+use std::hash::Hash;
+use std::hash::Hasher;
 
 use smallvec::SmallVec;
 
-use super::composite::{CompositeIndex, DynIndexSegment};
-use crate::backend::{ChangeId, CommitId};
+use super::composite::CompositeIndex;
+use super::composite::DynIndexSegment;
+use crate::backend::ChangeId;
+use crate::backend::CommitId;
 use crate::object_id::ObjectId;
 
 /// Global index position.

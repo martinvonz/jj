@@ -20,12 +20,17 @@ use jj_lib::repo::Repo;
 use jj_lib::rewrite::rebase_to_dest_parent;
 use tracing::instrument;
 
-use crate::cli_util::{format_template, CommandHelper, LogContentFormat, RevisionArg};
+use crate::cli_util::format_template;
+use crate::cli_util::CommandHelper;
+use crate::cli_util::LogContentFormat;
+use crate::cli_util::RevisionArg;
 use crate::command_error::CommandError;
 use crate::commit_templater::CommitTemplateLanguage;
-use crate::diff_util::{DiffFormatArgs, DiffRenderer};
+use crate::diff_util::DiffFormatArgs;
+use crate::diff_util::DiffRenderer;
 use crate::formatter::Formatter;
-use crate::graphlog::{get_graphlog, Edge};
+use crate::graphlog::get_graphlog;
+use crate::graphlog::Edge;
 use crate::ui::Ui;
 
 /// Show how a change has evolved over time

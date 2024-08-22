@@ -20,8 +20,10 @@ use jj_lib::git::parse_gitmodules;
 use jj_lib::repo::Repo;
 use jj_lib::repo_path::RepoPath;
 
-use crate::cli_util::{CommandHelper, RevisionArg};
-use crate::command_error::{user_error, CommandError};
+use crate::cli_util::CommandHelper;
+use crate::cli_util::RevisionArg;
+use crate::command_error::user_error;
+use crate::command_error::CommandError;
 use crate::ui::Ui;
 
 /// FOR INTERNAL USE ONLY Interact with git submodules

@@ -101,7 +101,8 @@ macro_rules! impl_id_type {
     };
 }
 
-pub(crate) use {id_type, impl_id_type};
+pub(crate) use id_type;
+pub(crate) use impl_id_type;
 
 /// An identifier prefix (typically from a type implementing the [`ObjectId`]
 /// trait) with facilities for converting between bytes and a hex string.

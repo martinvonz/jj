@@ -13,7 +13,8 @@
 // limitations under the License.
 
 use std::collections::HashSet;
-use std::path::{Path, PathBuf};
+use std::path::Path;
+use std::path::PathBuf;
 use std::process::exit;
 
 use clap::Parser;

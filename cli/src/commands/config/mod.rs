@@ -20,11 +20,16 @@ mod set;
 
 use tracing::instrument;
 
-use self::edit::{cmd_config_edit, ConfigEditArgs};
-use self::get::{cmd_config_get, ConfigGetArgs};
-use self::list::{cmd_config_list, ConfigListArgs};
-use self::path::{cmd_config_path, ConfigPathArgs};
-use self::set::{cmd_config_set, ConfigSetArgs};
+use self::edit::cmd_config_edit;
+use self::edit::ConfigEditArgs;
+use self::get::cmd_config_get;
+use self::get::ConfigGetArgs;
+use self::list::cmd_config_list;
+use self::list::ConfigListArgs;
+use self::path::cmd_config_path;
+use self::path::ConfigPathArgs;
+use self::set::cmd_config_set;
+use self::set::ConfigSetArgs;
 use crate::cli_util::CommandHelper;
 use crate::command_error::CommandError;
 use crate::config::ConfigSource;

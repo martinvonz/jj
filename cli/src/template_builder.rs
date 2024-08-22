@@ -15,20 +15,40 @@
 use std::collections::HashMap;
 
 use itertools::Itertools as _;
-use jj_lib::backend::{Signature, Timestamp};
+use jj_lib::backend::Signature;
+use jj_lib::backend::Timestamp;
 use jj_lib::dsl_util::AliasExpandError as _;
 
-use crate::template_parser::{
-    self, BinaryOp, ExpressionKind, ExpressionNode, FunctionCallNode, TemplateAliasesMap,
-    TemplateParseError, TemplateParseErrorKind, TemplateParseResult, UnaryOp,
-};
-use crate::templater::{
-    CoalesceTemplate, ConcatTemplate, ConditionalTemplate, LabelTemplate, ListPropertyTemplate,
-    ListTemplate, Literal, PlainTextFormattedProperty, PropertyPlaceholder, ReformatTemplate,
-    SeparateTemplate, SizeHint, Template, TemplateProperty, TemplatePropertyError,
-    TemplatePropertyExt as _, TemplateRenderer, TimestampRange,
-};
-use crate::{text_util, time_util};
+use crate::template_parser::BinaryOp;
+use crate::template_parser::ExpressionKind;
+use crate::template_parser::ExpressionNode;
+use crate::template_parser::FunctionCallNode;
+use crate::template_parser::TemplateAliasesMap;
+use crate::template_parser::TemplateParseError;
+use crate::template_parser::TemplateParseErrorKind;
+use crate::template_parser::TemplateParseResult;
+use crate::template_parser::UnaryOp;
+use crate::template_parser::{self};
+use crate::templater::CoalesceTemplate;
+use crate::templater::ConcatTemplate;
+use crate::templater::ConditionalTemplate;
+use crate::templater::LabelTemplate;
+use crate::templater::ListPropertyTemplate;
+use crate::templater::ListTemplate;
+use crate::templater::Literal;
+use crate::templater::PlainTextFormattedProperty;
+use crate::templater::PropertyPlaceholder;
+use crate::templater::ReformatTemplate;
+use crate::templater::SeparateTemplate;
+use crate::templater::SizeHint;
+use crate::templater::Template;
+use crate::templater::TemplateProperty;
+use crate::templater::TemplatePropertyError;
+use crate::templater::TemplatePropertyExt as _;
+use crate::templater::TemplateRenderer;
+use crate::templater::TimestampRange;
+use crate::text_util;
+use crate::time_util;
 
 /// Callbacks to build language-specific evaluation objects from AST nodes.
 pub trait TemplateLanguage<'a> {
@@ -121,7 +141,8 @@ macro_rules! impl_wrap_property_fns {
     };
 }
 
-pub(crate) use {impl_core_wrap_property_fns, impl_wrap_property_fns};
+pub(crate) use impl_core_wrap_property_fns;
+pub(crate) use impl_wrap_property_fns;
 
 /// Provides access to basic template property types.
 pub trait IntoTemplateProperty<'a> {
@@ -1246,7 +1267,8 @@ mod tests {
     use jj_lib::backend::MillisSinceEpoch;
 
     use super::*;
-    use crate::formatter::{self, ColorFormatter};
+    use crate::formatter::ColorFormatter;
+    use crate::formatter::{self};
     use crate::generic_templater::GenericTemplateLanguage;
 
     type L = GenericTemplateLanguage<'static, ()>;

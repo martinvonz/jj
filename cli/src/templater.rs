@@ -13,12 +13,19 @@
 // limitations under the License.
 
 use std::cell::RefCell;
+use std::error;
+use std::fmt;
+use std::io;
+use std::iter;
 use std::rc::Rc;
-use std::{error, fmt, io, iter};
 
-use jj_lib::backend::{Signature, Timestamp};
+use jj_lib::backend::Signature;
+use jj_lib::backend::Timestamp;
 
-use crate::formatter::{FormatRecorder, Formatter, LabeledWriter, PlainTextFormatter};
+use crate::formatter::FormatRecorder;
+use crate::formatter::Formatter;
+use crate::formatter::LabeledWriter;
+use crate::formatter::PlainTextFormatter;
 use crate::time_util;
 
 /// Represents printable type or compiled template containing placeholder value.

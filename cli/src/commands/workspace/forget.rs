@@ -17,7 +17,8 @@ use jj_lib::op_store::WorkspaceId;
 use tracing::instrument;
 
 use crate::cli_util::CommandHelper;
-use crate::command_error::{user_error, CommandError};
+use crate::command_error::user_error;
+use crate::command_error::CommandError;
 use crate::ui::Ui;
 
 /// Stop tracking a workspace's working-copy commit in the repo

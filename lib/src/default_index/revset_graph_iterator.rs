@@ -14,15 +14,20 @@
 
 #![allow(missing_docs)]
 
-use std::cmp::{min, Ordering};
-use std::collections::{BTreeMap, BTreeSet, HashSet};
+use std::cmp::min;
+use std::cmp::Ordering;
+use std::collections::BTreeMap;
+use std::collections::BTreeSet;
+use std::collections::HashSet;
 
 use super::composite::CompositeIndex;
-use super::entry::{IndexEntry, IndexPosition};
+use super::entry::IndexEntry;
+use super::entry::IndexPosition;
 use super::rev_walk::RevWalk;
 use super::revset_engine::BoxedRevWalk;
 use crate::backend::CommitId;
-use crate::graph::{GraphEdge, GraphEdgeType};
+use crate::graph::GraphEdge;
+use crate::graph::GraphEdgeType;
 
 /// Like `RevsetGraphEdge`, but stores `IndexPosition` instead.
 ///

@@ -17,13 +17,19 @@
 use std::ffi::OsString;
 use std::fmt::Debug;
 use std::io::Write;
-use std::path::{Path, PathBuf};
-use std::process::{Command, ExitStatus, Stdio};
+use std::path::Path;
+use std::path::PathBuf;
+use std::process::Command;
+use std::process::ExitStatus;
+use std::process::Stdio;
 
 use either::Either;
 use thiserror::Error;
 
-use crate::signing::{SigStatus, SignError, SigningBackend, Verification};
+use crate::signing::SigStatus;
+use crate::signing::SignError;
+use crate::signing::SigningBackend;
+use crate::signing::Verification;
 
 #[derive(Debug)]
 pub struct SshBackend {

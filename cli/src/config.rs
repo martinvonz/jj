@@ -13,20 +13,27 @@
 // limitations under the License.
 
 use std::borrow::Cow;
-use std::collections::{HashMap, HashSet};
-use std::path::{Path, PathBuf};
+use std::collections::HashMap;
+use std::collections::HashSet;
+use std::env;
+use std::fmt;
+use std::path::Path;
+use std::path::PathBuf;
 use std::process::Command;
+use std::slice;
 use std::str::FromStr;
-use std::{env, fmt, slice};
 
 use config::Source;
 use itertools::Itertools;
 use jj_lib::settings::ConfigResultExt as _;
-use regex::{Captures, Regex};
+use regex::Captures;
+use regex::Regex;
 use thiserror::Error;
 use tracing::instrument;
 
-use crate::command_error::{user_error, user_error_with_message, CommandError};
+use crate::command_error::user_error;
+use crate::command_error::user_error_with_message;
+use crate::command_error::CommandError;
 
 /// Parses a TOML value expression. Interprets the given value as string if it
 /// can't be parsed.

@@ -15,24 +15,38 @@
 //! Functional language for selecting a set of paths.
 
 use std::collections::HashMap;
-use std::{iter, path, slice};
+use std::iter;
+use std::path;
+use std::slice;
 
 use itertools::Itertools as _;
 use once_cell::sync::Lazy;
 use thiserror::Error;
 
 use crate::dsl_util::collect_similar;
-use crate::fileset_parser::{
-    self, BinaryOp, ExpressionKind, ExpressionNode, FunctionCallNode, UnaryOp,
-};
-pub use crate::fileset_parser::{FilesetParseError, FilesetParseErrorKind, FilesetParseResult};
-use crate::matchers::{
-    DifferenceMatcher, EverythingMatcher, FileGlobsMatcher, FilesMatcher, IntersectionMatcher,
-    Matcher, NothingMatcher, PrefixMatcher, UnionMatcher,
-};
-use crate::repo_path::{
-    RelativePathParseError, RepoPath, RepoPathBuf, RepoPathUiConverter, UiPathParseError,
-};
+use crate::fileset_parser::BinaryOp;
+use crate::fileset_parser::ExpressionKind;
+use crate::fileset_parser::ExpressionNode;
+pub use crate::fileset_parser::FilesetParseError;
+pub use crate::fileset_parser::FilesetParseErrorKind;
+pub use crate::fileset_parser::FilesetParseResult;
+use crate::fileset_parser::FunctionCallNode;
+use crate::fileset_parser::UnaryOp;
+use crate::fileset_parser::{self};
+use crate::matchers::DifferenceMatcher;
+use crate::matchers::EverythingMatcher;
+use crate::matchers::FileGlobsMatcher;
+use crate::matchers::FilesMatcher;
+use crate::matchers::IntersectionMatcher;
+use crate::matchers::Matcher;
+use crate::matchers::NothingMatcher;
+use crate::matchers::PrefixMatcher;
+use crate::matchers::UnionMatcher;
+use crate::repo_path::RelativePathParseError;
+use crate::repo_path::RepoPath;
+use crate::repo_path::RepoPathBuf;
+use crate::repo_path::RepoPathUiConverter;
+use crate::repo_path::UiPathParseError;
 
 /// Error occurred during file pattern parsing.
 #[derive(Debug, Error)]

@@ -17,30 +17,47 @@
 use std::collections::HashMap;
 use std::fs;
 use std::fs::File;
-use std::io::{self, Write};
-use std::path::{Path, PathBuf};
+use std::io::Write;
+use std::io::{self};
+use std::path::Path;
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use thiserror::Error;
 
-use crate::backend::{BackendInitError, MergedTreeId};
+use crate::backend::BackendInitError;
+use crate::backend::MergedTreeId;
 use crate::commit::Commit;
-use crate::file_util::{IoResultExt as _, PathError};
+use crate::file_util::IoResultExt as _;
+use crate::file_util::PathError;
 use crate::local_backend::LocalBackend;
-use crate::local_working_copy::{LocalWorkingCopy, LocalWorkingCopyFactory};
-use crate::op_store::{OperationId, WorkspaceId};
-use crate::repo::{
-    read_store_type, BackendInitializer, CheckOutCommitError, IndexStoreInitializer,
-    OpHeadsStoreInitializer, OpStoreInitializer, ReadonlyRepo, Repo, RepoInitError, RepoLoader,
-    StoreFactories, StoreLoadError, SubmoduleStoreInitializer,
-};
+use crate::local_working_copy::LocalWorkingCopy;
+use crate::local_working_copy::LocalWorkingCopyFactory;
+use crate::op_store::OperationId;
+use crate::op_store::WorkspaceId;
+use crate::repo::read_store_type;
+use crate::repo::BackendInitializer;
+use crate::repo::CheckOutCommitError;
+use crate::repo::IndexStoreInitializer;
+use crate::repo::OpHeadsStoreInitializer;
+use crate::repo::OpStoreInitializer;
+use crate::repo::ReadonlyRepo;
+use crate::repo::Repo;
+use crate::repo::RepoInitError;
+use crate::repo::RepoLoader;
+use crate::repo::StoreFactories;
+use crate::repo::StoreLoadError;
+use crate::repo::SubmoduleStoreInitializer;
 use crate::settings::UserSettings;
-use crate::signing::{SignInitError, Signer};
+use crate::signing::SignInitError;
+use crate::signing::Signer;
 use crate::store::Store;
-use crate::working_copy::{
-    CheckoutError, CheckoutStats, LockedWorkingCopy, WorkingCopy, WorkingCopyFactory,
-    WorkingCopyStateError,
-};
+use crate::working_copy::CheckoutError;
+use crate::working_copy::CheckoutStats;
+use crate::working_copy::LockedWorkingCopy;
+use crate::working_copy::WorkingCopy;
+use crate::working_copy::WorkingCopyFactory;
+use crate::working_copy::WorkingCopyStateError;
 
 #[derive(Error, Debug)]
 pub enum WorkspaceInitError {

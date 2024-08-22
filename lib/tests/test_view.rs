@@ -14,13 +14,20 @@
 
 use std::collections::BTreeMap;
 
-use jj_lib::op_store::{BranchTarget, RefTarget, RemoteRef, RemoteRefState, WorkspaceId};
+use jj_lib::op_store::BranchTarget;
+use jj_lib::op_store::RefTarget;
+use jj_lib::op_store::RemoteRef;
+use jj_lib::op_store::RemoteRefState;
+use jj_lib::op_store::WorkspaceId;
 use jj_lib::repo::Repo;
-use maplit::{btreemap, hashset};
+use maplit::btreemap;
+use maplit::hashset;
 use test_case::test_case;
-use testutils::{
-    commit_transactions, create_random_commit, write_random_commit, CommitGraphBuilder, TestRepo,
-};
+use testutils::commit_transactions;
+use testutils::create_random_commit;
+use testutils::write_random_commit;
+use testutils::CommitGraphBuilder;
+use testutils::TestRepo;
 
 #[test]
 fn test_heads_empty() {

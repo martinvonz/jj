@@ -14,11 +14,16 @@
 
 #![allow(missing_docs)]
 
-use std::fs::{self, File};
-use std::path::{Component, Path, PathBuf};
-use std::{io, iter};
+use std::fs::File;
+use std::fs::{self};
+use std::io;
+use std::iter;
+use std::path::Component;
+use std::path::Path;
+use std::path::PathBuf;
 
-use tempfile::{NamedTempFile, PersistError};
+use tempfile::NamedTempFile;
+use tempfile::PersistError;
 use thiserror::Error;
 
 pub use self::platform::*;

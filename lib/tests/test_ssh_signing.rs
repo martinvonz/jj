@@ -18,9 +18,11 @@ use std::fs::Permissions;
 use std::io::Write;
 #[cfg(unix)]
 use std::os::unix::prelude::PermissionsExt;
-use std::path::{Path, PathBuf};
+use std::path::Path;
+use std::path::PathBuf;
 
-use jj_lib::signing::{SigStatus, SigningBackend};
+use jj_lib::signing::SigStatus;
+use jj_lib::signing::SigningBackend;
 use jj_lib::ssh_signing::SshBackend;
 
 static PRIVATE_KEY: &str = r#"-----BEGIN OPENSSH PRIVATE KEY-----

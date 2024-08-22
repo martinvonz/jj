@@ -16,23 +16,35 @@
 
 use std::any::Any;
 use std::collections::HashMap;
-use std::fmt::{Debug, Formatter};
+use std::fmt::Debug;
+use std::fmt::Formatter;
 use std::io::Read;
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
+use std::sync::RwLock;
 use std::time::SystemTime;
 
 use futures::stream::BoxStream;
 use pollster::FutureExt;
 
-use crate::backend::{
-    self, Backend, BackendResult, ChangeId, CommitId, ConflictId, CopyRecord, FileId, MergedTreeId,
-    SigningFn, SymlinkId, TreeId,
-};
+use crate::backend::Backend;
+use crate::backend::BackendResult;
+use crate::backend::ChangeId;
+use crate::backend::CommitId;
+use crate::backend::ConflictId;
+use crate::backend::CopyRecord;
+use crate::backend::FileId;
+use crate::backend::MergedTreeId;
+use crate::backend::SigningFn;
+use crate::backend::SymlinkId;
+use crate::backend::TreeId;
+use crate::backend::{self};
 use crate::commit::Commit;
 use crate::index::Index;
-use crate::merge::{Merge, MergedTreeValue};
+use crate::merge::Merge;
+use crate::merge::MergedTreeValue;
 use crate::merged_tree::MergedTree;
-use crate::repo_path::{RepoPath, RepoPathBuf};
+use crate::repo_path::RepoPath;
+use crate::repo_path::RepoPathBuf;
 use crate::signing::Signer;
 use crate::tree::Tree;
 use crate::tree_builder::TreeBuilder;

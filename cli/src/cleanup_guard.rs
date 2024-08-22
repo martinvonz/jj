@@ -1,5 +1,6 @@
 use std::io;
-use std::sync::{Mutex, Once};
+use std::sync::Mutex;
+use std::sync::Once;
 
 use slab::Slab;
 use tracing::instrument;
@@ -46,13 +47,17 @@ impl Drop for CleanupGuard {
 
 #[cfg(unix)]
 mod platform {
-    use std::os::unix::io::{IntoRawFd as _, RawFd};
+    use std::os::unix::io::IntoRawFd as _;
+    use std::os::unix::io::RawFd;
     use std::os::unix::net::UnixDatagram;
     use std::panic::AssertUnwindSafe;
-    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::atomic::AtomicBool;
+    use std::sync::atomic::Ordering;
     use std::thread;
 
-    use libc::{c_int, SIGINT, SIGTERM};
+    use libc::c_int;
+    use libc::SIGINT;
+    use libc::SIGTERM;
 
     use super::*;
 

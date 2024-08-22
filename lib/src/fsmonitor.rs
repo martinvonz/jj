@@ -22,7 +22,8 @@
 
 use std::path::PathBuf;
 
-use config::{Config, ConfigError};
+use config::Config;
+use config::ConfigError;
 
 use crate::settings::ConfigResultExt;
 
@@ -84,15 +85,20 @@ impl FsmonitorSettings {
 /// installed on the system.
 #[cfg(feature = "watchman")]
 pub mod watchman {
-    use std::path::{Path, PathBuf};
+    use std::path::Path;
+    use std::path::PathBuf;
 
     use itertools::Itertools;
     use thiserror::Error;
-    use tracing::{info, instrument};
+    use tracing::info;
+    use tracing::instrument;
     use watchman_client::expr;
-    use watchman_client::prelude::{
-        Clock as InnerClock, ClockSpec, NameOnly, QueryRequestCommon, QueryResult, TriggerRequest,
-    };
+    use watchman_client::prelude::Clock as InnerClock;
+    use watchman_client::prelude::ClockSpec;
+    use watchman_client::prelude::NameOnly;
+    use watchman_client::prelude::QueryRequestCommon;
+    use watchman_client::prelude::QueryResult;
+    use watchman_client::prelude::TriggerRequest;
 
     /// Represents an instance in time from the perspective of the filesystem
     /// monitor.
@@ -123,7 +129,8 @@ pub mod watchman {
 
     impl From<Clock> for crate::protos::working_copy::WatchmanClock {
         fn from(clock: Clock) -> Self {
-            use crate::protos::working_copy::{watchman_clock, WatchmanClock};
+            use crate::protos::working_copy::watchman_clock;
+            use crate::protos::working_copy::WatchmanClock;
             let Clock(clock) = clock;
             let watchman_clock = match clock {
                 InnerClock::Spec(ClockSpec::StringClock(string_clock)) => {

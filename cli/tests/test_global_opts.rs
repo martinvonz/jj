@@ -14,7 +14,9 @@
 
 use std::ffi::OsString;
 
-use crate::common::{get_stderr_string, strip_last_line, TestEnvironment};
+use crate::common::get_stderr_string;
+use crate::common::strip_last_line;
+use crate::common::TestEnvironment;
 
 #[test]
 fn test_non_utf8_arg() {

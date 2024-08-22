@@ -20,8 +20,11 @@ use jj_lib::commit::Commit;
 use jj_lib::repo::Repo;
 use tracing::instrument;
 
-use crate::cli_util::{short_commit_hash, CommandHelper, RevisionArg};
-use crate::command_error::{user_error, CommandError};
+use crate::cli_util::short_commit_hash;
+use crate::cli_util::CommandHelper;
+use crate::cli_util::RevisionArg;
+use crate::command_error::user_error;
+use crate::command_error::CommandError;
 use crate::ui::Ui;
 
 /// Create a new change with the same content as an existing one

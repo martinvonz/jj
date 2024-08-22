@@ -14,20 +14,30 @@
 
 use itertools::Itertools as _;
 use jj_lib::commit::Commit;
-use jj_lib::matchers::{EverythingMatcher, FilesMatcher};
+use jj_lib::matchers::EverythingMatcher;
+use jj_lib::matchers::FilesMatcher;
 use jj_lib::merged_tree::MergedTree;
-use jj_lib::op_store::{RefTarget, RemoteRef, RemoteRefState, WorkspaceId};
+use jj_lib::op_store::RefTarget;
+use jj_lib::op_store::RemoteRef;
+use jj_lib::op_store::RemoteRefState;
+use jj_lib::op_store::WorkspaceId;
 use jj_lib::repo::Repo;
 use jj_lib::repo_path::RepoPath;
-use jj_lib::rewrite::{
-    rebase_commit_with_options, restore_tree, CommitRewriter, EmptyBehaviour, RebaseOptions,
-};
-use maplit::{hashmap, hashset};
+use jj_lib::rewrite::rebase_commit_with_options;
+use jj_lib::rewrite::restore_tree;
+use jj_lib::rewrite::CommitRewriter;
+use jj_lib::rewrite::EmptyBehaviour;
+use jj_lib::rewrite::RebaseOptions;
+use maplit::hashmap;
+use maplit::hashset;
 use test_case::test_case;
-use testutils::{
-    assert_abandoned_with_parent, assert_rebased_onto, create_random_commit, create_tree,
-    write_random_commit, CommitGraphBuilder, TestRepo,
-};
+use testutils::assert_abandoned_with_parent;
+use testutils::assert_rebased_onto;
+use testutils::create_random_commit;
+use testutils::create_tree;
+use testutils::write_random_commit;
+use testutils::CommitGraphBuilder;
+use testutils::TestRepo;
 
 #[test]
 fn test_restore_tree() {

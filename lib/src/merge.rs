@@ -17,7 +17,8 @@
 
 use std::borrow::Borrow;
 use std::collections::HashMap;
-use std::fmt::{Debug, Formatter};
+use std::fmt::Debug;
+use std::fmt::Formatter;
 use std::hash::Hash;
 use std::io::Write;
 use std::iter::zip;
@@ -25,10 +26,16 @@ use std::slice;
 use std::sync::Arc;
 
 use itertools::Itertools;
-use smallvec::{smallvec_inline, SmallVec};
+use smallvec::smallvec_inline;
+use smallvec::SmallVec;
 
-use crate::backend::{self, BackendResult, FileId, TreeId, TreeValue};
-use crate::content_hash::{ContentHash, DigestUpdate};
+use crate::backend::BackendResult;
+use crate::backend::FileId;
+use crate::backend::TreeId;
+use crate::backend::TreeValue;
+use crate::backend::{self};
+use crate::content_hash::ContentHash;
+use crate::content_hash::DigestUpdate;
 use crate::object_id::ObjectId;
 use crate::repo_path::RepoPath;
 use crate::store::Store;

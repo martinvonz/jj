@@ -14,94 +14,156 @@
 
 use core::fmt;
 use std::borrow::Cow;
-use std::collections::{BTreeMap, HashSet};
-use std::env::{self, ArgsOs, VarError};
+use std::collections::BTreeMap;
+use std::collections::HashSet;
+use std::env::ArgsOs;
+use std::env::VarError;
+use std::env::{self};
 use std::ffi::OsString;
 use std::fmt::Debug;
-use std::io::{self, Write as _};
-use std::path::{Path, PathBuf};
+use std::fs;
+use std::io::Write as _;
+use std::io::{self};
+use std::mem;
+use std::path::Path;
+use std::path::PathBuf;
 use std::process::ExitCode;
 use std::rc::Rc;
+use std::str;
 use std::str::FromStr;
 use std::sync::Arc;
 use std::time::SystemTime;
-use std::{fs, mem, str};
 
 use bstr::ByteVec as _;
 use chrono::TimeZone;
-use clap::builder::{
-    MapValueParser, NonEmptyStringValueParser, TypedValueParser, ValueParserFactory,
-};
-use clap::error::{ContextKind, ContextValue};
-use clap::{ArgAction, ArgMatches, Command, FromArgMatches};
-use indexmap::{IndexMap, IndexSet};
+use clap::builder::MapValueParser;
+use clap::builder::NonEmptyStringValueParser;
+use clap::builder::TypedValueParser;
+use clap::builder::ValueParserFactory;
+use clap::error::ContextKind;
+use clap::error::ContextValue;
+use clap::ArgAction;
+use clap::ArgMatches;
+use clap::Command;
+use clap::FromArgMatches;
+use indexmap::IndexMap;
+use indexmap::IndexSet;
 use itertools::Itertools;
-use jj_lib::backend::{ChangeId, CommitId, MergedTreeId, TreeValue};
+use jj_lib::backend::ChangeId;
+use jj_lib::backend::CommitId;
+use jj_lib::backend::MergedTreeId;
+use jj_lib::backend::TreeValue;
 use jj_lib::commit::Commit;
+use jj_lib::dag_walk;
+use jj_lib::file_util;
+use jj_lib::fileset;
 use jj_lib::fileset::FilesetExpression;
+use jj_lib::git;
 use jj_lib::git_backend::GitBackend;
-use jj_lib::gitignore::{GitIgnoreError, GitIgnoreFile};
+use jj_lib::gitignore::GitIgnoreError;
+use jj_lib::gitignore::GitIgnoreFile;
 use jj_lib::hex_util::to_reverse_hex;
 use jj_lib::id_prefix::IdPrefixContext;
 use jj_lib::matchers::Matcher;
 use jj_lib::merge::MergedTreeValue;
 use jj_lib::merged_tree::MergedTree;
 use jj_lib::object_id::ObjectId;
-use jj_lib::op_store::{OpStoreError, OperationId, RefTarget, WorkspaceId};
+use jj_lib::op_heads_store;
+use jj_lib::op_store::OpStoreError;
+use jj_lib::op_store::OperationId;
+use jj_lib::op_store::RefTarget;
+use jj_lib::op_store::WorkspaceId;
+use jj_lib::op_walk;
 use jj_lib::op_walk::OpsetEvaluationError;
 use jj_lib::operation::Operation;
-use jj_lib::repo::{
-    merge_factories_map, CheckOutCommitError, EditCommitError, MutableRepo, ReadonlyRepo, Repo,
-    RepoLoader, StoreFactories, StoreLoadError,
-};
-use jj_lib::repo_path::{RepoPath, RepoPathBuf, RepoPathUiConverter, UiPathParseError};
-use jj_lib::revset::{
-    RevsetAliasesMap, RevsetExpression, RevsetExtensions, RevsetFilterPredicate, RevsetFunction,
-    RevsetIteratorExt, RevsetModifier, RevsetParseContext, RevsetWorkspaceContext,
-    SymbolResolverExtension,
-};
+use jj_lib::repo::merge_factories_map;
+use jj_lib::repo::CheckOutCommitError;
+use jj_lib::repo::EditCommitError;
+use jj_lib::repo::MutableRepo;
+use jj_lib::repo::ReadonlyRepo;
+use jj_lib::repo::Repo;
+use jj_lib::repo::RepoLoader;
+use jj_lib::repo::StoreFactories;
+use jj_lib::repo::StoreLoadError;
+use jj_lib::repo_path::RepoPath;
+use jj_lib::repo_path::RepoPathBuf;
+use jj_lib::repo_path::RepoPathUiConverter;
+use jj_lib::repo_path::UiPathParseError;
+use jj_lib::revset;
+use jj_lib::revset::RevsetAliasesMap;
+use jj_lib::revset::RevsetExpression;
+use jj_lib::revset::RevsetExtensions;
+use jj_lib::revset::RevsetFilterPredicate;
+use jj_lib::revset::RevsetFunction;
+use jj_lib::revset::RevsetIteratorExt;
+use jj_lib::revset::RevsetModifier;
+use jj_lib::revset::RevsetParseContext;
+use jj_lib::revset::RevsetWorkspaceContext;
+use jj_lib::revset::SymbolResolverExtension;
 use jj_lib::rewrite::restore_tree;
-use jj_lib::settings::{ConfigResultExt as _, UserSettings};
+use jj_lib::settings::ConfigResultExt as _;
+use jj_lib::settings::UserSettings;
 use jj_lib::signing::SignInitError;
 use jj_lib::str_util::StringPattern;
 use jj_lib::transaction::Transaction;
 use jj_lib::view::View;
-use jj_lib::working_copy::{
-    CheckoutStats, LockedWorkingCopy, SnapshotOptions, WorkingCopy, WorkingCopyFactory,
-};
-use jj_lib::workspace::{
-    default_working_copy_factories, LockedWorkspace, WorkingCopyFactories, Workspace,
-    WorkspaceLoadError, WorkspaceLoader,
-};
-use jj_lib::{dag_walk, file_util, fileset, git, op_heads_store, op_walk, revset};
+use jj_lib::working_copy::CheckoutStats;
+use jj_lib::working_copy::LockedWorkingCopy;
+use jj_lib::working_copy::SnapshotOptions;
+use jj_lib::working_copy::WorkingCopy;
+use jj_lib::working_copy::WorkingCopyFactory;
+use jj_lib::workspace::default_working_copy_factories;
+use jj_lib::workspace::LockedWorkspace;
+use jj_lib::workspace::WorkingCopyFactories;
+use jj_lib::workspace::Workspace;
+use jj_lib::workspace::WorkspaceLoadError;
+use jj_lib::workspace::WorkspaceLoader;
 use once_cell::unsync::OnceCell;
 use tracing::instrument;
 use tracing_chrome::ChromeLayerBuilder;
 use tracing_subscriber::prelude::*;
 
-use crate::command_error::{
-    cli_error, config_error_with_message, handle_command_result, internal_error,
-    internal_error_with_message, user_error, user_error_with_hint, user_error_with_message,
-    CommandError,
-};
-use crate::commit_templater::{CommitTemplateLanguage, CommitTemplateLanguageExtension};
-use crate::config::{
-    new_config_path, AnnotatedValue, CommandNameAndArgs, ConfigNamePathBuf, ConfigSource,
-    LayeredConfigs,
-};
-use crate::diff_util::{self, DiffFormat, DiffFormatArgs, DiffRenderer};
-use crate::formatter::{FormatRecorder, Formatter, PlainTextFormatter};
-use crate::git_util::{
-    is_colocated_git_workspace, print_failed_git_export, print_git_import_stats,
-};
-use crate::merge_tools::{DiffEditor, MergeEditor, MergeToolConfigError};
+use crate::command_error::cli_error;
+use crate::command_error::config_error_with_message;
+use crate::command_error::handle_command_result;
+use crate::command_error::internal_error;
+use crate::command_error::internal_error_with_message;
+use crate::command_error::user_error;
+use crate::command_error::user_error_with_hint;
+use crate::command_error::user_error_with_message;
+use crate::command_error::CommandError;
+use crate::commit_templater::CommitTemplateLanguage;
+use crate::commit_templater::CommitTemplateLanguageExtension;
+use crate::config::new_config_path;
+use crate::config::AnnotatedValue;
+use crate::config::CommandNameAndArgs;
+use crate::config::ConfigNamePathBuf;
+use crate::config::ConfigSource;
+use crate::config::LayeredConfigs;
+use crate::diff_util::DiffFormat;
+use crate::diff_util::DiffFormatArgs;
+use crate::diff_util::DiffRenderer;
+use crate::diff_util::{self};
+use crate::formatter::FormatRecorder;
+use crate::formatter::Formatter;
+use crate::formatter::PlainTextFormatter;
+use crate::git_util::is_colocated_git_workspace;
+use crate::git_util::print_failed_git_export;
+use crate::git_util::print_git_import_stats;
+use crate::merge_tools::DiffEditor;
+use crate::merge_tools::MergeEditor;
+use crate::merge_tools::MergeToolConfigError;
 use crate::operation_templater::OperationTemplateLanguageExtension;
+use crate::revset_util;
 use crate::revset_util::RevsetExpressionEvaluator;
+use crate::template_builder;
 use crate::template_builder::TemplateLanguage;
 use crate::template_parser::TemplateAliasesMap;
-use crate::templater::{PropertyPlaceholder, TemplateRenderer};
-use crate::ui::{ColorChoice, Ui};
-use crate::{revset_util, template_builder, text_util};
+use crate::templater::PropertyPlaceholder;
+use crate::templater::TemplateRenderer;
+use crate::text_util;
+use crate::ui::ColorChoice;
+use crate::ui::Ui;
 
 #[derive(Clone)]
 struct ChromeTracingFlushGuard {

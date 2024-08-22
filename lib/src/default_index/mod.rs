@@ -30,11 +30,18 @@ pub mod revset_engine;
 mod revset_graph_iterator;
 mod store;
 
-pub use self::composite::{AsCompositeIndex, CompositeIndex, IndexLevelStats, IndexStats};
-pub use self::entry::{IndexEntry, IndexPosition};
+pub use self::composite::AsCompositeIndex;
+pub use self::composite::CompositeIndex;
+pub use self::composite::IndexLevelStats;
+pub use self::composite::IndexStats;
+pub use self::entry::IndexEntry;
+pub use self::entry::IndexPosition;
 pub use self::mutable::DefaultMutableIndex;
-pub use self::readonly::{DefaultReadonlyIndex, ReadonlyIndexLoadError};
-pub use self::store::{DefaultIndexStore, DefaultIndexStoreError, DefaultIndexStoreInitError};
+pub use self::readonly::DefaultReadonlyIndex;
+pub use self::readonly::ReadonlyIndexLoadError;
+pub use self::store::DefaultIndexStore;
+pub use self::store::DefaultIndexStoreError;
+pub use self::store::DefaultIndexStoreInitError;
 
 #[cfg(test)]
 mod tests {
@@ -44,14 +51,19 @@ mod tests {
     use smallvec::smallvec_inline;
     use test_case::test_case;
 
-    use super::composite::{DynIndexSegment, IndexSegment};
+    use super::composite::DynIndexSegment;
+    use super::composite::IndexSegment;
     use super::entry::SmallIndexPositionsVec;
     use super::mutable::MutableIndexSegment;
     use super::*;
-    use crate::backend::{ChangeId, CommitId};
-    use crate::default_index::entry::{LocalPosition, SmallLocalPositionsVec};
+    use crate::backend::ChangeId;
+    use crate::backend::CommitId;
+    use crate::default_index::entry::LocalPosition;
+    use crate::default_index::entry::SmallLocalPositionsVec;
     use crate::index::Index;
-    use crate::object_id::{HexPrefix, ObjectId, PrefixResolution};
+    use crate::object_id::HexPrefix;
+    use crate::object_id::ObjectId;
+    use crate::object_id::PrefixResolution;
 
     /// Generator of unique 16-byte CommitId excluding root id
     fn commit_id_generator() -> impl FnMut() -> CommitId {

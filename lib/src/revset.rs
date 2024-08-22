@@ -15,7 +15,8 @@
 #![allow(missing_docs)]
 
 use std::any::Any;
-use std::collections::{hash_map, HashMap};
+use std::collections::hash_map;
+use std::collections::HashMap;
 use std::convert::Infallible;
 use std::fmt;
 use std::ops::Range;
@@ -26,25 +27,39 @@ use itertools::Itertools;
 use once_cell::sync::Lazy;
 use thiserror::Error;
 
-use crate::backend::{BackendError, BackendResult, ChangeId, CommitId};
+use crate::backend::BackendError;
+use crate::backend::BackendResult;
+use crate::backend::ChangeId;
+use crate::backend::CommitId;
 use crate::commit::Commit;
-use crate::dsl_util::{collect_similar, AliasExpandError as _};
+use crate::dsl_util;
+use crate::dsl_util::collect_similar;
+use crate::dsl_util::AliasExpandError as _;
+use crate::fileset;
 use crate::fileset::FilesetExpression;
 use crate::graph::GraphEdge;
 use crate::hex_util::to_forward_hex;
 use crate::id_prefix::IdPrefixContext;
-use crate::object_id::{HexPrefix, PrefixResolution};
-use crate::op_store::{RemoteRefState, WorkspaceId};
+use crate::object_id::HexPrefix;
+use crate::object_id::PrefixResolution;
+use crate::op_store::RemoteRefState;
+use crate::op_store::WorkspaceId;
 use crate::repo::Repo;
 use crate::repo_path::RepoPathUiConverter;
-pub use crate::revset_parser::{
-    expect_literal, BinaryOp, ExpressionKind, ExpressionNode, FunctionCallNode, RevsetAliasesMap,
-    RevsetParseError, RevsetParseErrorKind, UnaryOp,
-};
+use crate::revset_parser;
+pub use crate::revset_parser::expect_literal;
+pub use crate::revset_parser::BinaryOp;
+pub use crate::revset_parser::ExpressionKind;
+pub use crate::revset_parser::ExpressionNode;
+pub use crate::revset_parser::FunctionCallNode;
+pub use crate::revset_parser::RevsetAliasesMap;
+pub use crate::revset_parser::RevsetParseError;
+pub use crate::revset_parser::RevsetParseErrorKind;
+pub use crate::revset_parser::UnaryOp;
 use crate::store::Store;
 use crate::str_util::StringPattern;
-use crate::time_util::{DatePattern, DatePatternContext};
-use crate::{dsl_util, fileset, revset_parser};
+use crate::time_util::DatePattern;
+use crate::time_util::DatePatternContext;
 
 /// Error occurred during symbol resolution.
 #[derive(Debug, Error)]

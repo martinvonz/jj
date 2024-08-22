@@ -16,7 +16,8 @@ use tracing::instrument;
 
 use super::new;
 use crate::cli_util::CommandHelper;
-use crate::command_error::{cli_error, CommandError};
+use crate::command_error::cli_error;
+use crate::command_error::CommandError;
 use crate::ui::Ui;
 
 #[instrument(skip_all)]

@@ -16,13 +16,19 @@
 
 use std::ffi::OsString;
 use std::fmt::Debug;
+use std::io;
 use std::io::Write;
-use std::process::{Command, ExitStatus, Stdio};
-use std::{io, str};
+use std::process::Command;
+use std::process::ExitStatus;
+use std::process::Stdio;
+use std::str;
 
 use thiserror::Error;
 
-use crate::signing::{SigStatus, SignError, SigningBackend, Verification};
+use crate::signing::SigStatus;
+use crate::signing::SignError;
+use crate::signing::SigningBackend;
+use crate::signing::Verification;
 
 // Search for one of the:
 //  [GNUPG:] GOODSIG <long keyid> <primary uid..>

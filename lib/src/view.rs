@@ -14,15 +14,22 @@
 
 #![allow(missing_docs)]
 
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::BTreeMap;
+use std::collections::HashMap;
+use std::collections::HashSet;
 
 use itertools::Itertools;
 
 use crate::backend::CommitId;
-use crate::op_store::{BranchTarget, RefTarget, RefTargetOptionExt as _, RemoteRef, WorkspaceId};
+use crate::op_store;
+use crate::op_store::BranchTarget;
+use crate::op_store::RefTarget;
+use crate::op_store::RefTargetOptionExt as _;
+use crate::op_store::RemoteRef;
+use crate::op_store::WorkspaceId;
+use crate::refs;
 use crate::refs::LocalAndRemoteRef;
 use crate::str_util::StringPattern;
-use crate::{op_store, refs};
 
 /// A wrapper around [`op_store::View`] that defines additional methods.
 #[derive(PartialEq, Eq, Debug, Clone)]

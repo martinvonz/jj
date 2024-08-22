@@ -19,13 +19,19 @@ use std::rc::Rc;
 use itertools::Itertools;
 use jj_lib::backend::CommitId;
 use jj_lib::commit::CommitIteratorExt;
-use jj_lib::repo::{ReadonlyRepo, Repo};
-use jj_lib::revset::{RevsetExpression, RevsetIteratorExt};
-use jj_lib::rewrite::{merge_commit_trees, rebase_commit};
+use jj_lib::repo::ReadonlyRepo;
+use jj_lib::repo::Repo;
+use jj_lib::revset::RevsetExpression;
+use jj_lib::revset::RevsetIteratorExt;
+use jj_lib::rewrite::merge_commit_trees;
+use jj_lib::rewrite::rebase_commit;
 use tracing::instrument;
 
-use crate::cli_util::{short_commit_hash, CommandHelper, RevisionArg};
-use crate::command_error::{user_error, CommandError};
+use crate::cli_util::short_commit_hash;
+use crate::cli_util::CommandHelper;
+use crate::cli_util::RevisionArg;
+use crate::command_error::user_error;
+use crate::command_error::CommandError;
 use crate::description_util::join_message_paragraphs;
 use crate::ui::Ui;
 

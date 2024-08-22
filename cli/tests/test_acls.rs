@@ -14,7 +14,9 @@
 
 use jj_lib::secret_backend::SecretBackend;
 
-use crate::common::{get_stderr_string, get_stdout_string, TestEnvironment};
+use crate::common::get_stderr_string;
+use crate::common::get_stdout_string;
+use crate::common::TestEnvironment;
 
 #[test]
 fn test_diff() {

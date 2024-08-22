@@ -15,17 +15,26 @@
 #![allow(missing_docs)]
 
 use std::cmp::Ordering;
-use std::fmt::{Debug, Error, Formatter};
-use std::hash::{Hash, Hasher};
+use std::fmt::Debug;
+use std::fmt::Error;
+use std::fmt::Formatter;
+use std::hash::Hash;
+use std::hash::Hasher;
 use std::sync::Arc;
 
 use itertools::Itertools;
 
-use crate::backend::{self, BackendResult, ChangeId, CommitId, MergedTreeId, Signature};
+use crate::backend::BackendResult;
+use crate::backend::ChangeId;
+use crate::backend::CommitId;
+use crate::backend::MergedTreeId;
+use crate::backend::Signature;
+use crate::backend::{self};
 use crate::merged_tree::MergedTree;
 use crate::repo::Repo;
 use crate::rewrite::merge_commit_trees;
-use crate::signing::{SignResult, Verification};
+use crate::signing::SignResult;
+use crate::signing::Verification;
 use crate::store::Store;
 
 #[derive(Clone)]

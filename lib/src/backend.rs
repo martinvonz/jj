@@ -27,8 +27,12 @@ use thiserror::Error;
 use crate::content_hash::ContentHash;
 use crate::index::Index;
 use crate::merge::Merge;
-use crate::object_id::{id_type, ObjectId};
-use crate::repo_path::{RepoPath, RepoPathBuf, RepoPathComponent, RepoPathComponentBuf};
+use crate::object_id::id_type;
+use crate::object_id::ObjectId;
+use crate::repo_path::RepoPath;
+use crate::repo_path::RepoPathBuf;
+use crate::repo_path::RepoPathComponent;
+use crate::repo_path::RepoPathComponentBuf;
 use crate::signing::SignResult;
 
 id_type!(

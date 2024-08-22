@@ -16,7 +16,8 @@ use jj_lib::str_util::StringPattern;
 
 use crate::cli_util::CommandHelper;
 use crate::command_error::CommandError;
-use crate::commit_templater::{CommitTemplateLanguage, RefName};
+use crate::commit_templater::CommitTemplateLanguage;
+use crate::commit_templater::RefName;
 use crate::ui::Ui;
 
 /// Manage tags.

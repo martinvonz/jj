@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::common::{get_stdout_string, TestEnvironment};
+use crate::common::get_stdout_string;
+use crate::common::TestEnvironment;
 
 #[test]
 fn test_obslog_with_or_without_diff() {

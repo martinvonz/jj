@@ -13,15 +13,22 @@
 // limitations under the License.
 
 use itertools::Itertools;
-use jj_lib::git::{self, GitFetchError};
+use jj_lib::git::GitFetchError;
+use jj_lib::git::{self};
 use jj_lib::repo::Repo;
-use jj_lib::settings::{ConfigResultExt as _, UserSettings};
+use jj_lib::settings::ConfigResultExt as _;
+use jj_lib::settings::UserSettings;
 use jj_lib::str_util::StringPattern;
 
 use crate::cli_util::CommandHelper;
-use crate::command_error::{user_error, user_error_with_hint, CommandError};
-use crate::commands::git::{get_single_remote, map_git_error};
-use crate::git_util::{get_git_repo, print_git_import_stats, with_remote_git_callbacks};
+use crate::command_error::user_error;
+use crate::command_error::user_error_with_hint;
+use crate::command_error::CommandError;
+use crate::commands::git::get_single_remote;
+use crate::commands::git::map_git_error;
+use crate::git_util::get_git_repo;
+use crate::git_util::print_git_import_stats;
+use crate::git_util::with_remote_git_callbacks;
 use crate::ui::Ui;
 
 /// Fetch from a Git remote

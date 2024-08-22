@@ -18,9 +18,12 @@ use jj_lib::object_id::ObjectId as _;
 use jj_lib::op_store::RefTarget;
 use jj_lib::str_util::StringPattern;
 
-use super::{find_branches_with, is_fast_forward};
-use crate::cli_util::{CommandHelper, RevisionArg};
-use crate::command_error::{user_error_with_hint, CommandError};
+use super::find_branches_with;
+use super::is_fast_forward;
+use crate::cli_util::CommandHelper;
+use crate::cli_util::RevisionArg;
+use crate::command_error::user_error_with_hint;
+use crate::command_error::CommandError;
 use crate::ui::Ui;
 
 /// Move existing branches to target revision

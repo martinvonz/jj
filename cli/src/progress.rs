@@ -1,16 +1,20 @@
 use std::io;
 use std::path::Path;
 use std::sync::Mutex;
-use std::time::{Duration, Instant};
+use std::time::Duration;
+use std::time::Instant;
 
-use crossterm::terminal::{Clear, ClearType};
+use crossterm::terminal::Clear;
+use crossterm::terminal::ClearType;
 use jj_lib::fmt_util::binary_prefix;
 use jj_lib::git;
 use jj_lib::repo_path::RepoPath;
 
 use crate::cleanup_guard::CleanupGuard;
 use crate::text_util;
-use crate::ui::{OutputGuard, ProgressOutput, Ui};
+use crate::ui::OutputGuard;
+use crate::ui::ProgressOutput;
+use crate::ui::Ui;
 
 pub struct Progress {
     next_print: Instant,

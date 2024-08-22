@@ -18,28 +18,48 @@ use std::path::Path;
 use assert_matches::assert_matches;
 use chrono::DateTime;
 use itertools::Itertools;
-use jj_lib::backend::{CommitId, MillisSinceEpoch, Signature, Timestamp};
+use jj_lib::backend::CommitId;
+use jj_lib::backend::MillisSinceEpoch;
+use jj_lib::backend::Signature;
+use jj_lib::backend::Timestamp;
 use jj_lib::commit::Commit;
 use jj_lib::fileset::FilesetExpression;
 use jj_lib::git;
 use jj_lib::git_backend::GitBackend;
-use jj_lib::graph::{GraphEdge, ReverseGraphIterator};
+use jj_lib::graph::GraphEdge;
+use jj_lib::graph::ReverseGraphIterator;
 use jj_lib::object_id::ObjectId;
-use jj_lib::op_store::{RefTarget, RemoteRef, RemoteRefState, WorkspaceId};
+use jj_lib::op_store::RefTarget;
+use jj_lib::op_store::RemoteRef;
+use jj_lib::op_store::RemoteRefState;
+use jj_lib::op_store::WorkspaceId;
 use jj_lib::repo::Repo;
-use jj_lib::repo_path::{RepoPath, RepoPathUiConverter};
-use jj_lib::revset::{
-    optimize, parse, DefaultSymbolResolver, FailingSymbolResolver, ResolvedExpression, Revset,
-    RevsetAliasesMap, RevsetExpression, RevsetExtensions, RevsetFilterPredicate,
-    RevsetParseContext, RevsetResolutionError, RevsetWorkspaceContext, SymbolResolverExtension,
-};
+use jj_lib::repo_path::RepoPath;
+use jj_lib::repo_path::RepoPathUiConverter;
+use jj_lib::revset::optimize;
+use jj_lib::revset::parse;
+use jj_lib::revset::DefaultSymbolResolver;
+use jj_lib::revset::FailingSymbolResolver;
+use jj_lib::revset::ResolvedExpression;
+use jj_lib::revset::Revset;
+use jj_lib::revset::RevsetAliasesMap;
+use jj_lib::revset::RevsetExpression;
+use jj_lib::revset::RevsetExtensions;
+use jj_lib::revset::RevsetFilterPredicate;
+use jj_lib::revset::RevsetParseContext;
+use jj_lib::revset::RevsetResolutionError;
+use jj_lib::revset::RevsetWorkspaceContext;
+use jj_lib::revset::SymbolResolverExtension;
 use jj_lib::settings::GitSettings;
 use jj_lib::workspace::Workspace;
 use test_case::test_case;
-use testutils::{
-    create_random_commit, create_tree, write_random_commit, CommitGraphBuilder, TestRepo,
-    TestRepoBackend, TestWorkspace,
-};
+use testutils::create_random_commit;
+use testutils::create_tree;
+use testutils::write_random_commit;
+use testutils::CommitGraphBuilder;
+use testutils::TestRepo;
+use testutils::TestRepoBackend;
+use testutils::TestWorkspace;
 
 fn resolve_symbol_with_extensions(
     repo: &dyn Repo,

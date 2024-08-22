@@ -15,34 +15,53 @@
 #![allow(missing_docs)]
 
 use std::cell::RefCell;
-use std::cmp::{Ordering, Reverse};
-use std::collections::{BTreeSet, BinaryHeap, HashSet};
+use std::cmp::Ordering;
+use std::cmp::Reverse;
+use std::collections::BTreeSet;
+use std::collections::BinaryHeap;
+use std::collections::HashSet;
+use std::fmt;
+use std::iter;
 use std::ops::Range;
 use std::rc::Rc;
+use std::str;
 use std::sync::Arc;
-use std::{fmt, iter, str};
 
 use futures::StreamExt as _;
 use itertools::Itertools;
 use pollster::FutureExt as _;
 
-use super::rev_walk::{EagerRevWalk, PeekableRevWalk, RevWalk, RevWalkBuilder};
+use super::rev_walk::EagerRevWalk;
+use super::rev_walk::PeekableRevWalk;
+use super::rev_walk::RevWalk;
+use super::rev_walk::RevWalkBuilder;
 use super::revset_graph_iterator::RevsetGraphWalk;
-use crate::backend::{BackendError, BackendResult, ChangeId, CommitId, MillisSinceEpoch};
+use crate::backend::BackendError;
+use crate::backend::BackendResult;
+use crate::backend::ChangeId;
+use crate::backend::CommitId;
+use crate::backend::MillisSinceEpoch;
 use crate::commit::Commit;
-use crate::conflicts::{materialize_tree_value, MaterializedTreeValue};
-use crate::default_index::{AsCompositeIndex, CompositeIndex, IndexPosition};
+use crate::conflicts::materialize_tree_value;
+use crate::conflicts::MaterializedTreeValue;
+use crate::default_index::AsCompositeIndex;
+use crate::default_index::CompositeIndex;
+use crate::default_index::IndexPosition;
 use crate::graph::GraphEdge;
-use crate::matchers::{Matcher, Visit};
+use crate::matchers::Matcher;
+use crate::matchers::Visit;
 use crate::merged_tree::resolve_file_values;
 use crate::repo_path::RepoPath;
-use crate::revset::{
-    ResolvedExpression, ResolvedPredicateExpression, Revset, RevsetEvaluationError,
-    RevsetFilterPredicate, GENERATION_RANGE_FULL,
-};
+use crate::revset::ResolvedExpression;
+use crate::revset::ResolvedPredicateExpression;
+use crate::revset::Revset;
+use crate::revset::RevsetEvaluationError;
+use crate::revset::RevsetFilterPredicate;
+use crate::revset::GENERATION_RANGE_FULL;
+use crate::rewrite;
 use crate::store::Store;
 use crate::str_util::StringPattern;
-use crate::{rewrite, union_find};
+use crate::union_find;
 
 type BoxedPredicateFn<'a> = Box<dyn FnMut(&CompositeIndex, IndexPosition) -> bool + 'a>;
 pub(super) type BoxedRevWalk<'a> = Box<dyn RevWalk<CompositeIndex, Item = IndexPosition> + 'a>;

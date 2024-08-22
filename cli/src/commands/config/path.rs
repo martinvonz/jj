@@ -17,8 +17,10 @@ use std::io::Write as _;
 use tracing::instrument;
 
 use super::ConfigLevelArgs;
-use crate::cli_util::{get_new_config_file_path, CommandHelper};
-use crate::command_error::{user_error, CommandError};
+use crate::cli_util::get_new_config_file_path;
+use crate::cli_util::CommandHelper;
+use crate::command_error::user_error;
+use crate::command_error::CommandError;
 use crate::ui::Ui;
 
 /// Print the path to the config file

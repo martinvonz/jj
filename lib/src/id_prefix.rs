@@ -22,13 +22,17 @@ use std::sync::Arc;
 use itertools::Itertools as _;
 use once_cell::unsync::OnceCell;
 
-use crate::backend::{ChangeId, CommitId};
+use crate::backend::ChangeId;
+use crate::backend::CommitId;
 use crate::hex_util;
-use crate::object_id::{HexPrefix, ObjectId, PrefixResolution};
+use crate::object_id::HexPrefix;
+use crate::object_id::ObjectId;
+use crate::object_id::PrefixResolution;
 use crate::repo::Repo;
-use crate::revset::{
-    DefaultSymbolResolver, RevsetExpression, RevsetExtensions, SymbolResolverExtension,
-};
+use crate::revset::DefaultSymbolResolver;
+use crate::revset::RevsetExpression;
+use crate::revset::RevsetExtensions;
+use crate::revset::SymbolResolverExtension;
 
 struct PrefixDisambiguationError;
 

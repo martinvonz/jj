@@ -16,7 +16,8 @@ use std::collections::HashMap;
 
 use jj_lib::repo::Repo;
 use maplit::hashset;
-use testutils::{CommitGraphBuilder, TestRepo};
+use testutils::CommitGraphBuilder;
+use testutils::TestRepo;
 
 // Simulate some `jj sync` command that rebases B:: onto G while abandoning C
 // (because it's presumably already in G).

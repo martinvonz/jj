@@ -15,9 +15,12 @@
 use jj_lib::object_id::ObjectId;
 use jj_lib::repo::Repo;
 
-use super::{view_with_desired_portions_restored, UndoWhatToRestore, DEFAULT_UNDO_WHAT};
+use super::view_with_desired_portions_restored;
+use super::UndoWhatToRestore;
+use super::DEFAULT_UNDO_WHAT;
 use crate::cli_util::CommandHelper;
-use crate::command_error::{user_error, CommandError};
+use crate::command_error::user_error;
+use crate::command_error::CommandError;
 use crate::ui::Ui;
 
 /// Create a new operation that undoes an earlier operation

@@ -12,11 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
+use std::path::PathBuf;
 
 use test_case::test_case;
 
-use crate::common::{strip_last_line, TestEnvironment};
+use crate::common::strip_last_line;
+use crate::common::TestEnvironment;
 
 fn init_git_repo(git_repo_path: &Path, bare: bool) -> git2::Repository {
     init_git_repo_with_opts(git_repo_path, git2::RepositoryInitOptions::new().bare(bare))

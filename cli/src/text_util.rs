@@ -13,11 +13,13 @@
 // limitations under the License.
 
 use std::borrow::Cow;
-use std::{cmp, io};
+use std::cmp;
+use std::io;
 
 use unicode_width::UnicodeWidthChar as _;
 
-use crate::formatter::{FormatRecorder, Formatter};
+use crate::formatter::FormatRecorder;
+use crate::formatter::Formatter;
 
 pub fn complete_newline(s: impl Into<String>) -> String {
     let mut s = s.into();
@@ -264,7 +266,8 @@ mod tests {
     use std::io::Write as _;
 
     use super::*;
-    use crate::formatter::{ColorFormatter, PlainTextFormatter};
+    use crate::formatter::ColorFormatter;
+    use crate::formatter::PlainTextFormatter;
 
     fn format_colored(write: impl FnOnce(&mut dyn Formatter) -> io::Result<()>) -> String {
         let config = config::Config::builder()

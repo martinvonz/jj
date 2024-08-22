@@ -14,10 +14,12 @@
 
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::Path;
+use std::path::PathBuf;
 
 use itertools::Itertools as _;
-use regex::{Captures, Regex};
+use regex::Captures;
+use regex::Regex;
 use tempfile::TempDir;
 
 pub struct TestEnvironment {

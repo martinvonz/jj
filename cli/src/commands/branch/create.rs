@@ -17,8 +17,10 @@ use jj_lib::object_id::ObjectId as _;
 use jj_lib::op_store::RefTarget;
 
 use super::has_tracked_remote_branches;
-use crate::cli_util::{CommandHelper, RevisionArg};
-use crate::command_error::{user_error_with_hint, CommandError};
+use crate::cli_util::CommandHelper;
+use crate::cli_util::RevisionArg;
+use crate::command_error::user_error_with_hint;
+use crate::command_error::CommandError;
 use crate::ui::Ui;
 
 /// Create a new branch

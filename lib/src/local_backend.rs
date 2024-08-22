@@ -18,27 +18,49 @@ use std::any::Any;
 use std::fmt::Debug;
 use std::fs;
 use std::fs::File;
-use std::io::{Read, Write};
-use std::path::{Path, PathBuf};
+use std::io::Read;
+use std::io::Write;
+use std::path::Path;
+use std::path::PathBuf;
 use std::time::SystemTime;
 
 use async_trait::async_trait;
-use blake2::{Blake2b512, Digest};
+use blake2::Blake2b512;
+use blake2::Digest;
 use futures::stream::BoxStream;
 use prost::Message;
 use tempfile::NamedTempFile;
 
-use crate::backend::{
-    make_root_commit, Backend, BackendError, BackendResult, ChangeId, Commit, CommitId, Conflict,
-    ConflictId, ConflictTerm, CopyRecord, FileId, MergedTreeId, MillisSinceEpoch, SecureSig,
-    Signature, SigningFn, SymlinkId, Timestamp, Tree, TreeId, TreeValue,
-};
+use crate::backend::make_root_commit;
+use crate::backend::Backend;
+use crate::backend::BackendError;
+use crate::backend::BackendResult;
+use crate::backend::ChangeId;
+use crate::backend::Commit;
+use crate::backend::CommitId;
+use crate::backend::Conflict;
+use crate::backend::ConflictId;
+use crate::backend::ConflictTerm;
+use crate::backend::CopyRecord;
+use crate::backend::FileId;
+use crate::backend::MergedTreeId;
+use crate::backend::MillisSinceEpoch;
+use crate::backend::SecureSig;
+use crate::backend::Signature;
+use crate::backend::SigningFn;
+use crate::backend::SymlinkId;
+use crate::backend::Timestamp;
+use crate::backend::Tree;
+use crate::backend::TreeId;
+use crate::backend::TreeValue;
 use crate::content_hash::blake2b_hash;
 use crate::file_util::persist_content_addressed_temp_file;
 use crate::index::Index;
 use crate::merge::MergeBuilder;
 use crate::object_id::ObjectId;
-use crate::repo_path::{RepoPath, RepoPathBuf, RepoPathComponentBuf};
+use crate::repo_path::RepoPath;
+use crate::repo_path::RepoPathBuf;
+use crate::repo_path::RepoPathComponentBuf;
 
 const COMMIT_ID_LENGTH: usize = 64;
 const CHANGE_ID_LENGTH: usize = 16;

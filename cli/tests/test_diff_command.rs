@@ -15,7 +15,9 @@
 use indoc::indoc;
 use itertools::Itertools;
 
-use crate::common::{escaped_fake_diff_editor_path, strip_last_line, TestEnvironment};
+use crate::common::escaped_fake_diff_editor_path;
+use crate::common::strip_last_line;
+use crate::common::TestEnvironment;
 
 #[test]
 fn test_diff_basic() {

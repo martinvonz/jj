@@ -21,14 +21,18 @@
 #![allow(missing_docs)]
 
 use std::cmp::Ordering;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
+use std::collections::HashMap;
 use std::fs::File;
 use std::io;
-use std::io::{Read, Write};
+use std::io::Read;
+use std::io::Write;
 use std::path::PathBuf;
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
+use std::sync::RwLock;
 
-use blake2::{Blake2b512, Digest};
+use blake2::Blake2b512;
+use blake2::Digest;
 use tempfile::NamedTempFile;
 use thiserror::Error;
 

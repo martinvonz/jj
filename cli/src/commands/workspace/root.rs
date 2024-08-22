@@ -17,7 +17,8 @@ use std::io::Write;
 use tracing::instrument;
 
 use crate::cli_util::CommandHelper;
-use crate::command_error::{user_error, CommandError};
+use crate::command_error::user_error;
+use crate::command_error::CommandError;
 use crate::ui::Ui;
 
 /// Show the current workspace root directory

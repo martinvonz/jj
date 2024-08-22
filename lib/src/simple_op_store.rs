@@ -15,28 +15,49 @@
 #![allow(missing_docs)]
 
 use std::any::Any;
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::BTreeMap;
+use std::collections::HashMap;
+use std::collections::HashSet;
 use std::fmt::Debug;
-use std::io::{ErrorKind, Write};
-use std::path::{Path, PathBuf};
+use std::fs;
+use std::io;
+use std::io::ErrorKind;
+use std::io::Write;
+use std::path::Path;
+use std::path::PathBuf;
 use std::time::SystemTime;
-use std::{fs, io};
 
 use itertools::Itertools as _;
 use prost::Message;
 use tempfile::NamedTempFile;
 use thiserror::Error;
 
-use crate::backend::{CommitId, MillisSinceEpoch, Timestamp};
+use crate::backend::CommitId;
+use crate::backend::MillisSinceEpoch;
+use crate::backend::Timestamp;
 use crate::content_hash::blake2b_hash;
-use crate::file_util::{persist_content_addressed_temp_file, IoResultExt as _, PathError};
+use crate::dag_walk;
+use crate::file_util::persist_content_addressed_temp_file;
+use crate::file_util::IoResultExt as _;
+use crate::file_util::PathError;
 use crate::merge::Merge;
-use crate::object_id::{HexPrefix, ObjectId, PrefixResolution};
-use crate::op_store::{
-    OpStore, OpStoreError, OpStoreResult, Operation, OperationId, OperationMetadata, RefTarget,
-    RemoteRef, RemoteRefState, RemoteView, View, ViewId, WorkspaceId,
-};
-use crate::{dag_walk, op_store};
+use crate::object_id::HexPrefix;
+use crate::object_id::ObjectId;
+use crate::object_id::PrefixResolution;
+use crate::op_store;
+use crate::op_store::OpStore;
+use crate::op_store::OpStoreError;
+use crate::op_store::OpStoreResult;
+use crate::op_store::Operation;
+use crate::op_store::OperationId;
+use crate::op_store::OperationMetadata;
+use crate::op_store::RefTarget;
+use crate::op_store::RemoteRef;
+use crate::op_store::RemoteRefState;
+use crate::op_store::RemoteView;
+use crate::op_store::View;
+use crate::op_store::ViewId;
+use crate::op_store::WorkspaceId;
 
 // BLAKE2b-512 hash length in bytes
 const OPERATION_ID_LENGTH: usize = 64;
@@ -693,7 +714,9 @@ fn remote_ref_state_from_proto(proto_value: Option<i32>) -> Option<RemoteRefStat
 mod tests {
     use insta::assert_snapshot;
     use itertools::Itertools as _;
-    use maplit::{btreemap, hashmap, hashset};
+    use maplit::btreemap;
+    use maplit::hashmap;
+    use maplit::hashset;
 
     use super::*;
 

@@ -14,19 +14,34 @@
 
 use futures::StreamExt;
 use itertools::Itertools;
-use jj_lib::backend::{CommitId, CopyRecord, FileId, MergedTreeId, TreeValue};
+use jj_lib::backend::CommitId;
+use jj_lib::backend::CopyRecord;
+use jj_lib::backend::FileId;
+use jj_lib::backend::MergedTreeId;
+use jj_lib::backend::TreeValue;
 use jj_lib::copies::CopyRecords;
 use jj_lib::files::MergeResult;
-use jj_lib::matchers::{EverythingMatcher, FilesMatcher, Matcher, PrefixMatcher};
-use jj_lib::merge::{Merge, MergeBuilder, MergedTreeValue};
-use jj_lib::merged_tree::{
-    MergedTree, MergedTreeBuilder, TreeDiffEntry, TreeDiffIterator, TreeDiffStreamImpl,
-};
+use jj_lib::matchers::EverythingMatcher;
+use jj_lib::matchers::FilesMatcher;
+use jj_lib::matchers::Matcher;
+use jj_lib::matchers::PrefixMatcher;
+use jj_lib::merge::Merge;
+use jj_lib::merge::MergeBuilder;
+use jj_lib::merge::MergedTreeValue;
+use jj_lib::merged_tree::MergedTree;
+use jj_lib::merged_tree::MergedTreeBuilder;
+use jj_lib::merged_tree::TreeDiffEntry;
+use jj_lib::merged_tree::TreeDiffIterator;
+use jj_lib::merged_tree::TreeDiffStreamImpl;
 use jj_lib::repo::Repo;
-use jj_lib::repo_path::{RepoPath, RepoPathBuf, RepoPathComponent};
+use jj_lib::repo_path::RepoPath;
+use jj_lib::repo_path::RepoPathBuf;
+use jj_lib::repo_path::RepoPathComponent;
 use pollster::FutureExt as _;
 use pretty_assertions::assert_eq;
-use testutils::{create_single_tree, write_file, TestRepo};
+use testutils::create_single_tree;
+use testutils::write_file;
+use testutils::TestRepo;
 
 fn file_value(file_id: &FileId) -> TreeValue {
     TreeValue::File {

@@ -15,29 +15,42 @@
 use std::borrow::Borrow;
 use std::cmp::max;
 use std::collections::HashSet;
+use std::io;
+use std::mem;
 use std::ops::Range;
-use std::path::{Path, PathBuf};
-use std::{io, mem};
+use std::path::Path;
+use std::path::PathBuf;
 
 use futures::executor::block_on_stream;
 use futures::stream::BoxStream;
 use futures::StreamExt;
 use itertools::Itertools;
-use jj_lib::backend::{BackendError, BackendResult, CommitId, CopyRecord, TreeValue};
+use jj_lib::backend::BackendError;
+use jj_lib::backend::BackendResult;
+use jj_lib::backend::CommitId;
+use jj_lib::backend::CopyRecord;
+use jj_lib::backend::TreeValue;
 use jj_lib::commit::Commit;
-use jj_lib::conflicts::{
-    materialized_diff_stream, MaterializedTreeDiffEntry, MaterializedTreeValue,
-};
-use jj_lib::copies::{CopiesTreeDiffEntry, CopyRecords};
-use jj_lib::diff::{Diff, DiffHunk};
-use jj_lib::files::{DiffLine, DiffLineHunkSide, DiffLineIterator, DiffLineNumber};
+use jj_lib::conflicts::materialized_diff_stream;
+use jj_lib::conflicts::MaterializedTreeDiffEntry;
+use jj_lib::conflicts::MaterializedTreeValue;
+use jj_lib::copies::CopiesTreeDiffEntry;
+use jj_lib::copies::CopyRecords;
+use jj_lib::diff::Diff;
+use jj_lib::diff::DiffHunk;
+use jj_lib::files::DiffLine;
+use jj_lib::files::DiffLineHunkSide;
+use jj_lib::files::DiffLineIterator;
+use jj_lib::files::DiffLineNumber;
 use jj_lib::matchers::Matcher;
 use jj_lib::merge::MergedTreeValue;
 use jj_lib::merged_tree::MergedTree;
 use jj_lib::object_id::ObjectId;
 use jj_lib::repo::Repo;
-use jj_lib::repo_path::{RepoPath, RepoPathUiConverter};
-use jj_lib::settings::{ConfigResultExt as _, UserSettings};
+use jj_lib::repo_path::RepoPath;
+use jj_lib::repo_path::RepoPathUiConverter;
+use jj_lib::settings::ConfigResultExt as _;
+use jj_lib::settings::UserSettings;
 use jj_lib::store::Store;
 use pollster::FutureExt;
 use thiserror::Error;
@@ -46,10 +59,13 @@ use unicode_width::UnicodeWidthStr as _;
 
 use crate::config::CommandNameAndArgs;
 use crate::formatter::Formatter;
-use crate::merge_tools::{
-    self, generate_diff, invoke_external_diff, new_utf8_temp_dir, DiffGenerateError, DiffToolMode,
-    ExternalMergeTool,
-};
+use crate::merge_tools::generate_diff;
+use crate::merge_tools::invoke_external_diff;
+use crate::merge_tools::new_utf8_temp_dir;
+use crate::merge_tools::DiffGenerateError;
+use crate::merge_tools::DiffToolMode;
+use crate::merge_tools::ExternalMergeTool;
+use crate::merge_tools::{self};
 use crate::text_util;
 use crate::ui::Ui;
 

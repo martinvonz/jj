@@ -20,12 +20,15 @@ use std::io::Write as _;
 
 use clap::Subcommand;
 #[cfg(feature = "watchman")]
-use jj_lib::fsmonitor::{FsmonitorSettings, WatchmanConfig};
+use jj_lib::fsmonitor::FsmonitorSettings;
+#[cfg(feature = "watchman")]
+use jj_lib::fsmonitor::WatchmanConfig;
 #[cfg(feature = "watchman")]
 use jj_lib::local_working_copy::LocalWorkingCopy;
 
 use crate::cli_util::CommandHelper;
-use crate::command_error::{user_error, CommandError};
+use crate::command_error::user_error;
+use crate::command_error::CommandError;
 use crate::ui::Ui;
 
 #[derive(Subcommand, Clone, Debug)]

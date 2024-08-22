@@ -16,9 +16,12 @@ use clap::ArgGroup;
 use jj_lib::object_id::ObjectId;
 use tracing::instrument;
 
-use super::squash::{move_diff, SquashedDescription};
-use crate::cli_util::{CommandHelper, RevisionArg};
-use crate::command_error::{user_error, CommandError};
+use super::squash::move_diff;
+use super::squash::SquashedDescription;
+use crate::cli_util::CommandHelper;
+use crate::cli_util::RevisionArg;
+use crate::command_error::user_error;
+use crate::command_error::CommandError;
 use crate::ui::Ui;
 
 /// Move changes from one revision into another (DEPRECATED, use `jj squash`)

@@ -17,10 +17,12 @@ use std::thread;
 use assert_matches::assert_matches;
 use jj_lib::op_store::WorkspaceId;
 use jj_lib::repo::Repo;
-use jj_lib::workspace::{
-    default_working_copy_factories, default_working_copy_factory, Workspace, WorkspaceLoadError,
-};
-use testutils::{TestRepo, TestWorkspace};
+use jj_lib::workspace::default_working_copy_factories;
+use jj_lib::workspace::default_working_copy_factory;
+use jj_lib::workspace::Workspace;
+use jj_lib::workspace::WorkspaceLoadError;
+use testutils::TestRepo;
+use testutils::TestWorkspace;
 
 #[test]
 fn test_load_bad_path() {

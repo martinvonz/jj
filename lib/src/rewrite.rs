@@ -14,25 +14,37 @@
 
 #![allow(missing_docs)]
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
+use std::collections::HashSet;
 use std::sync::Arc;
 
 use futures::StreamExt;
-use indexmap::{IndexMap, IndexSet};
+use indexmap::IndexMap;
+use indexmap::IndexSet;
 use itertools::Itertools;
 use pollster::FutureExt;
 use tracing::instrument;
 
-use crate::backend::{BackendError, BackendResult, CommitId, MergedTreeId};
-use crate::commit::{Commit, CommitIteratorExt};
+use crate::backend::BackendError;
+use crate::backend::BackendResult;
+use crate::backend::CommitId;
+use crate::backend::MergedTreeId;
+use crate::commit::Commit;
+use crate::commit::CommitIteratorExt;
 use crate::commit_builder::CommitBuilder;
 use crate::dag_walk;
 use crate::index::Index;
-use crate::matchers::{Matcher, Visit};
-use crate::merged_tree::{MergedTree, MergedTreeBuilder, TreeDiffEntry};
-use crate::repo::{MutableRepo, Repo};
+use crate::matchers::Matcher;
+use crate::matchers::Visit;
+use crate::merged_tree::MergedTree;
+use crate::merged_tree::MergedTreeBuilder;
+use crate::merged_tree::TreeDiffEntry;
+use crate::repo::MutableRepo;
+use crate::repo::Repo;
 use crate::repo_path::RepoPath;
-use crate::revset::{RevsetEvaluationError, RevsetExpression, RevsetIteratorExt};
+use crate::revset::RevsetEvaluationError;
+use crate::revset::RevsetExpression;
+use crate::revset::RevsetIteratorExt;
 use crate::settings::UserSettings;
 use crate::store::Store;
 

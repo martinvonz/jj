@@ -13,14 +13,18 @@
 // limitations under the License.
 
 use std::io::Write as _;
-use std::{iter, slice};
+use std::iter;
+use std::slice;
 
 use itertools::Itertools as _;
 use jj_lib::op_walk;
 use jj_lib::operation::Operation;
 
-use crate::cli_util::{short_operation_hash, CommandHelper};
-use crate::command_error::{cli_error, user_error, CommandError};
+use crate::cli_util::short_operation_hash;
+use crate::cli_util::CommandHelper;
+use crate::command_error::cli_error;
+use crate::command_error::user_error;
+use crate::command_error::CommandError;
 use crate::ui::Ui;
 
 /// Abandon operation history

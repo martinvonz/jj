@@ -15,10 +15,14 @@
 use itertools::Itertools;
 use jj_lib::backend::TreeValue;
 use jj_lib::repo::Repo;
-use jj_lib::repo_path::{RepoPath, RepoPathComponent};
+use jj_lib::repo_path::RepoPath;
+use jj_lib::repo_path::RepoPathComponent;
 use jj_lib::rewrite::rebase_commit;
-use jj_lib::tree::{merge_trees, Tree};
-use testutils::{create_single_tree, create_tree, TestRepo};
+use jj_lib::tree::merge_trees;
+use jj_lib::tree::Tree;
+use testutils::create_single_tree;
+use testutils::create_tree;
+use testutils::TestRepo;
 
 #[test]
 fn test_same_type() {

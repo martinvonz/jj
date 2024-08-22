@@ -12,20 +12,32 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::fs;
+use std::io;
 use std::io::Write;
-use std::path::{Path, PathBuf};
-use std::{fs, io};
+use std::path::Path;
+use std::path::PathBuf;
 
-use jj_lib::git::{self, GitFetchError, GitFetchStats};
+use jj_lib::git::GitFetchError;
+use jj_lib::git::GitFetchStats;
+use jj_lib::git::{self};
 use jj_lib::repo::Repo;
 use jj_lib::str_util::StringPattern;
 use jj_lib::workspace::Workspace;
 
-use crate::cli_util::{CommandHelper, WorkspaceCommandHelper};
-use crate::command_error::{cli_error, user_error, user_error_with_message, CommandError};
-use crate::commands::git::{map_git_error, maybe_add_gitignore};
-use crate::config::{write_config_value_to_file, ConfigNamePathBuf};
-use crate::git_util::{get_git_repo, print_git_import_stats, with_remote_git_callbacks};
+use crate::cli_util::CommandHelper;
+use crate::cli_util::WorkspaceCommandHelper;
+use crate::command_error::cli_error;
+use crate::command_error::user_error;
+use crate::command_error::user_error_with_message;
+use crate::command_error::CommandError;
+use crate::commands::git::map_git_error;
+use crate::commands::git::maybe_add_gitignore;
+use crate::config::write_config_value_to_file;
+use crate::config::ConfigNamePathBuf;
+use crate::git_util::get_git_repo;
+use crate::git_util::print_git_import_stats;
+use crate::git_util::with_remote_git_callbacks;
 use crate::ui::Ui;
 
 /// Create a new repo backed by a clone of a Git repo

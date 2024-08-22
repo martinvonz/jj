@@ -16,40 +16,75 @@
 
 use std::any::Any;
 use std::collections::HashSet;
-use std::fmt::{Debug, Error, Formatter};
-use std::io::{Cursor, Read};
-use std::path::{Path, PathBuf};
-use std::process::{Command, ExitStatus};
-use std::sync::{Arc, Mutex, MutexGuard};
+use std::fmt::Debug;
+use std::fmt::Error;
+use std::fmt::Formatter;
+use std::fs;
+use std::io;
+use std::io::Cursor;
+use std::io::Read;
+use std::path::Path;
+use std::path::PathBuf;
+use std::process::Command;
+use std::process::ExitStatus;
+use std::str;
+use std::sync::Arc;
+use std::sync::Mutex;
+use std::sync::MutexGuard;
 use std::time::SystemTime;
-use std::{fs, io, str};
 
 use async_trait::async_trait;
 use futures::stream::BoxStream;
 use gix::bstr::BString;
-use gix::objs::{CommitRef, CommitRefIter, WriteTo};
+use gix::objs::CommitRef;
+use gix::objs::CommitRefIter;
+use gix::objs::WriteTo;
 use itertools::Itertools;
 use pollster::FutureExt;
 use prost::Message;
 use smallvec::SmallVec;
 use thiserror::Error;
 
-use crate::backend::{
-    make_root_commit, Backend, BackendError, BackendInitError, BackendLoadError, BackendResult,
-    ChangeId, Commit, CommitId, Conflict, ConflictId, ConflictTerm, CopyRecord, FileId,
-    MergedTreeId, MillisSinceEpoch, SecureSig, Signature, SigningFn, SymlinkId, Timestamp, Tree,
-    TreeId, TreeValue,
-};
-use crate::file_util::{IoResultExt as _, PathError};
+use crate::backend::make_root_commit;
+use crate::backend::Backend;
+use crate::backend::BackendError;
+use crate::backend::BackendInitError;
+use crate::backend::BackendLoadError;
+use crate::backend::BackendResult;
+use crate::backend::ChangeId;
+use crate::backend::Commit;
+use crate::backend::CommitId;
+use crate::backend::Conflict;
+use crate::backend::ConflictId;
+use crate::backend::ConflictTerm;
+use crate::backend::CopyRecord;
+use crate::backend::FileId;
+use crate::backend::MergedTreeId;
+use crate::backend::MillisSinceEpoch;
+use crate::backend::SecureSig;
+use crate::backend::Signature;
+use crate::backend::SigningFn;
+use crate::backend::SymlinkId;
+use crate::backend::Timestamp;
+use crate::backend::Tree;
+use crate::backend::TreeId;
+use crate::backend::TreeValue;
+use crate::file_util::IoResultExt as _;
+use crate::file_util::PathError;
 use crate::index::Index;
 use crate::lock::FileLock;
-use crate::merge::{Merge, MergeBuilder};
+use crate::merge::Merge;
+use crate::merge::MergeBuilder;
 use crate::object_id::ObjectId;
-use crate::repo_path::{RepoPath, RepoPathBuf, RepoPathComponentBuf};
+use crate::repo_path::RepoPath;
+use crate::repo_path::RepoPathBuf;
+use crate::repo_path::RepoPathComponentBuf;
 use crate::settings::UserSettings;
-use crate::stacked_table::{
-    MutableTable, ReadonlyTable, TableSegment, TableStore, TableStoreError,
-};
+use crate::stacked_table::MutableTable;
+use crate::stacked_table::ReadonlyTable;
+use crate::stacked_table::TableSegment;
+use crate::stacked_table::TableStore;
+use crate::stacked_table::TableStoreError;
 
 const HASH_LENGTH: usize = 20;
 const CHANGE_ID_LENGTH: usize = 16;

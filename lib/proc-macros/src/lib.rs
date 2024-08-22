@@ -3,7 +3,8 @@ mod content_hash;
 extern crate proc_macro;
 
 use quote::quote;
-use syn::{parse_macro_input, DeriveInput};
+use syn::parse_macro_input;
+use syn::DeriveInput;
 
 /// Derives the `ContentHash` trait for a struct by calling `ContentHash::hash`
 /// on each of the struct members in the order that they're declared. All

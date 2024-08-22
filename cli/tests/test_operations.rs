@@ -17,7 +17,9 @@ use std::path::Path;
 use itertools::Itertools;
 use regex::Regex;
 
-use crate::common::{get_stdout_string, strip_last_line, TestEnvironment};
+use crate::common::get_stdout_string;
+use crate::common::strip_last_line;
+use crate::common::TestEnvironment;
 
 #[test]
 fn test_op_log() {

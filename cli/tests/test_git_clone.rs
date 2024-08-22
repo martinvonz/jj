@@ -12,9 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::path::{self, Path, PathBuf};
+use std::path::Path;
+use std::path::PathBuf;
+use std::path::{self};
 
-use crate::common::{get_stderr_string, get_stdout_string, TestEnvironment};
+use crate::common::get_stderr_string;
+use crate::common::get_stdout_string;
+use crate::common::TestEnvironment;
 
 fn set_up_non_empty_git_repo(git_repo: &git2::Repository) {
     let signature =

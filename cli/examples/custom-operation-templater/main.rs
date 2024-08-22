@@ -13,11 +13,12 @@
 // limitations under the License.
 
 use jj_cli::cli_util::CliRunner;
-use jj_cli::operation_templater::{
-    OperationTemplateBuildFnTable, OperationTemplateLanguage, OperationTemplateLanguageExtension,
-};
+use jj_cli::operation_templater::OperationTemplateBuildFnTable;
+use jj_cli::operation_templater::OperationTemplateLanguage;
+use jj_cli::operation_templater::OperationTemplateLanguageExtension;
 use jj_cli::template_builder::TemplateLanguage;
-use jj_cli::template_parser::{self, TemplateParseError};
+use jj_cli::template_parser::TemplateParseError;
+use jj_cli::template_parser::{self};
 use jj_cli::templater::TemplatePropertyExt as _;
 use jj_lib::extensions_map::ExtensionsMap;
 use jj_lib::object_id::ObjectId;

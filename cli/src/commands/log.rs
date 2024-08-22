@@ -13,16 +13,24 @@
 // limitations under the License.
 
 use jj_lib::backend::CommitId;
-use jj_lib::graph::{GraphEdgeType, ReverseGraphIterator, TopoGroupedGraphIterator};
+use jj_lib::graph::GraphEdgeType;
+use jj_lib::graph::ReverseGraphIterator;
+use jj_lib::graph::TopoGroupedGraphIterator;
 use jj_lib::repo::Repo;
-use jj_lib::revset::{RevsetExpression, RevsetFilterPredicate, RevsetIteratorExt};
+use jj_lib::revset::RevsetExpression;
+use jj_lib::revset::RevsetFilterPredicate;
+use jj_lib::revset::RevsetIteratorExt;
 use tracing::instrument;
 
-use crate::cli_util::{format_template, CommandHelper, LogContentFormat, RevisionArg};
+use crate::cli_util::format_template;
+use crate::cli_util::CommandHelper;
+use crate::cli_util::LogContentFormat;
+use crate::cli_util::RevisionArg;
 use crate::command_error::CommandError;
 use crate::commit_templater::CommitTemplateLanguage;
 use crate::diff_util::DiffFormatArgs;
-use crate::graphlog::{get_graphlog, Edge};
+use crate::graphlog::get_graphlog;
+use crate::graphlog::Edge;
 use crate::ui::Ui;
 
 /// Show revision history

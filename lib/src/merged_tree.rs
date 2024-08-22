@@ -15,28 +15,47 @@
 //! A lazily merged view of a set of trees.
 
 use std::borrow::Borrow;
-use std::cmp::{max, Ordering};
-use std::collections::{BTreeMap, VecDeque};
+use std::cmp::max;
+use std::cmp::Ordering;
+use std::collections::BTreeMap;
+use std::collections::VecDeque;
+use std::iter;
 use std::iter::zip;
 use std::pin::Pin;
 use std::sync::Arc;
-use std::task::{Context, Poll};
-use std::{iter, vec};
+use std::task::Context;
+use std::task::Poll;
+use std::vec;
 
 use either::Either;
 use futures::future::BoxFuture;
-use futures::stream::{BoxStream, StreamExt};
-use futures::{Stream, TryStreamExt};
-use itertools::{EitherOrBoth, Itertools};
+use futures::stream::BoxStream;
+use futures::stream::StreamExt;
+use futures::Stream;
+use futures::TryStreamExt;
+use itertools::EitherOrBoth;
+use itertools::Itertools;
 
 use crate::backend;
-use crate::backend::{BackendResult, MergedTreeId, TreeId, TreeValue};
-use crate::copies::{CopiesTreeDiffEntry, CopiesTreeDiffStream, CopyRecords};
-use crate::matchers::{EverythingMatcher, Matcher};
-use crate::merge::{Merge, MergeBuilder, MergedTreeVal, MergedTreeValue};
-use crate::repo_path::{RepoPath, RepoPathBuf, RepoPathComponent};
+use crate::backend::BackendResult;
+use crate::backend::MergedTreeId;
+use crate::backend::TreeId;
+use crate::backend::TreeValue;
+use crate::copies::CopiesTreeDiffEntry;
+use crate::copies::CopiesTreeDiffStream;
+use crate::copies::CopyRecords;
+use crate::matchers::EverythingMatcher;
+use crate::matchers::Matcher;
+use crate::merge::Merge;
+use crate::merge::MergeBuilder;
+use crate::merge::MergedTreeVal;
+use crate::merge::MergedTreeValue;
+use crate::repo_path::RepoPath;
+use crate::repo_path::RepoPathBuf;
+use crate::repo_path::RepoPathComponent;
 use crate::store::Store;
-use crate::tree::{try_resolve_file_conflict, Tree};
+use crate::tree::try_resolve_file_conflict;
+use crate::tree::Tree;
 use crate::tree_builder::TreeBuilder;
 
 /// Presents a view of a merged set of trees.

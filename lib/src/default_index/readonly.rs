@@ -16,7 +16,8 @@
 
 use std::any::Any;
 use std::cmp::Ordering;
-use std::fmt::{Debug, Formatter};
+use std::fmt::Debug;
+use std::fmt::Formatter;
 use std::fs::File;
 use std::io;
 use std::io::Read;
@@ -26,13 +27,28 @@ use std::sync::Arc;
 use smallvec::smallvec;
 use thiserror::Error;
 
-use super::composite::{AsCompositeIndex, ChangeIdIndexImpl, CompositeIndex, IndexSegment};
-use super::entry::{IndexPosition, LocalPosition, SmallIndexPositionsVec, SmallLocalPositionsVec};
+use super::composite::AsCompositeIndex;
+use super::composite::ChangeIdIndexImpl;
+use super::composite::CompositeIndex;
+use super::composite::IndexSegment;
+use super::entry::IndexPosition;
+use super::entry::LocalPosition;
+use super::entry::SmallIndexPositionsVec;
+use super::entry::SmallLocalPositionsVec;
 use super::mutable::DefaultMutableIndex;
-use crate::backend::{ChangeId, CommitId};
-use crate::index::{AllHeadsForGcUnsupported, ChangeIdIndex, Index, MutableIndex, ReadonlyIndex};
-use crate::object_id::{HexPrefix, ObjectId, PrefixResolution};
-use crate::revset::{ResolvedExpression, Revset, RevsetEvaluationError};
+use crate::backend::ChangeId;
+use crate::backend::CommitId;
+use crate::index::AllHeadsForGcUnsupported;
+use crate::index::ChangeIdIndex;
+use crate::index::Index;
+use crate::index::MutableIndex;
+use crate::index::ReadonlyIndex;
+use crate::object_id::HexPrefix;
+use crate::object_id::ObjectId;
+use crate::object_id::PrefixResolution;
+use crate::revset::ResolvedExpression;
+use crate::revset::Revset;
+use crate::revset::RevsetEvaluationError;
 use crate::store::Store;
 
 /// Error while loading index segment file.

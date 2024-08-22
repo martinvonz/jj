@@ -14,26 +14,41 @@
 
 #![allow(missing_docs)]
 
-use std::cmp::{max, min, Ordering};
-use std::collections::{BTreeSet, BinaryHeap, HashSet};
+use std::cmp::max;
+use std::cmp::min;
+use std::cmp::Ordering;
+use std::collections::BTreeSet;
+use std::collections::BinaryHeap;
+use std::collections::HashSet;
 use std::iter;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use std::sync::Mutex;
 
 use itertools::Itertools;
-use ref_cast::{ref_cast_custom, RefCastCustom};
+use ref_cast::ref_cast_custom;
+use ref_cast::RefCastCustom;
 
-use super::entry::{
-    IndexEntry, IndexPosition, IndexPositionByGeneration, LocalPosition, SmallIndexPositionsVec,
-    SmallLocalPositionsVec,
-};
+use super::entry::IndexEntry;
+use super::entry::IndexPosition;
+use super::entry::IndexPositionByGeneration;
+use super::entry::LocalPosition;
+use super::entry::SmallIndexPositionsVec;
+use super::entry::SmallLocalPositionsVec;
 use super::readonly::ReadonlyIndexSegment;
 use super::rev_walk::AncestorsBitSet;
 use super::revset_engine;
-use crate::backend::{ChangeId, CommitId};
+use crate::backend::ChangeId;
+use crate::backend::CommitId;
 use crate::hex_util;
-use crate::index::{AllHeadsForGcUnsupported, ChangeIdIndex, Index};
-use crate::object_id::{HexPrefix, ObjectId, PrefixResolution};
-use crate::revset::{ResolvedExpression, Revset, RevsetEvaluationError};
+use crate::index::AllHeadsForGcUnsupported;
+use crate::index::ChangeIdIndex;
+use crate::index::Index;
+use crate::object_id::HexPrefix;
+use crate::object_id::ObjectId;
+use crate::object_id::PrefixResolution;
+use crate::revset::ResolvedExpression;
+use crate::revset::Revset;
+use crate::revset::RevsetEvaluationError;
 use crate::store::Store;
 
 pub(super) trait IndexSegment: Send + Sync {

@@ -14,7 +14,8 @@
 
 #![allow(missing_docs)]
 
-use std::any::{Any, TypeId};
+use std::any::Any;
+use std::any::TypeId;
 use std::collections::HashMap;
 
 /// Type-safe map that stores objects of arbitrary types.

@@ -21,9 +21,10 @@ use tracing::instrument;
 
 use super::git;
 use crate::cli_util::CommandHelper;
-use crate::command_error::{
-    cli_error, user_error_with_hint, user_error_with_message, CommandError,
-};
+use crate::command_error::cli_error;
+use crate::command_error::user_error_with_hint;
+use crate::command_error::user_error_with_message;
+use crate::command_error::CommandError;
 use crate::ui::Ui;
 
 /// Create a new repo in the given directory

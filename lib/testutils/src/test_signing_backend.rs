@@ -1,6 +1,10 @@
 use hex::ToHex;
 use jj_lib::content_hash::blake2b_hash;
-use jj_lib::signing::{SigStatus, SignError, SignResult, SigningBackend, Verification};
+use jj_lib::signing::SigStatus;
+use jj_lib::signing::SignError;
+use jj_lib::signing::SignResult;
+use jj_lib::signing::SigningBackend;
+use jj_lib::signing::Verification;
 
 #[derive(Debug)]
 pub struct TestSigningBackend;

@@ -17,7 +17,8 @@ use std::io::Write;
 use std::path::PathBuf;
 use std::process::ExitCode;
 
-use clap::{arg, Parser};
+use clap::arg;
+use clap::Parser;
 use itertools::Itertools;
 
 /// A fake code formatter, useful for testing

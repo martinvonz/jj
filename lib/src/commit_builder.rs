@@ -16,10 +16,18 @@
 
 use std::sync::Arc;
 
-use crate::backend::{self, BackendResult, ChangeId, CommitId, MergedTreeId, Signature};
+use crate::backend::BackendResult;
+use crate::backend::ChangeId;
+use crate::backend::CommitId;
+use crate::backend::MergedTreeId;
+use crate::backend::Signature;
+use crate::backend::{self};
 use crate::commit::Commit;
-use crate::repo::{MutableRepo, Repo};
-use crate::settings::{JJRng, SignSettings, UserSettings};
+use crate::repo::MutableRepo;
+use crate::repo::Repo;
+use crate::settings::JJRng;
+use crate::settings::SignSettings;
+use crate::settings::UserSettings;
 use crate::signing::SignBehavior;
 use crate::store::Store;
 
