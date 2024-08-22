@@ -195,6 +195,11 @@ parent.
       <td>(TODO)</td>
     </tr>
     <tr>
+      <td>List versioned files in the working copy</td>
+      <td><code>jj file list</code></td>
+      <td><code>git ls-files --cached</code></td>
+    </tr>
+    <tr>
       <td>Search among files versioned in the repository</td>
       <td><code>grep foo $(jj file list)</code>, or <code>rg --no-require-git foo</code></td>
       <td><code>git grep foo</code></td>
