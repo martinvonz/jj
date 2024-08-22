@@ -37,6 +37,6 @@ pub fn cmd_git_remote_set_url(
     let workspace_command = command.workspace_helper(ui)?;
     let repo = workspace_command.repo();
     let git_repo = get_git_repo(repo.store())?;
-    git::set_remote_url(&git_repo, &args.remote, &args.url)?;
+    git::set_remote_url(&git_repo, &args.remote, &args.url, command.cwd())?;
     Ok(())
 }
