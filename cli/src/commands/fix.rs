@@ -83,8 +83,9 @@ use crate::ui::Ui;
 ///
 /// For example, the following configuration defines how two code formatters
 /// (`clang-format` and `black`) will apply to three different file extensions
-/// (.cc, .h, and .py):
+/// (`.cc`, `.h`, and `.py`):
 ///
+/// ```toml
 /// [fix.tools.clang-format]
 /// command = ["/usr/bin/clang-format", "--assume-filename=$path"]
 /// patterns = ["glob:'**/*.cc'",
@@ -93,6 +94,7 @@ use crate::ui::Ui;
 /// [fix.tools.black]
 /// command = ["/usr/bin/black", "-", "--stdin-filename=$path"]
 /// patterns = ["glob:'**/*.py'"]
+/// ```
 ///
 /// Execution order of tools that affect the same file is deterministic, but
 /// currently unspecified, and may change between releases. If two tools affect
@@ -104,8 +106,10 @@ use crate::ui::Ui;
 /// example, the following configuration would apply the Rust formatter to all
 /// changed files (whether they are Rust files or not):
 ///
+/// ```toml
 /// [fix]
 /// tool-command = ["rustfmt", "--emit", "stdout"]
+/// ```
 ///
 /// The tool defined by `tool-command` acts as if it was the first entry in
 /// `fix.tools`, and uses `pattern = "all()"``. Support for `tool-command`
