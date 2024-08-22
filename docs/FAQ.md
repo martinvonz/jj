@@ -75,6 +75,10 @@ Then future edits will go into a new working-copy commit on top of the now
 former working-copy commit. Whenever you are happy with another set of edits,
 use `jj squash` to amend the previous commit.
 
+If you have changes you _never_ want to put in a public commit, see: [How can I
+keep my scratch files in the repository without committing
+them?](#how-can-i-keep-my-scratch-files-in-the-repository-without-committing-them)
+
 For more options see the next question.
 
 ### Can I interactively create a new commit from only some of the changes in the working copy, like `git add -p && git commit` or `hg commit -i`?
@@ -95,12 +99,16 @@ which may require multiple invocations of `jj rebase -r` or `jj rebase -s`.
 
 To squash or split commits, use `jj squash` and `jj split`.
 
-### How can I keep my scratch files in the repository?
+### How can I keep my scratch files in the repository without committing them?
 
 You can keep your notes and other scratch files in the repository, if you add
 a wildcard pattern to either the repo's `gitignore` or your global `gitignore`.
 Something like `*.scratch` or `*.scratchpad` should do, after that rename the
 files you want to keep around to match the pattern.
+
+If you keep your scratch files in their own directory with no tracked files, you
+can create a `.gitignore` file in that directory containing only `*`. This will
+ignore everything in the directory including the `.gitignore` file itself.
 
 If `$EDITOR` integration is important, something like `scratchpad.*` may be more
 helpful, as you can keep the filename extension intact (it
@@ -111,22 +119,84 @@ store arbitrary files in `<your-git-repo>/scratch/`.
 
 You can find more details on `gitignore` files [here][gitignore].
 
-### How can I keep local changes around, but not use them for Pull Requests?
+### How can I avoid committing my local-only changes to tracked files?
 
-In general, you should separate out the changes to their own commit (using
-e.g. `jj split`). After that, one possible workflow is to rebase your pending
-PRs on top of the commit with the local changes. Then, just before pushing to a
-remote, use `jj rebase -s child_of_commit_with_local_changes -d main` to move
-the PRs back on top of `main`.
+Suppose your repository tracks a file like `secret_config.json`, and you make
+some changes to that file to work locally. Since Jujutsu automatically commits
+the working copy, there's no way to prevent Jujutsu from committing changes to
+the file. But, you never want to push those changes to the remote repository. 
 
-If you have several PRs, you can
-try `jj rebase -s all:commit_with_local_changes+ -d main`
-(note the `+`) to move them all at once.
+One solution is to keep these changes in a separate commit branched from the
+trunk. To use those changes in your working copy, _merge_ the private commit
+into your branch.
 
-An alternative workflow would be to rebase the commit with local changes on
-top of the PR you're working on and then do `jj new commit_with_local_changes`.
-You'll then need to use `jj new --before` to create new commits and
-`jj squash --into` to move new changes into the correct commits.
+Suppose you have a commit "Add new feature":
+
+```shell
+$ jj log
+@  xxxxxxxx me@example.com 2024-08-21 11:13:21 ef612875
+│  Add new feature
+◉  yyyyyyyy me@example.com 2024-08-21 11:13:09 main b624cf12
+│  Existing work
+~
+```
+
+First, create a new commit branched from main and add your private changes:
+
+```shell
+$ jj new main -m "private: my credentials"
+Working copy now at: wwwwwwww 861de9eb (empty) private: my credentials
+Parent commit      : yyyyyyyy b624cf12 main | Existing work
+Added 0 files, modified 1 files, removed 0 files
+
+$ echo '{ "password": "p@ssw0rd1" }' > secret_config.json
+```
+
+Now create a merge commit with the branch you're working on and the private
+commit:
+
+```shell
+$ jj new xxxxxxxx wwwwwwww
+Working copy now at: vvvvvvvv ac4d9fbe (empty) (no description set)
+Parent commit      : xxxxxxxx ef612875 Add new feature
+Parent commit      : wwwwwwww 2106921e private: my credentials
+Added 0 files, modified 1 files, removed 0 files
+
+$ jj log
+@    vvvvvvvv me@example.com 2024-08-22 08:57:40 ac4d9fbe
+├─╮  (empty) (no description set)
+│ ◉  wwwwwwww me@example.com 2024-08-22 08:57:40 2106921e
+│ │  private: my credentials
+◉ │  xxxxxxxx me@example.com 2024-08-21 11:13:21 ef612875
+├─╯  Add new feature
+◉  yyyyyyyy me@example.com 2024-08-21 11:13:09 main b624cf12
+│  Existing work
+~
+```
+
+Now you're ready to work:
+
+- Your work in progress _xxxxxxxx_ is the first parent of the merge commit.
+- The private commit _wwwwwwww_ is the second parent of the merge commit.
+- The working copy (_vvvvvvvv_) contains changes from both.
+
+As you work, squash your changes using `jj squash --into xxxxxxxx`. Or, you can
+keep your changes in a separate commit and remove _ttsqqnrx_ as a parent:
+
+```shell
+# Remove the private commit as a parent
+$ jj rebase -r vvvvvvvv -d xxxxxxxx
+
+# Create a new merge commit to work in
+$ jj new vvvvvvvv wwwwwwww
+```
+
+To avoid pushing change _wwwwwwww_ by mistake, use the configuration
+[git.private-commits](config.md#set-of-private-commits):
+
+```
+$ jj config set --user git.private-commits 'description(glob:"private:*")'
+```
 
 ### I accidentally changed files in the wrong commit, how do I move the recent changes into another commit?
 
