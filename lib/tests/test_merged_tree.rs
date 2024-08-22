@@ -57,15 +57,21 @@ fn diff_entry_tuple(diff: TreeDiffEntry) -> (RepoPathBuf, (MergedTreeValue, Merg
 }
 
 fn diff_stream_equals_iter(tree1: &MergedTree, tree2: &MergedTree, matcher: &dyn Matcher) {
-    let iter_diff: Vec<_> = TreeDiffIterator::new(tree1.as_merge(), tree2.as_merge(), matcher)
+    let trees1 = tree1.as_merge();
+    let trees2 = tree2.as_merge();
+    let iter_diff: Vec<_> = TreeDiffIterator::new(trees1, trees2, matcher)
         .map(|diff| (diff.path, diff.values.unwrap()))
         .collect();
     let max_concurrent_reads = 10;
-    let stream_diff: Vec<_> =
-        TreeDiffStreamImpl::new(tree1.clone(), tree2.clone(), matcher, max_concurrent_reads)
-            .map(|diff| (diff.path, diff.values.unwrap()))
-            .collect()
-            .block_on();
+    let stream_diff: Vec<_> = TreeDiffStreamImpl::new(
+        trees1.clone(),
+        trees2.clone(),
+        matcher,
+        max_concurrent_reads,
+    )
+    .map(|diff| (diff.path, diff.values.unwrap()))
+    .collect()
+    .block_on();
     assert_eq!(stream_diff, iter_diff);
 }
 
