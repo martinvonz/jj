@@ -295,8 +295,8 @@ impl MergedTree {
             )))
         } else {
             Box::pin(TreeDiffStreamImpl::new(
-                self.trees.clone(),
-                other.trees.clone(),
+                &self.trees,
+                &other.trees,
                 matcher,
                 concurrency,
             ))
@@ -922,8 +922,8 @@ impl<'matcher> TreeDiffStreamImpl<'matcher> {
     /// Creates a iterator over the differences between two trees. Generally
     /// prefer `MergedTree::diff_stream()` of calling this directly.
     pub fn new(
-        trees1: Merge<Tree>,
-        trees2: Merge<Tree>,
+        trees1: &Merge<Tree>,
+        trees2: &Merge<Tree>,
         matcher: &'matcher dyn Matcher,
         max_concurrent_reads: usize,
     ) -> Self {
@@ -936,7 +936,7 @@ impl<'matcher> TreeDiffStreamImpl<'matcher> {
             max_concurrent_reads,
             max_queued_items: 10000,
         };
-        stream.add_dir_diff_items(RepoPathBuf::root(), Ok((trees1, trees2)));
+        stream.add_dir_diff_items(RepoPath::root(), trees1, trees2);
         stream
     }
 
@@ -968,20 +968,8 @@ impl<'matcher> TreeDiffStreamImpl<'matcher> {
         }
     }
 
-    fn add_dir_diff_items(
-        &mut self,
-        dir: RepoPathBuf,
-        tree_diff: BackendResult<(Merge<Tree>, Merge<Tree>)>,
-    ) {
-        let (trees1, trees2) = match tree_diff {
-            Ok(trees) => trees,
-            Err(err) => {
-                self.items.insert(DiffStreamKey::normal(dir), Err(err));
-                return;
-            }
-        };
-
-        for (basename, before, after) in merged_tree_entry_diff(&trees1, &trees2) {
+    fn add_dir_diff_items(&mut self, dir: &RepoPath, trees1: &Merge<Tree>, trees2: &Merge<Tree>) {
+        for (basename, before, after) in merged_tree_entry_diff(trees1, trees2) {
             let path = dir.join(basename);
             let tree_before = before.is_tree();
             let tree_after = after.is_tree();
@@ -1049,7 +1037,14 @@ impl<'matcher> TreeDiffStreamImpl<'matcher> {
                         Ok((Merge::absent(), after)),
                     );
                 }
-                self.add_dir_diff_items(key.path, tree_diff);
+                match tree_diff {
+                    Ok((trees1, trees2)) => {
+                        self.add_dir_diff_items(&key.path, &trees1, &trees2);
+                    }
+                    Err(err) => {
+                        self.items.insert(DiffStreamKey::normal(key.path), Err(err));
+                    }
+                }
             } else {
                 pending_index += 1;
             }
