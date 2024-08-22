@@ -92,12 +92,31 @@ impl CopyRecords {
 
 /// A `TreeDiffEntry` with copy information.
 pub struct CopiesTreeDiffEntry {
+    /// The path.
+    pub path: CopiesTreeDiffEntryPath,
+    /// The resolved tree values if available.
+    pub values: BackendResult<(MergedTreeValue, MergedTreeValue)>,
+}
+
+/// Path of `CopiesTreeDiffEntry`.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CopiesTreeDiffEntryPath {
     /// The source path.
     pub source: RepoPathBuf,
     /// The target path.
     pub target: RepoPathBuf,
-    /// The resolved tree values if available.
-    pub values: BackendResult<(MergedTreeValue, MergedTreeValue)>,
+}
+
+impl CopiesTreeDiffEntryPath {
+    /// The source path.
+    pub fn source(&self) -> &RepoPath {
+        &self.source
+    }
+
+    /// The target path.
+    pub fn target(&self) -> &RepoPath {
+        &self.target
+    }
 }
 
 /// Wraps a `TreeDiffStream`, adding support for copies and renames.
@@ -136,15 +155,19 @@ impl Stream for CopiesTreeDiffStream<'_> {
                     continue;
                 }
                 return Poll::Ready(Some(CopiesTreeDiffEntry {
-                    source: diff_entry.path.clone(),
-                    target: diff_entry.path,
+                    path: CopiesTreeDiffEntryPath {
+                        source: diff_entry.path.clone(),
+                        target: diff_entry.path,
+                    },
                     values: diff_entry.values,
                 }));
             };
 
             return Poll::Ready(Some(CopiesTreeDiffEntry {
-                source: source.clone(),
-                target: diff_entry.path,
+                path: CopiesTreeDiffEntryPath {
+                    source: source.clone(),
+                    target: diff_entry.path,
+                },
                 values: diff_entry.values.and_then(|(_, target_value)| {
                     self.source_tree
                         .path_value(source)

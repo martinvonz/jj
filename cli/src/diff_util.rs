@@ -772,14 +772,11 @@ pub fn show_color_words_diff(
 ) -> Result<(), DiffRenderError> {
     let mut diff_stream = materialized_diff_stream(store, tree_diff);
     async {
-        while let Some(MaterializedTreeDiffEntry {
-            source: left_path,
-            target: right_path,
-            values,
-        }) = diff_stream.next().await
-        {
-            let left_ui_path = path_converter.format_file_path(&left_path);
-            let right_ui_path = path_converter.format_file_path(&right_path);
+        while let Some(MaterializedTreeDiffEntry { path, values }) = diff_stream.next().await {
+            let left_path = path.source();
+            let right_path = path.target();
+            let left_ui_path = path_converter.format_file_path(left_path);
+            let right_ui_path = path_converter.format_file_path(right_path);
             let (left_value, right_value) = values?;
 
             match (&left_value, &right_value) {
@@ -807,7 +804,7 @@ pub fn show_color_words_diff(
                     formatter.labeled("header"),
                     "Added {description} {right_ui_path}:"
                 )?;
-                let right_content = diff_content(&right_path, right_value)?;
+                let right_content = diff_content(right_path, right_value)?;
                 if right_content.is_empty() {
                     writeln!(formatter.labeled("empty"), "    (empty)")?;
                 } else if right_content.is_binary {
@@ -863,8 +860,8 @@ pub fn show_color_words_diff(
                         )
                     }
                 };
-                let left_content = diff_content(&left_path, left_value)?;
-                let right_content = diff_content(&right_path, right_value)?;
+                let left_content = diff_content(left_path, left_value)?;
+                let right_content = diff_content(right_path, right_value)?;
                 if left_path == right_path {
                     writeln!(
                         formatter.labeled("header"),
@@ -892,7 +889,7 @@ pub fn show_color_words_diff(
                     formatter.labeled("header"),
                     "Removed {description} {right_ui_path}:"
                 )?;
-                let left_content = diff_content(&left_path, left_value)?;
+                let left_content = diff_content(left_path, left_value)?;
                 if left_content.is_empty() {
                     writeln!(formatter.labeled("empty"), "    (empty)")?;
                 } else if left_content.is_binary {
@@ -932,15 +929,12 @@ pub fn show_file_by_file_diff(
     let right_wc_dir = temp_dir.path().join("right");
     let mut diff_stream = materialized_diff_stream(store, tree_diff);
     async {
-        while let Some(MaterializedTreeDiffEntry {
-            source: left_path,
-            target: right_path,
-            values,
-        }) = diff_stream.next().await
-        {
+        while let Some(MaterializedTreeDiffEntry { path, values }) = diff_stream.next().await {
             let (left_value, right_value) = values?;
-            let left_ui_path = path_converter.format_file_path(&left_path);
-            let right_ui_path = path_converter.format_file_path(&right_path);
+            let left_path = path.source();
+            let right_path = path.target();
+            let left_ui_path = path_converter.format_file_path(left_path);
+            let right_ui_path = path_converter.format_file_path(right_path);
 
             match (&left_value, &right_value) {
                 (_, MaterializedTreeValue::AccessDenied(source)) => {
@@ -961,8 +955,8 @@ pub fn show_file_by_file_diff(
                 }
                 _ => {}
             }
-            let left_path = create_file(&left_path, &left_wc_dir, left_value)?;
-            let right_path = create_file(&right_path, &right_wc_dir, right_value)?;
+            let left_path = create_file(left_path, &left_wc_dir, left_value)?;
+            let right_path = create_file(right_path, &right_wc_dir, right_value)?;
 
             invoke_external_diff(
                 ui,
@@ -1276,18 +1270,15 @@ pub fn show_git_diff(
     let mut diff_stream = materialized_diff_stream(store, tree_diff);
 
     async {
-        while let Some(MaterializedTreeDiffEntry {
-            source: left_path,
-            target: right_path,
-            values,
-        }) = diff_stream.next().await
-        {
+        while let Some(MaterializedTreeDiffEntry { path, values }) = diff_stream.next().await {
+            let left_path = path.source();
+            let right_path = path.target();
             let left_path_string = left_path.as_internal_file_string();
             let right_path_string = right_path.as_internal_file_string();
             let (left_value, right_value) = values?;
 
-            let left_part = git_diff_part(&left_path, left_value)?;
-            let right_part = git_diff_part(&right_path, right_value)?;
+            let left_part = git_diff_part(left_path, left_value)?;
+            let right_part = git_diff_part(right_path, right_value)?;
 
             formatter.with_label("file_header", |formatter| {
                 writeln!(
@@ -1307,7 +1298,7 @@ pub fn show_git_diff(
                     }
                     (Some(left_mode), Some(right_mode)) => {
                         if left_path != right_path {
-                            let operation = if to_tree.path_value(&left_path)?.is_absent() {
+                            let operation = if to_tree.path_value(left_path)?.is_absent() {
                                 "rename"
                             } else {
                                 "copy"
@@ -1380,22 +1371,19 @@ pub fn show_diff_summary(
     let mut tree_diff = from_tree.diff_stream_with_copies(to_tree, matcher, copy_records);
 
     async {
-        while let Some(CopiesTreeDiffEntry {
-            source: before_path,
-            target: after_path,
-            values,
-        }) = tree_diff.next().await
-        {
+        while let Some(CopiesTreeDiffEntry { path, values }) = tree_diff.next().await {
             let (before, after) = values?;
+            let before_path = path.source();
+            let after_path = path.target();
             if before_path != after_path {
-                let path = path_converter.format_copied_path(&before_path, &after_path);
-                if to_tree.path_value(&before_path).unwrap().is_absent() {
+                let path = path_converter.format_copied_path(before_path, after_path);
+                if to_tree.path_value(before_path).unwrap().is_absent() {
                     writeln!(formatter.labeled("renamed"), "R {path}")?
                 } else {
                     writeln!(formatter.labeled("copied"), "C {path}")?
                 }
             } else {
-                let path = path_converter.format_file_path(&after_path);
+                let path = path_converter.format_file_path(after_path);
                 match (before.is_present(), after.is_present()) {
                     (true, true) => writeln!(formatter.labeled("modified"), "M {path}")?,
                     (false, true) => writeln!(formatter.labeled("added"), "A {path}")?,
@@ -1459,22 +1447,19 @@ pub fn show_diff_stat(
 
     let mut diff_stream = materialized_diff_stream(store, tree_diff);
     async {
-        while let Some(MaterializedTreeDiffEntry {
-            source: left_path,
-            target: right_path,
-            values,
-        }) = diff_stream.next().await
-        {
+        while let Some(MaterializedTreeDiffEntry { path, values }) = diff_stream.next().await {
             let (left, right) = values?;
-            let left_content = diff_content(&left_path, left)?;
-            let right_content = diff_content(&right_path, right)?;
+            let left_path = path.source();
+            let right_path = path.target();
+            let left_content = diff_content(left_path, left)?;
+            let right_content = diff_content(right_path, right)?;
 
-            let left_ui_path = path_converter.format_file_path(&left_path);
+            let left_ui_path = path_converter.format_file_path(left_path);
             let path = if left_path == right_path {
                 left_ui_path
             } else {
                 unresolved_renames.insert(left_ui_path);
-                path_converter.format_copied_path(&left_path, &right_path)
+                path_converter.format_copied_path(left_path, right_path)
             };
             max_path_width = max(max_path_width, path.width());
             let stat = get_diff_stat(path, &left_content, &right_content);
@@ -1548,19 +1533,14 @@ pub fn show_types(
     let mut tree_diff = from_tree.diff_stream_with_copies(to_tree, matcher, copy_records);
 
     async {
-        while let Some(CopiesTreeDiffEntry {
-            source,
-            target,
-            values,
-        }) = tree_diff.next().await
-        {
+        while let Some(CopiesTreeDiffEntry { path, values }) = tree_diff.next().await {
             let (before, after) = values?;
             writeln!(
                 formatter.labeled("modified"),
                 "{}{} {}",
                 diff_summary_char(&before),
                 diff_summary_char(&after),
-                path_converter.format_copied_path(&source, &target)
+                path_converter.format_copied_path(path.source(), path.target())
             )?;
         }
         Ok(())
@@ -1587,11 +1567,12 @@ pub fn show_names(
     path_converter: &RepoPathUiConverter,
 ) -> io::Result<()> {
     async {
-        while let Some(CopiesTreeDiffEntry {
-            target: repo_path, ..
-        }) = tree_diff.next().await
-        {
-            writeln!(formatter, "{}", path_converter.format_file_path(&repo_path))?;
+        while let Some(CopiesTreeDiffEntry { path, .. }) = tree_diff.next().await {
+            writeln!(
+                formatter,
+                "{}",
+                path_converter.format_file_path(path.target())
+            )?;
         }
         Ok(())
     }
