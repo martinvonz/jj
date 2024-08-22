@@ -20,7 +20,7 @@ use itertools::Itertools;
 use jj_cli::cli_util::{CliRunner, CommandHelper};
 use jj_cli::command_error::CommandError;
 use jj_cli::ui::Ui;
-use jj_lib::backend::{Backend, MergedTreeId};
+use jj_lib::backend::{Backend, MergedTreeId, SnapshotResult};
 use jj_lib::commit::Commit;
 use jj_lib::git_backend::GitBackend;
 use jj_lib::local_working_copy::LocalWorkingCopy;
@@ -221,7 +221,7 @@ impl LockedWorkingCopy for LockedConflictsWorkingCopy {
         self.inner.old_tree_id()
     }
 
-    fn snapshot(&mut self, mut options: SnapshotOptions) -> Result<MergedTreeId, SnapshotError> {
+    fn snapshot(&mut self, mut options: SnapshotOptions) -> Result<SnapshotResult, SnapshotError> {
         options.base_ignores = options.base_ignores.chain("", "/.conflicts".as_bytes())?;
         self.inner.snapshot(options)
     }

@@ -132,7 +132,8 @@ fn test_checkout_parallel() {
                 let new_tree_id = locked_ws
                     .locked_wc()
                     .snapshot(SnapshotOptions::empty_for_test())
-                    .unwrap();
+                    .unwrap()
+                    .tree_id;
                 assert!(tree_ids.contains(&new_tree_id));
             });
         }
