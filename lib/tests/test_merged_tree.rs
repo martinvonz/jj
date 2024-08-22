@@ -20,6 +20,7 @@ use jj_lib::backend::FileId;
 use jj_lib::backend::MergedTreeId;
 use jj_lib::backend::TreeValue;
 use jj_lib::copies::CopiesTreeDiffEntryPath;
+use jj_lib::copies::CopyOperation;
 use jj_lib::copies::CopyRecords;
 use jj_lib::files::MergeResult;
 use jj_lib::matchers::EverythingMatcher;
@@ -889,7 +890,7 @@ fn test_diff_copy_tracing() {
         diff[1].clone(),
         (
             CopiesTreeDiffEntryPath {
-                source: Some(modified_path.to_owned()),
+                source: Some((modified_path.to_owned(), CopyOperation::Copy)),
                 target: copied_path.to_owned(),
             },
             (
@@ -902,7 +903,7 @@ fn test_diff_copy_tracing() {
         diff[2].clone(),
         (
             CopiesTreeDiffEntryPath {
-                source: Some(removed_path.to_owned()),
+                source: Some((removed_path.to_owned(), CopyOperation::Rename)),
                 target: added_path.to_owned(),
             },
             (
