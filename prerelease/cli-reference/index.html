@@ -6452,14 +6452,16 @@ the values have the following properties:</p>
 </ul>
 <p>For example, the following configuration defines how two code formatters
 (<code>clang-format</code> and <code>black</code>) will apply to three different file extensions
-(.cc, .h, and .py):</p>
-<p>[fix.tools.clang-format]
-command = ["/usr/bin/clang-format", "--assume-filename=$path"]
-patterns = ["glob:'<strong>/*.cc'",
-            "glob:'</strong>/*.h'"]</p>
-<p>[fix.tools.black]
-command = ["/usr/bin/black", "-", "--stdin-filename=$path"]
-patterns = ["glob:'*<em>/</em>.py'"]</p>
+(<code>.cc</code>, <code>.h</code>, and <code>.py</code>):</p>
+<div class="highlight"><pre><span></span><code><span class="k">[fix.tools.clang-format]</span>
+<span class="n">command</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;/usr/bin/clang-format&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;--assume-filename=$path&quot;</span><span class="p">]</span>
+<span class="n">patterns</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;glob:&#39;**/*.cc&#39;&quot;</span><span class="p">,</span>
+<span class="w">            </span><span class="s2">&quot;glob:&#39;**/*.h&#39;&quot;</span><span class="p">]</span>
+
+<span class="k">[fix.tools.black]</span>
+<span class="n">command</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;/usr/bin/black&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;-&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;--stdin-filename=$path&quot;</span><span class="p">]</span>
+<span class="n">patterns</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;glob:&#39;**/*.py&#39;&quot;</span><span class="p">]</span>
+</code></pre></div>
 <p>Execution order of tools that affect the same file is deterministic, but
 currently unspecified, and may change between releases. If two tools affect
 the same file, the second tool to run will receive its input from the
@@ -6468,8 +6470,9 @@ output of the first tool.</p>
 command that will affect all changed files in the specified revisions. For
 example, the following configuration would apply the Rust formatter to all
 changed files (whether they are Rust files or not):</p>
-<p>[fix]
-tool-command = ["rustfmt", "--emit", "stdout"]</p>
+<div class="highlight"><pre><span></span><code><span class="k">[fix]</span>
+<span class="n">tool-command</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;rustfmt&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;--emit&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;stdout&quot;</span><span class="p">]</span>
+</code></pre></div>
 <p>The tool defined by <code>tool-command</code> acts as if it was the first entry in
 <code>fix.tools</code>, and uses <code>pattern = "all()"``. Support for</code>tool-command`
 will be removed in a future version.</p>
