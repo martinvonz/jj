@@ -90,6 +90,16 @@ impl CopyRecords {
     }
 }
 
+/// A `TreeDiffEntry` with copy information.
+pub struct CopiesTreeDiffEntry {
+    /// The source path.
+    pub source: RepoPathBuf,
+    /// The target path.
+    pub target: RepoPathBuf,
+    /// The resolved tree values if available.
+    pub value: BackendResult<(MergedTreeValue, MergedTreeValue)>,
+}
+
 /// Wraps a `TreeDiffStream`, adding support for copies and renames.
 pub struct CopiesTreeDiffStream<'a> {
     inner: TreeDiffStream<'a>,
@@ -110,16 +120,6 @@ impl<'a> CopiesTreeDiffStream<'a> {
             copy_records,
         }
     }
-}
-
-/// A `TreeDiffEntry` with copy information.
-pub struct CopiesTreeDiffEntry {
-    /// The source path.
-    pub source: RepoPathBuf,
-    /// The target path.
-    pub target: RepoPathBuf,
-    /// The resolved tree values if available.
-    pub value: BackendResult<(MergedTreeValue, MergedTreeValue)>,
 }
 
 impl Stream for CopiesTreeDiffStream<'_> {
