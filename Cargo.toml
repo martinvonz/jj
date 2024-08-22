@@ -59,12 +59,12 @@ git2 = { version = "0.19.0", features = [
     # https://github.com/rust-lang/git2-rs/commit/3cef4119f
     "vendored-libgit2"
 ] }
-gix = { version = "0.64.0", default-features = false, features = [
+gix = { version = "0.66.0", default-features = false, features = [
     "index",
     "max-performance-safe",
     "blob-diff",
 ] }
-gix-filter = "0.11.3"
+gix-filter = "0.13.0"
 glob = "0.3.1"
 hex = "0.4.3"
 ignore = "0.4.20"

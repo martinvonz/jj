@@ -162,7 +162,7 @@ fn resolve_git_ref_to_commit_id(
                 }
                 // Unknown id. Recurse from the current state. A tag may point to
                 // non-commit object.
-                peeling_ref.to_mut().inner.target = gix::refs::Target::Peeled(oid.detach());
+                peeling_ref.to_mut().inner.target = gix::refs::Target::Object(oid.detach());
             }
         }
     }
@@ -680,9 +680,13 @@ pub fn export_some_refs(
             let old_target = head_ref.inner.target.clone();
             let current_oid = match head_ref.into_fully_peeled_id() {
                 Ok(id) => Some(id.detach()),
-                Err(gix::reference::peel::Error::ToId(gix::refs::peel::to_id::Error::Follow(
-                    gix::refs::file::find::existing::Error::NotFound { .. },
-                ))) => None, // Unborn ref should be considered absent
+                Err(gix::reference::peel::Error::ToId(
+                    gix::refs::peel::to_id::Error::FollowToObject(
+                        gix::refs::peel::to_object::Error::Follow(
+                            gix::refs::file::find::existing::Error::NotFound { .. },
+                        ),
+                    ),
+                )) => None, // Unborn ref should be considered absent
                 Err(err) => return Err(GitExportError::from_git(err)),
             };
             let new_oid = if let Some((_old_oid, new_oid)) = branches_to_update.get(&parsed_ref) {
@@ -937,7 +941,7 @@ fn update_git_head(
 ) -> Result<(), GitExportError> {
     let mut ref_edits = Vec::new();
     let new_target = if let Some(oid) = new_oid {
-        gix::refs::Target::Peeled(oid)
+        gix::refs::Target::Object(oid)
     } else {
         // Can't detach HEAD without a commit. Use placeholder ref to nullify
         // the HEAD. The placeholder ref isn't a normal branch ref. Git CLI
