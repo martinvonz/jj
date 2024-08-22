@@ -696,7 +696,7 @@ fn deserialize_extras(commit: &mut Commit, bytes: &[u8]) {
 /// Used for preventing GC of commits we create.
 fn to_no_gc_ref_update(id: &CommitId) -> gix::refs::transaction::RefEdit {
     let name = format!("{NO_GC_REF_NAMESPACE}{}", id.hex());
-    let new = gix::refs::Target::Peeled(validate_git_object_id(id).unwrap());
+    let new = gix::refs::Target::Object(validate_git_object_id(id).unwrap());
     let expected = gix::refs::transaction::PreviousValue::ExistingMustMatch(new.clone());
     gix::refs::transaction::RefEdit {
         change: gix::refs::transaction::Change::Update {
