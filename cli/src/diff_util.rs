@@ -775,12 +775,12 @@ pub fn show_color_words_diff(
         while let Some(MaterializedTreeDiffEntry {
             source: left_path,
             target: right_path,
-            value: diff,
+            values,
         }) = diff_stream.next().await
         {
             let left_ui_path = path_converter.format_file_path(&left_path);
             let right_ui_path = path_converter.format_file_path(&right_path);
-            let (left_value, right_value) = diff?;
+            let (left_value, right_value) = values?;
 
             match (&left_value, &right_value) {
                 (MaterializedTreeValue::AccessDenied(source), _) => {
@@ -935,10 +935,10 @@ pub fn show_file_by_file_diff(
         while let Some(MaterializedTreeDiffEntry {
             source: left_path,
             target: right_path,
-            value: diff,
+            values,
         }) = diff_stream.next().await
         {
-            let (left_value, right_value) = diff?;
+            let (left_value, right_value) = values?;
             let left_ui_path = path_converter.format_file_path(&left_path);
             let right_ui_path = path_converter.format_file_path(&right_path);
 
@@ -1279,12 +1279,12 @@ pub fn show_git_diff(
         while let Some(MaterializedTreeDiffEntry {
             source: left_path,
             target: right_path,
-            value: diff,
+            values,
         }) = diff_stream.next().await
         {
             let left_path_string = left_path.as_internal_file_string();
             let right_path_string = right_path.as_internal_file_string();
-            let (left_value, right_value) = diff?;
+            let (left_value, right_value) = values?;
 
             let left_part = git_diff_part(&left_path, left_value)?;
             let right_part = git_diff_part(&right_path, right_value)?;
@@ -1383,10 +1383,10 @@ pub fn show_diff_summary(
         while let Some(CopiesTreeDiffEntry {
             source: before_path,
             target: after_path,
-            value: diff,
+            values,
         }) = tree_diff.next().await
         {
-            let (before, after) = diff?;
+            let (before, after) = values?;
             if before_path != after_path {
                 let path = path_converter.format_copied_path(&before_path, &after_path);
                 if to_tree.path_value(&before_path).unwrap().is_absent() {
@@ -1462,10 +1462,10 @@ pub fn show_diff_stat(
         while let Some(MaterializedTreeDiffEntry {
             source: left_path,
             target: right_path,
-            value: diff,
+            values,
         }) = diff_stream.next().await
         {
-            let (left, right) = diff?;
+            let (left, right) = values?;
             let left_content = diff_content(&left_path, left)?;
             let right_content = diff_content(&right_path, right)?;
 
@@ -1551,10 +1551,10 @@ pub fn show_types(
         while let Some(CopiesTreeDiffEntry {
             source,
             target,
-            value: diff,
+            values,
         }) = tree_diff.next().await
         {
-            let (before, after) = diff?;
+            let (before, after) = values?;
             writeln!(
                 formatter.labeled("modified"),
                 "{}{} {}",

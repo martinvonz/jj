@@ -97,7 +97,7 @@ pub struct CopiesTreeDiffEntry {
     /// The target path.
     pub target: RepoPathBuf,
     /// The resolved tree values if available.
-    pub value: BackendResult<(MergedTreeValue, MergedTreeValue)>,
+    pub values: BackendResult<(MergedTreeValue, MergedTreeValue)>,
 }
 
 /// Wraps a `TreeDiffStream`, adding support for copies and renames.
@@ -130,7 +130,7 @@ impl Stream for CopiesTreeDiffStream<'_> {
             let Some(CopyRecord { source, .. }) = self.copy_records.for_target(&diff_entry.path)
             else {
                 let target_deleted =
-                    matches!(&diff_entry.value, Ok((_, target_value)) if target_value.is_absent());
+                    matches!(&diff_entry.values, Ok((_, target_value)) if target_value.is_absent());
                 if target_deleted && self.copy_records.has_source(&diff_entry.path) {
                     // Skip the "delete" entry when there is a rename.
                     continue;
@@ -138,14 +138,14 @@ impl Stream for CopiesTreeDiffStream<'_> {
                 return Poll::Ready(Some(CopiesTreeDiffEntry {
                     source: diff_entry.path.clone(),
                     target: diff_entry.path,
-                    value: diff_entry.value,
+                    values: diff_entry.values,
                 }));
             };
 
             return Poll::Ready(Some(CopiesTreeDiffEntry {
                 source: source.clone(),
                 target: diff_entry.path,
-                value: diff_entry.value.and_then(|(_, target_value)| {
+                values: diff_entry.values.and_then(|(_, target_value)| {
                     self.source_tree
                         .path_value(source)
                         .map(|source_value| (source_value, target_value))

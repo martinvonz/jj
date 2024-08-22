@@ -1388,8 +1388,8 @@ impl TreeState {
         let mut diff_stream = Box::pin(
             old_tree
                 .diff_stream(new_tree, matcher)
-                .map(|TreeDiffEntry { path, value: diff }| async {
-                    match diff {
+                .map(|TreeDiffEntry { path, values }| async {
+                    match values {
                         Ok((before, after)) => {
                             let result = materialize_tree_value(&self.store, &path, after).await;
                             (path, result.map(|value| (before.is_present(), value)))
@@ -1482,8 +1482,8 @@ impl TreeState {
         let mut changed_file_states = Vec::new();
         let mut deleted_files = HashSet::new();
         let mut diff_stream = old_tree.diff_stream(new_tree, matcher.as_ref());
-        while let Some(TreeDiffEntry { path, value: diff }) = diff_stream.next().await {
-            let (_before, after) = diff?;
+        while let Some(TreeDiffEntry { path, values }) = diff_stream.next().await {
+            let (_before, after) = values?;
             if after.is_absent() {
                 deleted_files.insert(path);
             } else {

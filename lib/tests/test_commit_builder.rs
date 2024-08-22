@@ -36,7 +36,7 @@ fn diff_paths(from_tree: &MergedTree, to_tree: &MergedTree) -> Vec<RepoPathBuf> 
     from_tree
         .diff_stream(to_tree, &EverythingMatcher)
         .map(|diff| {
-            let _ = diff.value.unwrap();
+            let _ = diff.values.unwrap();
             diff.path
         })
         .collect()
