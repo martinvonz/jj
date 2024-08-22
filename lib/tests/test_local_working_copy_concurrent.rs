@@ -61,20 +61,25 @@ fn test_concurrent_checkout() {
 
     // Check out tree2 from another process (simulated by another workspace
     // instance)
-    let mut ws2 = Workspace::load(
-        &settings,
-        &workspace1_root,
-        &test_workspace1.env.default_store_factories(),
-        &default_working_copy_factories(),
-    )
-    .unwrap();
-    ws2.check_out(
-        repo.op_id().clone(),
-        Some(&tree_id1),
-        &commit2,
-        &CheckoutOptions::empty_for_test(),
-    )
-    .unwrap();
+    {
+        let mut ws2 = Workspace::load(
+            &settings,
+            &workspace1_root,
+            &test_workspace1.env.default_store_factories(),
+            &default_working_copy_factories(),
+        )
+        .unwrap();
+        // Reload commit from the store associated with the workspace
+        let repo = ws2.repo_loader().load_at(repo.operation()).unwrap();
+        let commit2 = repo.store().get_commit(commit2.id()).unwrap();
+        ws2.check_out(
+            repo.op_id().clone(),
+            Some(&tree_id1),
+            &commit2,
+            &CheckoutOptions::empty_for_test(),
+        )
+        .unwrap();
+    }
 
     // Checking out another tree (via the first workspace instance) should now fail.
     assert_matches!(
@@ -148,6 +153,9 @@ fn test_checkout_parallel() {
                     &default_working_copy_factories(),
                 )
                 .unwrap();
+                // Reload commit from the store associated with the workspace
+                let repo = workspace.repo_loader().load_at(repo.operation()).unwrap();
+                let commit = repo.store().get_commit(commit.id()).unwrap();
                 // The operation ID is not correct, but that doesn't matter for this test
                 let stats = workspace
                     .check_out(op_id, None, &commit, &CheckoutOptions::empty_for_test())
