@@ -101,8 +101,8 @@ pub struct CopiesTreeDiffEntry {
 /// Path of `CopiesTreeDiffEntry`.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CopiesTreeDiffEntryPath {
-    /// The source path.
-    pub source: RepoPathBuf,
+    /// The source path if this is a copy or rename.
+    pub source: Option<RepoPathBuf>,
     /// The target path.
     pub target: RepoPathBuf,
 }
@@ -110,7 +110,7 @@ pub struct CopiesTreeDiffEntryPath {
 impl CopiesTreeDiffEntryPath {
     /// The source path.
     pub fn source(&self) -> &RepoPath {
-        &self.source
+        self.source.as_ref().unwrap_or(&self.target)
     }
 
     /// The target path.
@@ -156,7 +156,7 @@ impl Stream for CopiesTreeDiffStream<'_> {
                 }
                 return Poll::Ready(Some(CopiesTreeDiffEntry {
                     path: CopiesTreeDiffEntryPath {
-                        source: diff_entry.path.clone(),
+                        source: None,
                         target: diff_entry.path,
                     },
                     values: diff_entry.values,
@@ -165,7 +165,7 @@ impl Stream for CopiesTreeDiffStream<'_> {
 
             return Poll::Ready(Some(CopiesTreeDiffEntry {
                 path: CopiesTreeDiffEntryPath {
-                    source: source.clone(),
+                    source: Some(source.clone()),
                     target: diff_entry.path,
                 },
                 values: diff_entry.values.and_then(|(_, target_value)| {

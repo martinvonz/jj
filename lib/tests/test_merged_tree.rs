@@ -876,7 +876,7 @@ fn test_diff_copy_tracing() {
         diff[0].clone(),
         (
             CopiesTreeDiffEntryPath {
-                source: modified_path.to_owned(),
+                source: None,
                 target: modified_path.to_owned(),
             },
             (
@@ -889,7 +889,7 @@ fn test_diff_copy_tracing() {
         diff[1].clone(),
         (
             CopiesTreeDiffEntryPath {
-                source: modified_path.to_owned(),
+                source: Some(modified_path.to_owned()),
                 target: copied_path.to_owned(),
             },
             (
@@ -902,7 +902,7 @@ fn test_diff_copy_tracing() {
         diff[2].clone(),
         (
             CopiesTreeDiffEntryPath {
-                source: removed_path.to_owned(),
+                source: Some(removed_path.to_owned()),
                 target: added_path.to_owned(),
             },
             (
