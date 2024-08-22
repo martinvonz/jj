@@ -16,13 +16,18 @@
 
 use std::borrow::Borrow;
 use std::cmp::Ordering;
-use std::fmt::{self, Debug, Formatter};
+use std::fmt::Debug;
+use std::fmt::Formatter;
+use std::fmt::{self};
 use std::iter::FusedIterator;
 use std::ops::Deref;
-use std::path::{Component, Path, PathBuf};
+use std::path::Component;
+use std::path::Path;
+use std::path::PathBuf;
 
 use itertools::Itertools;
-use ref_cast::{ref_cast_custom, RefCastCustom};
+use ref_cast::ref_cast_custom;
+use ref_cast::RefCastCustom;
 use thiserror::Error;
 
 use crate::content_hash::ContentHash;

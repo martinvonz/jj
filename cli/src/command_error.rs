@@ -12,37 +12,57 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::error;
+use std::io;
 use std::io::Write as _;
+use std::iter;
 use std::process::ExitCode;
+use std::str;
 use std::sync::Arc;
-use std::{error, io, iter, str};
 
 use itertools::Itertools as _;
 use jj_lib::backend::BackendError;
-use jj_lib::fileset::{FilePatternParseError, FilesetParseError, FilesetParseErrorKind};
-use jj_lib::git::{GitConfigParseError, GitExportError, GitImportError, GitRemoteManagementError};
+use jj_lib::fileset::FilePatternParseError;
+use jj_lib::fileset::FilesetParseError;
+use jj_lib::fileset::FilesetParseErrorKind;
+use jj_lib::git::GitConfigParseError;
+use jj_lib::git::GitExportError;
+use jj_lib::git::GitImportError;
+use jj_lib::git::GitRemoteManagementError;
 use jj_lib::gitignore::GitIgnoreError;
 use jj_lib::op_heads_store::OpHeadResolutionError;
 use jj_lib::op_store::OpStoreError;
-use jj_lib::op_walk::{OpsetEvaluationError, OpsetResolutionError};
-use jj_lib::repo::{CheckOutCommitError, EditCommitError, RepoLoaderError, RewriteRootCommit};
-use jj_lib::repo_path::{RepoPathBuf, UiPathParseError};
-use jj_lib::revset::{
-    RevsetEvaluationError, RevsetParseError, RevsetParseErrorKind, RevsetResolutionError,
-};
+use jj_lib::op_walk::OpsetEvaluationError;
+use jj_lib::op_walk::OpsetResolutionError;
+use jj_lib::repo::CheckOutCommitError;
+use jj_lib::repo::EditCommitError;
+use jj_lib::repo::RepoLoaderError;
+use jj_lib::repo::RewriteRootCommit;
+use jj_lib::repo_path::RepoPathBuf;
+use jj_lib::repo_path::UiPathParseError;
+use jj_lib::revset::RevsetEvaluationError;
+use jj_lib::revset::RevsetParseError;
+use jj_lib::revset::RevsetParseErrorKind;
+use jj_lib::revset::RevsetResolutionError;
 use jj_lib::signing::SignInitError;
 use jj_lib::str_util::StringPatternParseError;
-use jj_lib::working_copy::{ResetError, SnapshotError, WorkingCopyStateError};
+use jj_lib::working_copy::ResetError;
+use jj_lib::working_copy::SnapshotError;
+use jj_lib::working_copy::WorkingCopyStateError;
 use jj_lib::workspace::WorkspaceInitError;
 use thiserror::Error;
 
 use crate::cli_util::short_operation_hash;
 use crate::description_util::ParseBulkEditMessageError;
 use crate::diff_util::DiffRenderError;
-use crate::formatter::{FormatRecorder, Formatter};
-use crate::merge_tools::{ConflictResolveError, DiffEditError, MergeToolConfigError};
+use crate::formatter::FormatRecorder;
+use crate::formatter::Formatter;
+use crate::merge_tools::ConflictResolveError;
+use crate::merge_tools::DiffEditError;
+use crate::merge_tools::MergeToolConfigError;
 use crate::revset_util::UserRevsetEvaluationError;
-use crate::template_parser::{TemplateParseError, TemplateParseErrorKind};
+use crate::template_parser::TemplateParseError;
+use crate::template_parser::TemplateParseErrorKind;
 use crate::ui::Ui;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

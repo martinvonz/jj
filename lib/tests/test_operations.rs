@@ -21,11 +21,16 @@ use assert_matches::assert_matches;
 use itertools::Itertools as _;
 use jj_lib::backend::CommitId;
 use jj_lib::object_id::ObjectId;
-use jj_lib::op_walk::{self, OpsetEvaluationError, OpsetResolutionError};
+use jj_lib::op_walk::OpsetEvaluationError;
+use jj_lib::op_walk::OpsetResolutionError;
+use jj_lib::op_walk::{self};
 use jj_lib::operation::Operation;
-use jj_lib::repo::{ReadonlyRepo, Repo};
+use jj_lib::repo::ReadonlyRepo;
+use jj_lib::repo::Repo;
 use jj_lib::settings::UserSettings;
-use testutils::{create_random_commit, write_random_commit, TestRepo};
+use testutils::create_random_commit;
+use testutils::write_random_commit;
+use testutils::TestRepo;
 
 fn list_dir(dir: &Path) -> Vec<String> {
     std::fs::read_dir(dir)

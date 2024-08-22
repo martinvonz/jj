@@ -14,7 +14,9 @@
 
 #![allow(missing_docs)]
 
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::HashMap;
+use std::collections::HashSet;
+use std::collections::VecDeque;
 use std::hash::Hash;
 
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
@@ -303,7 +305,9 @@ where
 #[cfg(test)]
 mod tests {
     use itertools::Itertools as _;
-    use renderdag::{Ancestor, GraphRowRenderer, Renderer as _};
+    use renderdag::Ancestor;
+    use renderdag::GraphRowRenderer;
+    use renderdag::Renderer as _;
 
     use super::*;
 

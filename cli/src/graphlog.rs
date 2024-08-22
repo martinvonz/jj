@@ -18,7 +18,9 @@ use std::io::Write;
 
 use itertools::Itertools;
 use jj_lib::settings::UserSettings;
-use renderdag::{Ancestor, GraphRowRenderer, Renderer};
+use renderdag::Ancestor;
+use renderdag::GraphRowRenderer;
+use renderdag::Renderer;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 // An edge to another node in the graph

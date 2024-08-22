@@ -14,25 +14,37 @@
 
 #![allow(missing_docs)]
 
-use std::fmt::{Debug, Error, Formatter};
-use std::hash::{Hash, Hasher};
+use std::fmt::Debug;
+use std::fmt::Error;
+use std::fmt::Formatter;
+use std::hash::Hash;
+use std::hash::Hasher;
 use std::io::Read;
 use std::sync::Arc;
 
 use itertools::Itertools;
 use tracing::instrument;
 
-use crate::backend::{
-    BackendError, BackendResult, ConflictId, TreeEntriesNonRecursiveIterator, TreeEntry, TreeId,
-    TreeValue,
-};
+use crate::backend;
+use crate::backend::BackendError;
+use crate::backend::BackendResult;
+use crate::backend::ConflictId;
+use crate::backend::TreeEntriesNonRecursiveIterator;
+use crate::backend::TreeEntry;
+use crate::backend::TreeId;
+use crate::backend::TreeValue;
+use crate::files;
 use crate::files::MergeResult;
-use crate::matchers::{EverythingMatcher, Matcher};
-use crate::merge::{trivial_merge, Merge, MergedTreeVal};
+use crate::matchers::EverythingMatcher;
+use crate::matchers::Matcher;
+use crate::merge::trivial_merge;
+use crate::merge::Merge;
+use crate::merge::MergedTreeVal;
 use crate::object_id::ObjectId;
-use crate::repo_path::{RepoPath, RepoPathBuf, RepoPathComponent};
+use crate::repo_path::RepoPath;
+use crate::repo_path::RepoPathBuf;
+use crate::repo_path::RepoPathComponent;
 use crate::store::Store;
-use crate::{backend, files};
 
 #[derive(Clone)]
 pub struct Tree {

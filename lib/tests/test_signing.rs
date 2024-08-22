@@ -1,10 +1,18 @@
-use jj_lib::backend::{MillisSinceEpoch, Signature, Timestamp};
+use jj_lib::backend::MillisSinceEpoch;
+use jj_lib::backend::Signature;
+use jj_lib::backend::Timestamp;
 use jj_lib::repo::Repo;
 use jj_lib::settings::UserSettings;
-use jj_lib::signing::{SigStatus, SignBehavior, Signer, Verification};
+use jj_lib::signing::SigStatus;
+use jj_lib::signing::SignBehavior;
+use jj_lib::signing::Signer;
+use jj_lib::signing::Verification;
 use test_case::test_case;
+use testutils::create_random_commit;
 use testutils::test_signing_backend::TestSigningBackend;
-use testutils::{create_random_commit, write_random_commit, TestRepoBackend, TestWorkspace};
+use testutils::write_random_commit;
+use testutils::TestRepoBackend;
+use testutils::TestWorkspace;
 
 fn user_settings(sign_all: bool) -> UserSettings {
     let config = testutils::base_config()

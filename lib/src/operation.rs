@@ -15,12 +15,19 @@
 #![allow(missing_docs)]
 
 use std::cmp::Ordering;
-use std::fmt::{Debug, Error, Formatter};
-use std::hash::{Hash, Hasher};
+use std::fmt::Debug;
+use std::fmt::Error;
+use std::fmt::Formatter;
+use std::hash::Hash;
+use std::hash::Hasher;
 use std::sync::Arc;
 
 use crate::op_store;
-use crate::op_store::{OpStore, OpStoreResult, OperationId, OperationMetadata, ViewId};
+use crate::op_store::OpStore;
+use crate::op_store::OpStoreResult;
+use crate::op_store::OperationId;
+use crate::op_store::OperationMetadata;
+use crate::op_store::ViewId;
 use crate::view::View;
 
 /// A wrapper around [`op_store::Operation`] that defines additional methods and

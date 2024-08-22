@@ -12,22 +12,38 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::io::{IsTerminal as _, Stderr, StderrLock, Stdout, StdoutLock, Write};
-use std::process::{Child, ChildStdin, Stdio};
+use std::env;
+use std::error;
+use std::fmt;
+use std::io;
+use std::io::IsTerminal as _;
+use std::io::Stderr;
+use std::io::StderrLock;
+use std::io::Stdout;
+use std::io::StdoutLock;
+use std::io::Write;
+use std::iter;
+use std::mem;
+use std::process::Child;
+use std::process::ChildStdin;
+use std::process::Stdio;
 use std::str::FromStr;
 use std::thread::JoinHandle;
-use std::{env, error, fmt, io, iter, mem};
 
 use indoc::indoc;
 use itertools::Itertools as _;
-use minus::{MinusError, Pager as MinusPager};
+use minus::MinusError;
+use minus::Pager as MinusPager;
 use tracing::instrument;
 
-use crate::command_error::{config_error_with_message, CommandError};
+use crate::command_error::config_error_with_message;
+use crate::command_error::CommandError;
 use crate::config::CommandNameAndArgs;
-use crate::formatter::{
-    Formatter, FormatterFactory, HeadingLabeledWriter, LabeledWriter, PlainTextFormatter,
-};
+use crate::formatter::Formatter;
+use crate::formatter::FormatterFactory;
+use crate::formatter::HeadingLabeledWriter;
+use crate::formatter::LabeledWriter;
+use crate::formatter::PlainTextFormatter;
 
 const BUILTIN_PAGER_NAME: &str = ":builtin";
 

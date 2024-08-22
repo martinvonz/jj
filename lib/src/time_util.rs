@@ -14,11 +14,17 @@
 
 //! Provides support for parsing and matching date ranges.
 
-use chrono::{DateTime, FixedOffset, Local, TimeZone};
-use chrono_english::{parse_date_string, DateError, Dialect};
+use chrono::DateTime;
+use chrono::FixedOffset;
+use chrono::Local;
+use chrono::TimeZone;
+use chrono_english::parse_date_string;
+use chrono_english::DateError;
+use chrono_english::Dialect;
 use thiserror::Error;
 
-use crate::backend::{MillisSinceEpoch, Timestamp};
+use crate::backend::MillisSinceEpoch;
+use crate::backend::Timestamp;
 
 /// Context needed to create a DatePattern during revset evaluation.
 #[derive(Copy, Clone, Debug)]

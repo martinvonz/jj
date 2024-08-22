@@ -16,7 +16,8 @@ use itertools::Itertools as _;
 use jj_lib::git;
 
 use super::find_remote_branches;
-use crate::cli_util::{CommandHelper, RemoteBranchNamePattern};
+use crate::cli_util::CommandHelper;
+use crate::cli_util::RemoteBranchNamePattern;
 use crate::command_error::CommandError;
 use crate::ui::Ui;
 

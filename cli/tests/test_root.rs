@@ -15,7 +15,8 @@
 use std::path::Path;
 
 use test_case::test_case;
-use testutils::{TestRepoBackend, TestWorkspace};
+use testutils::TestRepoBackend;
+use testutils::TestWorkspace;
 
 use crate::common::TestEnvironment;
 

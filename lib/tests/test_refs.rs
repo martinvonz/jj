@@ -16,7 +16,8 @@ use jj_lib::merge::Merge;
 use jj_lib::op_store::RefTarget;
 use jj_lib::refs::merge_ref_targets;
 use jj_lib::repo::Repo;
-use testutils::{CommitGraphBuilder, TestWorkspace};
+use testutils::CommitGraphBuilder;
+use testutils::TestWorkspace;
 
 #[test]
 fn test_merge_ref_targets() {

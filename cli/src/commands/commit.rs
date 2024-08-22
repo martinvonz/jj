@@ -17,8 +17,11 @@ use jj_lib::repo::Repo;
 use tracing::instrument;
 
 use crate::cli_util::CommandHelper;
-use crate::command_error::{user_error, CommandError};
-use crate::description_util::{description_template, edit_description, join_message_paragraphs};
+use crate::command_error::user_error;
+use crate::command_error::CommandError;
+use crate::description_util::description_template;
+use crate::description_util::edit_description;
+use crate::description_util::join_message_paragraphs;
 use crate::ui::Ui;
 
 /// Update the description and create a new change on top.

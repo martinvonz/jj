@@ -13,13 +13,21 @@
 // limitations under the License.
 
 use itertools::Itertools;
-use jj_lib::backend::{ChangeId, CommitId, MillisSinceEpoch, Signature, Timestamp};
+use jj_lib::backend::ChangeId;
+use jj_lib::backend::CommitId;
+use jj_lib::backend::MillisSinceEpoch;
+use jj_lib::backend::Signature;
+use jj_lib::backend::Timestamp;
 use jj_lib::id_prefix::IdPrefixContext;
-use jj_lib::object_id::PrefixResolution::{AmbiguousMatch, NoMatch, SingleMatch};
-use jj_lib::object_id::{HexPrefix, ObjectId};
+use jj_lib::object_id::HexPrefix;
+use jj_lib::object_id::ObjectId;
+use jj_lib::object_id::PrefixResolution::AmbiguousMatch;
+use jj_lib::object_id::PrefixResolution::NoMatch;
+use jj_lib::object_id::PrefixResolution::SingleMatch;
 use jj_lib::repo::Repo;
 use jj_lib::revset::RevsetExpression;
-use testutils::{TestRepo, TestRepoBackend};
+use testutils::TestRepo;
+use testutils::TestRepoBackend;
 
 #[test]
 fn test_id_prefix() {

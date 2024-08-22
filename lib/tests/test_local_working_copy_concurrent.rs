@@ -17,10 +17,17 @@ use std::thread;
 
 use assert_matches::assert_matches;
 use jj_lib::repo::Repo;
-use jj_lib::repo_path::{RepoPath, RepoPathBuf};
-use jj_lib::working_copy::{CheckoutError, SnapshotOptions};
-use jj_lib::workspace::{default_working_copy_factories, Workspace};
-use testutils::{commit_with_tree, create_tree, write_working_copy_file, TestRepo, TestWorkspace};
+use jj_lib::repo_path::RepoPath;
+use jj_lib::repo_path::RepoPathBuf;
+use jj_lib::working_copy::CheckoutError;
+use jj_lib::working_copy::SnapshotOptions;
+use jj_lib::workspace::default_working_copy_factories;
+use jj_lib::workspace::Workspace;
+use testutils::commit_with_tree;
+use testutils::create_tree;
+use testutils::write_working_copy_file;
+use testutils::TestRepo;
+use testutils::TestWorkspace;
 
 #[test]
 fn test_concurrent_checkout() {

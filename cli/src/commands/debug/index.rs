@@ -15,10 +15,13 @@
 use std::fmt::Debug;
 use std::io::Write as _;
 
-use jj_lib::default_index::{AsCompositeIndex as _, DefaultReadonlyIndex};
+use jj_lib::default_index::AsCompositeIndex as _;
+use jj_lib::default_index::DefaultReadonlyIndex;
 
 use crate::cli_util::CommandHelper;
-use crate::command_error::{internal_error, user_error, CommandError};
+use crate::command_error::internal_error;
+use crate::command_error::user_error;
+use crate::command_error::CommandError;
 use crate::ui::Ui;
 
 /// Show commit index stats

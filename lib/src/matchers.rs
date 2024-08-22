@@ -14,14 +14,17 @@
 
 #![allow(missing_docs)]
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
+use std::collections::HashSet;
+use std::fmt;
 use std::fmt::Debug;
-use std::{fmt, iter};
+use std::iter;
 
 use itertools::Itertools as _;
 use tracing::instrument;
 
-use crate::repo_path::{RepoPath, RepoPathComponentBuf};
+use crate::repo_path::RepoPath;
+use crate::repo_path::RepoPathComponentBuf;
 
 #[derive(PartialEq, Eq, Debug)]
 pub enum Visit {

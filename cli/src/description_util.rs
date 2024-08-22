@@ -11,7 +11,9 @@ use jj_lib::repo::ReadonlyRepo;
 use jj_lib::settings::UserSettings;
 use thiserror::Error;
 
-use crate::cli_util::{edit_temp_file, short_commit_hash, WorkspaceCommandTransaction};
+use crate::cli_util::edit_temp_file;
+use crate::cli_util::short_commit_hash;
+use crate::cli_util::WorkspaceCommandTransaction;
 use crate::command_error::CommandError;
 use crate::formatter::PlainTextFormatter;
 use crate::text_util;

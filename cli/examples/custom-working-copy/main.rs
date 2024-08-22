@@ -13,28 +13,39 @@
 // limitations under the License.
 
 use std::any::Any;
-use std::path::{Path, PathBuf};
+use std::path::Path;
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use itertools::Itertools;
-use jj_cli::cli_util::{CliRunner, CommandHelper};
+use jj_cli::cli_util::CliRunner;
+use jj_cli::cli_util::CommandHelper;
 use jj_cli::command_error::CommandError;
 use jj_cli::ui::Ui;
-use jj_lib::backend::{Backend, MergedTreeId};
+use jj_lib::backend::Backend;
+use jj_lib::backend::MergedTreeId;
 use jj_lib::commit::Commit;
 use jj_lib::git_backend::GitBackend;
 use jj_lib::local_working_copy::LocalWorkingCopy;
-use jj_lib::op_store::{OperationId, WorkspaceId};
+use jj_lib::op_store::OperationId;
+use jj_lib::op_store::WorkspaceId;
 use jj_lib::repo::ReadonlyRepo;
 use jj_lib::repo_path::RepoPathBuf;
 use jj_lib::settings::UserSettings;
 use jj_lib::signing::Signer;
 use jj_lib::store::Store;
-use jj_lib::working_copy::{
-    CheckoutError, CheckoutStats, LockedWorkingCopy, ResetError, SnapshotError, SnapshotOptions,
-    WorkingCopy, WorkingCopyFactory, WorkingCopyStateError,
-};
-use jj_lib::workspace::{WorkingCopyFactories, Workspace, WorkspaceInitError};
+use jj_lib::working_copy::CheckoutError;
+use jj_lib::working_copy::CheckoutStats;
+use jj_lib::working_copy::LockedWorkingCopy;
+use jj_lib::working_copy::ResetError;
+use jj_lib::working_copy::SnapshotError;
+use jj_lib::working_copy::SnapshotOptions;
+use jj_lib::working_copy::WorkingCopy;
+use jj_lib::working_copy::WorkingCopyFactory;
+use jj_lib::working_copy::WorkingCopyStateError;
+use jj_lib::workspace::WorkingCopyFactories;
+use jj_lib::workspace::Workspace;
+use jj_lib::workspace::WorkspaceInitError;
 
 #[derive(clap::Parser, Clone, Debug)]
 enum CustomCommand {

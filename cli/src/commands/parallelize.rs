@@ -17,10 +17,12 @@ use std::collections::HashMap;
 use indexmap::IndexSet;
 use itertools::Itertools;
 use jj_lib::backend::CommitId;
-use jj_lib::commit::{Commit, CommitIteratorExt};
+use jj_lib::commit::Commit;
+use jj_lib::commit::CommitIteratorExt;
 use tracing::instrument;
 
-use crate::cli_util::{CommandHelper, RevisionArg};
+use crate::cli_util::CommandHelper;
+use crate::cli_util::RevisionArg;
 use crate::command_error::CommandError;
 use crate::ui::Ui;
 

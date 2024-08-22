@@ -16,7 +16,8 @@
 
 use std::any::Any;
 use std::cmp::max;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
+use std::collections::HashMap;
 use std::io;
 use std::io::Write;
 use std::ops::Bound;
@@ -26,22 +27,38 @@ use std::sync::Arc;
 use blake2::Blake2b512;
 use digest::Digest;
 use itertools::Itertools;
-use smallvec::{smallvec, SmallVec};
+use smallvec::smallvec;
+use smallvec::SmallVec;
 use tempfile::NamedTempFile;
 
-use super::composite::{
-    AsCompositeIndex, ChangeIdIndexImpl, CompositeIndex, DynIndexSegment, IndexSegment,
-};
-use super::entry::{IndexPosition, LocalPosition, SmallIndexPositionsVec, SmallLocalPositionsVec};
-use super::readonly::{
-    DefaultReadonlyIndex, ReadonlyIndexSegment, INDEX_SEGMENT_FILE_FORMAT_VERSION, OVERFLOW_FLAG,
-};
-use crate::backend::{ChangeId, CommitId};
+use super::composite::AsCompositeIndex;
+use super::composite::ChangeIdIndexImpl;
+use super::composite::CompositeIndex;
+use super::composite::DynIndexSegment;
+use super::composite::IndexSegment;
+use super::entry::IndexPosition;
+use super::entry::LocalPosition;
+use super::entry::SmallIndexPositionsVec;
+use super::entry::SmallLocalPositionsVec;
+use super::readonly::DefaultReadonlyIndex;
+use super::readonly::ReadonlyIndexSegment;
+use super::readonly::INDEX_SEGMENT_FILE_FORMAT_VERSION;
+use super::readonly::OVERFLOW_FLAG;
+use crate::backend::ChangeId;
+use crate::backend::CommitId;
 use crate::commit::Commit;
 use crate::file_util::persist_content_addressed_temp_file;
-use crate::index::{AllHeadsForGcUnsupported, ChangeIdIndex, Index, MutableIndex, ReadonlyIndex};
-use crate::object_id::{HexPrefix, ObjectId, PrefixResolution};
-use crate::revset::{ResolvedExpression, Revset, RevsetEvaluationError};
+use crate::index::AllHeadsForGcUnsupported;
+use crate::index::ChangeIdIndex;
+use crate::index::Index;
+use crate::index::MutableIndex;
+use crate::index::ReadonlyIndex;
+use crate::object_id::HexPrefix;
+use crate::object_id::ObjectId;
+use crate::object_id::PrefixResolution;
+use crate::revset::ResolvedExpression;
+use crate::revset::Revset;
+use crate::revset::RevsetEvaluationError;
 use crate::store::Store;
 
 #[derive(Debug)]

@@ -17,22 +17,27 @@ use std::rc::Rc;
 
 use itertools::Itertools;
 use jj_cli::cli_util::CliRunner;
-use jj_cli::commit_templater::{
-    CommitTemplateBuildFnTable, CommitTemplateLanguage, CommitTemplateLanguageExtension,
-};
+use jj_cli::commit_templater::CommitTemplateBuildFnTable;
+use jj_cli::commit_templater::CommitTemplateLanguage;
+use jj_cli::commit_templater::CommitTemplateLanguageExtension;
 use jj_cli::template_builder::TemplateLanguage;
-use jj_cli::template_parser::{self, TemplateParseError};
+use jj_cli::template_parser::TemplateParseError;
+use jj_cli::template_parser::{self};
 use jj_cli::templater::TemplatePropertyExt as _;
 use jj_lib::backend::CommitId;
 use jj_lib::commit::Commit;
 use jj_lib::extensions_map::ExtensionsMap;
 use jj_lib::object_id::ObjectId;
 use jj_lib::repo::Repo;
-use jj_lib::revset::{
-    FunctionCallNode, PartialSymbolResolver, RevsetExpression, RevsetFilterExtension,
-    RevsetFilterPredicate, RevsetParseContext, RevsetParseError, RevsetResolutionError,
-    SymbolResolverExtension,
-};
+use jj_lib::revset::FunctionCallNode;
+use jj_lib::revset::PartialSymbolResolver;
+use jj_lib::revset::RevsetExpression;
+use jj_lib::revset::RevsetFilterExtension;
+use jj_lib::revset::RevsetFilterPredicate;
+use jj_lib::revset::RevsetParseContext;
+use jj_lib::revset::RevsetParseError;
+use jj_lib::revset::RevsetResolutionError;
+use jj_lib::revset::SymbolResolverExtension;
 use once_cell::sync::OnceCell;
 
 struct HexCounter;

@@ -15,11 +15,15 @@
 #![allow(missing_docs)]
 
 use std::collections::hash_map::Entry;
-use std::collections::{HashMap, HashSet};
-use std::fmt::{Debug, Formatter};
-use std::path::{Path, PathBuf};
+use std::collections::HashMap;
+use std::collections::HashSet;
+use std::fmt::Debug;
+use std::fmt::Formatter;
+use std::fs;
+use std::path::Path;
+use std::path::PathBuf;
+use std::slice;
 use std::sync::Arc;
-use std::{fs, slice};
 
 use itertools::Itertools;
 use once_cell::sync::OnceCell;
@@ -27,37 +31,68 @@ use thiserror::Error;
 use tracing::instrument;
 
 use self::dirty_cell::DirtyCell;
-use crate::backend::{
-    Backend, BackendError, BackendInitError, BackendLoadError, BackendResult, ChangeId, CommitId,
-    MergedTreeId,
-};
-use crate::commit::{Commit, CommitByCommitterTimestamp};
-use crate::commit_builder::{CommitBuilder, DetachedCommitBuilder};
-use crate::default_index::{DefaultIndexStore, DefaultMutableIndex};
+use crate::backend::Backend;
+use crate::backend::BackendError;
+use crate::backend::BackendInitError;
+use crate::backend::BackendLoadError;
+use crate::backend::BackendResult;
+use crate::backend::ChangeId;
+use crate::backend::CommitId;
+use crate::backend::MergedTreeId;
+use crate::commit::Commit;
+use crate::commit::CommitByCommitterTimestamp;
+use crate::commit_builder::CommitBuilder;
+use crate::commit_builder::DetachedCommitBuilder;
+use crate::dag_walk;
+use crate::default_index::DefaultIndexStore;
+use crate::default_index::DefaultMutableIndex;
 use crate::default_submodule_store::DefaultSubmoduleStore;
-use crate::file_util::{IoResultExt as _, PathError};
-use crate::index::{ChangeIdIndex, Index, IndexReadError, IndexStore, MutableIndex, ReadonlyIndex};
+use crate::file_util::IoResultExt as _;
+use crate::file_util::PathError;
+use crate::index::ChangeIdIndex;
+use crate::index::Index;
+use crate::index::IndexReadError;
+use crate::index::IndexStore;
+use crate::index::MutableIndex;
+use crate::index::ReadonlyIndex;
 use crate::local_backend::LocalBackend;
-use crate::object_id::{HexPrefix, ObjectId, PrefixResolution};
-use crate::op_heads_store::{self, OpHeadResolutionError, OpHeadsStore};
-use crate::op_store::{
-    OpStore, OpStoreError, OperationId, RefTarget, RemoteRef, RemoteRefState, WorkspaceId,
-};
+use crate::object_id::HexPrefix;
+use crate::object_id::ObjectId;
+use crate::object_id::PrefixResolution;
+use crate::op_heads_store::OpHeadResolutionError;
+use crate::op_heads_store::OpHeadsStore;
+use crate::op_heads_store::{self};
+use crate::op_store;
+use crate::op_store::OpStore;
+use crate::op_store::OpStoreError;
+use crate::op_store::OperationId;
+use crate::op_store::RefTarget;
+use crate::op_store::RemoteRef;
+use crate::op_store::RemoteRefState;
+use crate::op_store::WorkspaceId;
 use crate::operation::Operation;
-use crate::refs::{
-    diff_named_ref_targets, diff_named_remote_refs, merge_ref_targets, merge_remote_refs,
-};
-use crate::revset::{RevsetEvaluationError, RevsetExpression, RevsetIteratorExt};
-use crate::rewrite::{merge_commit_trees, CommitRewriter, DescendantRebaser, RebaseOptions};
-use crate::settings::{RepoSettings, UserSettings};
-use crate::signing::{SignInitError, Signer};
+use crate::refs::diff_named_ref_targets;
+use crate::refs::diff_named_remote_refs;
+use crate::refs::merge_ref_targets;
+use crate::refs::merge_remote_refs;
+use crate::revset;
+use crate::revset::RevsetEvaluationError;
+use crate::revset::RevsetExpression;
+use crate::revset::RevsetIteratorExt;
+use crate::rewrite::merge_commit_trees;
+use crate::rewrite::CommitRewriter;
+use crate::rewrite::DescendantRebaser;
+use crate::rewrite::RebaseOptions;
+use crate::settings::RepoSettings;
+use crate::settings::UserSettings;
+use crate::signing::SignInitError;
+use crate::signing::Signer;
 use crate::simple_op_heads_store::SimpleOpHeadsStore;
 use crate::simple_op_store::SimpleOpStore;
 use crate::store::Store;
 use crate::submodule_store::SubmoduleStore;
 use crate::transaction::Transaction;
 use crate::view::View;
-use crate::{dag_walk, op_store, revset};
 
 pub trait Repo {
     fn store(&self) -> &Arc<Store>;
@@ -1812,7 +1847,8 @@ pub enum CheckOutCommitError {
 }
 
 mod dirty_cell {
-    use std::cell::{OnceCell, RefCell};
+    use std::cell::OnceCell;
+    use std::cell::RefCell;
 
     /// Cell that lazily updates the value after `mark_dirty()`.
     ///

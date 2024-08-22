@@ -18,9 +18,12 @@ use jj_lib::repo::Repo;
 use jj_lib::rewrite::merge_commit_trees;
 use tracing::instrument;
 
-use crate::cli_util::{print_unmatched_explicit_paths, CommandHelper, RevisionArg};
+use crate::cli_util::print_unmatched_explicit_paths;
+use crate::cli_util::CommandHelper;
+use crate::cli_util::RevisionArg;
 use crate::command_error::CommandError;
-use crate::diff_util::{get_copy_records, DiffFormatArgs};
+use crate::diff_util::get_copy_records;
+use crate::diff_util::DiffFormatArgs;
 use crate::ui::Ui;
 
 /// Compare file contents between two revisions

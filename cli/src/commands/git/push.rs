@@ -12,32 +12,45 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
+use std::collections::HashSet;
+use std::fmt;
+use std::io;
 use std::io::Write;
-use std::{fmt, io};
 
 use clap::ArgGroup;
 use itertools::Itertools;
 use jj_lib::backend::CommitId;
-use jj_lib::git::{self, GitBranchPushTargets, GitPushError};
+use jj_lib::git::GitBranchPushTargets;
+use jj_lib::git::GitPushError;
+use jj_lib::git::{self};
 use jj_lib::object_id::ObjectId;
 use jj_lib::op_store::RefTarget;
-use jj_lib::refs::{
-    classify_branch_push_action, BranchPushAction, BranchPushUpdate, LocalAndRemoteRef,
-};
+use jj_lib::refs::classify_branch_push_action;
+use jj_lib::refs::BranchPushAction;
+use jj_lib::refs::BranchPushUpdate;
+use jj_lib::refs::LocalAndRemoteRef;
 use jj_lib::repo::Repo;
 use jj_lib::revset::RevsetExpression;
-use jj_lib::settings::{ConfigResultExt as _, UserSettings};
+use jj_lib::settings::ConfigResultExt as _;
+use jj_lib::settings::UserSettings;
 use jj_lib::str_util::StringPattern;
 use jj_lib::view::View;
 
-use crate::cli_util::{
-    short_change_hash, short_commit_hash, CommandHelper, RevisionArg, WorkspaceCommandHelper,
-    WorkspaceCommandTransaction,
-};
-use crate::command_error::{user_error, user_error_with_hint, CommandError};
-use crate::commands::git::{get_single_remote, map_git_error};
-use crate::git_util::{get_git_repo, with_remote_git_callbacks, GitSidebandProgressMessageWriter};
+use crate::cli_util::short_change_hash;
+use crate::cli_util::short_commit_hash;
+use crate::cli_util::CommandHelper;
+use crate::cli_util::RevisionArg;
+use crate::cli_util::WorkspaceCommandHelper;
+use crate::cli_util::WorkspaceCommandTransaction;
+use crate::command_error::user_error;
+use crate::command_error::user_error_with_hint;
+use crate::command_error::CommandError;
+use crate::commands::git::get_single_remote;
+use crate::commands::git::map_git_error;
+use crate::git_util::get_git_repo;
+use crate::git_util::with_remote_git_callbacks;
+use crate::git_util::GitSidebandProgressMessageWriter;
 use crate::revset_util;
 use crate::ui::Ui;
 

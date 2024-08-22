@@ -21,23 +21,39 @@ use std::sync::Arc;
 
 use indoc::indoc;
 use itertools::Itertools;
-use jj_lib::backend::{MergedTreeId, TreeId, TreeValue};
-use jj_lib::file_util::{check_symlink_support, try_symlink};
+use jj_lib::backend::MergedTreeId;
+use jj_lib::backend::TreeId;
+use jj_lib::backend::TreeValue;
+use jj_lib::file_util::check_symlink_support;
+use jj_lib::file_util::try_symlink;
 use jj_lib::fsmonitor::FsmonitorSettings;
 use jj_lib::local_working_copy::LocalWorkingCopy;
-use jj_lib::merge::{Merge, MergedTreeValue};
-use jj_lib::merged_tree::{MergedTree, MergedTreeBuilder};
-use jj_lib::op_store::{OperationId, WorkspaceId};
-use jj_lib::repo::{ReadonlyRepo, Repo};
-use jj_lib::repo_path::{RepoPath, RepoPathBuf, RepoPathComponent};
+use jj_lib::merge::Merge;
+use jj_lib::merge::MergedTreeValue;
+use jj_lib::merged_tree::MergedTree;
+use jj_lib::merged_tree::MergedTreeBuilder;
+use jj_lib::op_store::OperationId;
+use jj_lib::op_store::WorkspaceId;
+use jj_lib::repo::ReadonlyRepo;
+use jj_lib::repo::Repo;
+use jj_lib::repo_path::RepoPath;
+use jj_lib::repo_path::RepoPathBuf;
+use jj_lib::repo_path::RepoPathComponent;
 use jj_lib::secret_backend::SecretBackend;
 use jj_lib::settings::UserSettings;
-use jj_lib::working_copy::{CheckoutStats, SnapshotError, SnapshotOptions};
-use jj_lib::workspace::{default_working_copy_factories, LockedWorkspace, Workspace};
+use jj_lib::working_copy::CheckoutStats;
+use jj_lib::working_copy::SnapshotError;
+use jj_lib::working_copy::SnapshotOptions;
+use jj_lib::workspace::default_working_copy_factories;
+use jj_lib::workspace::LockedWorkspace;
+use jj_lib::workspace::Workspace;
 use test_case::test_case;
-use testutils::{
-    commit_with_tree, create_tree, write_random_commit, TestRepo, TestRepoBackend, TestWorkspace,
-};
+use testutils::commit_with_tree;
+use testutils::create_tree;
+use testutils::write_random_commit;
+use testutils::TestRepo;
+use testutils::TestRepoBackend;
+use testutils::TestWorkspace;
 
 fn to_owned_path_vec(paths: &[&RepoPath]) -> Vec<RepoPathBuf> {
     paths.iter().map(|&path| path.to_owned()).collect()

@@ -15,22 +15,35 @@
 #![allow(missing_docs)]
 
 use std::collections::HashSet;
+use std::error;
+use std::mem;
 use std::str::FromStr;
-use std::{error, mem};
 
 use itertools::Itertools as _;
 use once_cell::sync::Lazy;
-use pest::iterators::{Pair, Pairs};
-use pest::pratt_parser::{Assoc, Op, PrattParser};
+use pest::iterators::Pair;
+use pest::iterators::Pairs;
+use pest::pratt_parser::Assoc;
+use pest::pratt_parser::Op;
+use pest::pratt_parser::PrattParser;
 use pest::Parser;
 use pest_derive::Parser;
 use thiserror::Error;
 
-use crate::dsl_util::{
-    self, collect_similar, AliasDeclaration, AliasDeclarationParser, AliasDefinitionParser,
-    AliasExpandError, AliasExpandableExpression, AliasId, AliasesMap, ExpressionFolder,
-    FoldableExpression, InvalidArguments, KeywordArgument, StringLiteralParser,
-};
+use crate::dsl_util::collect_similar;
+use crate::dsl_util::AliasDeclaration;
+use crate::dsl_util::AliasDeclarationParser;
+use crate::dsl_util::AliasDefinitionParser;
+use crate::dsl_util::AliasExpandError;
+use crate::dsl_util::AliasExpandableExpression;
+use crate::dsl_util::AliasId;
+use crate::dsl_util::AliasesMap;
+use crate::dsl_util::ExpressionFolder;
+use crate::dsl_util::FoldableExpression;
+use crate::dsl_util::InvalidArguments;
+use crate::dsl_util::KeywordArgument;
+use crate::dsl_util::StringLiteralParser;
+use crate::dsl_util::{self};
 
 #[derive(Parser)]
 #[grammar = "revset.pest"]

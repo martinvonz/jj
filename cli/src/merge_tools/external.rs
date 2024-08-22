@@ -1,24 +1,38 @@
 use std::collections::HashMap;
-use std::io::{self, Write};
-use std::process::{Command, ExitStatus, Stdio};
+use std::io::Write;
+use std::io::{self};
+use std::process::Command;
+use std::process::ExitStatus;
+use std::process::Stdio;
 use std::sync::Arc;
 
 use itertools::Itertools;
-use jj_lib::backend::{FileId, MergedTreeId, TreeValue};
-use jj_lib::conflicts::{self, materialize_merge_result};
+use jj_lib::backend::FileId;
+use jj_lib::backend::MergedTreeId;
+use jj_lib::backend::TreeValue;
+use jj_lib::conflicts::materialize_merge_result;
+use jj_lib::conflicts::{self};
 use jj_lib::gitignore::GitIgnoreFile;
 use jj_lib::matchers::Matcher;
-use jj_lib::merge::{Merge, MergedTreeValue};
-use jj_lib::merged_tree::{MergedTree, MergedTreeBuilder};
+use jj_lib::merge::Merge;
+use jj_lib::merge::MergedTreeValue;
+use jj_lib::merged_tree::MergedTree;
+use jj_lib::merged_tree::MergedTreeBuilder;
 use jj_lib::repo_path::RepoPath;
 use pollster::FutureExt;
 use thiserror::Error;
 
-use super::diff_working_copies::{
-    check_out_trees, new_utf8_temp_dir, set_readonly_recursively, DiffEditWorkingCopies, DiffSide,
-};
-use super::{ConflictResolveError, DiffEditError, DiffGenerateError};
-use crate::config::{find_all_variables, interpolate_variables, CommandNameAndArgs};
+use super::diff_working_copies::check_out_trees;
+use super::diff_working_copies::new_utf8_temp_dir;
+use super::diff_working_copies::set_readonly_recursively;
+use super::diff_working_copies::DiffEditWorkingCopies;
+use super::diff_working_copies::DiffSide;
+use super::ConflictResolveError;
+use super::DiffEditError;
+use super::DiffGenerateError;
+use crate::config::find_all_variables;
+use crate::config::interpolate_variables;
+use crate::config::CommandNameAndArgs;
 use crate::ui::Ui;
 
 /// Merge/diff tool loaded from the settings.

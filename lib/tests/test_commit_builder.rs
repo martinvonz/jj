@@ -14,15 +14,23 @@
 
 use futures::StreamExt as _;
 use itertools::Itertools;
-use jj_lib::backend::{ChangeId, MillisSinceEpoch, Signature, Timestamp};
+use jj_lib::backend::ChangeId;
+use jj_lib::backend::MillisSinceEpoch;
+use jj_lib::backend::Signature;
+use jj_lib::backend::Timestamp;
 use jj_lib::matchers::EverythingMatcher;
 use jj_lib::merged_tree::MergedTree;
 use jj_lib::repo::Repo;
-use jj_lib::repo_path::{RepoPath, RepoPathBuf};
+use jj_lib::repo_path::RepoPath;
+use jj_lib::repo_path::RepoPathBuf;
 use jj_lib::settings::UserSettings;
 use pollster::FutureExt as _;
 use test_case::test_case;
-use testutils::{assert_rebased_onto, create_tree, CommitGraphBuilder, TestRepo, TestRepoBackend};
+use testutils::assert_rebased_onto;
+use testutils::create_tree;
+use testutils::CommitGraphBuilder;
+use testutils::TestRepo;
+use testutils::TestRepoBackend;
 
 fn diff_paths(from_tree: &MergedTree, to_tree: &MergedTree) -> Vec<RepoPathBuf> {
     from_tree

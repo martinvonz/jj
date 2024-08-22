@@ -17,25 +17,36 @@ use std::fs;
 use std::sync::Arc;
 
 use assert_matches::assert_matches;
-use jj_lib::backend::{ChangeId, CommitId};
+use jj_lib::backend::ChangeId;
+use jj_lib::backend::CommitId;
 use jj_lib::commit::Commit;
 use jj_lib::commit_builder::CommitBuilder;
-use jj_lib::default_index::{
-    AsCompositeIndex as _, CompositeIndex, DefaultIndexStore, DefaultIndexStoreError,
-    DefaultMutableIndex, DefaultReadonlyIndex,
-};
+use jj_lib::default_index::AsCompositeIndex as _;
+use jj_lib::default_index::CompositeIndex;
+use jj_lib::default_index::DefaultIndexStore;
+use jj_lib::default_index::DefaultIndexStoreError;
+use jj_lib::default_index::DefaultMutableIndex;
+use jj_lib::default_index::DefaultReadonlyIndex;
 use jj_lib::index::Index as _;
-use jj_lib::object_id::{HexPrefix, ObjectId as _, PrefixResolution};
-use jj_lib::op_store::{RefTarget, RemoteRef};
-use jj_lib::repo::{MutableRepo, ReadonlyRepo, Repo};
-use jj_lib::revset::{ResolvedExpression, GENERATION_RANGE_FULL};
+use jj_lib::object_id::HexPrefix;
+use jj_lib::object_id::ObjectId as _;
+use jj_lib::object_id::PrefixResolution;
+use jj_lib::op_store::RefTarget;
+use jj_lib::op_store::RemoteRef;
+use jj_lib::repo::MutableRepo;
+use jj_lib::repo::ReadonlyRepo;
+use jj_lib::repo::Repo;
+use jj_lib::revset::ResolvedExpression;
+use jj_lib::revset::GENERATION_RANGE_FULL;
 use jj_lib::settings::UserSettings;
 use maplit::hashset;
+use testutils::commit_transactions;
+use testutils::create_random_commit;
+use testutils::load_repo_at_head;
 use testutils::test_backend::TestBackend;
-use testutils::{
-    commit_transactions, create_random_commit, load_repo_at_head, write_random_commit,
-    CommitGraphBuilder, TestRepo,
-};
+use testutils::write_random_commit;
+use testutils::CommitGraphBuilder;
+use testutils::TestRepo;
 
 fn child_commit<'repo>(
     mut_repo: &'repo mut MutableRepo,

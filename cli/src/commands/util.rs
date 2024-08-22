@@ -14,14 +14,17 @@
 
 use std::io::Write;
 use std::slice;
-use std::time::{Duration, SystemTime};
+use std::time::Duration;
+use std::time::SystemTime;
 
-use clap::{Command, Subcommand};
+use clap::Command;
+use clap::Subcommand;
 use jj_lib::repo::Repo;
 use tracing::instrument;
 
 use crate::cli_util::CommandHelper;
-use crate::command_error::{user_error, CommandError};
+use crate::command_error::user_error;
+use crate::command_error::CommandError;
 use crate::ui::Ui;
 
 /// Infrequently used commands such as for generating shell completions
@@ -229,7 +232,8 @@ fn cmd_util_config_schema(
 
 impl ShellCompletion {
     fn generate(&self, cmd: &mut Command) -> Vec<u8> {
-        use clap_complete::{generate, Shell};
+        use clap_complete::generate;
+        use clap_complete::Shell;
         use clap_complete_nushell::Nushell;
 
         let mut buf = Vec::new();

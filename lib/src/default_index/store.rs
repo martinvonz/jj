@@ -16,26 +16,39 @@
 
 use std::any::Any;
 use std::collections::HashSet;
+use std::fs;
+use std::io;
 use std::io::Write;
-use std::path::{Path, PathBuf};
+use std::path::Path;
+use std::path::PathBuf;
 use std::sync::Arc;
-use std::{fs, io};
 
 use itertools::Itertools;
 use tempfile::NamedTempFile;
 use thiserror::Error;
 
 use super::mutable::DefaultMutableIndex;
-use super::readonly::{DefaultReadonlyIndex, ReadonlyIndexLoadError, ReadonlyIndexSegment};
-use crate::backend::{BackendError, BackendInitError, CommitId};
+use super::readonly::DefaultReadonlyIndex;
+use super::readonly::ReadonlyIndexLoadError;
+use super::readonly::ReadonlyIndexSegment;
+use crate::backend::BackendError;
+use crate::backend::BackendInitError;
+use crate::backend::CommitId;
 use crate::commit::CommitByCommitterTimestamp;
 use crate::dag_walk;
-use crate::file_util::{self, persist_content_addressed_temp_file, IoResultExt as _, PathError};
-use crate::index::{
-    Index, IndexReadError, IndexStore, IndexWriteError, MutableIndex, ReadonlyIndex,
-};
+use crate::file_util::persist_content_addressed_temp_file;
+use crate::file_util::IoResultExt as _;
+use crate::file_util::PathError;
+use crate::file_util::{self};
+use crate::index::Index;
+use crate::index::IndexReadError;
+use crate::index::IndexStore;
+use crate::index::IndexWriteError;
+use crate::index::MutableIndex;
+use crate::index::ReadonlyIndex;
 use crate::object_id::ObjectId;
-use crate::op_store::{OpStoreError, OperationId};
+use crate::op_store::OpStoreError;
+use crate::op_store::OperationId;
 use crate::operation::Operation;
 use crate::store::Store;
 

@@ -16,13 +16,18 @@
 
 use std::borrow::Borrow;
 use std::collections::VecDeque;
-use std::fmt::{Debug, Error, Formatter};
-use std::{iter, mem};
+use std::fmt::Debug;
+use std::fmt::Error;
+use std::fmt::Formatter;
+use std::iter;
+use std::mem;
 
 use bstr::BStr;
 
-use crate::diff::{Diff, DiffHunk};
-use crate::merge::{trivial_merge, Merge};
+use crate::diff::Diff;
+use crate::diff::DiffHunk;
+use crate::merge::trivial_merge;
+use crate::merge::Merge;
 
 /// A diff line which may contain small hunks originating from both sides.
 #[derive(PartialEq, Eq, Clone, Debug)]

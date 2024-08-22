@@ -23,7 +23,9 @@ use itertools::Itertools;
 use thiserror::Error;
 
 use crate::dag_walk;
-use crate::op_store::{OpStore, OpStoreError, OperationId};
+use crate::op_store::OpStore;
+use crate::op_store::OpStoreError;
+use crate::op_store::OperationId;
 use crate::operation::Operation;
 
 #[derive(Debug, Error)]

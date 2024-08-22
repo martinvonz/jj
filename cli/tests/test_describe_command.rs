@@ -12,11 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
+use std::path::PathBuf;
 
 use indoc::indoc;
 
-use crate::common::{get_stderr_string, TestEnvironment};
+use crate::common::get_stderr_string;
+use crate::common::TestEnvironment;
 
 #[test]
 fn test_describe() {

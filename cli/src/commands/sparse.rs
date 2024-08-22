@@ -23,12 +23,14 @@ use jj_lib::repo_path::RepoPathBuf;
 use jj_lib::settings::UserSettings;
 use tracing::instrument;
 
-use crate::cli_util::{
-    edit_temp_file, print_checkout_stats, CommandHelper, WorkspaceCommandHelper,
-};
-use crate::command_error::{
-    internal_error, internal_error_with_message, user_error_with_message, CommandError,
-};
+use crate::cli_util::edit_temp_file;
+use crate::cli_util::print_checkout_stats;
+use crate::cli_util::CommandHelper;
+use crate::cli_util::WorkspaceCommandHelper;
+use crate::command_error::internal_error;
+use crate::command_error::internal_error_with_message;
+use crate::command_error::user_error_with_message;
+use crate::command_error::CommandError;
 use crate::ui::Ui;
 
 /// Manage which paths from the working-copy commit are present in the working

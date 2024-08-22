@@ -14,10 +14,12 @@
 
 use itertools::Itertools;
 use jj_lib::repo::Repo;
-use jj_lib::revset::{RevsetExpression, RevsetFilterPredicate};
+use jj_lib::revset::RevsetExpression;
+use jj_lib::revset::RevsetFilterPredicate;
 use tracing::instrument;
 
-use crate::cli_util::{print_conflicted_paths, CommandHelper};
+use crate::cli_util::print_conflicted_paths;
+use crate::cli_util::CommandHelper;
 use crate::command_error::CommandError;
 use crate::diff_util::DiffFormat;
 use crate::revset_util;

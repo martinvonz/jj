@@ -15,13 +15,16 @@
 #![allow(missing_docs)]
 
 use std::any::Any;
-use std::fmt::{Debug, Formatter};
+use std::fmt::Debug;
+use std::fmt::Formatter;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
+use std::path::PathBuf;
 
 use crate::lock::FileLock;
 use crate::object_id::ObjectId;
-use crate::op_heads_store::{OpHeadsStore, OpHeadsStoreLock};
+use crate::op_heads_store::OpHeadsStore;
+use crate::op_heads_store::OpHeadsStoreLock;
 use crate::op_store::OperationId;
 
 pub struct SimpleOpHeadsStore {

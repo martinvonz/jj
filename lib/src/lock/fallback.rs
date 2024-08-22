@@ -12,11 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::fs::{File, OpenOptions};
+use std::fs::File;
+use std::fs::OpenOptions;
 use std::path::PathBuf;
 use std::time::Duration;
 
-use backoff::{retry, ExponentialBackoff};
+use backoff::retry;
+use backoff::ExponentialBackoff;
 use tracing::instrument;
 
 pub struct FileLock {

@@ -20,11 +20,15 @@ use std::sync::Arc;
 
 use thiserror::Error;
 
-use crate::backend::{ChangeId, CommitId};
+use crate::backend::ChangeId;
+use crate::backend::CommitId;
 use crate::commit::Commit;
-use crate::object_id::{HexPrefix, PrefixResolution};
+use crate::object_id::HexPrefix;
+use crate::object_id::PrefixResolution;
 use crate::operation::Operation;
-use crate::revset::{ResolvedExpression, Revset, RevsetEvaluationError};
+use crate::revset::ResolvedExpression;
+use crate::revset::Revset;
+use crate::revset::RevsetEvaluationError;
 use crate::store::Store;
 
 /// Returned if an error occurs while reading an index from the [`IndexStore`].

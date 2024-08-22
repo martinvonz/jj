@@ -12,23 +12,32 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
+use std::collections::HashSet;
 use std::path::Path;
 use std::process::Command;
 use std::sync::Arc;
-use std::time::{Duration, SystemTime};
+use std::time::Duration;
+use std::time::SystemTime;
 
 use futures::executor::block_on_stream;
-use jj_lib::backend::{CommitId, CopyRecord};
+use jj_lib::backend::CommitId;
+use jj_lib::backend::CopyRecord;
 use jj_lib::commit::Commit;
 use jj_lib::git_backend::GitBackend;
-use jj_lib::repo::{ReadonlyRepo, Repo};
-use jj_lib::repo_path::{RepoPath, RepoPathBuf};
+use jj_lib::repo::ReadonlyRepo;
+use jj_lib::repo::Repo;
+use jj_lib::repo_path::RepoPath;
+use jj_lib::repo_path::RepoPathBuf;
 use jj_lib::settings::UserSettings;
 use jj_lib::store::Store;
 use jj_lib::transaction::Transaction;
 use maplit::hashset;
-use testutils::{create_random_commit, create_tree, CommitGraphBuilder, TestRepo, TestRepoBackend};
+use testutils::create_random_commit;
+use testutils::create_tree;
+use testutils::CommitGraphBuilder;
+use testutils::TestRepo;
+use testutils::TestRepoBackend;
 
 fn get_git_backend(repo: &Arc<ReadonlyRepo>) -> &GitBackend {
     repo.store()

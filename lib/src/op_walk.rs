@@ -15,19 +15,28 @@
 //! Utility for operation id resolution and traversal.
 
 use std::cmp::Ordering;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
+use std::collections::HashSet;
 use std::slice;
 use std::sync::Arc;
 
 use itertools::Itertools as _;
 use thiserror::Error;
 
-use crate::object_id::{HexPrefix, PrefixResolution};
-use crate::op_heads_store::{OpHeadResolutionError, OpHeadsStore};
-use crate::op_store::{OpStore, OpStoreError, OpStoreResult, OperationId};
+use crate::dag_walk;
+use crate::object_id::HexPrefix;
+use crate::object_id::PrefixResolution;
+use crate::op_heads_store;
+use crate::op_heads_store::OpHeadResolutionError;
+use crate::op_heads_store::OpHeadsStore;
+use crate::op_store::OpStore;
+use crate::op_store::OpStoreError;
+use crate::op_store::OpStoreResult;
+use crate::op_store::OperationId;
 use crate::operation::Operation;
-use crate::repo::{ReadonlyRepo, Repo as _, RepoLoader};
-use crate::{dag_walk, op_heads_store};
+use crate::repo::ReadonlyRepo;
+use crate::repo::Repo as _;
+use crate::repo::RepoLoader;
 
 /// Error that may occur during evaluation of operation set expression.
 #[derive(Debug, Error)]

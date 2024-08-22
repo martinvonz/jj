@@ -15,8 +15,10 @@
 use itertools::Itertools;
 
 use super::diff::show_op_diff;
-use crate::cli_util::{CommandHelper, LogContentFormat};
-use crate::command_error::{user_error, CommandError};
+use crate::cli_util::CommandHelper;
+use crate::cli_util::LogContentFormat;
+use crate::command_error::user_error;
+use crate::command_error::CommandError;
 use crate::diff_util::DiffFormatArgs;
 use crate::operation_templater::OperationTemplateLanguage;
 use crate::ui::Ui;

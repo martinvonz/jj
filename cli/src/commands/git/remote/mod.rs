@@ -20,11 +20,16 @@ pub mod set_url;
 
 use clap::Subcommand;
 
-use self::add::{cmd_git_remote_add, GitRemoteAddArgs};
-use self::list::{cmd_git_remote_list, GitRemoteListArgs};
-use self::remove::{cmd_git_remote_remove, GitRemoteRemoveArgs};
-use self::rename::{cmd_git_remote_rename, GitRemoteRenameArgs};
-use self::set_url::{cmd_git_remote_set_url, GitRemoteSetUrlArgs};
+use self::add::cmd_git_remote_add;
+use self::add::GitRemoteAddArgs;
+use self::list::cmd_git_remote_list;
+use self::list::GitRemoteListArgs;
+use self::remove::cmd_git_remote_remove;
+use self::remove::GitRemoteRemoveArgs;
+use self::rename::cmd_git_remote_rename;
+use self::rename::GitRemoteRenameArgs;
+use self::set_url::cmd_git_remote_set_url;
+use self::set_url::GitRemoteSetUrlArgs;
 use crate::cli_util::CommandHelper;
 use crate::command_error::CommandError;
 use crate::ui::Ui;

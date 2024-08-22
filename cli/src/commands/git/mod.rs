@@ -23,18 +23,28 @@ pub mod submodule;
 
 use clap::Subcommand;
 
-use self::clone::{cmd_git_clone, GitCloneArgs};
-use self::export::{cmd_git_export, GitExportArgs};
-use self::fetch::{cmd_git_fetch, GitFetchArgs};
-use self::import::{cmd_git_import, GitImportArgs};
-use self::init::{cmd_git_init, GitInitArgs};
-use self::push::{cmd_git_push, GitPushArgs};
-use self::remote::{cmd_git_remote, RemoteCommand};
-use self::submodule::{cmd_git_submodule, GitSubmoduleCommand};
-use crate::cli_util::{CommandHelper, WorkspaceCommandHelper};
-use crate::command_error::{
-    user_error, user_error_with_hint, user_error_with_message, CommandError,
-};
+use self::clone::cmd_git_clone;
+use self::clone::GitCloneArgs;
+use self::export::cmd_git_export;
+use self::export::GitExportArgs;
+use self::fetch::cmd_git_fetch;
+use self::fetch::GitFetchArgs;
+use self::import::cmd_git_import;
+use self::import::GitImportArgs;
+use self::init::cmd_git_init;
+use self::init::GitInitArgs;
+use self::push::cmd_git_push;
+use self::push::GitPushArgs;
+use self::remote::cmd_git_remote;
+use self::remote::RemoteCommand;
+use self::submodule::cmd_git_submodule;
+use self::submodule::GitSubmoduleCommand;
+use crate::cli_util::CommandHelper;
+use crate::cli_util::WorkspaceCommandHelper;
+use crate::command_error::user_error;
+use crate::command_error::user_error_with_hint;
+use crate::command_error::user_error_with_message;
+use crate::command_error::CommandError;
 use crate::ui::Ui;
 
 /// Commands for working with Git remotes and the underlying Git repo

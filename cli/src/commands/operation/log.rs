@@ -16,9 +16,12 @@ use std::slice;
 
 use jj_lib::op_walk;
 
-use crate::cli_util::{format_template, CommandHelper, LogContentFormat};
+use crate::cli_util::format_template;
+use crate::cli_util::CommandHelper;
+use crate::cli_util::LogContentFormat;
 use crate::command_error::CommandError;
-use crate::graphlog::{get_graphlog, Edge};
+use crate::graphlog::get_graphlog;
+use crate::graphlog::Edge;
 use crate::operation_templater::OperationTemplateLanguage;
 use crate::ui::Ui;
 

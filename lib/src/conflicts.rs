@@ -14,21 +14,37 @@
 
 #![allow(missing_docs)]
 
-use std::io::{Read, Write};
+use std::io::Read;
+use std::io::Write;
 use std::iter::zip;
 
 use futures::stream::BoxStream;
-use futures::{try_join, Stream, StreamExt, TryStreamExt};
+use futures::try_join;
+use futures::Stream;
+use futures::StreamExt;
+use futures::TryStreamExt;
 use itertools::Itertools;
-use regex::bytes::{Regex, RegexBuilder};
+use regex::bytes::Regex;
+use regex::bytes::RegexBuilder;
 
-use crate::backend::{BackendError, BackendResult, CommitId, FileId, SymlinkId, TreeId, TreeValue};
+use crate::backend::BackendError;
+use crate::backend::BackendResult;
+use crate::backend::CommitId;
+use crate::backend::FileId;
+use crate::backend::SymlinkId;
+use crate::backend::TreeId;
+use crate::backend::TreeValue;
 use crate::copies::CopiesTreeDiffEntry;
-use crate::diff::{Diff, DiffHunk};
+use crate::diff::Diff;
+use crate::diff::DiffHunk;
 use crate::files;
-use crate::files::{ContentHunk, MergeResult};
-use crate::merge::{Merge, MergeBuilder, MergedTreeValue};
-use crate::repo_path::{RepoPath, RepoPathBuf};
+use crate::files::ContentHunk;
+use crate::files::MergeResult;
+use crate::merge::Merge;
+use crate::merge::MergeBuilder;
+use crate::merge::MergedTreeValue;
+use crate::repo_path::RepoPath;
+use crate::repo_path::RepoPathBuf;
 use crate::store::Store;
 
 const CONFLICT_START_LINE: &[u8] = b"<<<<<<<";

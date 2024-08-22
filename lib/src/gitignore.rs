@@ -14,9 +14,11 @@
 
 #![allow(missing_docs)]
 
+use std::fs;
+use std::io;
+use std::iter;
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::{fs, io, iter};
 
 use ignore::gitignore;
 use thiserror::Error;

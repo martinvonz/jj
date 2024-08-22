@@ -19,11 +19,14 @@ use jj_lib::repo::Repo;
 use tracing::instrument;
 
 use super::ConfigLevelArgs;
-use crate::cli_util::{get_new_config_file_path, CommandHelper, WorkspaceCommandHelper};
-use crate::command_error::{user_error, CommandError};
-use crate::config::{
-    parse_toml_value_or_bare_string, write_config_value_to_file, ConfigNamePathBuf,
-};
+use crate::cli_util::get_new_config_file_path;
+use crate::cli_util::CommandHelper;
+use crate::cli_util::WorkspaceCommandHelper;
+use crate::command_error::user_error;
+use crate::command_error::CommandError;
+use crate::config::parse_toml_value_or_bare_string;
+use crate::config::write_config_value_to_file;
+use crate::config::ConfigNamePathBuf;
 use crate::ui::Ui;
 
 /// Update config file to set the given option to a given value.

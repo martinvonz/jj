@@ -15,7 +15,9 @@
 use tracing::instrument;
 
 use super::ConfigLevelArgs;
-use crate::cli_util::{get_new_config_file_path, run_ui_editor, CommandHelper};
+use crate::cli_util::get_new_config_file_path;
+use crate::cli_util::run_ui_editor;
+use crate::cli_util::CommandHelper;
 use crate::command_error::CommandError;
 use crate::ui::Ui;
 

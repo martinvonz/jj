@@ -14,7 +14,9 @@
 
 use std::io::Write as _;
 
-use jj_cli::cli_util::{CliRunner, CommandHelper, RevisionArg};
+use jj_cli::cli_util::CliRunner;
+use jj_cli::cli_util::CommandHelper;
+use jj_cli::cli_util::RevisionArg;
 use jj_cli::command_error::CommandError;
 use jj_cli::ui::Ui;
 

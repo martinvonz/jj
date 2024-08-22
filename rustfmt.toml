@@ -4,4 +4,4 @@ wrap_comments = true
 format_strings = true
 error_on_line_overflow = true
 group_imports = "StdExternalCrate"
-imports_granularity = "Module"
+imports_granularity = "Item"

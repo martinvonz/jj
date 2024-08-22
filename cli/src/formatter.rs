@@ -14,13 +14,20 @@
 
 use std::borrow::BorrowMut;
 use std::collections::HashMap;
-use std::io::{Error, Write};
+use std::fmt;
+use std::io;
+use std::io::Error;
+use std::io::Write;
+use std::mem;
 use std::ops::Range;
 use std::sync::Arc;
-use std::{fmt, io, mem};
 
 use crossterm::queue;
-use crossterm::style::{Attribute, Color, SetAttribute, SetBackgroundColor, SetForegroundColor};
+use crossterm::style::Attribute;
+use crossterm::style::Color;
+use crossterm::style::SetAttribute;
+use crossterm::style::SetBackgroundColor;
+use crossterm::style::SetForegroundColor;
 use itertools::Itertools;
 
 // Lets the caller label strings and translates the labels to colors

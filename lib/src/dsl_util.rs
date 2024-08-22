@@ -14,8 +14,9 @@
 
 //! Domain-specific language helpers.
 
+use std::array;
 use std::collections::HashMap;
-use std::{array, fmt};
+use std::fmt;
 
 use itertools::Itertools as _;
 use pest::iterators::Pairs;

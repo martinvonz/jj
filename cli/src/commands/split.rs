@@ -17,9 +17,12 @@ use jj_lib::object_id::ObjectId;
 use jj_lib::repo::Repo;
 use tracing::instrument;
 
-use crate::cli_util::{CommandHelper, RevisionArg};
-use crate::command_error::{user_error_with_hint, CommandError};
-use crate::description_util::{description_template, edit_description};
+use crate::cli_util::CommandHelper;
+use crate::cli_util::RevisionArg;
+use crate::command_error::user_error_with_hint;
+use crate::command_error::CommandError;
+use crate::description_util::description_template;
+use crate::description_util::edit_description;
 use crate::ui::Ui;
 
 /// Split a revision in two

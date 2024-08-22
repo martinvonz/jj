@@ -14,22 +14,32 @@
 
 //! Git utilities shared by various commands.
 
-use std::io::{Read, Write};
-use std::path::{Path, PathBuf};
+use std::error;
+use std::io::Read;
+use std::io::Write;
+use std::iter;
+use std::path::Path;
+use std::path::PathBuf;
 use std::process::Stdio;
 use std::time::Instant;
-use std::{error, iter};
 
 use itertools::Itertools;
-use jj_lib::git::{self, FailedRefExport, FailedRefExportReason, GitImportStats, RefName};
+use jj_lib::git::FailedRefExport;
+use jj_lib::git::FailedRefExportReason;
+use jj_lib::git::GitImportStats;
+use jj_lib::git::RefName;
+use jj_lib::git::{self};
 use jj_lib::git_backend::GitBackend;
-use jj_lib::op_store::{RefTarget, RemoteRef};
-use jj_lib::repo::{ReadonlyRepo, Repo};
+use jj_lib::op_store::RefTarget;
+use jj_lib::op_store::RemoteRef;
+use jj_lib::repo::ReadonlyRepo;
+use jj_lib::repo::Repo;
 use jj_lib::store::Store;
 use jj_lib::workspace::Workspace;
 use unicode_width::UnicodeWidthStr;
 
-use crate::command_error::{user_error, CommandError};
+use crate::command_error::user_error;
+use crate::command_error::CommandError;
 use crate::formatter::Formatter;
 use crate::progress::Progress;
 use crate::ui::Ui;

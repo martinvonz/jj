@@ -21,22 +21,30 @@ use clap::ArgGroup;
 use indexmap::IndexSet;
 use itertools::Itertools;
 use jj_lib::backend::CommitId;
-use jj_lib::commit::{Commit, CommitIteratorExt};
+use jj_lib::commit::Commit;
+use jj_lib::commit::CommitIteratorExt;
 use jj_lib::object_id::ObjectId;
-use jj_lib::repo::{ReadonlyRepo, Repo};
-use jj_lib::revset::{RevsetExpression, RevsetIteratorExt};
-use jj_lib::rewrite::{
-    move_commits, rebase_commit_with_options, CommitRewriter, EmptyBehaviour, MoveCommitsStats,
-    RebaseOptions,
-};
+use jj_lib::repo::ReadonlyRepo;
+use jj_lib::repo::Repo;
+use jj_lib::revset::RevsetExpression;
+use jj_lib::revset::RevsetIteratorExt;
+use jj_lib::rewrite::move_commits;
+use jj_lib::rewrite::rebase_commit_with_options;
+use jj_lib::rewrite::CommitRewriter;
+use jj_lib::rewrite::EmptyBehaviour;
+use jj_lib::rewrite::MoveCommitsStats;
+use jj_lib::rewrite::RebaseOptions;
 use jj_lib::settings::UserSettings;
 use tracing::instrument;
 
-use crate::cli_util::{
-    short_commit_hash, CommandHelper, RevisionArg, WorkspaceCommandHelper,
-    WorkspaceCommandTransaction,
-};
-use crate::command_error::{cli_error, user_error, CommandError};
+use crate::cli_util::short_commit_hash;
+use crate::cli_util::CommandHelper;
+use crate::cli_util::RevisionArg;
+use crate::cli_util::WorkspaceCommandHelper;
+use crate::cli_util::WorkspaceCommandTransaction;
+use crate::command_error::cli_error;
+use crate::command_error::user_error;
+use crate::command_error::CommandError;
 use crate::ui::Ui;
 
 /// Move revisions to different parent(s)

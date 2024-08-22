@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
+use std::path::PathBuf;
 
 use jj_lib::git_backend::GitBackend;
 use jj_lib::op_store::WorkspaceId;
@@ -20,7 +21,9 @@ use jj_lib::repo::Repo;
 use jj_lib::settings::UserSettings;
 use jj_lib::workspace::Workspace;
 use test_case::test_case;
-use testutils::{write_random_commit, TestRepoBackend, TestWorkspace};
+use testutils::write_random_commit;
+use testutils::TestRepoBackend;
+use testutils::TestWorkspace;
 
 fn canonicalize(input: &Path) -> (PathBuf, PathBuf) {
     let uncanonical = input.join("..").join(input.file_name().unwrap());

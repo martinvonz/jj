@@ -15,10 +15,15 @@
 use std::path::Path;
 
 use itertools::Itertools;
-use jj_lib::repo::{Repo, StoreFactories};
-use jj_lib::workspace::{default_working_copy_factories, Workspace};
+use jj_lib::repo::Repo;
+use jj_lib::repo::StoreFactories;
+use jj_lib::workspace::default_working_copy_factories;
+use jj_lib::workspace::Workspace;
 use test_case::test_case;
-use testutils::{create_random_commit, load_repo_at_head, TestRepoBackend, TestWorkspace};
+use testutils::create_random_commit;
+use testutils::load_repo_at_head;
+use testutils::TestRepoBackend;
+use testutils::TestWorkspace;
 
 fn copy_directory(src: &Path, dst: &Path) {
     std::fs::create_dir(dst).ok();

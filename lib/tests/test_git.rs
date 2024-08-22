@@ -12,39 +12,63 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::{BTreeMap, HashSet};
-use std::path::{Path, PathBuf};
-use std::sync::{mpsc, Arc, Barrier};
-use std::{fs, iter, thread};
+use std::collections::BTreeMap;
+use std::collections::HashSet;
+use std::fs;
+use std::iter;
+use std::path::Path;
+use std::path::PathBuf;
+use std::sync::mpsc;
+use std::sync::Arc;
+use std::sync::Barrier;
+use std::thread;
 
 use assert_matches::assert_matches;
 use git2::Oid;
 use itertools::Itertools;
-use jj_lib::backend::{BackendError, ChangeId, CommitId, MillisSinceEpoch, Signature, Timestamp};
+use jj_lib::backend::BackendError;
+use jj_lib::backend::ChangeId;
+use jj_lib::backend::CommitId;
+use jj_lib::backend::MillisSinceEpoch;
+use jj_lib::backend::Signature;
+use jj_lib::backend::Timestamp;
 use jj_lib::commit::Commit;
 use jj_lib::commit_builder::CommitBuilder;
 use jj_lib::git;
-use jj_lib::git::{
-    FailedRefExportReason, GitBranchPushTargets, GitFetchError, GitImportError, GitPushError,
-    GitRefUpdate, RefName, SubmoduleConfig,
-};
+use jj_lib::git::FailedRefExportReason;
+use jj_lib::git::GitBranchPushTargets;
+use jj_lib::git::GitFetchError;
+use jj_lib::git::GitImportError;
+use jj_lib::git::GitPushError;
+use jj_lib::git::GitRefUpdate;
+use jj_lib::git::RefName;
+use jj_lib::git::SubmoduleConfig;
 use jj_lib::git_backend::GitBackend;
 use jj_lib::object_id::ObjectId;
-use jj_lib::op_store::{BranchTarget, RefTarget, RemoteRef, RemoteRefState};
+use jj_lib::op_store::BranchTarget;
+use jj_lib::op_store::RefTarget;
+use jj_lib::op_store::RemoteRef;
+use jj_lib::op_store::RemoteRefState;
 use jj_lib::refs::BranchPushUpdate;
-use jj_lib::repo::{MutableRepo, ReadonlyRepo, Repo};
+use jj_lib::repo::MutableRepo;
+use jj_lib::repo::ReadonlyRepo;
+use jj_lib::repo::Repo;
 use jj_lib::repo_path::RepoPath;
-use jj_lib::settings::{GitSettings, UserSettings};
+use jj_lib::settings::GitSettings;
+use jj_lib::settings::UserSettings;
 use jj_lib::signing::Signer;
 use jj_lib::str_util::StringPattern;
 use jj_lib::workspace::Workspace;
-use maplit::{btreemap, hashset};
+use maplit::btreemap;
+use maplit::hashset;
 use tempfile::TempDir;
 use test_case::test_case;
-use testutils::{
-    commit_transactions, create_random_commit, load_repo_at_head, write_random_commit, TestRepo,
-    TestRepoBackend,
-};
+use testutils::commit_transactions;
+use testutils::create_random_commit;
+use testutils::load_repo_at_head;
+use testutils::write_random_commit;
+use testutils::TestRepo;
+use testutils::TestRepoBackend;
 
 fn empty_git_commit<'r>(
     git_repo: &'r git2::Repository,

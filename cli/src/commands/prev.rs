@@ -14,7 +14,9 @@
 
 use crate::cli_util::CommandHelper;
 use crate::command_error::CommandError;
-use crate::movement_util::{move_to_commit, Direction, MovementArgs};
+use crate::movement_util::move_to_commit;
+use crate::movement_util::Direction;
+use crate::movement_util::MovementArgs;
 use crate::ui::Ui;
 /// Change the working copy revision relative to the parent revision
 ///

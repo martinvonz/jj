@@ -13,17 +13,29 @@
 // limitations under the License.
 
 use std::collections::HashMap;
-use std::{error, mem};
+use std::error;
+use std::mem;
 
 use itertools::Itertools as _;
-use jj_lib::dsl_util::{
-    self, collect_similar, AliasDeclaration, AliasDeclarationParser, AliasDefinitionParser,
-    AliasExpandError, AliasExpandableExpression, AliasId, AliasesMap, ExpressionFolder,
-    FoldableExpression, InvalidArguments, StringLiteralParser,
-};
+use jj_lib::dsl_util::collect_similar;
+use jj_lib::dsl_util::AliasDeclaration;
+use jj_lib::dsl_util::AliasDeclarationParser;
+use jj_lib::dsl_util::AliasDefinitionParser;
+use jj_lib::dsl_util::AliasExpandError;
+use jj_lib::dsl_util::AliasExpandableExpression;
+use jj_lib::dsl_util::AliasId;
+use jj_lib::dsl_util::AliasesMap;
+use jj_lib::dsl_util::ExpressionFolder;
+use jj_lib::dsl_util::FoldableExpression;
+use jj_lib::dsl_util::InvalidArguments;
+use jj_lib::dsl_util::StringLiteralParser;
+use jj_lib::dsl_util::{self};
 use once_cell::sync::Lazy;
-use pest::iterators::{Pair, Pairs};
-use pest::pratt_parser::{Assoc, Op, PrattParser};
+use pest::iterators::Pair;
+use pest::iterators::Pairs;
+use pest::pratt_parser::Assoc;
+use pest::pratt_parser::Op;
+use pest::pratt_parser::PrattParser;
 use pest::Parser;
 use pest_derive::Parser;
 use thiserror::Error;

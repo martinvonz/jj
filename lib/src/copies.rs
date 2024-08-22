@@ -16,14 +16,19 @@
 
 use std::collections::HashMap;
 use std::pin::Pin;
-use std::task::{ready, Context, Poll};
+use std::task::ready;
+use std::task::Context;
+use std::task::Poll;
 
 use futures::Stream;
 
-use crate::backend::{BackendResult, CopyRecord};
+use crate::backend::BackendResult;
+use crate::backend::CopyRecord;
 use crate::merge::MergedTreeValue;
-use crate::merged_tree::{MergedTree, TreeDiffStream};
-use crate::repo_path::{RepoPath, RepoPathBuf};
+use crate::merged_tree::MergedTree;
+use crate::merged_tree::TreeDiffStream;
+use crate::repo_path::RepoPath;
+use crate::repo_path::RepoPathBuf;
 
 /// A collection of CopyRecords.
 #[derive(Default, Debug)]

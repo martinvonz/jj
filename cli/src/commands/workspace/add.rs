@@ -24,8 +24,11 @@ use jj_lib::rewrite::merge_commit_trees;
 use jj_lib::workspace::Workspace;
 use tracing::instrument;
 
-use crate::cli_util::{CommandHelper, RevisionArg};
-use crate::command_error::{internal_error_with_message, user_error, CommandError};
+use crate::cli_util::CommandHelper;
+use crate::cli_util::RevisionArg;
+use crate::command_error::internal_error_with_message;
+use crate::command_error::user_error;
+use crate::command_error::CommandError;
 use crate::ui::Ui;
 
 /// Add a workspace

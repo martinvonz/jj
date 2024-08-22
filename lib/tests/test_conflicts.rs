@@ -14,9 +14,10 @@
 
 use indoc::indoc;
 use jj_lib::backend::FileId;
-use jj_lib::conflicts::{
-    extract_as_single_hunk, materialize_merge_result, parse_conflict, update_from_content,
-};
+use jj_lib::conflicts::extract_as_single_hunk;
+use jj_lib::conflicts::materialize_merge_result;
+use jj_lib::conflicts::parse_conflict;
+use jj_lib::conflicts::update_from_content;
 use jj_lib::merge::Merge;
 use jj_lib::repo::Repo;
 use jj_lib::repo_path::RepoPath;

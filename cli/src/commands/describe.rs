@@ -13,19 +13,23 @@
 // limitations under the License.
 
 use std::collections::HashMap;
-use std::io::{self, Read};
+use std::io::Read;
+use std::io::{self};
 
 use itertools::Itertools;
 use jj_lib::commit::CommitIteratorExt;
 use jj_lib::object_id::ObjectId;
 use tracing::instrument;
 
-use crate::cli_util::{CommandHelper, RevisionArg};
-use crate::command_error::{user_error, CommandError};
-use crate::description_util::{
-    description_template, edit_description, edit_multiple_descriptions, join_message_paragraphs,
-    ParsedBulkEditMessage,
-};
+use crate::cli_util::CommandHelper;
+use crate::cli_util::RevisionArg;
+use crate::command_error::user_error;
+use crate::command_error::CommandError;
+use crate::description_util::description_template;
+use crate::description_util::edit_description;
+use crate::description_util::edit_multiple_descriptions;
+use crate::description_util::join_message_paragraphs;
+use crate::description_util::ParsedBulkEditMessage;
 use crate::ui::Ui;
 
 /// Update the change description or other metadata

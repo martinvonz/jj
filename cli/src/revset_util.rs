@@ -18,20 +18,31 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 use itertools::Itertools as _;
-use jj_lib::backend::{BackendResult, CommitId};
+use jj_lib::backend::BackendResult;
+use jj_lib::backend::CommitId;
 use jj_lib::commit::Commit;
 use jj_lib::id_prefix::IdPrefixContext;
 use jj_lib::repo::Repo;
-use jj_lib::revset::{
-    self, DefaultSymbolResolver, Revset, RevsetAliasesMap, RevsetCommitRef, RevsetEvaluationError,
-    RevsetExpression, RevsetExtensions, RevsetIteratorExt as _, RevsetParseContext,
-    RevsetParseError, RevsetResolutionError, SymbolResolverExtension,
-};
+use jj_lib::revset::DefaultSymbolResolver;
+use jj_lib::revset::Revset;
+use jj_lib::revset::RevsetAliasesMap;
+use jj_lib::revset::RevsetCommitRef;
+use jj_lib::revset::RevsetEvaluationError;
+use jj_lib::revset::RevsetExpression;
+use jj_lib::revset::RevsetExtensions;
+use jj_lib::revset::RevsetIteratorExt as _;
+use jj_lib::revset::RevsetParseContext;
+use jj_lib::revset::RevsetParseError;
+use jj_lib::revset::RevsetResolutionError;
+use jj_lib::revset::SymbolResolverExtension;
+use jj_lib::revset::{self};
 use jj_lib::settings::ConfigResultExt as _;
 use thiserror::Error;
 
-use crate::command_error::{user_error, CommandError};
-use crate::config::{ConfigSource, LayeredConfigs};
+use crate::command_error::user_error;
+use crate::command_error::CommandError;
+use crate::config::ConfigSource;
+use crate::config::LayeredConfigs;
 use crate::formatter::Formatter;
 use crate::templater::TemplateRenderer;
 use crate::ui::Ui;

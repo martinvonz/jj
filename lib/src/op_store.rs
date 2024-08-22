@@ -15,8 +15,12 @@
 #![allow(missing_docs)]
 
 use std::any::Any;
-use std::collections::{BTreeMap, HashMap, HashSet};
-use std::fmt::{Debug, Error, Formatter};
+use std::collections::BTreeMap;
+use std::collections::HashMap;
+use std::collections::HashSet;
+use std::fmt::Debug;
+use std::fmt::Error;
+use std::fmt::Formatter;
 use std::iter;
 use std::time::SystemTime;
 
@@ -24,10 +28,15 @@ use itertools::Itertools as _;
 use once_cell::sync::Lazy;
 use thiserror::Error;
 
-use crate::backend::{CommitId, MillisSinceEpoch, Timestamp};
+use crate::backend::CommitId;
+use crate::backend::MillisSinceEpoch;
+use crate::backend::Timestamp;
 use crate::content_hash::ContentHash;
 use crate::merge::Merge;
-use crate::object_id::{id_type, HexPrefix, ObjectId, PrefixResolution};
+use crate::object_id::id_type;
+use crate::object_id::HexPrefix;
+use crate::object_id::ObjectId;
+use crate::object_id::PrefixResolution;
 
 #[derive(ContentHash, PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
 pub struct WorkspaceId(String);

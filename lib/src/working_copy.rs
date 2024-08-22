@@ -22,12 +22,16 @@ use std::sync::Arc;
 
 use thiserror::Error;
 
-use crate::backend::{BackendError, MergedTreeId};
+use crate::backend::BackendError;
+use crate::backend::MergedTreeId;
 use crate::commit::Commit;
 use crate::fsmonitor::FsmonitorSettings;
-use crate::gitignore::{GitIgnoreError, GitIgnoreFile};
-use crate::op_store::{OperationId, WorkspaceId};
-use crate::repo_path::{RepoPath, RepoPathBuf};
+use crate::gitignore::GitIgnoreError;
+use crate::gitignore::GitIgnoreFile;
+use crate::op_store::OperationId;
+use crate::op_store::WorkspaceId;
+use crate::repo_path::RepoPath;
+use crate::repo_path::RepoPathBuf;
 use crate::settings::HumanByteSize;
 use crate::store::Store;
 

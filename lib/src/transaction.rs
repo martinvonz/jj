@@ -19,14 +19,19 @@ use std::sync::Arc;
 use itertools::Itertools as _;
 
 use crate::backend::Timestamp;
+use crate::dag_walk;
 use crate::index::ReadonlyIndex;
 use crate::op_heads_store::OpHeadsStore;
+use crate::op_store;
 use crate::op_store::OperationMetadata;
 use crate::operation::Operation;
-use crate::repo::{MutableRepo, ReadonlyRepo, Repo, RepoLoader, RepoLoaderError};
+use crate::repo::MutableRepo;
+use crate::repo::ReadonlyRepo;
+use crate::repo::Repo;
+use crate::repo::RepoLoader;
+use crate::repo::RepoLoaderError;
 use crate::settings::UserSettings;
 use crate::view::View;
-use crate::{dag_walk, op_store};
 
 /// An in-memory representation of a repo and any changes being made to it.
 ///

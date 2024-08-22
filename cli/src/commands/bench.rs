@@ -20,12 +20,20 @@ use std::time::Instant;
 
 use clap::Subcommand;
 use criterion::measurement::Measurement;
-use criterion::{BatchSize, BenchmarkGroup, BenchmarkId, Criterion};
+use criterion::BatchSize;
+use criterion::BenchmarkGroup;
+use criterion::BenchmarkId;
+use criterion::Criterion;
 use jj_lib::object_id::HexPrefix;
 use jj_lib::repo::Repo;
-use jj_lib::revset::{self, DefaultSymbolResolver, RevsetExpression, SymbolResolverExtension};
+use jj_lib::revset::DefaultSymbolResolver;
+use jj_lib::revset::RevsetExpression;
+use jj_lib::revset::SymbolResolverExtension;
+use jj_lib::revset::{self};
 
-use crate::cli_util::{CommandHelper, RevisionArg, WorkspaceCommandHelper};
+use crate::cli_util::CommandHelper;
+use crate::cli_util::RevisionArg;
+use crate::cli_util::WorkspaceCommandHelper;
 use crate::command_error::CommandError;
 use crate::ui::Ui;
 

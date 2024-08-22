@@ -23,8 +23,9 @@ pub use platform::FileLock;
 #[cfg(test)]
 mod tests {
     use std::cmp::max;
+    use std::fs;
+    use std::thread;
     use std::time::Duration;
-    use std::{fs, thread};
 
     use super::*;
 

@@ -14,10 +14,14 @@
 
 #![allow(missing_docs)]
 
-use std::cmp::{max, min, Ordering};
-use std::collections::{BTreeMap, HashMap};
+use std::cmp::max;
+use std::cmp::min;
+use std::cmp::Ordering;
+use std::collections::BTreeMap;
+use std::collections::HashMap;
+use std::iter;
 use std::ops::Range;
-use std::{iter, slice};
+use std::slice;
 
 use bstr::BStr;
 use itertools::Itertools;

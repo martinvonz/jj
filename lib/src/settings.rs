@@ -15,13 +15,17 @@
 #![allow(missing_docs)]
 
 use std::path::Path;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use std::sync::Mutex;
 
 use chrono::DateTime;
 use rand::prelude::*;
 use rand_chacha::ChaCha20Rng;
 
-use crate::backend::{ChangeId, Commit, Signature, Timestamp};
+use crate::backend::ChangeId;
+use crate::backend::Commit;
+use crate::backend::Signature;
+use crate::backend::Timestamp;
 use crate::fmt_util::binary_prefix;
 use crate::fsmonitor::FsmonitorSettings;
 use crate::signing::SignBehavior;

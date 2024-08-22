@@ -16,8 +16,10 @@
 
 use itertools::Itertools as _;
 
-use crate::cli_util::{CommandHelper, RevisionArg};
-use crate::command_error::{user_error, CommandError};
+use crate::cli_util::CommandHelper;
+use crate::cli_util::RevisionArg;
+use crate::command_error::user_error;
+use crate::command_error::CommandError;
 use crate::ui::Ui;
 
 /// (**Stub**, does not work yet) Run a command across a set of revisions.

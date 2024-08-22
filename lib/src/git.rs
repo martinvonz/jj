@@ -15,25 +15,34 @@
 #![allow(missing_docs)]
 
 use std::borrow::Cow;
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::BTreeMap;
+use std::collections::HashMap;
+use std::collections::HashSet;
 use std::default::Default;
+use std::fmt;
 use std::io::Read;
 use std::path::PathBuf;
-use std::{fmt, str};
+use std::str;
 
 use git2::Oid;
 use itertools::Itertools;
 use tempfile::NamedTempFile;
 use thiserror::Error;
 
-use crate::backend::{BackendError, CommitId};
+use crate::backend::BackendError;
+use crate::backend::CommitId;
 use crate::commit::Commit;
 use crate::git_backend::GitBackend;
 use crate::index::Index;
 use crate::object_id::ObjectId;
-use crate::op_store::{RefTarget, RefTargetOptionExt, RemoteRef, RemoteRefState};
-use crate::refs::{self, BranchPushUpdate};
-use crate::repo::{MutableRepo, Repo};
+use crate::op_store::RefTarget;
+use crate::op_store::RefTargetOptionExt;
+use crate::op_store::RemoteRef;
+use crate::op_store::RemoteRefState;
+use crate::refs::BranchPushUpdate;
+use crate::refs::{self};
+use crate::repo::MutableRepo;
+use crate::repo::Repo;
 use crate::revset::RevsetExpression;
 use crate::settings::GitSettings;
 use crate::store::Store;

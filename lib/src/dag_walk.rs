@@ -14,10 +14,13 @@
 
 //! General-purpose DAG algorithms.
 
-use std::collections::{BinaryHeap, HashMap, HashSet};
+use std::collections::BinaryHeap;
+use std::collections::HashMap;
+use std::collections::HashSet;
 use std::convert::Infallible;
 use std::hash::Hash;
-use std::{iter, mem};
+use std::iter;
+use std::mem;
 
 use itertools::Itertools as _;
 
@@ -595,7 +598,8 @@ fn to_ok_iter<T>(iter: impl IntoIterator<Item = T>) -> impl Iterator<Item = Resu
 mod tests {
     use std::panic;
 
-    use maplit::{hashmap, hashset};
+    use maplit::hashmap;
+    use maplit::hashset;
 
     use super::*;
 

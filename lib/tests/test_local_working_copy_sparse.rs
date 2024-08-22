@@ -17,10 +17,14 @@ use itertools::Itertools;
 use jj_lib::local_working_copy::LocalWorkingCopy;
 use jj_lib::matchers::EverythingMatcher;
 use jj_lib::repo::Repo;
-use jj_lib::repo_path::{RepoPath, RepoPathBuf};
-use jj_lib::working_copy::{CheckoutStats, WorkingCopy};
+use jj_lib::repo_path::RepoPath;
+use jj_lib::repo_path::RepoPathBuf;
+use jj_lib::working_copy::CheckoutStats;
+use jj_lib::working_copy::WorkingCopy;
 use pollster::FutureExt as _;
-use testutils::{commit_with_tree, create_tree, TestWorkspace};
+use testutils::commit_with_tree;
+use testutils::create_tree;
+use testutils::TestWorkspace;
 
 fn to_owned_path_vec(paths: &[&RepoPath]) -> Vec<RepoPathBuf> {
     paths.iter().map(|&path| path.to_owned()).collect()

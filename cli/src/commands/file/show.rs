@@ -12,21 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::io::{self, Write};
+use std::io::Write;
+use std::io::{self};
 
 use jj_lib::backend::BackendResult;
-use jj_lib::conflicts::{materialize_tree_value, MaterializedTreeValue};
-use jj_lib::fileset::{FilePattern, FilesetExpression};
+use jj_lib::conflicts::materialize_tree_value;
+use jj_lib::conflicts::MaterializedTreeValue;
+use jj_lib::fileset::FilePattern;
+use jj_lib::fileset::FilesetExpression;
 use jj_lib::merge::MergedTreeValue;
 use jj_lib::repo::Repo;
 use jj_lib::repo_path::RepoPath;
 use pollster::FutureExt;
 use tracing::instrument;
 
-use crate::cli_util::{
-    print_unmatched_explicit_paths, CommandHelper, RevisionArg, WorkspaceCommandHelper,
-};
-use crate::command_error::{user_error, CommandError};
+use crate::cli_util::print_unmatched_explicit_paths;
+use crate::cli_util::CommandHelper;
+use crate::cli_util::RevisionArg;
+use crate::cli_util::WorkspaceCommandHelper;
+use crate::command_error::user_error;
+use crate::command_error::CommandError;
 use crate::ui::Ui;
 
 /// Print contents of files in a revision

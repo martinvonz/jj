@@ -14,24 +14,40 @@
 
 use std::collections::HashMap;
 use std::env;
-use std::fs::{self, OpenOptions};
-use std::io::{Read, Write};
-use std::path::{Path, PathBuf};
-use std::sync::{Arc, Once};
+use std::fs::OpenOptions;
+use std::fs::{self};
+use std::io::Read;
+use std::io::Write;
+use std::path::Path;
+use std::path::PathBuf;
+use std::sync::Arc;
+use std::sync::Once;
 
 use itertools::Itertools;
-use jj_lib::backend::{
-    self, Backend, BackendInitError, ChangeId, CommitId, FileId, MergedTreeId, MillisSinceEpoch,
-    Signature, Timestamp, TreeValue,
-};
+use jj_lib::backend::Backend;
+use jj_lib::backend::BackendInitError;
+use jj_lib::backend::ChangeId;
+use jj_lib::backend::CommitId;
+use jj_lib::backend::FileId;
+use jj_lib::backend::MergedTreeId;
+use jj_lib::backend::MillisSinceEpoch;
+use jj_lib::backend::Signature;
+use jj_lib::backend::Timestamp;
+use jj_lib::backend::TreeValue;
+use jj_lib::backend::{self};
 use jj_lib::commit::Commit;
 use jj_lib::commit_builder::CommitBuilder;
 use jj_lib::git_backend::GitBackend;
 use jj_lib::local_backend::LocalBackend;
 use jj_lib::merged_tree::MergedTree;
 use jj_lib::object_id::ObjectId;
-use jj_lib::repo::{MutableRepo, ReadonlyRepo, Repo, RepoLoader, StoreFactories};
-use jj_lib::repo_path::{RepoPath, RepoPathBuf};
+use jj_lib::repo::MutableRepo;
+use jj_lib::repo::ReadonlyRepo;
+use jj_lib::repo::Repo;
+use jj_lib::repo::RepoLoader;
+use jj_lib::repo::StoreFactories;
+use jj_lib::repo_path::RepoPath;
+use jj_lib::repo_path::RepoPathBuf;
 use jj_lib::secret_backend::SecretBackend;
 use jj_lib::settings::UserSettings;
 use jj_lib::signing::Signer;
@@ -39,7 +55,8 @@ use jj_lib::store::Store;
 use jj_lib::transaction::Transaction;
 use jj_lib::tree::Tree;
 use jj_lib::tree_builder::TreeBuilder;
-use jj_lib::working_copy::{SnapshotError, SnapshotOptions};
+use jj_lib::working_copy::SnapshotError;
+use jj_lib::working_copy::SnapshotOptions;
 use jj_lib::workspace::Workspace;
 use tempfile::TempDir;
 

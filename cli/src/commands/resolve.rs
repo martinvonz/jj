@@ -18,8 +18,11 @@ use itertools::Itertools;
 use jj_lib::object_id::ObjectId;
 use tracing::instrument;
 
-use crate::cli_util::{print_conflicted_paths, CommandHelper, RevisionArg};
-use crate::command_error::{cli_error, CommandError};
+use crate::cli_util::print_conflicted_paths;
+use crate::cli_util::CommandHelper;
+use crate::cli_util::RevisionArg;
+use crate::command_error::cli_error;
+use crate::command_error::CommandError;
 use crate::ui::Ui;
 
 /// Resolve a conflicted file with an external merge tool

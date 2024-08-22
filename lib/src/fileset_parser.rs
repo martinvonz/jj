@@ -19,12 +19,16 @@ use std::error;
 use itertools::Itertools as _;
 use once_cell::sync::Lazy;
 use pest::iterators::Pair;
-use pest::pratt_parser::{Assoc, Op, PrattParser};
+use pest::pratt_parser::Assoc;
+use pest::pratt_parser::Op;
+use pest::pratt_parser::PrattParser;
 use pest::Parser;
 use pest_derive::Parser;
 use thiserror::Error;
 
-use crate::dsl_util::{self, InvalidArguments, StringLiteralParser};
+use crate::dsl_util::InvalidArguments;
+use crate::dsl_util::StringLiteralParser;
+use crate::dsl_util::{self};
 
 #[derive(Parser)]
 #[grammar = "fileset.pest"]

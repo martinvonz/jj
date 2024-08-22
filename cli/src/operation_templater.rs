@@ -22,15 +22,23 @@ use jj_lib::object_id::ObjectId;
 use jj_lib::op_store::OperationId;
 use jj_lib::operation::Operation;
 
-use crate::template_builder::{
-    self, merge_fn_map, BuildContext, CoreTemplateBuildFnTable, CoreTemplatePropertyKind,
-    IntoTemplateProperty, TemplateBuildMethodFnMap, TemplateLanguage,
-};
-use crate::template_parser::{self, FunctionCallNode, TemplateParseResult};
-use crate::templater::{
-    PlainTextFormattedProperty, Template, TemplateFormatter, TemplateProperty,
-    TemplatePropertyExt as _, TimestampRange,
-};
+use crate::template_builder::merge_fn_map;
+use crate::template_builder::BuildContext;
+use crate::template_builder::CoreTemplateBuildFnTable;
+use crate::template_builder::CoreTemplatePropertyKind;
+use crate::template_builder::IntoTemplateProperty;
+use crate::template_builder::TemplateBuildMethodFnMap;
+use crate::template_builder::TemplateLanguage;
+use crate::template_builder::{self};
+use crate::template_parser::FunctionCallNode;
+use crate::template_parser::TemplateParseResult;
+use crate::template_parser::{self};
+use crate::templater::PlainTextFormattedProperty;
+use crate::templater::Template;
+use crate::templater::TemplateFormatter;
+use crate::templater::TemplateProperty;
+use crate::templater::TemplatePropertyExt as _;
+use crate::templater::TimestampRange;
 
 pub trait OperationTemplateLanguageExtension {
     fn build_fn_table(&self) -> OperationTemplateBuildFnTable;

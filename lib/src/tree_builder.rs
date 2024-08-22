@@ -17,8 +17,12 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use crate::backend::{self, BackendResult, TreeId, TreeValue};
-use crate::repo_path::{RepoPath, RepoPathBuf};
+use crate::backend::BackendResult;
+use crate::backend::TreeId;
+use crate::backend::TreeValue;
+use crate::backend::{self};
+use crate::repo_path::RepoPath;
+use crate::repo_path::RepoPathBuf;
 use crate::store::Store;
 use crate::tree::Tree;
 
