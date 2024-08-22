@@ -849,6 +849,7 @@ impl Iterator for TreeDiffIterator<'_> {
 
 /// Stream of differences between two trees.
 pub struct TreeDiffStreamImpl<'matcher> {
+    store: Arc<Store>,
     matcher: &'matcher dyn Matcher,
     /// Pairs of tree values that may or may not be ready to emit, sorted in the
     /// order we want to emit them. If either side is a tree, there will be
@@ -926,7 +927,9 @@ impl<'matcher> TreeDiffStreamImpl<'matcher> {
         matcher: &'matcher dyn Matcher,
         max_concurrent_reads: usize,
     ) -> Self {
+        assert!(Arc::ptr_eq(tree1.store(), tree2.store()));
         let mut stream = Self {
+            store: tree1.store().clone(),
             matcher,
             items: BTreeMap::new(),
             pending_trees: VecDeque::new(),
@@ -1007,9 +1010,9 @@ impl<'matcher> TreeDiffStreamImpl<'matcher> {
             // If the path was a tree on either side of the diff, read those trees.
             if tree_matches {
                 let before_tree_future =
-                    Self::tree(tree1.store().clone(), path.clone(), before.cloned());
+                    Self::tree(self.store.clone(), path.clone(), before.cloned());
                 let after_tree_future =
-                    Self::tree(tree2.store().clone(), path.clone(), after.cloned());
+                    Self::tree(self.store.clone(), path.clone(), after.cloned());
                 let both_trees_future =
                     async { futures::try_join!(before_tree_future, after_tree_future) };
                 self.pending_trees
