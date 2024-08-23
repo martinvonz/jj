@@ -27,6 +27,7 @@ use std::time::SystemTime;
 use async_trait::async_trait;
 use blake2::Blake2b512;
 use blake2::Digest;
+use futures::stream;
 use futures::stream::BoxStream;
 use prost::Message;
 use tempfile::NamedTempFile;
@@ -330,7 +331,7 @@ impl Backend for LocalBackend {
         _root: &CommitId,
         _head: &CommitId,
     ) -> BackendResult<BoxStream<BackendResult<CopyRecord>>> {
-        Err(BackendError::Unsupported("get_copy_records".into()))
+        Ok(Box::pin(stream::empty()))
     }
 
     fn gc(&self, _index: &dyn Index, _keep_newer: SystemTime) -> BackendResult<()> {
