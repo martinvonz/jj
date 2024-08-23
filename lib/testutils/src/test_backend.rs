@@ -28,6 +28,7 @@ use std::sync::OnceLock;
 use std::time::SystemTime;
 
 use async_trait::async_trait;
+use futures::stream;
 use futures::stream::BoxStream;
 use jj_lib::backend::make_root_commit;
 use jj_lib::backend::Backend;
@@ -327,7 +328,7 @@ impl Backend for TestBackend {
         _root: &CommitId,
         _head: &CommitId,
     ) -> BackendResult<BoxStream<BackendResult<CopyRecord>>> {
-        Err(BackendError::Unsupported("get_copy_records".into()))
+        Ok(Box::pin(stream::empty()))
     }
 
     fn gc(&self, _index: &dyn Index, _keep_newer: SystemTime) -> BackendResult<()> {
