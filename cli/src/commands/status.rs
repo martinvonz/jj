@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use itertools::Itertools;
+use jj_lib::copies::CopyRecords;
 use jj_lib::repo::Repo;
 use jj_lib::revset::RevsetExpression;
 use jj_lib::revset::RevsetFilterPredicate;
@@ -21,6 +22,7 @@ use tracing::instrument;
 use crate::cli_util::print_conflicted_paths;
 use crate::cli_util::CommandHelper;
 use crate::command_error::CommandError;
+use crate::diff_util::get_copy_records;
 use crate::diff_util::DiffFormat;
 use crate::revset_util;
 use crate::ui::Ui;
@@ -67,6 +69,11 @@ pub(crate) fn cmd_status(
             writeln!(formatter, "The working copy is clean")?;
         } else {
             writeln!(formatter, "Working copy changes:")?;
+            let mut copy_records = CopyRecords::default();
+            for parent in wc_commit.parent_ids() {
+                let records = get_copy_records(repo.store(), parent, wc_commit.id(), &matcher)?;
+                copy_records.add_records(records)?;
+            }
             let diff_renderer = workspace_command.diff_renderer(vec![DiffFormat::Summary]);
             let width = ui.term_width();
             diff_renderer.show_diff(
@@ -75,7 +82,7 @@ pub(crate) fn cmd_status(
                 &parent_tree,
                 &tree,
                 &matcher,
-                &Default::default(),
+                &copy_records,
                 width,
             )?;
         }
