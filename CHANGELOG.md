@@ -23,7 +23,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   respectively to `true` or `false`.
 
 * All diff formats except `--name-only` now include information about copies and
-  moves. So do external diff tools in file-by-file mode.
+  moves. So do external diff tools in file-by-file mode. `jj status` also
+  includes information about copies and moves.
 
 * Color-words diff has gained [an option to display complex changes as separate
   lines](docs/config.md#color-words-diff-options).

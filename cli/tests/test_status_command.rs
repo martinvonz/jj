@@ -37,6 +37,39 @@ fn create_commit(
 }
 
 #[test]
+fn test_status_copies() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    std::fs::write(repo_path.join("copy-source"), "copy1\ncopy2\ncopy3\n").unwrap();
+    std::fs::write(repo_path.join("rename-source"), "rename").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["new"]);
+    std::fs::write(
+        repo_path.join("copy-source"),
+        "copy1\ncopy2\ncopy3\nsource\n",
+    )
+    .unwrap();
+    std::fs::write(
+        repo_path.join("copy-target"),
+        "copy1\ncopy2\ncopy3\ntarget\n",
+    )
+    .unwrap();
+    std::fs::remove_file(repo_path.join("rename-source")).unwrap();
+    std::fs::write(repo_path.join("rename-target"), "rename").unwrap();
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["status"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Working copy changes:
+    M copy-source
+    C {copy-source => copy-target}
+    R {rename-source => rename-target}
+    Working copy : rlvkpnrz a96c3086 (no description set)
+    Parent commit: qpvuntsm e3e2c703 (no description set)
+    "###);
+}
+
+#[test]
 fn test_status_merge() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
