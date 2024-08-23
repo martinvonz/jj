@@ -14,8 +14,8 @@
 
 use std::collections::HashMap;
 use std::env;
+use std::fs;
 use std::fs::OpenOptions;
-use std::fs::{self};
 use std::io::Read;
 use std::io::Write;
 use std::path::Path;
@@ -24,6 +24,7 @@ use std::sync::Arc;
 use std::sync::Once;
 
 use itertools::Itertools;
+use jj_lib::backend;
 use jj_lib::backend::Backend;
 use jj_lib::backend::BackendInitError;
 use jj_lib::backend::ChangeId;
@@ -34,7 +35,6 @@ use jj_lib::backend::MillisSinceEpoch;
 use jj_lib::backend::Signature;
 use jj_lib::backend::Timestamp;
 use jj_lib::backend::TreeValue;
-use jj_lib::backend::{self};
 use jj_lib::commit::Commit;
 use jj_lib::commit_builder::CommitBuilder;
 use jj_lib::git_backend::GitBackend;

@@ -17,8 +17,8 @@
 use std::collections::HashMap;
 use std::fs;
 use std::fs::File;
+use std::io;
 use std::io::Write;
-use std::io::{self};
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;

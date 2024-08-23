@@ -24,12 +24,12 @@ use std::sync::Arc;
 
 use itertools::Itertools;
 
+use crate::backend;
 use crate::backend::BackendResult;
 use crate::backend::ChangeId;
 use crate::backend::CommitId;
 use crate::backend::MergedTreeId;
 use crate::backend::Signature;
-use crate::backend::{self};
 use crate::merged_tree::MergedTree;
 use crate::repo::Repo;
 use crate::rewrite::merge_commit_trees;

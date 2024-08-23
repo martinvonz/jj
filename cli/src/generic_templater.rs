@@ -14,15 +14,15 @@
 
 use std::collections::HashMap;
 
+use crate::template_builder;
 use crate::template_builder::BuildContext;
 use crate::template_builder::CoreTemplateBuildFnTable;
 use crate::template_builder::CoreTemplatePropertyKind;
 use crate::template_builder::IntoTemplateProperty;
 use crate::template_builder::TemplateLanguage;
-use crate::template_builder::{self};
+use crate::template_parser;
 use crate::template_parser::FunctionCallNode;
 use crate::template_parser::TemplateParseResult;
-use crate::template_parser::{self};
 use crate::templater::Template;
 use crate::templater::TemplateProperty;
 

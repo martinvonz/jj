@@ -30,6 +30,7 @@ use pest::Parser;
 use pest_derive::Parser;
 use thiserror::Error;
 
+use crate::dsl_util;
 use crate::dsl_util::collect_similar;
 use crate::dsl_util::AliasDeclaration;
 use crate::dsl_util::AliasDeclarationParser;
@@ -43,7 +44,6 @@ use crate::dsl_util::FoldableExpression;
 use crate::dsl_util::InvalidArguments;
 use crate::dsl_util::KeywordArgument;
 use crate::dsl_util::StringLiteralParser;
-use crate::dsl_util::{self};
 
 #[derive(Parser)]
 #[grammar = "revset.pest"]

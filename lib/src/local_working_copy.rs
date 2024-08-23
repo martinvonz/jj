@@ -59,9 +59,9 @@ use crate::backend::SymlinkId;
 use crate::backend::TreeId;
 use crate::backend::TreeValue;
 use crate::commit::Commit;
+use crate::conflicts;
 use crate::conflicts::materialize_tree_value;
 use crate::conflicts::MaterializedTreeValue;
-use crate::conflicts::{self};
 use crate::file_util::check_symlink_support;
 use crate::file_util::try_symlink;
 #[cfg(feature = "watchman")]

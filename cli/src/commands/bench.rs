@@ -26,10 +26,10 @@ use criterion::BenchmarkId;
 use criterion::Criterion;
 use jj_lib::object_id::HexPrefix;
 use jj_lib::repo::Repo;
+use jj_lib::revset;
 use jj_lib::revset::DefaultSymbolResolver;
 use jj_lib::revset::RevsetExpression;
 use jj_lib::revset::SymbolResolverExtension;
-use jj_lib::revset::{self};
 
 use crate::cli_util::CommandHelper;
 use crate::cli_util::RevisionArg;

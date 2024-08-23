@@ -17,10 +17,10 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
+use crate::backend;
 use crate::backend::BackendResult;
 use crate::backend::TreeId;
 use crate::backend::TreeValue;
-use crate::backend::{self};
 use crate::repo_path::RepoPath;
 use crate::repo_path::RepoPathBuf;
 use crate::store::Store;

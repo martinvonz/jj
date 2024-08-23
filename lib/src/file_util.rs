@@ -14,8 +14,8 @@
 
 #![allow(missing_docs)]
 
+use std::fs;
 use std::fs::File;
-use std::fs::{self};
 use std::io;
 use std::iter;
 use std::path::Component;

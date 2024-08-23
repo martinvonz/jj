@@ -16,12 +16,12 @@
 
 use std::sync::Arc;
 
+use crate::backend;
 use crate::backend::BackendResult;
 use crate::backend::ChangeId;
 use crate::backend::CommitId;
 use crate::backend::MergedTreeId;
 use crate::backend::Signature;
-use crate::backend::{self};
 use crate::commit::Commit;
 use crate::repo::MutableRepo;
 use crate::repo::Repo;

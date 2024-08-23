@@ -16,9 +16,9 @@
 
 use std::borrow::Borrow;
 use std::cmp::Ordering;
+use std::fmt;
 use std::fmt::Debug;
 use std::fmt::Formatter;
-use std::fmt::{self};
 use std::iter::FusedIterator;
 use std::ops::Deref;
 use std::path::Component;

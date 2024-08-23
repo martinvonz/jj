@@ -60,13 +60,13 @@ use unicode_width::UnicodeWidthStr as _;
 
 use crate::config::CommandNameAndArgs;
 use crate::formatter::Formatter;
+use crate::merge_tools;
 use crate::merge_tools::generate_diff;
 use crate::merge_tools::invoke_external_diff;
 use crate::merge_tools::new_utf8_temp_dir;
 use crate::merge_tools::DiffGenerateError;
 use crate::merge_tools::DiffToolMode;
 use crate::merge_tools::ExternalMergeTool;
-use crate::merge_tools::{self};
 use crate::text_util;
 use crate::ui::Ui;
 

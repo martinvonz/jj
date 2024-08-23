@@ -23,6 +23,7 @@ use jj_lib::backend::CommitId;
 use jj_lib::commit::Commit;
 use jj_lib::id_prefix::IdPrefixContext;
 use jj_lib::repo::Repo;
+use jj_lib::revset;
 use jj_lib::revset::DefaultSymbolResolver;
 use jj_lib::revset::Revset;
 use jj_lib::revset::RevsetAliasesMap;
@@ -35,7 +36,6 @@ use jj_lib::revset::RevsetParseContext;
 use jj_lib::revset::RevsetParseError;
 use jj_lib::revset::RevsetResolutionError;
 use jj_lib::revset::SymbolResolverExtension;
-use jj_lib::revset::{self};
 use jj_lib::settings::ConfigResultExt as _;
 use thiserror::Error;
 

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
+use std::io;
 use std::io::Write;
-use std::io::{self};
 use std::process::Command;
 use std::process::ExitStatus;
 use std::process::Stdio;
@@ -10,8 +10,8 @@ use itertools::Itertools;
 use jj_lib::backend::FileId;
 use jj_lib::backend::MergedTreeId;
 use jj_lib::backend::TreeValue;
+use jj_lib::conflicts;
 use jj_lib::conflicts::materialize_merge_result;
-use jj_lib::conflicts::{self};
 use jj_lib::gitignore::GitIgnoreFile;
 use jj_lib::matchers::Matcher;
 use jj_lib::merge::Merge;

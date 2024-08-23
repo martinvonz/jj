@@ -24,6 +24,7 @@ use once_cell::sync::Lazy;
 use thiserror::Error;
 
 use crate::dsl_util::collect_similar;
+use crate::fileset_parser;
 use crate::fileset_parser::BinaryOp;
 use crate::fileset_parser::ExpressionKind;
 use crate::fileset_parser::ExpressionNode;
@@ -32,7 +33,6 @@ pub use crate::fileset_parser::FilesetParseErrorKind;
 pub use crate::fileset_parser::FilesetParseResult;
 use crate::fileset_parser::FunctionCallNode;
 use crate::fileset_parser::UnaryOp;
-use crate::fileset_parser::{self};
 use crate::matchers::DifferenceMatcher;
 use crate::matchers::EverythingMatcher;
 use crate::matchers::FileGlobsMatcher;
