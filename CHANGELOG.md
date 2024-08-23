@@ -22,9 +22,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   of `prev/next`. The flag turns `edit` mode `on` and `off` permanently when set
   respectively to `true` or `false`.
 
-* The following diff formats now include information about copies and moves:
-  `--color-words`, `--git`, `--stat`, `--summary`, `--types`, and external diff
-  tools in file-by-file mode.
+* All diff formats except `--name-only` now include information about copies and
+  moves. So do external diff tools in file-by-file mode.
 
 * Color-words diff has gained [an option to display complex changes as separate
   lines](docs/config.md#color-words-diff-options).
