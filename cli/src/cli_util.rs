@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use core::fmt;
 use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::collections::HashSet;
@@ -20,6 +19,7 @@ use std::env;
 use std::env::ArgsOs;
 use std::env::VarError;
 use std::ffi::OsString;
+use std::fmt;
 use std::fmt::Debug;
 use std::fs;
 use std::io;
