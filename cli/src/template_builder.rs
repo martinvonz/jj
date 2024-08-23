@@ -19,6 +19,7 @@ use jj_lib::backend::Signature;
 use jj_lib::backend::Timestamp;
 use jj_lib::dsl_util::AliasExpandError as _;
 
+use crate::template_parser;
 use crate::template_parser::BinaryOp;
 use crate::template_parser::ExpressionKind;
 use crate::template_parser::ExpressionNode;
@@ -28,7 +29,6 @@ use crate::template_parser::TemplateParseError;
 use crate::template_parser::TemplateParseErrorKind;
 use crate::template_parser::TemplateParseResult;
 use crate::template_parser::UnaryOp;
-use crate::template_parser::{self};
 use crate::templater::CoalesceTemplate;
 use crate::templater::ConcatTemplate;
 use crate::templater::ConditionalTemplate;
@@ -1267,8 +1267,8 @@ mod tests {
     use jj_lib::backend::MillisSinceEpoch;
 
     use super::*;
+    use crate::formatter;
     use crate::formatter::ColorFormatter;
-    use crate::formatter::{self};
     use crate::generic_templater::GenericTemplateLanguage;
 
     type L = GenericTemplateLanguage<'static, ()>;

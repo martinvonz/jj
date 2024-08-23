@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::path;
 use std::path::Path;
 use std::path::PathBuf;
-use std::path::{self};
 
 use crate::common::get_stderr_string;
 use crate::common::get_stdout_string;

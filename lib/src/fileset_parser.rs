@@ -26,9 +26,9 @@ use pest::Parser;
 use pest_derive::Parser;
 use thiserror::Error;
 
+use crate::dsl_util;
 use crate::dsl_util::InvalidArguments;
 use crate::dsl_util::StringLiteralParser;
-use crate::dsl_util::{self};
 
 #[derive(Parser)]
 #[grammar = "fileset.pest"]

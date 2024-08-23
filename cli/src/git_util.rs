@@ -24,11 +24,11 @@ use std::process::Stdio;
 use std::time::Instant;
 
 use itertools::Itertools;
+use jj_lib::git;
 use jj_lib::git::FailedRefExport;
 use jj_lib::git::FailedRefExportReason;
 use jj_lib::git::GitImportStats;
 use jj_lib::git::RefName;
-use jj_lib::git::{self};
 use jj_lib::git_backend::GitBackend;
 use jj_lib::op_store::RefTarget;
 use jj_lib::op_store::RemoteRef;

@@ -13,8 +13,8 @@
 // limitations under the License.
 
 use std::collections::HashMap;
+use std::io;
 use std::io::Read;
-use std::io::{self};
 
 use itertools::Itertools;
 use jj_lib::commit::CommitIteratorExt;

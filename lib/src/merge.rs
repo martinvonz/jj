@@ -29,11 +29,11 @@ use itertools::Itertools;
 use smallvec::smallvec_inline;
 use smallvec::SmallVec;
 
+use crate::backend;
 use crate::backend::BackendResult;
 use crate::backend::FileId;
 use crate::backend::TreeId;
 use crate::backend::TreeValue;
-use crate::backend::{self};
 use crate::content_hash::ContentHash;
 use crate::content_hash::DigestUpdate;
 use crate::object_id::ObjectId;

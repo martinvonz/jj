@@ -26,6 +26,7 @@ use std::time::SystemTime;
 use futures::stream::BoxStream;
 use pollster::FutureExt;
 
+use crate::backend;
 use crate::backend::Backend;
 use crate::backend::BackendResult;
 use crate::backend::ChangeId;
@@ -37,7 +38,6 @@ use crate::backend::MergedTreeId;
 use crate::backend::SigningFn;
 use crate::backend::SymlinkId;
 use crate::backend::TreeId;
-use crate::backend::{self};
 use crate::commit::Commit;
 use crate::index::Index;
 use crate::merge::Merge;

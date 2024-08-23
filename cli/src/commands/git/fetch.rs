@@ -13,8 +13,8 @@
 // limitations under the License.
 
 use itertools::Itertools;
+use jj_lib::git;
 use jj_lib::git::GitFetchError;
-use jj_lib::git::{self};
 use jj_lib::repo::Repo;
 use jj_lib::settings::ConfigResultExt as _;
 use jj_lib::settings::UserSettings;

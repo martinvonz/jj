@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::io;
 use std::io::Write;
-use std::io::{self};
 
 use jj_lib::backend::BackendResult;
 use jj_lib::conflicts::materialize_tree_value;

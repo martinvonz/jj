@@ -18,9 +18,9 @@ use std::io::Write;
 use std::path::Path;
 use std::path::PathBuf;
 
+use jj_lib::git;
 use jj_lib::git::GitFetchError;
 use jj_lib::git::GitFetchStats;
-use jj_lib::git::{self};
 use jj_lib::repo::Repo;
 use jj_lib::str_util::StringPattern;
 use jj_lib::workspace::Workspace;
