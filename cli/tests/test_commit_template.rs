@@ -951,9 +951,15 @@ fn test_log_diff_predefined_formats() {
 
     std::fs::write(repo_path.join("file1"), "a\nb\n").unwrap();
     std::fs::write(repo_path.join("file2"), "a\n").unwrap();
+    std::fs::write(repo_path.join("rename-source"), "rename").unwrap();
     test_env.jj_cmd_ok(&repo_path, &["new"]);
     std::fs::write(repo_path.join("file1"), "a\nb\nc\n").unwrap();
     std::fs::write(repo_path.join("file2"), "b\nc\n").unwrap();
+    std::fs::rename(
+        repo_path.join("rename-source"),
+        repo_path.join("rename-target"),
+    )
+    .unwrap();
 
     let template = r#"
     concat(
@@ -982,6 +988,7 @@ fn test_log_diff_predefined_formats() {
     [38;5;3mModified regular file file2:[39m
     [38;5;1m   1[39m [38;5;2m   1[39m: [4m[38;5;1ma[38;5;2mb[24m[39m
          [38;5;2m   2[39m: [4m[38;5;2mc[24m[39m
+    [38;5;3mModified regular file rename-target (rename-source => rename-target):[39m
     === git ===
     [1mdiff --git a/file1 b/file1[0m
     [1mindex 422c2b7ab3..de980441c3 100644[0m
@@ -999,13 +1006,18 @@ fn test_log_diff_predefined_formats() {
     [38;5;1m-[4ma[24m[39m
     [38;5;2m+[4mb[24m[39m
     [38;5;2m+[4mc[24m[39m
+    [1mdiff --git a/rename-source b/rename-target[0m
+    [1mrename from rename-source[0m
+    [1mrename to rename-target[0m
     === stat ===
-    file1 | 1 [38;5;2m+[38;5;1m[39m
-    file2 | 3 [38;5;2m++[38;5;1m-[39m
-    2 files changed, 3 insertions(+), 1 deletion(-)
+    file1                            | 1 [38;5;2m+[38;5;1m[39m
+    file2                            | 3 [38;5;2m++[38;5;1m-[39m
+    {rename-source => rename-target} | 0[38;5;1m[39m
+    3 files changed, 3 insertions(+), 1 deletion(-)
     === summary ===
     [38;5;6mM file1[39m
     [38;5;6mM file2[39m
+    R {rename-source => rename-target}
     "###);
 
     // color labels
@@ -1022,6 +1034,7 @@ fn test_log_diff_predefined_formats() {
     [38;5;3m<<log diff color_words header::Modified regular file file2:>>[39m
     [38;5;1m<<log diff color_words removed line_number::   1>>[39m<<log diff color_words:: >>[38;5;2m<<log diff color_words added line_number::   1>>[39m<<log diff color_words::: >>[4m[38;5;1m<<log diff color_words removed token::a>>[38;5;2m<<log diff color_words added token::b>>[24m[39m<<log diff color_words::>>
     <<log diff color_words::     >>[38;5;2m<<log diff color_words added line_number::   2>>[39m<<log diff color_words::: >>[4m[38;5;2m<<log diff color_words added token::c>>[24m[39m
+    [38;5;3m<<log diff color_words header::Modified regular file rename-target (rename-source => rename-target):>>[39m
     <<log::=== git ===>>
     [1m<<log diff git file_header::diff --git a/file1 b/file1>>[0m
     [1m<<log diff git file_header::index 422c2b7ab3..de980441c3 100644>>[0m
@@ -1039,13 +1052,18 @@ fn test_log_diff_predefined_formats() {
     [38;5;1m<<log diff git removed::->>[4m<<log diff git removed token::a>>[24m<<log diff git removed::>>[39m
     [38;5;2m<<log diff git added::+>>[4m<<log diff git added token::b>>[24m<<log diff git added::>>[39m
     [38;5;2m<<log diff git added::+>>[4m<<log diff git added token::c>>[24m[39m
+    [1m<<log diff git file_header::diff --git a/rename-source b/rename-target>>[0m
+    [1m<<log diff git file_header::rename from rename-source>>[0m
+    [1m<<log diff git file_header::rename to rename-target>>[0m
     <<log::=== stat ===>>
-    <<log diff stat::file1 | 1 >>[38;5;2m<<log diff stat added::+>>[38;5;1m<<log diff stat removed::>>[39m
-    <<log diff stat::file2 | 3 >>[38;5;2m<<log diff stat added::++>>[38;5;1m<<log diff stat removed::->>[39m
-    <<log diff stat stat-summary::2 files changed, 3 insertions(+), 1 deletion(-)>>
+    <<log diff stat::file1                            | 1 >>[38;5;2m<<log diff stat added::+>>[38;5;1m<<log diff stat removed::>>[39m
+    <<log diff stat::file2                            | 3 >>[38;5;2m<<log diff stat added::++>>[38;5;1m<<log diff stat removed::->>[39m
+    <<log diff stat::{rename-source => rename-target} | 0>>[38;5;1m<<log diff stat removed::>>[39m
+    <<log diff stat stat-summary::3 files changed, 3 insertions(+), 1 deletion(-)>>
     <<log::=== summary ===>>
     [38;5;6m<<log diff summary modified::M file1>>[39m
     [38;5;6m<<log diff summary modified::M file2>>[39m
+    <<log diff summary renamed::R {rename-source => rename-target}>>
     "###);
 
     // cwd != workspace root
@@ -1062,6 +1080,7 @@ fn test_log_diff_predefined_formats() {
     Modified regular file repo/file2:
        1    1: ab
             2: c
+    Modified regular file repo/rename-target (repo/rename-source => repo/rename-target):
     === git ===
     diff --git a/file1 b/file1
     index 422c2b7ab3..de980441c3 100644
@@ -1079,13 +1098,18 @@ fn test_log_diff_predefined_formats() {
     -a
     +b
     +c
+    diff --git a/rename-source b/rename-target
+    rename from rename-source
+    rename to rename-target
     === stat ===
-    repo/file1 | 1 +
-    repo/file2 | 3 ++-
-    2 files changed, 3 insertions(+), 1 deletion(-)
+    repo/file1                            | 1 +
+    repo/file2                            | 3 ++-
+    repo/{rename-source => rename-target} | 0
+    3 files changed, 3 insertions(+), 1 deletion(-)
     === summary ===
     M repo/file1
     M repo/file2
+    R repo/{rename-source => rename-target}
     "###);
 
     // color_words() with parameters
