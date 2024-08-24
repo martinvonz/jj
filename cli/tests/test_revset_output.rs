@@ -129,25 +129,25 @@ fn test_bad_function_call() {
       = Expected expression of type integer
     "###);
 
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "file()"]);
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "files()"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Failed to parse revset: Function "file": Expected at least 1 arguments
-    Caused by:  --> 1:6
+    Error: Failed to parse revset: Function "files": Expected at least 1 arguments
+    Caused by:  --> 1:7
       |
-    1 | file()
-      |      ^
+    1 | files()
+      |       ^
       |
-      = Function "file": Expected at least 1 arguments
+      = Function "files": Expected at least 1 arguments
     "###);
 
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "file(not::a-fileset)"]);
-    insta::assert_snapshot!(stderr, @r#"
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "files(not::a-fileset)"]);
+    insta::assert_snapshot!(stderr, @r###"
     Error: Failed to parse revset: In fileset expression
     Caused by:
-    1:  --> 1:6
+    1:  --> 1:7
       |
-    1 | file(not::a-fileset)
-      |      ^------------^
+    1 | files(not::a-fileset)
+      |       ^------------^
       |
       = In fileset expression
     2:  --> 1:5
@@ -156,16 +156,16 @@ fn test_bad_function_call() {
       |     ^---
       |
       = expected <identifier>, <string_literal>, or <raw_string_literal>
-    "#);
+    "###);
 
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", r#"file(foo:"bar")"#]);
-    insta::assert_snapshot!(stderr, @r#"
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", r#"files(foo:"bar")"#]);
+    insta::assert_snapshot!(stderr, @r###"
     Error: Failed to parse revset: In fileset expression
     Caused by:
-    1:  --> 1:6
+    1:  --> 1:7
       |
-    1 | file(foo:"bar")
-      |      ^-------^
+    1 | files(foo:"bar")
+      |       ^-------^
       |
       = In fileset expression
     2:  --> 1:1
@@ -175,16 +175,16 @@ fn test_bad_function_call() {
       |
       = Invalid file pattern
     3: Invalid file pattern kind "foo:"
-    "#);
+    "###);
 
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", r#"file(a, "../out")"#]);
-    insta::assert_snapshot!(stderr.replace('\\', "/"), @r#"
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", r#"files(a, "../out")"#]);
+    insta::assert_snapshot!(stderr.replace('\\', "/"), @r###"
     Error: Failed to parse revset: In fileset expression
     Caused by:
-    1:  --> 1:9
+    1:  --> 1:10
       |
-    1 | file(a, "../out")
-      |         ^------^
+    1 | files(a, "../out")
+      |          ^------^
       |
       = In fileset expression
     2:  --> 1:1
@@ -195,7 +195,7 @@ fn test_bad_function_call() {
       = Invalid file pattern
     3: Path "../out" is not in the repo "."
     4: Invalid component ".." in repo-relative path "../out"
-    "#);
+    "###);
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "bookmarks(bad:pattern)"]);
     insta::assert_snapshot!(stderr, @r###"
@@ -334,17 +334,17 @@ fn test_parse_warning() {
       = untracked_remote_branches() is deprecated; use untracked_remote_bookmarks() instead
     "#);
 
-    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["log", "-r", "file(foo, bar)"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["log", "-r", "files(foo, bar)"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r#"
+    insta::assert_snapshot!(stderr, @r###"
     Warning: In revset expression
-     --> 1:6
+     --> 1:7
       |
-    1 | file(foo, bar)
-      |      ^------^
+    1 | files(foo, bar)
+      |       ^------^
       |
       = Multi-argument patterns syntax is deprecated; separate them with |
-    "#);
+    "###);
 }
 
 #[test]

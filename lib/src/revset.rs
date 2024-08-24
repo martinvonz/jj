@@ -789,7 +789,14 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
         function.expect_no_arguments()?;
         Ok(RevsetExpression::is_empty())
     });
-    map.insert("file", |diagnostics, function, context| {
+    map.insert("files", |diagnostics, function, context| {
+        // TODO: Remove in jj 0.28+
+        if function.name != "files" {
+            diagnostics.add_warning(RevsetParseError::expression(
+                "file() is deprecated; use files() instead",
+                function.name_span,
+            ));
+        }
         let ctx = context.workspace.as_ref().ok_or_else(|| {
             RevsetParseError::with_span(
                 RevsetParseErrorKind::FsPathWithoutWorkspace,
@@ -810,6 +817,8 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
         let expr = FilesetExpression::union_all(file_expressions);
         Ok(RevsetExpression::filter(RevsetFilterPredicate::File(expr)))
     });
+    // TODO: Remove in jj 0.28+
+    map.insert("file", map["files"]);
     map.insert("diff_contains", |diagnostics, function, context| {
         let ([text_arg], [files_opt_arg]) = function.expect_arguments()?;
         let text = expect_string_pattern(diagnostics, text_arg)?;
@@ -830,10 +839,19 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
             RevsetFilterPredicate::DiffContains { text, files },
         ))
     });
-    map.insert("conflict", |_diagnostics, function, _context| {
+    map.insert("conflicts", |diagnostics, function, _context| {
+        // TODO: Remove in jj 0.28+
+        if function.name != "conflicts" {
+            diagnostics.add_warning(RevsetParseError::expression(
+                "file() is deprecated; use files() instead",
+                function.name_span,
+            ));
+        }
         function.expect_no_arguments()?;
         Ok(RevsetExpression::filter(RevsetFilterPredicate::HasConflict))
     });
+    // TODO: Remove in jj 0.28+
+    map.insert("conflict", map["conflicts"]);
     map.insert("present", |diagnostics, function, context| {
         let [arg] = function.expect_exact_arguments()?;
         let expression = lower_expression(diagnostics, arg, context)?;

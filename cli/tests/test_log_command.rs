@@ -873,7 +873,7 @@ fn test_log_filtered_by_path() {
     ~
     "###);
 
-    // file() revset doesn't filter the diff.
+    // files() revset doesn't filter the diff.
     let stdout = test_env.jj_cmd_success(
         &repo_path,
         &[
@@ -881,7 +881,7 @@ fn test_log_filtered_by_path() {
             "-T",
             "description",
             "-s",
-            "-rfile(file2)",
+            "-rfiles(file2)",
             "--no-graph",
         ],
     );
