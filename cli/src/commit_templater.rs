@@ -1311,11 +1311,17 @@ impl TreeDiff {
         commit: &Commit,
         matcher: Rc<dyn Matcher>,
     ) -> BackendResult<Self> {
+        let mut copy_records = CopyRecords::default();
+        for parent in commit.parent_ids() {
+            let records =
+                diff_util::get_copy_records(repo.store(), parent, commit.id(), &*matcher)?;
+            copy_records.add_records(records)?;
+        }
         Ok(TreeDiff {
             from_tree: commit.parent_tree(repo)?,
             to_tree: commit.tree()?,
             matcher,
-            copy_records: Default::default(), // TODO: real copy tracking
+            copy_records,
         })
     }
 
