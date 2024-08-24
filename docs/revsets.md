@@ -274,7 +274,7 @@ given [string pattern](#string-patterns).
 * `empty()`: Commits modifying no files. This also includes `merges()` without
   user modifications and `root()`.
 
-* `file(expression)`: Commits modifying paths matching the given [fileset
+* `files(expression)`: Commits modifying paths matching the given [fileset
   expression](filesets.md).
 
   Paths are relative to the directory `jj` was invoked from. A directory name
@@ -296,7 +296,7 @@ given [string pattern](#string-patterns).
   For example, `diff_contains("TODO", "src")` will search revisions where "TODO"
   is added to or removed from files under "src".
 
-* `conflict()`: Commits with conflicts.
+* `conflicts()`: Commits with conflicts.
 
 * `present(x)`: Same as `x`, but evaluated to `none()` if any of the commits
   in `x` doesn't exist (e.g. is an unknown bookmark name.)

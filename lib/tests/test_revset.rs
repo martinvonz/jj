@@ -3171,7 +3171,7 @@ fn test_evaluate_expression_file() {
     assert_eq!(
         resolve_commit_ids_in_workspace(
             mut_repo,
-            r#"file("repo/added_clean_clean")"#,
+            r#"files("repo/added_clean_clean")"#,
             &test_workspace.workspace,
             Some(test_workspace.workspace.workspace_root().parent().unwrap()),
         ),
@@ -3180,7 +3180,7 @@ fn test_evaluate_expression_file() {
     assert_eq!(
         resolve_commit_ids_in_workspace(
             mut_repo,
-            r#"file("added_clean_clean"|"added_modified_clean")"#,
+            r#"files("added_clean_clean"|"added_modified_clean")"#,
             &test_workspace.workspace,
             Some(test_workspace.workspace.workspace_root()),
         ),
@@ -3189,7 +3189,10 @@ fn test_evaluate_expression_file() {
     assert_eq!(
         resolve_commit_ids_in_workspace(
             mut_repo,
-            &format!(r#"{}:: & file("added_modified_clean")"#, commit2.id().hex()),
+            &format!(
+                r#"{}:: & files("added_modified_clean")"#,
+                commit2.id().hex()
+            ),
             &test_workspace.workspace,
             Some(test_workspace.workspace.workspace_root()),
         ),
@@ -3387,7 +3390,7 @@ fn test_evaluate_expression_file_merged_parents() {
     };
 
     assert_eq!(
-        query("file('file1')"),
+        query("files('file1')"),
         vec![
             commit4.id().clone(),
             commit3.id().clone(),
@@ -3396,7 +3399,7 @@ fn test_evaluate_expression_file_merged_parents() {
         ]
     );
     assert_eq!(
-        query("file('file2')"),
+        query("files('file2')"),
         vec![
             commit3.id().clone(),
             commit2.id().clone(),
@@ -3453,7 +3456,7 @@ fn test_evaluate_expression_conflict() {
 
     // Only commit4 has a conflict
     assert_eq!(
-        resolve_commit_ids(mut_repo, "conflict()"),
+        resolve_commit_ids(mut_repo, "conflicts()"),
         vec![commit4.id().clone()]
     );
 }

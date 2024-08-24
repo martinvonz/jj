@@ -96,6 +96,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   commit to commit. It now either follows the flags `--edit|--no-edit` or it
   gets the mode from `ui.movement.edit`.
 
+* `conflict` revset has been renamed to `conflicts`. With this, all revsets that
+  could potentially return multiple results are named in the plural.
+
 ### Deprecations
 
 * `jj untrack` has been renamed to `jj file untrack`.
