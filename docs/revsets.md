@@ -398,7 +398,7 @@ For example:
 ```toml
 [revset-aliases]
 'HEAD' = '@-'
-'user()' = 'user("me@example.org")
+'user()' = 'user("me@example.org")'
 'user(x)' = 'author(x) | committer(x)'
 ```
 
