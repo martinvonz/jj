@@ -178,9 +178,15 @@ pub fn run_command(ui: &mut Ui, command_helper: &CommandHelper) -> Result<(), Co
         #[cfg(feature = "bench")]
         Command::Bench(args) => bench::cmd_bench(ui, command_helper, args),
         Command::Branch(args) => branch::cmd_branch(ui, command_helper, args),
-        Command::Cat(args) => file::show::deprecated_cmd_cat(ui, command_helper, args),
+        Command::Cat(args) => {
+            let cmd = renamed_cmd("cat", "file show", file::show::cmd_file_show);
+            cmd(ui, command_helper, args)
+        }
         Command::Checkout(args) => checkout::cmd_checkout(ui, command_helper, args),
-        Command::Chmod(args) => file::chmod::deprecated_cmd_chmod(ui, command_helper, args),
+        Command::Chmod(args) => {
+            let cmd = renamed_cmd("chmod", "file chmod", file::chmod::cmd_file_chmod);
+            cmd(ui, command_helper, args)
+        }
         Command::Commit(args) => commit::cmd_commit(ui, command_helper, args),
         Command::Config(args) => config::cmd_config(ui, command_helper, args),
         Command::Debug(args) => debug::cmd_debug(ui, command_helper, args),
@@ -190,7 +196,10 @@ pub fn run_command(ui: &mut Ui, command_helper: &CommandHelper) -> Result<(), Co
         Command::Duplicate(args) => duplicate::cmd_duplicate(ui, command_helper, args),
         Command::Edit(args) => edit::cmd_edit(ui, command_helper, args),
         Command::File(args) => file::cmd_file(ui, command_helper, args),
-        Command::Files(args) => file::list::deprecated_cmd_files(ui, command_helper, args),
+        Command::Files(args) => {
+            let cmd = renamed_cmd("files", "file list", file::list::cmd_file_list);
+            cmd(ui, command_helper, args)
+        }
         Command::Fix(args) => fix::cmd_fix(ui, command_helper, args),
         Command::Git(args) => git::cmd_git(ui, command_helper, args),
         Command::Init(args) => init::cmd_init(ui, command_helper, args),
@@ -222,6 +231,25 @@ pub fn run_command(ui: &mut Ui, command_helper: &CommandHelper) -> Result<(), Co
         Command::Util(args) => util::cmd_util(ui, command_helper, args),
         Command::Version(args) => version::cmd_version(ui, command_helper, args),
         Command::Workspace(args) => workspace::cmd_workspace(ui, command_helper, args),
+    }
+}
+
+/// Wraps deprecated command of `old_name` which has been renamed to `new_name`.
+fn renamed_cmd<Args>(
+    old_name: &'static str,
+    new_name: &'static str,
+    cmd: impl Fn(&mut Ui, &CommandHelper, &Args) -> Result<(), CommandError>,
+) -> impl Fn(&mut Ui, &CommandHelper, &Args) -> Result<(), CommandError> {
+    move |ui: &mut Ui, command: &CommandHelper, args: &Args| -> Result<(), CommandError> {
+        writeln!(
+            ui.warning_default(),
+            "`jj {old_name}` is deprecated; use `jj {new_name}` instead, which is equivalent"
+        )?;
+        writeln!(
+            ui.warning_default(),
+            "`jj {old_name}` will be removed in a future version, and this will be a hard error"
+        )?;
+        cmd(ui, command, args)
     }
 }
 

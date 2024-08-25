@@ -49,23 +49,6 @@ pub(crate) struct FileShowArgs {
 }
 
 #[instrument(skip_all)]
-pub(crate) fn deprecated_cmd_cat(
-    ui: &mut Ui,
-    command: &CommandHelper,
-    args: &FileShowArgs,
-) -> Result<(), CommandError> {
-    writeln!(
-        ui.warning_default(),
-        "`jj cat` is deprecated; use `jj file show` instead, which is equivalent"
-    )?;
-    writeln!(
-        ui.warning_default(),
-        "`jj cat` will be removed in a future version, and this will be a hard error"
-    )?;
-    cmd_file_show(ui, command, args)
-}
-
-#[instrument(skip_all)]
 pub(crate) fn cmd_file_show(
     ui: &mut Ui,
     command: &CommandHelper,

@@ -33,23 +33,6 @@ pub(crate) struct FileListArgs {
 }
 
 #[instrument(skip_all)]
-pub(crate) fn deprecated_cmd_files(
-    ui: &mut Ui,
-    command: &CommandHelper,
-    args: &FileListArgs,
-) -> Result<(), CommandError> {
-    writeln!(
-        ui.warning_default(),
-        "`jj files` is deprecated; use `jj file list` instead, which is equivalent"
-    )?;
-    writeln!(
-        ui.warning_default(),
-        "`jj files` will be removed in a future version, and this will be a hard error"
-    )?;
-    cmd_file_list(ui, command, args)
-}
-
-#[instrument(skip_all)]
 pub(crate) fn cmd_file_list(
     ui: &mut Ui,
     command: &CommandHelper,
