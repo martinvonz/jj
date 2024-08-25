@@ -2857,6 +2857,18 @@ impl CliRunner {
         }
     }
 
+    /// Set the name of the CLI application to be displayed in help messages.
+    pub fn name(mut self, name: &str) -> Self {
+        self.app = self.app.name(name.to_string());
+        self
+    }
+
+    /// Set the about message to be displayed in help messages.
+    pub fn about(mut self, about: &str) -> Self {
+        self.app = self.app.about(about.to_string());
+        self
+    }
+
     /// Set the version to be displayed by `jj version`.
     pub fn version(mut self, version: &str) -> Self {
         self.app = self.app.version(version.to_string());
