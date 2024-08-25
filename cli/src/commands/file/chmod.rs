@@ -51,23 +51,6 @@ pub(crate) struct FileChmodArgs {
 }
 
 #[instrument(skip_all)]
-pub(crate) fn deprecated_cmd_chmod(
-    ui: &mut Ui,
-    command: &CommandHelper,
-    args: &FileChmodArgs,
-) -> Result<(), CommandError> {
-    writeln!(
-        ui.warning_default(),
-        "`jj chmod` is deprecated; use `jj file chmod` instead, which is equivalent"
-    )?;
-    writeln!(
-        ui.warning_default(),
-        "`jj chmod` will be removed in a future version, and this will be a hard error"
-    )?;
-    cmd_file_chmod(ui, command, args)
-}
-
-#[instrument(skip_all)]
 pub(crate) fn cmd_file_chmod(
     ui: &mut Ui,
     command: &CommandHelper,
