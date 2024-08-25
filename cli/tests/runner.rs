@@ -30,7 +30,7 @@ mod test_edit_command;
 mod test_evolog_command;
 mod test_file_chmod_command;
 mod test_file_print_command;
-mod test_file_untrack_command;
+mod test_file_track_untrack_commands;
 mod test_fix_command;
 mod test_generate_md_cli_help;
 mod test_git_clone;

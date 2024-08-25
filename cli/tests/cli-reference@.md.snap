@@ -40,6 +40,7 @@ This document contains the help content for the `jj` command-line program.
 * [`jj file chmod`↴](#jj-file-chmod)
 * [`jj file list`↴](#jj-file-list)
 * [`jj file show`↴](#jj-file-show)
+* [`jj file track`↴](#jj-file-track)
 * [`jj file untrack`↴](#jj-file-untrack)
 * [`jj fix`↴](#jj-fix)
 * [`jj git`↴](#jj-git)
@@ -739,6 +740,7 @@ File operations
 * `chmod` — Sets or removes the executable bit for paths in the repo
 * `list` — List files in a revision
 * `show` — Print contents of files in a revision
+* `track` — Start tracking specified paths in the working copy
 * `untrack` — Stop tracking specified paths in the working copy
 
 
@@ -806,6 +808,22 @@ If the given path is a directory, files in the directory will be visited recursi
 * `-r`, `--revision <REVISION>` — The revision to get the file contents from
 
   Default value: `@`
+
+
+
+## `jj file track`
+
+Start tracking specified paths in the working copy
+
+Without arguments, all paths that are not ignored will be tracked.
+
+New files in the working copy can be automatically tracked. You can configure which paths to automatically track by setting `snapshot.auto-track` (e.g. to `"none()"` or `"glob:**/*.rs"`). Files that don't match the pattern can be manually tracked using this command. The default pattern is `all()` and this command has no effect.
+
+**Usage:** `jj file track <PATHS>...`
+
+###### **Arguments:**
+
+* `<PATHS>` — Paths to track
 
 
 

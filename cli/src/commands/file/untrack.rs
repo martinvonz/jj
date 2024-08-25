@@ -51,6 +51,7 @@ pub(crate) fn cmd_file_untrack(
 
     let mut tx = workspace_command.start_transaction().into_inner();
     let base_ignores = workspace_command.base_ignores()?;
+    let auto_tracking_matcher = workspace_command.auto_tracking_matcher()?;
     let (mut locked_ws, wc_commit) = workspace_command.start_working_copy_mutation()?;
     // Create a new tree without the unwanted files
     let mut tree_builder = MergedTreeBuilder::new(wc_commit.tree_id().clone());
@@ -72,6 +73,7 @@ pub(crate) fn cmd_file_untrack(
         base_ignores,
         fsmonitor_settings: command.settings().fsmonitor_settings()?,
         progress: None,
+        start_tracking_matcher: &auto_tracking_matcher,
         max_new_file_size: command.settings().max_new_file_size()?,
     })?;
     if wc_tree_id != *new_commit.tree_id() {

@@ -28,6 +28,8 @@ use crate::commit::Commit;
 use crate::fsmonitor::FsmonitorSettings;
 use crate::gitignore::GitIgnoreError;
 use crate::gitignore::GitIgnoreFile;
+use crate::matchers::EverythingMatcher;
+use crate::matchers::Matcher;
 use crate::op_store::OperationId;
 use crate::op_store::WorkspaceId;
 use crate::repo_path::RepoPath;
@@ -194,6 +196,9 @@ pub struct SnapshotOptions<'a> {
     pub fsmonitor_settings: FsmonitorSettings,
     /// A callback for the UI to display progress.
     pub progress: Option<&'a SnapshotProgress<'a>>,
+    /// For new files that are not already tracked, start tracking them if they
+    /// match this.
+    pub start_tracking_matcher: &'a dyn Matcher,
     /// The size of the largest file that should be allowed to become tracked
     /// (already tracked files are always snapshotted). If there are larger
     /// files in the working copy, then `LockedWorkingCopy::snapshot()` may
@@ -209,6 +214,7 @@ impl SnapshotOptions<'_> {
             base_ignores: GitIgnoreFile::empty(),
             fsmonitor_settings: FsmonitorSettings::None,
             progress: None,
+            start_tracking_matcher: &EverythingMatcher,
             max_new_file_size: u64::MAX,
         }
     }

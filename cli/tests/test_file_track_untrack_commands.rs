@@ -17,7 +17,7 @@ use std::path::PathBuf;
 use crate::common::TestEnvironment;
 
 #[test]
-fn test_untrack() {
+fn test_track_untrack() {
     let test_env = TestEnvironment::default();
     test_env.add_config(r#"ui.allow-init-native = true"#);
     test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo"]);
@@ -103,7 +103,7 @@ fn test_untrack() {
 }
 
 #[test]
-fn test_untrack_sparse() {
+fn test_track_untrack_sparse() {
     let test_env = TestEnvironment::default();
     test_env.add_config(r#"ui.allow-init-native = true"#);
     test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo"]);
@@ -124,6 +124,97 @@ fn test_untrack_sparse() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["file", "untrack", "file2"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @"");
+    let stdout = test_env.jj_cmd_success(&repo_path, &["file", "list"]);
+    insta::assert_snapshot!(stdout, @r###"
+    file1
+    "###);
+    // Trying to manually track a file that's not included in the sparse working has
+    // no effect. TODO: At least a warning would be useful
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["file", "track", "file2"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @"");
+    let stdout = test_env.jj_cmd_success(&repo_path, &["file", "list"]);
+    insta::assert_snapshot!(stdout, @r###"
+    file1
+    "###);
+}
+
+#[test]
+fn test_auto_track() {
+    let test_env = TestEnvironment::default();
+    test_env.add_config(r#"snapshot.auto-track = 'glob:*.rs'"#);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    std::fs::write(repo_path.join("file1.rs"), "initial").unwrap();
+    std::fs::write(repo_path.join("file2.md"), "initial").unwrap();
+    std::fs::write(repo_path.join("file3.md"), "initial").unwrap();
+
+    // Only configured paths get auto-tracked
+    let stdout = test_env.jj_cmd_success(&repo_path, &["file", "list"]);
+    insta::assert_snapshot!(stdout, @r###"
+    file1.rs
+    "###);
+
+    // Can manually track paths
+    let stdout = test_env.jj_cmd_success(&repo_path, &["file", "track", "file3.md"]);
+    insta::assert_snapshot!(stdout, @"");
+    let stdout = test_env.jj_cmd_success(&repo_path, &["file", "list"]);
+    insta::assert_snapshot!(stdout, @r###"
+    file1.rs
+    file3.md
+    "###);
+
+    // Can manually untrack paths
+    let stdout = test_env.jj_cmd_success(&repo_path, &["file", "untrack", "file3.md"]);
+    insta::assert_snapshot!(stdout, @"");
+    let stdout = test_env.jj_cmd_success(&repo_path, &["file", "list"]);
+    insta::assert_snapshot!(stdout, @r###"
+    file1.rs
+    "###);
+
+    // CWD-relative paths in `snapshot.auto-track` are evaluated from the repo root
+    let subdir = repo_path.join("sub");
+    std::fs::create_dir(&subdir).unwrap();
+    std::fs::write(subdir.join("file1.rs"), "initial").unwrap();
+    let stdout = test_env.jj_cmd_success(&subdir, &["file", "list"]);
+    insta::assert_snapshot!(stdout.replace('\\', "/"), @r###"
+    ../file1.rs
+    "###);
+
+    // But `jj file track` wants CWD-relative paths
+    let stdout = test_env.jj_cmd_success(&subdir, &["file", "track", "file1.rs"]);
+    insta::assert_snapshot!(stdout, @"");
+    let stdout = test_env.jj_cmd_success(&subdir, &["file", "list"]);
+    insta::assert_snapshot!(stdout.replace('\\', "/"), @r###"
+    ../file1.rs
+    file1.rs
+    "###);
+}
+
+#[test]
+fn test_track_ignored() {
+    let test_env = TestEnvironment::default();
+    test_env.add_config(r#"snapshot.auto-track = 'none()'"#);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    std::fs::write(repo_path.join(".gitignore"), "*.bak\n").unwrap();
+    std::fs::write(repo_path.join("file1"), "initial").unwrap();
+    std::fs::write(repo_path.join("file1.bak"), "initial").unwrap();
+
+    // Track an unignored path
+    let stdout = test_env.jj_cmd_success(&repo_path, &["file", "track", "file1"]);
+    insta::assert_snapshot!(stdout, @"");
+    let stdout = test_env.jj_cmd_success(&repo_path, &["file", "list"]);
+    insta::assert_snapshot!(stdout, @r###"
+    file1
+    "###);
+    // Track an ignored path
+    let stdout = test_env.jj_cmd_success(&repo_path, &["file", "track", "file1.bak"]);
+    insta::assert_snapshot!(stdout, @"");
+    // TODO: We should teach `jj file track` to track ignored paths (possibly
+    // requiring a flag)
     let stdout = test_env.jj_cmd_success(&repo_path, &["file", "list"]);
     insta::assert_snapshot!(stdout, @r###"
     file1

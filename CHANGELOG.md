@@ -20,6 +20,13 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### New features
 
+* The new config option `snapshot.auto-track` lets you automatically track only
+  the specified paths (all paths by default). Use the new `jj file track`
+  command to manually tracks path that were not automatically tracked. There is
+  no way to list untracked files yet. Use `git status` in a colocated workspace
+  as a workaround.
+  [#323](https://github.com/martinvonz/jj/issues/323)
+
 * `jj fix` now allows fixing unchanged files with the `--include-unchanged-files` flag. This
   can be used to more easily introduce automatic formatting changes in a new
   commit separate from other changes.

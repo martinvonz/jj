@@ -101,6 +101,10 @@ To squash or split commits, use `jj squash` and `jj split`.
 
 ### How can I keep my scratch files in the repository without committing them?
 
+You can set `snapshot.auto-track` to only start tracking new files matching the
+configured pattern (e.g. `"none()"`). Changes to already tracked files will
+still be snapshotted by every command.
+
 You can keep your notes and other scratch files in the repository, if you add
 a wildcard pattern to either the repo's `gitignore` or your global `gitignore`.
 Something like `*.scratch` or `*.scratchpad` should do, after that rename the
