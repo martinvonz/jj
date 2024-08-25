@@ -25,6 +25,7 @@ pub mod diff_util;
 pub mod formatter;
 pub mod generic_templater;
 pub mod git_util;
+pub mod grammars;
 pub mod graphlog;
 pub mod merge_tools;
 pub mod movement_util;

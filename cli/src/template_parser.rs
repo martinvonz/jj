@@ -37,12 +37,9 @@ use pest::pratt_parser::Assoc;
 use pest::pratt_parser::Op;
 use pest::pratt_parser::PrattParser;
 use pest::Parser;
-use pest_derive::Parser;
 use thiserror::Error;
 
-#[derive(Parser)]
-#[grammar = "template.pest"]
-struct TemplateParser;
+use crate::grammars::template::*;
 
 const STRING_LITERAL_PARSER: StringLiteralParser<Rule> = StringLiteralParser {
     content_rule: Rule::string_content,
