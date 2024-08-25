@@ -51,4 +51,9 @@ fn test_snapshot_large_file() {
       - Run `jj --config-toml 'snapshot.max-new-file-size=11264' st`
         This will increase the maximum file size allowed for new files, for this command only.
     "###);
+
+    // No error if we disable auto-tracking of the path
+    test_env.add_config(r#"snapshot.auto-track = 'none()'"#);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["file", "list"]);
+    insta::assert_snapshot!(stdout, @"");
 }

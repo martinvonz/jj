@@ -15,6 +15,7 @@
 pub mod chmod;
 pub mod list;
 pub mod show;
+pub mod track;
 pub mod untrack;
 
 use crate::cli_util::CommandHelper;
@@ -27,6 +28,7 @@ pub enum FileCommand {
     Chmod(chmod::FileChmodArgs),
     List(list::FileListArgs),
     Show(show::FileShowArgs),
+    Track(track::FileTrackArgs),
     Untrack(untrack::FileUntrackArgs),
 }
 
@@ -39,6 +41,7 @@ pub fn cmd_file(
         FileCommand::Chmod(args) => chmod::cmd_file_chmod(ui, command, args),
         FileCommand::List(args) => list::cmd_file_list(ui, command, args),
         FileCommand::Show(args) => show::cmd_file_show(ui, command, args),
+        FileCommand::Track(args) => track::cmd_file_track(ui, command, args),
         FileCommand::Untrack(args) => untrack::cmd_file_untrack(ui, command, args),
     }
 }

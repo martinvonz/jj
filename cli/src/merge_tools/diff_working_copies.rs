@@ -12,6 +12,7 @@ use jj_lib::fsmonitor::FsmonitorSettings;
 use jj_lib::gitignore::GitIgnoreFile;
 use jj_lib::local_working_copy::TreeState;
 use jj_lib::local_working_copy::TreeStateError;
+use jj_lib::matchers::EverythingMatcher;
 use jj_lib::matchers::Matcher;
 use jj_lib::merged_tree::MergedTree;
 use jj_lib::merged_tree::TreeDiffEntry;
@@ -286,6 +287,7 @@ diff editing in mind and be a little inaccurate.
             base_ignores,
             fsmonitor_settings: FsmonitorSettings::None,
             progress: None,
+            start_tracking_matcher: &EverythingMatcher,
             max_new_file_size: u64::MAX,
         })?;
         Ok(output_tree_state.current_tree_id().clone())

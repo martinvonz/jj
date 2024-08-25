@@ -797,6 +797,7 @@ impl TreeState {
             base_ignores,
             fsmonitor_settings,
             progress,
+            start_tracking_matcher,
             max_new_file_size,
         } = options;
 
@@ -834,6 +835,7 @@ impl TreeState {
             };
             self.visit_directory(
                 &matcher,
+                start_tracking_matcher,
                 &current_tree,
                 tree_entries_tx,
                 file_states_tx,
@@ -907,6 +909,7 @@ impl TreeState {
     fn visit_directory(
         &self,
         matcher: &dyn Matcher,
+        start_tracking_matcher: &dyn Matcher,
         current_tree: &MergedTree,
         tree_entries_tx: Sender<(RepoPathBuf, MergedTreeValue)>,
         file_states_tx: Sender<(RepoPathBuf, FileState)>,
@@ -963,7 +966,12 @@ impl TreeState {
 
                 if file_type.is_dir() {
                     let file_states = file_states.prefixed(&path);
-                    if git_ignore.matches(&path.to_internal_dir_string()) {
+                    if git_ignore.matches(&path.to_internal_dir_string())
+                        || start_tracking_matcher.visit(&path).is_nothing()
+                    {
+                        // TODO: Report this directory to the caller if there are unignored paths we
+                        // should not start tracking.
+
                         // If the whole directory is ignored, visit only paths we're already
                         // tracking.
                         for (tracked_path, current_file_state) in file_states {
@@ -1016,6 +1024,7 @@ impl TreeState {
                         };
                         self.visit_directory(
                             matcher,
+                            start_tracking_matcher,
                             current_tree,
                             tree_entries_tx.clone(),
                             file_states_tx.clone(),
@@ -1033,8 +1042,12 @@ impl TreeState {
                         && git_ignore.matches(path.as_internal_file_string())
                     {
                         // If it wasn't already tracked and it matches
-                        // the ignored paths, then
-                        // ignore it.
+                        // the ignored paths, then ignore it.
+                    } else if maybe_current_file_state.is_none()
+                        && !start_tracking_matcher.matches(&path)
+                    {
+                        // Leave the file untracked
+                        // TODO: Report this path to the caller
                     } else {
                         let metadata = entry.metadata().map_err(|err| SnapshotError::Other {
                             message: format!("Failed to stat file {}", entry.path().display()),
@@ -1042,6 +1055,7 @@ impl TreeState {
                         })?;
                         if maybe_current_file_state.is_none() && metadata.len() > max_new_file_size
                         {
+                            // TODO: Maybe leave the file untracked instead
                             return Err(SnapshotError::NewFileTooLarge {
                                 path: entry.path().clone(),
                                 size: HumanByteSize(metadata.len()),
