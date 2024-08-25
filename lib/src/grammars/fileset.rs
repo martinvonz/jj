@@ -12,6 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#![allow(missing_docs)]
+
+use pest_derive::Parser;
+
+#[derive(Parser)]
+#[grammar_inline = r###"
 whitespace = _{ " " | "\t" | "\r" | "\n" | "\x0c" }
 
 // XID_CONTINUE: https://www.unicode.org/reports/tr31/#Default_Identifier_Syntax
@@ -86,3 +92,5 @@ program_or_bare_string = _{
         | bare_string_pattern ~ EOI
         | bare_string ~ EOI )
 }
+"###]
+pub struct FilesetParser;

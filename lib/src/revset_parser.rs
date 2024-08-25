@@ -27,7 +27,6 @@ use pest::pratt_parser::Assoc;
 use pest::pratt_parser::Op;
 use pest::pratt_parser::PrattParser;
 use pest::Parser;
-use pest_derive::Parser;
 use thiserror::Error;
 
 use crate::dsl_util;
@@ -44,10 +43,7 @@ use crate::dsl_util::FoldableExpression;
 use crate::dsl_util::InvalidArguments;
 use crate::dsl_util::KeywordArgument;
 use crate::dsl_util::StringLiteralParser;
-
-#[derive(Parser)]
-#[grammar = "revset.pest"]
-struct RevsetParser;
+use crate::grammars::revset::*;
 
 const STRING_LITERAL_PARSER: StringLiteralParser<Rule> = StringLiteralParser {
     content_rule: Rule::string_content,
