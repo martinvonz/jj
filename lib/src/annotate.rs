@@ -21,11 +21,11 @@
 use std::collections::HashMap;
 
 use pollster::FutureExt;
-use thiserror::Error;
 
 use crate::backend::BackendError;
 use crate::backend::CommitId;
 use crate::commit::Commit;
+use crate::conflicts::materialize_merge_result;
 use crate::conflicts::materialize_tree_value;
 use crate::conflicts::MaterializedTreeValue;
 use crate::diff::Diff;
@@ -41,17 +41,6 @@ use crate::revset::RevsetExpression;
 use crate::revset::RevsetFilterPredicate;
 use crate::store::Store;
 
-/// Various errors that can arise from annotation
-#[derive(Debug, Error)]
-pub enum AnnotateError {
-    /// the requested file path was not found
-    #[error("Unable to locate file: {0}")]
-    FileNotFound(String),
-    /// pass-through of uncaught backend errors
-    #[error(transparent)]
-    BackendError(#[from] BackendError),
-}
-
 /// Annotation results for a specific file
 pub struct AnnotateResults {
     /// An array of annotation results ordered by line.
@@ -62,164 +51,140 @@ pub struct AnnotateResults {
     pub file_annotations: Vec<(CommitId, Vec<u8>)>,
 }
 
-/// A note on implementation:
-/// This structure represents the results along the way.
-/// We first start at the original commit, for each commit, we compare the file
-/// to the version in each parent. We only look at lines in common. For each
-/// line in common, we add it to local_line_map according to how the lines match
-/// up. If, we discover a line that is not in common with any parent commit, we
-/// know that the current commit originated that line and we add it to
-/// original_line_map.
-/// We then proceed to walk through the graph, until we've found commits for
-/// each line (local_line_map is empty when this happens)
-struct PartialResults {
-    /// A mapping from line_number in the original file to most recent commit
-    /// that changed it.
-    original_line_map: HashMap<usize, CommitId>,
-    /// CommitId -> (line_number in CommitId -> line_number in the original).
-    /// This is a map for a given commit_id, returns a mapping of line numbers
-    /// in the file version at commit_id to the original version.
-    /// For example, Commit 123 contains a map {(1, 1), (2, 3)} which means line
-    /// 1 at 123 goes to the original line 1 and line 2 at 123 goes to line 3 at
-    /// the original
-    local_line_map: HashMap<CommitId, HashMap<usize, usize>>,
-    /// A store of previously seen files
-    file_cache: HashMap<CommitId, Vec<u8>>,
+/// A map from commits to line mappings.
+/// Namely, for a given commit A, the value is the mapping of lines in the file
+/// at commit A to line numbers in the original file
+type CommitLineMap = HashMap<CommitId, HashMap<usize, usize>>;
+
+/// Memoizes the file contents for a given version to save time
+type FileCache = HashMap<CommitId, Vec<u8>>;
+
+/// A map from line numbers in the original file to the commit that originated
+/// that line
+type OriginalLineMap = HashMap<usize, CommitId>;
+
+fn get_initial_commit_line_map(commit_id: &CommitId, num_lines: usize) -> CommitLineMap {
+    let mut starting_commit_map = HashMap::new();
+    for i in 0..num_lines {
+        starting_commit_map.insert(i, i);
+    }
+
+    let mut starting_line_map = HashMap::new();
+    starting_line_map.insert(commit_id.clone(), starting_commit_map);
+    starting_line_map
 }
 
-impl PartialResults {
-    fn new(starting_commit_id: &CommitId, num_lines: usize) -> Self {
-        let mut starting_map = HashMap::new();
-        for i in 0..num_lines {
-            starting_map.insert(i, i);
-        }
-        let mut results = PartialResults {
-            original_line_map: HashMap::new(),
-            local_line_map: HashMap::new(),
-            file_cache: HashMap::new(),
-        };
-        results
-            .local_line_map
-            .insert(starting_commit_id.clone(), starting_map);
-        results
+/// Add a new line mapping from a commit to an original line number.
+/// For example, if we figure out that line 2 in commit A maps to line 7 in
+/// the original, we update the mapping so line 3 maps to line 7 in the
+/// original.
+fn remap_line(
+    commit_line_map: &mut CommitLineMap,
+    new_commit_id: &CommitId,
+    commit_line_number: usize,
+    original_line_number: usize,
+) {
+    if commit_line_map.contains_key(new_commit_id) {
+        commit_line_map
+            .get_mut(new_commit_id)
+            .unwrap()
+            .insert(commit_line_number, original_line_number);
+    } else {
+        let mut new_map = HashMap::new();
+        new_map.insert(commit_line_number, original_line_number);
+        commit_line_map.insert(new_commit_id.clone(), new_map);
+    }
+}
+
+/// Once we've looked at all parents of a commit, any leftover lines must be
+/// original to the current commit, so we save this information in
+/// original_line_map.
+fn mark_lines_from_original(
+    original_line_map: &mut OriginalLineMap,
+    commit_id: &CommitId,
+    commit_lines: HashMap<usize, usize>,
+) {
+    for (_, original_line_number) in commit_lines {
+        original_line_map.insert(original_line_number, commit_id.clone());
+    }
+}
+
+/// Takes in an original line map and the original contents and annotates each
+/// line according to the contents of the provided OriginalLineMap
+fn convert_to_results(
+    original_line_map: OriginalLineMap,
+    original_contents: &[u8],
+) -> AnnotateResults {
+    let mut result_lines = Vec::new();
+    original_contents
+        .split_inclusive(|b| *b == b'\n')
+        .enumerate()
+        .for_each(|(idx, line)| {
+            result_lines.push((
+                original_line_map.get(&idx).unwrap().clone(),
+                line.to_owned(),
+            ));
+        });
+    AnnotateResults {
+        file_annotations: result_lines,
+    }
+}
+
+/// loads a given file into the cache under a specific commit id.
+/// If there is already a file for a given commit, it is a no-op.
+fn load_file_into_cache(
+    file_cache: &mut FileCache,
+    store: &Store,
+    commit_id: &CommitId,
+    file_path: &RepoPath,
+    tree: &MergedTree,
+) -> Result<(), BackendError> {
+    if file_cache.contains_key(commit_id) {
+        return Ok(());
     }
 
-    /// Take a line mapping from an old commit and move it to a new commit.
-    /// For example, if we figure out that line 2 in commit A maps to line 7 in
-    /// the original, and line 3 in commit B maps to line 2 in commit A, we
-    /// update the mapping so line 3 maps to line 7 in the original.
-    fn forward_to_new_commit(
-        &mut self,
-        old_commit_id: &CommitId,
-        old_local_line_number: usize,
-        new_commit_id: &CommitId,
-        new_local_line_number: usize,
-    ) {
-        if let Some(old_map) = self.local_line_map.get_mut(old_commit_id) {
-            if let Some(removed_original_line_number) = old_map.remove(&old_local_line_number) {
-                if self.local_line_map.contains_key(new_commit_id) {
-                    self.local_line_map
-                        .get_mut(new_commit_id)
-                        .unwrap()
-                        .insert(new_local_line_number, removed_original_line_number);
-                } else {
-                    let mut new_map = HashMap::new();
-                    new_map.insert(new_local_line_number, removed_original_line_number);
-                    self.local_line_map.insert(new_commit_id.clone(), new_map);
-                }
-            }
-        }
+    if let Some(file_contents) = get_file_contents(store, file_path, tree)? {
+        file_cache.insert(commit_id.clone(), file_contents);
     }
 
-    /// Once we've looked at all parents of a commit, any leftover lines must be
-    /// original to the current commit, so we save this information in
-    /// original_line_map.
-    fn drain_remaining_for_commit_id(&mut self, commit_id: &CommitId) {
-        self.file_cache.remove(commit_id);
-        if let Some(remaining_lines) = self.local_line_map.remove(commit_id) {
-            for (_, original_line_number) in remaining_lines {
-                self.original_line_map
-                    .insert(original_line_number, commit_id.clone());
-            }
-        }
-    }
-
-    fn convert_to_results(self, original_contents: &[u8]) -> AnnotateResults {
-        let mut result_lines = Vec::new();
-        original_contents
-            .split_inclusive(|b| *b == b'\n')
-            .enumerate()
-            .for_each(|(idx, line)| {
-                result_lines.push((
-                    self.original_line_map.get(&idx).unwrap().clone(),
-                    line.to_owned(),
-                ));
-            });
-        AnnotateResults {
-            file_annotations: result_lines,
-        }
-    }
-
-    /// loads a given file into the cache under a specific commit id.
-    /// If there is already a file for a given commit, it is a no-op.
-    fn load_file_into_cache(
-        &mut self,
-        store: &Store,
-        commit_id: &CommitId,
-        file_path: &RepoPath,
-        tree: &MergedTree,
-    ) -> Result<(), AnnotateError> {
-        if self.file_cache.contains_key(commit_id) {
-            return Ok(());
-        }
-
-        if let Some(file_contents) = get_file_contents(store, file_path, tree)? {
-            self.file_cache.insert(commit_id.clone(), file_contents);
-        }
-
-        Ok(())
-    }
+    Ok(())
 }
 
 /// Get line by line annotations for a specific file path in the repo.
+/// If the file is not found, returns empty results.
 pub fn get_annotation_for_file(
     repo: &dyn Repo,
     starting_commit: &Commit,
     file_path: &RepoPath,
-) -> Result<AnnotateResults, AnnotateError> {
+) -> Result<AnnotateResults, BackendError> {
     if let Some(original_contents) =
         get_file_contents(starting_commit.store(), file_path, &starting_commit.tree()?)?
     {
         let num_lines = original_contents.split_inclusive(|b| *b == b'\n').count();
-        let mut partial_results = PartialResults::new(starting_commit.id(), num_lines);
+        let mut file_cache = HashMap::new();
+        file_cache.insert(starting_commit.id().clone(), original_contents.clone());
 
-        process_commits(
-            repo,
-            starting_commit.id(),
-            &mut partial_results,
-            file_path,
-            num_lines,
-        )?;
+        let original_line_map =
+            process_commits(repo, file_cache, starting_commit.id(), file_path, num_lines)?;
 
-        Ok(partial_results.convert_to_results(&original_contents))
+        Ok(convert_to_results(original_line_map, &original_contents))
     } else {
-        Err(AnnotateError::FileNotFound(
-            file_path.as_internal_file_string().to_string(),
-        ))
+        Ok(AnnotateResults {
+            file_annotations: Vec::new(),
+        })
     }
 }
 
-/// Starting at the starting commit, compute changes at that commit, updating
-/// the mappings. So long as there are mappings left in local_line_map, we
-/// continue. Once local_line_map is empty, we've found sources for each line
-/// and exit.
+/// Starting at the starting commit, compute changes at that commit relative to
+/// it's direct parents, updating the mappings as we go. We return the final
+/// original line map that represents where each line of the original came from.
 fn process_commits(
     repo: &dyn Repo,
+    mut file_cache: FileCache,
     starting_commit_id: &CommitId,
-    results: &mut PartialResults,
     file_name: &RepoPath,
     num_lines: usize,
-) -> Result<(), AnnotateError> {
+) -> Result<OriginalLineMap, BackendError> {
     let predicate = RevsetFilterPredicate::File(FilesetExpression::file_path(file_name.to_owned()));
     let revset = RevsetExpression::commit(starting_commit_id.clone())
         .union(
@@ -229,20 +194,34 @@ fn process_commits(
         )
         .evaluate_programmatic(repo)
         .map_err(|e| match e {
-            RevsetEvaluationError::StoreError(backend_error) => AnnotateError::from(backend_error),
+            RevsetEvaluationError::StoreError(backend_error) => backend_error,
             RevsetEvaluationError::Other(_) => {
                 panic!("Unable to evaluate internal revset")
             }
         })?;
+    let mut commit_line_map = get_initial_commit_line_map(starting_commit_id, num_lines);
+    let mut original_line_map = HashMap::new();
 
     for (cid, edge_list) in revset.iter_graph() {
-        let current_commit = repo.store().get_commit(&cid)?;
-        process_commit(results, repo, file_name, &current_commit, &edge_list)?;
-        if results.original_line_map.len() >= num_lines {
-            break;
+        let current_commit_line_map = commit_line_map.remove(&cid);
+        if let Some(current_commit_line_map) = current_commit_line_map {
+            let current_commit = repo.store().get_commit(&cid)?;
+            let new_commit_lines = process_commit(
+                repo,
+                file_name,
+                &mut original_line_map,
+                &current_commit,
+                &mut file_cache,
+                current_commit_line_map,
+                &edge_list,
+            )?;
+            commit_line_map.extend(new_commit_lines);
+            if original_line_map.len() >= num_lines {
+                break;
+            }
         }
     }
-    Ok(())
+    Ok(original_line_map)
 }
 
 /// For a given commit, for each parent, we compare the version in the parent
@@ -251,28 +230,55 @@ fn process_commits(
 /// After iterating through all the parents, any leftover lines unmapped means
 /// that those lines are original in the current commit. In that case,
 /// original_line_map is updated for the leftover lines.
+/// We return the lines that are the same in the child commit and
+/// any parent. Namely, if line x is found in parent Y, we record the mapping
+/// that parent Y has line x. The line mappings for all parents are returned
+/// along with any lines originated in the current commit
 fn process_commit(
-    results: &mut PartialResults,
     repo: &dyn Repo,
     file_name: &RepoPath,
+    original_line_map: &mut HashMap<usize, CommitId>,
     current_commit: &Commit,
+    file_cache: &mut FileCache,
+    mut current_commit_line_map: HashMap<usize, usize>,
     edges: &Vec<GraphEdge<CommitId>>,
-) -> Result<(), AnnotateError> {
+) -> Result<CommitLineMap, BackendError> {
+    let mut commit_line_map: CommitLineMap = HashMap::new();
     for parent_edge in edges {
         if parent_edge.edge_type != GraphEdgeType::Missing {
             let parent_commit = repo.store().get_commit(&parent_edge.target)?;
-            process_files_in_commits(
-                results,
+            let same_line_map = process_files_in_commits(
                 repo.store(),
                 file_name,
+                file_cache,
                 current_commit,
                 &parent_commit,
             )?;
+
+            for (current_line_number, parent_line_number) in same_line_map {
+                if let Some(original_line_number) =
+                    current_commit_line_map.remove(&current_line_number)
+                {
+                    remap_line(
+                        &mut commit_line_map,
+                        parent_commit.id(),
+                        parent_line_number,
+                        original_line_number,
+                    );
+                }
+            }
         }
     }
-    results.drain_remaining_for_commit_id(current_commit.id());
+    if !current_commit_line_map.is_empty() {
+        mark_lines_from_original(
+            original_line_map,
+            current_commit.id(),
+            current_commit_line_map,
+        );
+    }
+    let _ = file_cache.remove(current_commit.id());
 
-    Ok(())
+    Ok(commit_line_map)
 }
 
 /// For two versions of the same file, for all the lines in common, overwrite
@@ -285,33 +291,31 @@ fn process_commit(
 /// identical files, we bulk replace all mappings from commit A to commit B in
 /// local_line_map
 fn process_files_in_commits(
-    results: &mut PartialResults,
     store: &Store,
     file_name: &RepoPath,
+    file_cache: &mut FileCache,
     current_commit: &Commit,
     parent_commit: &Commit,
-) -> Result<(), AnnotateError> {
-    results.load_file_into_cache(
+) -> Result<HashMap<usize, usize>, BackendError> {
+    load_file_into_cache(
+        file_cache,
         store,
         current_commit.id(),
         file_name,
         &current_commit.tree()?,
     )?;
-    results.load_file_into_cache(store, parent_commit.id(), file_name, &parent_commit.tree()?)?;
+    load_file_into_cache(
+        file_cache,
+        store,
+        parent_commit.id(),
+        file_name,
+        &parent_commit.tree()?,
+    )?;
 
-    let current_contents = results.file_cache.get(current_commit.id()).unwrap();
-    let parent_contents = results.file_cache.get(parent_commit.id()).unwrap();
+    let current_contents = file_cache.get(current_commit.id()).unwrap();
+    let parent_contents = file_cache.get(parent_commit.id()).unwrap();
 
-    let same_lines = get_same_line_map(current_contents, parent_contents);
-    for (current_line_no, parent_line_no) in same_lines {
-        results.forward_to_new_commit(
-            current_commit.id(),
-            current_line_no,
-            parent_commit.id(),
-            parent_line_no,
-        );
-    }
-    Ok(())
+    Ok(get_same_line_map(current_contents, parent_contents))
 }
 
 /// For two files, get a map of all lines in common (e.g. line 8 maps to line 9)
@@ -354,7 +358,7 @@ fn get_file_contents(
     store: &Store,
     path: &RepoPath,
     tree: &MergedTree,
-) -> Result<Option<Vec<u8>>, AnnotateError> {
+) -> Result<Option<Vec<u8>>, BackendError> {
     let file_value = tree.path_value(path)?;
     if file_value.is_absent() {
         Ok(None)
@@ -373,7 +377,17 @@ fn get_file_contents(
                         });
                 Ok(Some(file_contents))
             }
-            MaterializedTreeValue::Conflict { contents, .. } => Ok(Some(contents)),
+            MaterializedTreeValue::FileConflict { id, contents, .. } => {
+                let mut materialized_conflict_buffer = Vec::new();
+                materialize_merge_result(&contents, &mut materialized_conflict_buffer).map_err(
+                    |io_err| BackendError::ReadFile {
+                        path: path.to_owned(),
+                        source: Box::new(io_err),
+                        id: id.first().clone().unwrap(),
+                    },
+                )?;
+                Ok(Some(materialized_conflict_buffer))
+            }
             _ => Ok(None),
         }
     }
