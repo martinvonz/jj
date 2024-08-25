@@ -38,23 +38,24 @@ fn test_untrack() {
     let files_before = test_env.jj_cmd_success(&repo_path, &["file", "list"]);
 
     // Errors out when not run at the head operation
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["untrack", "file1", "--at-op", "@-"]);
+    let stderr =
+        test_env.jj_cmd_failure(&repo_path, &["file", "untrack", "file1", "--at-op", "@-"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: This command must be able to update the working copy.
     Hint: Don't use --at-op.
     "###);
     // Errors out when no path is specified
-    let stderr = test_env.jj_cmd_cli_error(&repo_path, &["untrack"]);
+    let stderr = test_env.jj_cmd_cli_error(&repo_path, &["file", "untrack"]);
     insta::assert_snapshot!(stderr, @r###"
     error: the following required arguments were not provided:
       <PATHS>...
 
-    Usage: jj untrack <PATHS>...
+    Usage: jj file untrack <PATHS>...
 
     For more information, try '--help'.
     "###);
     // Errors out when a specified file is not ignored
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["untrack", "file1", "file1.bak"]);
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["file", "untrack", "file1", "file1.bak"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: 'file1' is not ignored.
     Hint: Files that are not ignored will be added back by the next command.
@@ -68,7 +69,10 @@ fn test_untrack() {
     assert!(files_before.contains("file1.bak\n"));
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["untrack", "file1.bak"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Warning: `jj untrack` is deprecated; use `jj file untrack` instead, which is equivalent
+    Warning: `jj untrack` will be removed in a future version, and this will be a hard error
+    "###);
     let files_after = test_env.jj_cmd_success(&repo_path, &["file", "list"]);
     // The file is no longer tracked
     assert!(!files_after.contains("file1.bak"));
@@ -79,7 +83,7 @@ fn test_untrack() {
     assert!(repo_path.join("file2.bak").exists());
 
     // Errors out when multiple specified files are not ignored
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["untrack", "target"]);
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["file", "untrack", "target"]);
     assert_eq!(
         stderr,
         format!(
@@ -91,7 +95,7 @@ fn test_untrack() {
 
     // Can untrack after adding to ignore patterns
     std::fs::write(repo_path.join(".gitignore"), ".bak\ntarget/\n").unwrap();
-    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["untrack", "target"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["file", "untrack", "target"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @"");
     let files_after = test_env.jj_cmd_success(&repo_path, &["file", "list"]);
@@ -117,7 +121,7 @@ fn test_untrack_sparse() {
     file2
     "###);
     test_env.jj_cmd_ok(&repo_path, &["sparse", "set", "--clear", "--add", "file1"]);
-    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["untrack", "file2"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["file", "untrack", "file2"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @"");
     let stdout = test_env.jj_cmd_success(&repo_path, &["file", "list"]);
