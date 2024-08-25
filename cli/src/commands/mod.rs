@@ -79,10 +79,12 @@ enum Command {
     Bench(bench::BenchCommand),
     #[command(subcommand)]
     Branch(branch::BranchCommand),
+    // TODO: Delete `cat` in jj 0.25+
     #[command(alias = "print", hide = true)]
     Cat(file::show::FileShowArgs),
     #[command(hide = true)]
     Checkout(checkout::CheckoutArgs),
+    // TODO: Delete `chmod` in jj 0.25+
     #[command(hide = true)]
     Chmod(file::chmod::FileChmodArgs),
     Commit(commit::CommitArgs),
@@ -98,6 +100,7 @@ enum Command {
     #[command(subcommand)]
     File(file::FileCommand),
     /// List files in a revision (DEPRECATED use `jj file list`)
+    // TODO: Delete `files` in jj 0.25+
     #[command(hide = true)]
     Files(file::list::FileListArgs),
     Fix(fix::FixArgs),
