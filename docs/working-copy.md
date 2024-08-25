@@ -17,7 +17,7 @@ if you add a new file to the working copy, it will be automatically committed
 once you run e.g. `jj st`. Similarly, if you remove a file from the working
 copy, it will implicitly be untracked. To untrack a file while keeping it in
 the working copy, first make sure it's [ignored](#ignored-files) and then run
-`jj untrack <path>`.
+`jj file untrack <path>`.
 
 
 ## Conflicts

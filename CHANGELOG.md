@@ -16,6 +16,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Deprecations
 
+* `jj untrack` has been renamed to `jj file untrack`.
+
 ### New features
 
 * Add new boolean config knob, `ui.movement.edit` for controlling the behaviour

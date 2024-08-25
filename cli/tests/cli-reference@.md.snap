@@ -39,6 +39,7 @@ This document contains the help content for the `jj` command-line program.
 * [`jj file chmod`↴](#jj-file-chmod)
 * [`jj file list`↴](#jj-file-list)
 * [`jj file show`↴](#jj-file-show)
+* [`jj file untrack`↴](#jj-file-untrack)
 * [`jj fix`↴](#jj-fix)
 * [`jj git`↴](#jj-git)
 * [`jj git clone`↴](#jj-git-clone)
@@ -91,7 +92,6 @@ This document contains the help content for the `jj` command-line program.
 * [`jj util config-schema`↴](#jj-util-config-schema)
 * [`jj undo`↴](#jj-undo)
 * [`jj unsquash`↴](#jj-unsquash)
-* [`jj untrack`↴](#jj-untrack)
 * [`jj version`↴](#jj-version)
 * [`jj workspace`↴](#jj-workspace)
 * [`jj workspace add`↴](#jj-workspace-add)
@@ -145,7 +145,6 @@ To get started, see the tutorial at https://github.com/martinvonz/jj/blob/main/d
 * `util` — Infrequently used commands such as for generating shell completions
 * `undo` — Undo an operation (shortcut for `jj op undo`)
 * `unsquash` — Move changes from a revision's parent into the revision
-* `untrack` — Stop tracking specified paths in the working copy
 * `version` — Display version information
 * `workspace` — Commands for working with workspaces
 
@@ -704,6 +703,7 @@ File operations
 * `chmod` — Sets or removes the executable bit for paths in the repo
 * `list` — List files in a revision
 * `show` — Print contents of files in a revision
+* `untrack` — Stop tracking specified paths in the working copy
 
 
 
@@ -770,6 +770,20 @@ If the given path is a directory, files in the directory will be visited recursi
 * `-r`, `--revision <REVISION>` — The revision to get the file contents from
 
   Default value: `@`
+
+
+
+## `jj file untrack`
+
+Stop tracking specified paths in the working copy
+
+**Usage:** `jj file untrack <PATHS>...`
+
+###### **Arguments:**
+
+* `<PATHS>` — Paths to untrack. They must already be ignored.
+
+   The paths could be ignored via a .gitignore or .git/info/exclude (in colocated repos).
 
 
 
@@ -2068,20 +2082,6 @@ If a working-copy commit gets abandoned, it will be given a new, empty commit. T
   Default value: `@`
 * `-i`, `--interactive` — Interactively choose which parts to unsquash
 * `--tool <NAME>` — Specify diff editor to be used (implies --interactive)
-
-
-
-## `jj untrack`
-
-Stop tracking specified paths in the working copy
-
-**Usage:** `jj untrack <PATHS>...`
-
-###### **Arguments:**
-
-* `<PATHS>` — Paths to untrack. They must already be ignored.
-
-   The paths could be ignored via a .gitignore or .git/info/exclude (in colocated repos).
 
 
 

@@ -70,7 +70,7 @@ Parent commit: orrkosyo 7fd1a60b master | (empty) Merge pull request #6 from Spa
 Note that you didn't have to tell Jujutsu to add the change like you would with
 `git add`. You actually don't even need to tell it when you add new files or
 remove existing files. To untrack a path, add it to your `.gitignore` and run
-`jj untrack <path>`.
+`jj file untrack <path>`.
 
 To see the diff, run `jj diff`:
 
