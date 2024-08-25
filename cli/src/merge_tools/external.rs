@@ -6,6 +6,7 @@ use std::process::ExitStatus;
 use std::process::Stdio;
 use std::sync::Arc;
 
+use bstr::BString;
 use itertools::Itertools;
 use jj_lib::backend::FileId;
 use jj_lib::backend::MergedTreeId;
@@ -151,7 +152,7 @@ pub enum ExternalToolError {
 pub fn run_mergetool_external(
     editor: &ExternalMergeTool,
     file_merge: Merge<Option<FileId>>,
-    content: Merge<jj_lib::files::ContentHunk>,
+    content: Merge<BString>,
     repo_path: &RepoPath,
     conflict: MergedTreeValue,
     tree: &MergedTree,
@@ -166,9 +167,9 @@ pub fn run_mergetool_external(
     };
     assert_eq!(content.num_sides(), 2);
     let files: HashMap<&str, &[u8]> = maplit::hashmap! {
-        "base" => content.get_remove(0).unwrap().0.as_slice(),
-        "left" => content.get_add(0).unwrap().0.as_slice(),
-        "right" => content.get_add(1).unwrap().0.as_slice(),
+        "base" => content.get_remove(0).unwrap().as_slice(),
+        "left" => content.get_add(0).unwrap().as_slice(),
+        "right" => content.get_add(1).unwrap().as_slice(),
         "output" => initial_output_content.as_slice(),
     };
 
