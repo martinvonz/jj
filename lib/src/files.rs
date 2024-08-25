@@ -16,13 +16,11 @@
 
 use std::borrow::Borrow;
 use std::collections::VecDeque;
-use std::fmt::Debug;
-use std::fmt::Error;
-use std::fmt::Formatter;
 use std::iter;
 use std::mem;
 
 use bstr::BStr;
+use bstr::BString;
 
 use crate::diff::Diff;
 use crate::diff::DiffHunk;
@@ -184,26 +182,10 @@ where
     }
 }
 
-// TODO: Maybe ContentHunk can be replaced with BString?
-#[derive(PartialEq, Eq, Clone)]
-pub struct ContentHunk(pub Vec<u8>);
-
-impl AsRef<[u8]> for ContentHunk {
-    fn as_ref(&self) -> &[u8] {
-        self.0.as_ref()
-    }
-}
-
-impl Debug for ContentHunk {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
-        String::from_utf8_lossy(&self.0).fmt(f)
-    }
-}
-
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub enum MergeResult {
-    Resolved(ContentHunk),
-    Conflict(Vec<Merge<ContentHunk>>),
+    Resolved(BString),
+    Conflict(Vec<Merge<BString>>),
 }
 
 pub fn merge<T: AsRef<[u8]>>(slices: &Merge<T>) -> MergeResult {
@@ -216,28 +198,24 @@ pub fn merge<T: AsRef<[u8]>>(slices: &Merge<T>) -> MergeResult {
 }
 
 fn merge_hunks(diff: &Diff, num_diffs: usize) -> MergeResult {
-    let mut resolved_hunk = ContentHunk(vec![]);
-    let mut merge_hunks: Vec<Merge<ContentHunk>> = vec![];
+    let mut resolved_hunk = BString::new(vec![]);
+    let mut merge_hunks: Vec<Merge<BString>> = vec![];
     for diff_hunk in diff.hunks() {
         match diff_hunk {
             DiffHunk::Matching(content) => {
-                resolved_hunk.0.extend_from_slice(content);
+                resolved_hunk.extend_from_slice(content);
             }
             DiffHunk::Different(parts) => {
                 if let Some(resolved) = trivial_merge(&parts[..num_diffs], &parts[num_diffs..]) {
-                    resolved_hunk.0.extend_from_slice(resolved);
+                    resolved_hunk.extend_from_slice(resolved);
                 } else {
-                    if !resolved_hunk.0.is_empty() {
+                    if !resolved_hunk.is_empty() {
                         merge_hunks.push(Merge::resolved(resolved_hunk));
-                        resolved_hunk = ContentHunk(vec![]);
+                        resolved_hunk = BString::new(vec![]);
                     }
                     merge_hunks.push(Merge::from_removes_adds(
-                        parts[..num_diffs]
-                            .iter()
-                            .map(|part| ContentHunk(part.to_vec())),
-                        parts[num_diffs..]
-                            .iter()
-                            .map(|part| ContentHunk(part.to_vec())),
+                        parts[..num_diffs].iter().copied().map(BString::from),
+                        parts[num_diffs..].iter().copied().map(BString::from),
                     ));
                 }
             }
@@ -247,7 +225,7 @@ fn merge_hunks(diff: &Diff, num_diffs: usize) -> MergeResult {
     if merge_hunks.is_empty() {
         MergeResult::Resolved(resolved_hunk)
     } else {
-        if !resolved_hunk.0.is_empty() {
+        if !resolved_hunk.is_empty() {
             merge_hunks.push(Merge::resolved(resolved_hunk));
         }
         MergeResult::Conflict(merge_hunks)
@@ -258,8 +236,8 @@ fn merge_hunks(diff: &Diff, num_diffs: usize) -> MergeResult {
 mod tests {
     use super::*;
 
-    fn hunk(data: &[u8]) -> ContentHunk {
-        ContentHunk(data.to_vec())
+    fn hunk(data: &[u8]) -> BString {
+        data.into()
     }
 
     fn merge(removes: &[&[u8]], adds: &[&[u8]]) -> MergeResult {

@@ -2,6 +2,7 @@ use std::borrow::Cow;
 use std::path::Path;
 use std::sync::Arc;
 
+use bstr::BString;
 use futures::StreamExt;
 use futures::TryFutureExt;
 use futures::TryStreamExt;
@@ -16,7 +17,6 @@ use jj_lib::conflicts::MaterializedTreeValue;
 use jj_lib::diff::Diff;
 use jj_lib::diff::DiffHunk;
 use jj_lib::files;
-use jj_lib::files::ContentHunk;
 use jj_lib::files::MergeResult;
 use jj_lib::matchers::Matcher;
 use jj_lib::merge::Merge;
@@ -534,8 +534,8 @@ fn make_merge_sections(
 ) -> Result<Vec<scm_record::Section<'static>>, BuiltinToolError> {
     let mut sections = Vec::new();
     match merge_result {
-        MergeResult::Resolved(ContentHunk(buf)) => {
-            let contents = buf_to_file_contents(None, buf);
+        MergeResult::Resolved(buf) => {
+            let contents = buf_to_file_contents(None, buf.into());
             let section = match contents {
                 FileContents::Absent => None,
                 FileContents::Text {
@@ -561,7 +561,7 @@ fn make_merge_sections(
         MergeResult::Conflict(hunks) => {
             for hunk in hunks {
                 let section = match hunk.into_resolved() {
-                    Ok(ContentHunk(contents)) => {
+                    Ok(contents) => {
                         let contents = std::str::from_utf8(&contents).map_err(|err| {
                             BuiltinToolError::DecodeUtf8 {
                                 source: err,
@@ -587,7 +587,6 @@ fn make_merge_sections(
                                 .cycle(),
                             )
                             .map(|(contents, change_type)| -> Result<_, BuiltinToolError> {
-                                let ContentHunk(contents) = contents;
                                 let contents = std::str::from_utf8(contents).map_err(|err| {
                                     BuiltinToolError::DecodeUtf8 {
                                         source: err,
@@ -613,7 +612,7 @@ fn make_merge_sections(
 pub fn edit_merge_builtin(
     tree: &MergedTree,
     path: &RepoPath,
-    content: Merge<ContentHunk>,
+    content: Merge<BString>,
 ) -> Result<MergedTreeId, BuiltinToolError> {
     let merge_result = files::merge(&content);
     let sections = make_merge_sections(merge_result)?;
