@@ -44,7 +44,7 @@
                 "allow-filesets": {
                     "type": "boolean",
                     "description": "Whether to parse path arguments as fileset expressions",
-                    "default": false
+                    "default": true
                 },
                 "always-allow-large-revsets": {
                     "type": "boolean",
