@@ -213,9 +213,7 @@ async fn materialize_tree_value_no_access_denied(
             } else {
                 // Unless all terms are regular files, we can't do much better than to try to
                 // describe the merge.
-                conflict
-                    .describe(&mut contents)
-                    .expect("Failed to materialize conflict to in-memory buffer");
+                contents = conflict.describe().into_bytes();
             }
             let executable = if let Some(merge) = conflict.to_executable_merge() {
                 merge.resolve_trivial().copied().unwrap_or_default()

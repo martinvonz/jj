@@ -19,8 +19,8 @@ use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::fmt::Formatter;
+use std::fmt::Write as _;
 use std::hash::Hash;
-use std::io::Write;
 use std::iter::zip;
 use std::slice;
 use std::sync::Arc;
@@ -640,19 +640,16 @@ where
     }
 
     /// Give a summary description of the conflict's "removes" and "adds"
-    pub fn describe(&self, file: &mut dyn Write) -> std::io::Result<()> {
-        file.write_all(b"Conflict:\n")?;
+    pub fn describe(&self) -> String {
+        let mut buf = String::new();
+        writeln!(buf, "Conflict:").unwrap();
         for term in self.removes().flatten() {
-            file.write_all(
-                format!("  Removing {}\n", describe_conflict_term(term.borrow())).as_bytes(),
-            )?;
+            writeln!(buf, "  Removing {}", describe_conflict_term(term.borrow())).unwrap();
         }
         for term in self.adds().flatten() {
-            file.write_all(
-                format!("  Adding {}\n", describe_conflict_term(term.borrow())).as_bytes(),
-            )?;
+            writeln!(buf, "  Adding {}", describe_conflict_term(term.borrow())).unwrap();
         }
-        Ok(())
+        buf
     }
 }
 
