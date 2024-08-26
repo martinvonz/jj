@@ -296,14 +296,8 @@ impl MergeEditor {
             Ok(None) => return Err(ConflictResolveError::PathNotFound(repo_path.to_owned())),
         };
         let file_merge = conflict.to_file_merge().ok_or_else(|| {
-            let mut summary_bytes: Vec<u8> = vec![];
-            conflict
-                .describe(&mut summary_bytes)
-                .expect("Writing to an in-memory buffer should never fail");
-            ConflictResolveError::NotNormalFiles(
-                repo_path.to_owned(),
-                String::from_utf8_lossy(summary_bytes.as_slice()).to_string(),
-            )
+            let summary = conflict.describe();
+            ConflictResolveError::NotNormalFiles(repo_path.to_owned(), summary)
         })?;
         let simplified_file_merge = file_merge.clone().simplify();
         // We only support conflicts with 2 sides (3-way conflicts)
