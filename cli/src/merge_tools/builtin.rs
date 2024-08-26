@@ -12,6 +12,7 @@ use jj_lib::backend::BackendResult;
 use jj_lib::backend::FileId;
 use jj_lib::backend::MergedTreeId;
 use jj_lib::backend::TreeValue;
+use jj_lib::conflicts::materialize_merge_result;
 use jj_lib::conflicts::materialize_tree_value;
 use jj_lib::conflicts::MaterializedTreeValue;
 use jj_lib::diff::Diff;
@@ -210,8 +211,11 @@ fn read_file_contents(
             contents,
             executable: _,
         } => {
+            let mut buf = Vec::new();
+            materialize_merge_result(&contents, &mut buf)
+                .expect("Failed to materialize conflict to in-memory buffer");
             // TODO: Render the ID somehow?
-            let contents = buf_to_file_contents(None, contents);
+            let contents = buf_to_file_contents(None, buf);
             Ok(FileInfo {
                 file_mode: scm_record::FileMode(mode::NORMAL),
                 contents,
