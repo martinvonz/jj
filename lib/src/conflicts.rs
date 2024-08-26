@@ -145,10 +145,13 @@ pub enum MaterializedTreeValue {
         id: SymlinkId,
         target: String,
     },
-    Conflict {
-        id: MergedTreeValue,
+    FileConflict {
+        id: Merge<Option<FileId>>,
         contents: Vec<u8>,
         executable: bool,
+    },
+    OtherConflict {
+        id: MergedTreeValue,
     },
     GitSubmodule(CommitId),
     Tree(TreeId),
@@ -205,23 +208,20 @@ async fn materialize_tree_value_no_access_denied(
         }
         Err(conflict) => {
             let mut contents = vec![];
-            if let Some(file_merge) = conflict.to_file_merge() {
-                let file_merge = file_merge.simplify();
-                let content = extract_as_single_hunk(&file_merge, store, path).await?;
-                materialize_merge_result(&content, &mut contents)
-                    .expect("Failed to materialize conflict to in-memory buffer");
-            } else {
-                // Unless all terms are regular files, we can't do much better than to try to
-                // describe the merge.
-                contents = conflict.describe().into_bytes();
-            }
+            let Some(file_merge) = conflict.to_file_merge() else {
+                return Ok(MaterializedTreeValue::OtherConflict { id: conflict });
+            };
+            let file_merge = file_merge.simplify();
+            let content = extract_as_single_hunk(&file_merge, store, path).await?;
+            materialize_merge_result(&content, &mut contents)
+                .expect("Failed to materialize conflict to in-memory buffer");
             let executable = if let Some(merge) = conflict.to_executable_merge() {
                 merge.resolve_trivial().copied().unwrap_or_default()
             } else {
                 false
             };
-            Ok(MaterializedTreeValue::Conflict {
-                id: conflict,
+            Ok(MaterializedTreeValue::FileConflict {
+                id: file_merge,
                 contents,
                 executable,
             })

@@ -205,13 +205,21 @@ fn read_file_contents(
             item: "git submodule",
             id: id.hex(),
         }),
-        MaterializedTreeValue::Conflict {
+        MaterializedTreeValue::FileConflict {
             id: _,
             contents,
             executable: _,
         } => {
             // TODO: Render the ID somehow?
             let contents = buf_to_file_contents(None, contents);
+            Ok(FileInfo {
+                file_mode: scm_record::FileMode(mode::NORMAL),
+                contents,
+            })
+        }
+        MaterializedTreeValue::OtherConflict { id } => {
+            // TODO: Render the ID somehow?
+            let contents = buf_to_file_contents(None, id.describe().into_bytes());
             Ok(FileInfo {
                 file_mode: scm_record::FileMode(mode::NORMAL),
                 contents,
