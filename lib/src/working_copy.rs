@@ -180,6 +180,7 @@ pub enum SnapshotError {
 
 /// Options used when snapshotting the working copy. Some of them may be ignored
 /// by some `WorkingCopy` implementations.
+#[derive(Clone)]
 pub struct SnapshotOptions<'a> {
     /// The `.gitignore`s to use while snapshotting. The typically come from the
     /// user's configured patterns combined with per-repo patterns.

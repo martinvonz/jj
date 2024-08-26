@@ -205,7 +205,6 @@ pub struct TestWorkspace {
     temp_dir: TempDir,
     pub workspace: Workspace,
     pub repo: Arc<ReadonlyRepo>,
-    settings: UserSettings,
 }
 
 impl TestWorkspace {
@@ -243,7 +242,6 @@ impl TestWorkspace {
             temp_dir,
             workspace,
             repo,
-            settings: settings.clone(),
         }
     }
 
@@ -254,15 +252,20 @@ impl TestWorkspace {
     /// Snapshots the working copy and returns the tree. Updates the working
     /// copy state on disk, but does not update the working-copy commit (no
     /// new operation).
-    pub fn snapshot(&mut self) -> Result<MergedTree, SnapshotError> {
+    pub fn snapshot_with_options(
+        &mut self,
+        options: SnapshotOptions,
+    ) -> Result<MergedTree, SnapshotError> {
         let mut locked_ws = self.workspace.start_working_copy_mutation().unwrap();
-        let tree_id = locked_ws.locked_wc().snapshot(SnapshotOptions {
-            max_new_file_size: self.settings.max_new_file_size().unwrap(),
-            ..SnapshotOptions::empty_for_test()
-        })?;
+        let tree_id = locked_ws.locked_wc().snapshot(options)?;
         // arbitrary operation id
         locked_ws.finish(self.repo.op_id().clone()).unwrap();
         Ok(self.repo.store().get_root_tree(&tree_id).unwrap())
+    }
+
+    /// Like `snapshot_with_option()` but with default options
+    pub fn snapshot(&mut self) -> Result<MergedTree, SnapshotError> {
+        self.snapshot_with_options(SnapshotOptions::empty_for_test())
     }
 }
 
