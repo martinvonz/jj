@@ -714,13 +714,17 @@ fn diff_content(path: &RepoPath, value: MaterializedTreeValue) -> io::Result<Fil
             contents: format!("Git submodule checked out at {}", id.hex()).into_bytes(),
         }),
         // TODO: are we sure this is never binary?
-        MaterializedTreeValue::Conflict {
+        MaterializedTreeValue::FileConflict {
             id: _,
             contents,
             executable: _,
         } => Ok(FileContent {
             is_binary: false,
             contents,
+        }),
+        MaterializedTreeValue::OtherConflict { id } => Ok(FileContent {
+            is_binary: false,
+            contents: id.describe().into_bytes(),
         }),
         MaterializedTreeValue::Tree(id) => {
             panic!("Unexpected tree with id {id:?} in diff at path {path:?}");
@@ -744,7 +748,8 @@ fn basic_diff_file_type(value: &MaterializedTreeValue) -> &'static str {
         MaterializedTreeValue::Symlink { .. } => "symlink",
         MaterializedTreeValue::Tree(_) => "tree",
         MaterializedTreeValue::GitSubmodule(_) => "Git submodule",
-        MaterializedTreeValue::Conflict { .. } => "conflict",
+        MaterializedTreeValue::FileConflict { .. }
+        | MaterializedTreeValue::OtherConflict { .. } => "conflict",
     }
 }
 
@@ -820,15 +825,21 @@ pub fn show_color_words_diff(
                         }
                     }
                     (
-                        MaterializedTreeValue::Conflict { .. },
-                        MaterializedTreeValue::Conflict { .. },
+                        MaterializedTreeValue::FileConflict { .. }
+                        | MaterializedTreeValue::OtherConflict { .. },
+                        MaterializedTreeValue::FileConflict { .. }
+                        | MaterializedTreeValue::OtherConflict { .. },
                     ) => "Modified conflict in".to_string(),
-                    (MaterializedTreeValue::Conflict { .. }, _) => {
-                        "Resolved conflict in".to_string()
-                    }
-                    (_, MaterializedTreeValue::Conflict { .. }) => {
-                        "Created conflict in".to_string()
-                    }
+                    (
+                        MaterializedTreeValue::FileConflict { .. }
+                        | MaterializedTreeValue::OtherConflict { .. },
+                        _,
+                    ) => "Resolved conflict in".to_string(),
+                    (
+                        _,
+                        MaterializedTreeValue::FileConflict { .. }
+                        | MaterializedTreeValue::OtherConflict { .. },
+                    ) => "Created conflict in".to_string(),
                     (
                         MaterializedTreeValue::Symlink { .. },
                         MaterializedTreeValue::Symlink { .. },
@@ -1012,7 +1023,7 @@ fn git_diff_part(
             hash = id.hex();
             content = FileContent::empty();
         }
-        MaterializedTreeValue::Conflict {
+        MaterializedTreeValue::FileConflict {
             id: _,
             contents,
             executable,
@@ -1022,6 +1033,14 @@ fn git_diff_part(
             content = FileContent {
                 is_binary: false, // TODO: are we sure this is never binary?
                 contents,
+            };
+        }
+        MaterializedTreeValue::OtherConflict { id } => {
+            mode = "100644";
+            hash = DUMMY_HASH.to_owned();
+            content = FileContent {
+                is_binary: false,
+                contents: id.describe().into_bytes(),
             };
         }
         MaterializedTreeValue::Tree(_) => {

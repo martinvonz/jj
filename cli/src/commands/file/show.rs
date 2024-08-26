@@ -119,8 +119,11 @@ fn write_tree_entries<P: AsRef<RepoPath>>(
             MaterializedTreeValue::File { mut reader, .. } => {
                 io::copy(&mut reader, &mut ui.stdout_formatter().as_mut())?;
             }
-            MaterializedTreeValue::Conflict { contents, .. } => {
+            MaterializedTreeValue::FileConflict { contents, .. } => {
                 ui.stdout_formatter().write_all(&contents)?;
+            }
+            MaterializedTreeValue::OtherConflict { id } => {
+                ui.stdout_formatter().write_all(id.describe().as_bytes())?;
             }
             MaterializedTreeValue::Symlink { .. } | MaterializedTreeValue::GitSubmodule(_) => {
                 let ui_path = workspace_command.format_file_path(path.as_ref());

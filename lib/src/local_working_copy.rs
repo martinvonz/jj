@@ -1457,11 +1457,18 @@ impl TreeState {
                 MaterializedTreeValue::Tree(_) => {
                     panic!("unexpected tree entry in diff at {path:?}");
                 }
-                MaterializedTreeValue::Conflict {
+                MaterializedTreeValue::FileConflict {
                     id: _,
                     contents,
                     executable,
                 } => self.write_conflict(&disk_path, contents, executable)?,
+                MaterializedTreeValue::OtherConflict { id } => {
+                    // Unless all terms are regular files, we can't do much
+                    // better than trying to describe the merge.
+                    let data = id.describe().into_bytes();
+                    let executable = false;
+                    self.write_conflict(&disk_path, data, executable)?
+                }
             };
             changed_file_states.push((path, file_state));
         }

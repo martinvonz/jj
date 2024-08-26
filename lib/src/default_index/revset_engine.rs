@@ -1252,7 +1252,8 @@ fn to_file_content(path: &RepoPath, value: MaterializedTreeValue) -> BackendResu
         }
         MaterializedTreeValue::Symlink { id: _, target } => Ok(target.into_bytes()),
         MaterializedTreeValue::GitSubmodule(_) => Ok(vec![]),
-        MaterializedTreeValue::Conflict { contents, .. } => Ok(contents),
+        MaterializedTreeValue::FileConflict { contents, .. } => Ok(contents),
+        MaterializedTreeValue::OtherConflict { .. } => Ok(vec![]),
         MaterializedTreeValue::Tree(id) => {
             panic!("Unexpected tree with id {id:?} in diff at path {path:?}");
         }
