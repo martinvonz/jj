@@ -16,6 +16,7 @@ use std::io;
 use std::io::Write;
 
 use jj_lib::backend::BackendResult;
+use jj_lib::conflicts::materialize_merge_result;
 use jj_lib::conflicts::materialize_tree_value;
 use jj_lib::conflicts::MaterializedTreeValue;
 use jj_lib::fileset::FilePattern;
@@ -120,7 +121,7 @@ fn write_tree_entries<P: AsRef<RepoPath>>(
                 io::copy(&mut reader, &mut ui.stdout_formatter().as_mut())?;
             }
             MaterializedTreeValue::FileConflict { contents, .. } => {
-                ui.stdout_formatter().write_all(&contents)?;
+                materialize_merge_result(&contents, &mut ui.stdout_formatter())?;
             }
             MaterializedTreeValue::OtherConflict { id } => {
                 ui.stdout_formatter().write_all(id.describe().as_bytes())?;

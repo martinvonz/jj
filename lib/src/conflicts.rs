@@ -147,7 +147,9 @@ pub enum MaterializedTreeValue {
     },
     FileConflict {
         id: Merge<Option<FileId>>,
-        contents: Vec<u8>,
+        // TODO: or Vec<(FileId, Box<dyn Read>)> so that caller can stop reading
+        // when null bytes found?
+        contents: Merge<BString>,
         executable: bool,
     },
     OtherConflict {
@@ -207,14 +209,11 @@ async fn materialize_tree_value_no_access_denied(
             panic!("cannot materialize legacy conflict object at path {path:?}");
         }
         Err(conflict) => {
-            let mut contents = vec![];
             let Some(file_merge) = conflict.to_file_merge() else {
                 return Ok(MaterializedTreeValue::OtherConflict { id: conflict });
             };
             let file_merge = file_merge.simplify();
-            let content = extract_as_single_hunk(&file_merge, store, path).await?;
-            materialize_merge_result(&content, &mut contents)
-                .expect("Failed to materialize conflict to in-memory buffer");
+            let contents = extract_as_single_hunk(&file_merge, store, path).await?;
             let executable = if let Some(merge) = conflict.to_executable_merge() {
                 merge.resolve_trivial().copied().unwrap_or_default()
             } else {
