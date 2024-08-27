@@ -501,44 +501,8 @@ fn show_color_words_diff_hunks(
                 )?;
             }
             DiffHunk::Different(contents) => {
-                let word_diff_hunks = Diff::by_word(&contents).hunks().collect_vec();
-                let can_inline = match options.max_inline_alternation {
-                    None => true,     // unlimited
-                    Some(0) => false, // no need to count alternation
-                    Some(max_num) => {
-                        let groups = split_diff_hunks_by_matching_newline(&word_diff_hunks);
-                        groups.map(count_diff_alternation).max().unwrap_or(0) <= max_num
-                    }
-                };
-                if can_inline {
-                    let mut diff_line_iter =
-                        DiffLineIterator::with_line_number(word_diff_hunks.iter(), line_number);
-                    for diff_line in diff_line_iter.by_ref() {
-                        show_color_words_line_number(
-                            formatter,
-                            diff_line
-                                .has_left_content()
-                                .then_some(diff_line.line_number.left),
-                            diff_line
-                                .has_right_content()
-                                .then_some(diff_line.line_number.right),
-                        )?;
-                        show_color_words_inline_hunks(formatter, &diff_line.hunks)?;
-                    }
-                    line_number = diff_line_iter.next_line_number();
-                } else {
-                    let (left_lines, right_lines) = unzip_diff_hunks_to_lines(&word_diff_hunks);
-                    for tokens in &left_lines {
-                        show_color_words_line_number(formatter, Some(line_number.left), None)?;
-                        show_color_words_single_sided_line(formatter, tokens, "removed")?;
-                        line_number.left += 1;
-                    }
-                    for tokens in &right_lines {
-                        show_color_words_line_number(formatter, None, Some(line_number.right))?;
-                        show_color_words_single_sided_line(formatter, tokens, "added")?;
-                        line_number.right += 1;
-                    }
-                }
+                line_number =
+                    show_color_words_diff_lines(formatter, &contents, line_number, options)?;
             }
         }
     }
@@ -575,6 +539,53 @@ fn show_color_words_context_lines(
         show_color_words_inline_hunks(formatter, &[(DiffLineHunkSide::Both, line.as_ref())])?;
         line_number.left += 1;
         line_number.right += 1;
+    }
+    Ok(line_number)
+}
+
+fn show_color_words_diff_lines(
+    formatter: &mut dyn Formatter,
+    contents: &[&BStr],
+    mut line_number: DiffLineNumber,
+    options: &ColorWordsOptions,
+) -> io::Result<DiffLineNumber> {
+    let word_diff_hunks = Diff::by_word(contents).hunks().collect_vec();
+    let can_inline = match options.max_inline_alternation {
+        None => true,     // unlimited
+        Some(0) => false, // no need to count alternation
+        Some(max_num) => {
+            let groups = split_diff_hunks_by_matching_newline(&word_diff_hunks);
+            groups.map(count_diff_alternation).max().unwrap_or(0) <= max_num
+        }
+    };
+    if can_inline {
+        let mut diff_line_iter =
+            DiffLineIterator::with_line_number(word_diff_hunks.iter(), line_number);
+        for diff_line in diff_line_iter.by_ref() {
+            show_color_words_line_number(
+                formatter,
+                diff_line
+                    .has_left_content()
+                    .then_some(diff_line.line_number.left),
+                diff_line
+                    .has_right_content()
+                    .then_some(diff_line.line_number.right),
+            )?;
+            show_color_words_inline_hunks(formatter, &diff_line.hunks)?;
+        }
+        line_number = diff_line_iter.next_line_number();
+    } else {
+        let (left_lines, right_lines) = unzip_diff_hunks_to_lines(&word_diff_hunks);
+        for tokens in &left_lines {
+            show_color_words_line_number(formatter, Some(line_number.left), None)?;
+            show_color_words_single_sided_line(formatter, tokens, "removed")?;
+            line_number.left += 1;
+        }
+        for tokens in &right_lines {
+            show_color_words_line_number(formatter, None, Some(line_number.right))?;
+            show_color_words_single_sided_line(formatter, tokens, "added")?;
+            line_number.right += 1;
+        }
     }
     Ok(line_number)
 }
