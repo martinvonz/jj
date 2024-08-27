@@ -21,6 +21,7 @@ use std::ops::Range;
 use std::path::Path;
 use std::path::PathBuf;
 
+use bstr::BStr;
 use futures::executor::block_on_stream;
 use futures::stream::BoxStream;
 use futures::StreamExt;
@@ -40,7 +41,6 @@ use jj_lib::copies::CopyOperation;
 use jj_lib::copies::CopyRecords;
 use jj_lib::diff::Diff;
 use jj_lib::diff::DiffHunk;
-use jj_lib::files::DiffLine;
 use jj_lib::files::DiffLineHunkSide;
 use jj_lib::files::DiffLineIterator;
 use jj_lib::files::DiffLineNumber;
@@ -514,7 +514,16 @@ fn show_color_words_diff_hunks(
                     let mut diff_line_iter =
                         DiffLineIterator::with_line_number(word_diff_hunks.iter(), line_number);
                     for diff_line in diff_line_iter.by_ref() {
-                        show_color_words_diff_line(formatter, &diff_line)?;
+                        show_color_words_line_number(
+                            formatter,
+                            diff_line
+                                .has_left_content()
+                                .then_some(diff_line.line_number.left),
+                            diff_line
+                                .has_right_content()
+                                .then_some(diff_line.line_number.right),
+                        )?;
+                        show_color_words_inline_hunks(formatter, &diff_line.hunks)?;
                     }
                     line_number = diff_line_iter.next_line_number();
                 } else {
@@ -548,11 +557,8 @@ fn show_color_words_context_lines(
     const SKIPPED_CONTEXT_LINE: &str = "    ...\n";
     let mut lines = content.split_inclusive(|b| *b == b'\n').fuse();
     for line in lines.by_ref().take(num_after) {
-        let diff_line = DiffLine {
-            line_number,
-            hunks: vec![(DiffLineHunkSide::Both, line.as_ref())],
-        };
-        show_color_words_diff_line(formatter, &diff_line)?;
+        show_color_words_line_number(formatter, Some(line_number.left), Some(line_number.right))?;
+        show_color_words_inline_hunks(formatter, &[(DiffLineHunkSide::Both, line.as_ref())])?;
         line_number.left += 1;
         line_number.right += 1;
     }
@@ -565,11 +571,8 @@ fn show_color_words_context_lines(
         line_number.right += num_skipped + 1;
     }
     for line in before_lines.into_iter().rev() {
-        let diff_line = DiffLine {
-            line_number,
-            hunks: vec![(DiffLineHunkSide::Both, line.as_ref())],
-        };
-        show_color_words_diff_line(formatter, &diff_line)?;
+        show_color_words_line_number(formatter, Some(line_number.left), Some(line_number.right))?;
+        show_color_words_inline_hunks(formatter, &[(DiffLineHunkSide::Both, line.as_ref())])?;
         line_number.left += 1;
         line_number.right += 1;
     }
@@ -600,21 +603,12 @@ fn show_color_words_line_number(
     Ok(())
 }
 
-/// Prints `diff_line` which may contain tokens originating from both sides.
-fn show_color_words_diff_line(
+/// Prints line hunks which may contain tokens originating from both sides.
+fn show_color_words_inline_hunks(
     formatter: &mut dyn Formatter,
-    diff_line: &DiffLine,
+    line_hunks: &[(DiffLineHunkSide, &BStr)],
 ) -> io::Result<()> {
-    show_color_words_line_number(
-        formatter,
-        diff_line
-            .has_left_content()
-            .then_some(diff_line.line_number.left),
-        diff_line
-            .has_right_content()
-            .then_some(diff_line.line_number.right),
-    )?;
-    for (side, data) in &diff_line.hunks {
+    for (side, data) in line_hunks {
         let label = match side {
             DiffLineHunkSide::Both => None,
             DiffLineHunkSide::Left => Some("removed"),
@@ -628,7 +622,7 @@ fn show_color_words_diff_line(
             formatter.write_all(data)?;
         }
     }
-    let (_, data) = diff_line.hunks.last().expect("diff line must not be empty");
+    let (_, data) = line_hunks.last().expect("diff line must not be empty");
     if !data.ends_with(b"\n") {
         writeln!(formatter)?;
     };
