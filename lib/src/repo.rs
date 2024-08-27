@@ -21,7 +21,6 @@ use std::fmt::Debug;
 use std::fmt::Formatter;
 use std::fs;
 use std::path::Path;
-use std::path::PathBuf;
 use std::slice;
 use std::sync::Arc;
 
@@ -122,7 +121,6 @@ pub trait Repo {
 }
 
 pub struct ReadonlyRepo {
-    repo_path: PathBuf,
     store: Arc<Store>,
     op_store: Arc<dyn OpStore>,
     op_heads_store: Arc<dyn OpHeadsStore>,
@@ -138,10 +136,7 @@ pub struct ReadonlyRepo {
 
 impl Debug for ReadonlyRepo {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
-        f.debug_struct("Repo")
-            .field("repo_path", &self.repo_path)
-            .field("store", &self.store)
-            .finish()
+        f.debug_struct("Repo").field("store", &self.store).finish()
     }
 }
 
@@ -239,7 +234,6 @@ impl ReadonlyRepo {
             // be initialized properly.
             .map_err(|err| BackendInitError(err.into()))?;
         let repo = Arc::new(ReadonlyRepo {
-            repo_path,
             store,
             op_store,
             op_heads_store,
@@ -260,7 +254,6 @@ impl ReadonlyRepo {
 
     pub fn loader(&self) -> RepoLoader {
         RepoLoader {
-            repo_path: self.repo_path.clone(),
             repo_settings: self.settings.clone(),
             store: self.store.clone(),
             op_store: self.op_store.clone(),
@@ -268,10 +261,6 @@ impl ReadonlyRepo {
             index_store: self.index_store.clone(),
             submodule_store: self.submodule_store.clone(),
         }
-    }
-
-    pub fn repo_path(&self) -> &PathBuf {
-        &self.repo_path
     }
 
     pub fn op_id(&self) -> &OperationId {
@@ -632,7 +621,6 @@ pub enum RepoLoaderError {
 /// a given operation.
 #[derive(Clone)]
 pub struct RepoLoader {
-    repo_path: PathBuf,
     repo_settings: RepoSettings,
     store: Arc<Store>,
     op_store: Arc<dyn OpStore>,
@@ -643,7 +631,6 @@ pub struct RepoLoader {
 
 impl RepoLoader {
     pub fn new(
-        repo_path: PathBuf,
         repo_settings: RepoSettings,
         store: Arc<Store>,
         op_store: Arc<dyn OpStore>,
@@ -652,7 +639,6 @@ impl RepoLoader {
         submodule_store: Arc<dyn SubmoduleStore>,
     ) -> Self {
         Self {
-            repo_path,
             repo_settings,
             store,
             op_store,
@@ -687,7 +673,6 @@ impl RepoLoader {
                 .load_submodule_store(user_settings, &repo_path.join("submodule_store"))?,
         );
         Ok(Self {
-            repo_path: repo_path.to_path_buf(),
             repo_settings,
             store,
             op_store,
@@ -695,10 +680,6 @@ impl RepoLoader {
             index_store,
             submodule_store,
         })
-    }
-
-    pub fn repo_path(&self) -> &PathBuf {
-        &self.repo_path
     }
 
     pub fn store(&self) -> &Arc<Store> {
@@ -743,7 +724,6 @@ impl RepoLoader {
         index: Box<dyn ReadonlyIndex>,
     ) -> Arc<ReadonlyRepo> {
         let repo = ReadonlyRepo {
-            repo_path: self.repo_path.clone(),
             store: self.store.clone(),
             op_store: self.op_store.clone(),
             op_heads_store: self.op_heads_store.clone(),
@@ -813,7 +793,6 @@ impl RepoLoader {
     ) -> Result<Arc<ReadonlyRepo>, RepoLoaderError> {
         let index = self.index_store.get_index_at_op(&operation, &self.store)?;
         let repo = ReadonlyRepo {
-            repo_path: self.repo_path.clone(),
             store: self.store.clone(),
             op_store: self.op_store.clone(),
             op_heads_store: self.op_heads_store.clone(),

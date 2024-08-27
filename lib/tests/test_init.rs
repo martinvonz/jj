@@ -42,7 +42,6 @@ fn test_init_local() {
         .backend_impl()
         .downcast_ref::<GitBackend>()
         .is_none());
-    assert_eq!(repo.repo_path(), workspace.repo_path());
     assert_eq!(workspace.workspace_root(), &canonical);
 
     // Just test that we can write a commit to the store
@@ -62,7 +61,6 @@ fn test_init_internal_git() {
         .downcast_ref::<GitBackend>()
         .unwrap();
     let repo_path = canonical.join(".jj").join("repo");
-    assert_eq!(repo.repo_path(), &repo_path);
     assert_eq!(workspace.workspace_root(), &canonical);
     assert_eq!(
         git_backend.git_repo_path(),
@@ -91,7 +89,6 @@ fn test_init_colocated_git() {
         .downcast_ref::<GitBackend>()
         .unwrap();
     let repo_path = canonical.join(".jj").join("repo");
-    assert_eq!(repo.repo_path(), &repo_path);
     assert_eq!(workspace.workspace_root(), &canonical);
     assert_eq!(git_backend.git_repo_path(), canonical.join(".git"));
     assert_eq!(git_backend.git_workdir(), Some(canonical.as_ref()));
@@ -124,10 +121,6 @@ fn test_init_external_git() {
         .backend_impl()
         .downcast_ref::<GitBackend>()
         .unwrap();
-    assert_eq!(
-        repo.repo_path(),
-        &canonical.join("jj").join(".jj").join("repo")
-    );
     assert_eq!(workspace.workspace_root(), &canonical.join("jj"));
     assert_eq!(
         git_backend.git_repo_path(),
