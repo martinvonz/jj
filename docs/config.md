@@ -214,7 +214,9 @@ threshold to switch to traditional separate-line format.
   * `0`: disable inlining, making `--color-words` more similar to `--git`
   * `1`: inline removes-only or adds-only lines
   * `2`, `3`, ..: inline up to `2`, `3`, .. alternation
-  * `-1`: inline all lines (default)
+  * `-1`: inline all lines
+
+  The default is `3`.
 
   **This parameter is experimental.** The definition is subject to change.
 

@@ -853,9 +853,55 @@ fn test_diff_color_words_inlining_threshold() {
     )
     .unwrap();
 
-    // inline all by default
+    // default
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff"]);
     insta::assert_snapshot!(stdout, @r###"
+    Modified regular file file1-single-line:
+       1    1: == adds ==
+       2    2: a X b Y Z c
+       3    3: == removes ==
+       4    4: a b c d e f g
+       5    5: == adds + removes ==
+       6    6: a X b c d e
+       7    7: == adds + removes + adds ==
+       8    8: a X b c d eY
+       9    9: == adds + removes + adds + removes ==
+      10     : a b c d e f g
+           10: X a Y b d Z e
+    Modified regular file file2-multiple-lines-in-single-hunk:
+       1    1: == adds; removes; adds + removes ==
+       2    2: a X b Y Z c
+       3    3: a b c d e f g
+       4    4: a X b c d e
+       5    5: == adds + removes + adds; adds + removes + adds + removes ==
+       6     : a b c d e
+       7     : a b c d e f g
+            6: a X b d Y
+            7: X a Y b d Z e
+    Modified regular file file3-changes-across-lines:
+       1    1: == adds ==
+       2    2: a X b
+       2    3: Y Z c
+       3    4: == removes ==
+       4    5: a b c d
+       5    5: e f g
+       6    6: == adds + removes ==
+       7    7: a
+       7    8: X b c
+       8    8: d e
+       9    9: == adds + removes + adds ==
+      10   10: a X b c
+      11   10: d e
+      11   11: Y
+      12   12: == adds + removes + adds + removes ==
+      13     : a b
+      14     : c d e f g
+           13: X a Y b d
+           14: Z e
+    "###);
+
+    // -1: inline all
+    insta::assert_snapshot!(render_diff(-1, &[]), @r###"
     Modified regular file file1-single-line:
        1    1: == adds ==
        2    2: a X b Y Z c
