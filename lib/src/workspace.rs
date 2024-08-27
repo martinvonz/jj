@@ -521,6 +521,8 @@ impl WorkspaceLoaderFactory for DefaultWorkspaceLoaderFactory {
     }
 }
 
+/// Helps create a `Workspace` instance by reading `.jj/repo/` and
+/// `.jj/working_copy/` from the file system.
 #[derive(Clone, Debug)]
 struct DefaultWorkspaceLoader {
     workspace_root: PathBuf,
@@ -577,7 +579,8 @@ impl WorkspaceLoader for DefaultWorkspaceLoader {
         store_factories: &StoreFactories,
         working_copy_factories: &WorkingCopyFactories,
     ) -> Result<Workspace, WorkspaceLoadError> {
-        let repo_loader = RepoLoader::init(user_settings, &self.repo_dir, store_factories)?;
+        let repo_loader =
+            RepoLoader::init_from_file_system(user_settings, &self.repo_dir, store_factories)?;
         let working_copy_factory = get_working_copy_factory(self, working_copy_factories)?;
         let working_copy = self.load_working_copy(repo_loader.store(), working_copy_factory)?;
         let workspace = Workspace::new(&self.workspace_root, working_copy, repo_loader)?;

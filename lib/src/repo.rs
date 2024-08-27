@@ -628,6 +628,8 @@ pub enum RepoLoaderError {
     OpStore(#[from] OpStoreError),
 }
 
+/// Helps create `ReadonlyRepoo` instances of a repo at the head operation or at
+/// a given operation.
 #[derive(Clone)]
 pub struct RepoLoader {
     repo_path: PathBuf,
@@ -660,7 +662,10 @@ impl RepoLoader {
         }
     }
 
-    pub fn init(
+    /// Creates a `RepoLoader` for the repo at `repo_path` by reading the
+    /// various `.jj/repo/<backend>/type` files and loading the right
+    /// backends from `store_factories`.
+    pub fn init_from_file_system(
         user_settings: &UserSettings,
         repo_path: &Path,
         store_factories: &StoreFactories,
