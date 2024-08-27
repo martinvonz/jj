@@ -32,7 +32,7 @@ fn test_load_at_operation() {
 
     // If we load the repo at head, we should not see the commit since it was
     // removed
-    let loader = RepoLoader::init(
+    let loader = RepoLoader::init_from_file_system(
         &settings,
         repo.repo_path(),
         &TestRepo::default_store_factories(),
@@ -43,7 +43,7 @@ fn test_load_at_operation() {
 
     // If we load the repo at the previous operation, we should see the commit since
     // it has not been removed yet
-    let loader = RepoLoader::init(
+    let loader = RepoLoader::init_from_file_system(
         &settings,
         repo.repo_path(),
         &TestRepo::default_store_factories(),
