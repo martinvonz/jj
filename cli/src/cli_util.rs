@@ -189,7 +189,7 @@ pub struct TracingSubscription {
 }
 
 impl TracingSubscription {
-    const ENV_VAR_NAME: &str = "JJ_LOG";
+    const ENV_VAR_NAME: &'static str = "JJ_LOG";
 
     /// Initializes tracing with the default configuration. This should be
     /// called as early as possible.
