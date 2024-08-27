@@ -189,11 +189,14 @@ pub struct TracingSubscription {
 }
 
 impl TracingSubscription {
+    const ENV_VAR_NAME: &str = "JJ_LOG";
+
     /// Initializes tracing with the default configuration. This should be
     /// called as early as possible.
     pub fn init() -> Self {
         let filter = tracing_subscriber::EnvFilter::builder()
             .with_default_directive(tracing::metadata::LevelFilter::ERROR.into())
+            .with_env_var(Self::ENV_VAR_NAME)
             .from_env_lossy();
         let (filter, reload_log_filter) = tracing_subscriber::reload::Layer::new(filter);
 
@@ -244,6 +247,7 @@ impl TracingSubscription {
             .modify(|filter| {
                 *filter = tracing_subscriber::EnvFilter::builder()
                     .with_default_directive(tracing::metadata::LevelFilter::DEBUG.into())
+                    .with_env_var(Self::ENV_VAR_NAME)
                     .from_env_lossy()
             })
             .map_err(|err| internal_error_with_message("failed to enable debug logging", err))?;
