@@ -1376,7 +1376,7 @@ fn builtin_tree_diff_methods<'repo>() -> CommitTemplateBuildMethodFnMap<'repo, T
                     // TODO: load defaults from UserSettings?
                     let options = diff_util::ColorWordsOptions {
                         context: context.unwrap_or(diff_util::DEFAULT_CONTEXT_LINES),
-                        max_inline_alternation: None,
+                        max_inline_alternation: Some(3),
                     };
                     diff.into_formatted(move |formatter, store, tree_diff| {
                         diff_util::show_color_words_diff(

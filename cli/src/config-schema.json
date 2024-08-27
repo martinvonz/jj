@@ -286,7 +286,8 @@
                     "properties": {
                         "max-inline-alternation": {
                             "type": "integer",
-                            "description": "Maximum number of removed/added word alternation to inline"
+                            "description": "Maximum number of removed/added word alternation to inline",
+                            "default": 3
                         }
                     }
                 }

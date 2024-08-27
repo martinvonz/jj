@@ -29,7 +29,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   includes information about copies and moves.
 
 * Color-words diff has gained [an option to display complex changes as separate
-  lines](docs/config.md#color-words-diff-options).
+  lines](docs/config.md#color-words-diff-options). It's enabled by default. To
+  restore the old behavior, set `diff.color-words.max-inline-alternation = -1`.
 
 * A tilde (`~`) at the start of the path will now be expanded to the user's home
   directory when configuring a `signing.key` for SSH commit signing.
