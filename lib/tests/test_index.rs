@@ -322,7 +322,7 @@ fn test_index_commits_previous_operations() {
         repo.index_store().as_any().downcast_ref().unwrap();
     default_index_store.reinit().unwrap();
 
-    let repo = load_repo_at_head(&settings, repo.repo_path());
+    let repo = load_repo_at_head(&settings, test_repo.repo_path());
     let index = as_readonly_composite(&repo);
     // There should be the root commit, plus 3 more
     assert_eq!(index.num_commits(), 1 + 3);
@@ -378,7 +378,7 @@ fn test_index_commits_hidden_but_referenced() {
         repo.index_store().as_any().downcast_ref().unwrap();
     default_index_store.reinit().unwrap();
 
-    let repo = load_repo_at_head(&settings, repo.repo_path());
+    let repo = load_repo_at_head(&settings, test_repo.repo_path());
     // All commits should be reindexed
     assert!(repo.index().has_id(commit_a.id()));
     assert!(repo.index().has_id(commit_b.id()));
@@ -420,7 +420,7 @@ fn test_index_commits_incremental() {
         .unwrap();
     tx.commit("test");
 
-    let repo = load_repo_at_head(&settings, repo.repo_path());
+    let repo = load_repo_at_head(&settings, test_repo.repo_path());
     let index = as_readonly_composite(&repo);
     // There should be the root commit, plus 3 more
     assert_eq!(index.num_commits(), 1 + 3);
@@ -464,7 +464,7 @@ fn test_index_commits_incremental_empty_transaction() {
 
     repo.start_transaction(&settings).commit("test");
 
-    let repo = load_repo_at_head(&settings, repo.repo_path());
+    let repo = load_repo_at_head(&settings, test_repo.repo_path());
     let index = as_readonly_composite(&repo);
     // There should be the root commit, plus 1 more
     assert_eq!(index.num_commits(), 1 + 1);
@@ -621,11 +621,11 @@ fn test_reindex_no_segments_dir() {
     assert!(repo.index().has_id(commit_a.id()));
 
     // jj <= 0.14 doesn't have "segments" directory
-    let segments_dir = repo.repo_path().join("index").join("segments");
+    let segments_dir = test_repo.repo_path().join("index").join("segments");
     assert!(segments_dir.is_dir());
     fs::remove_dir_all(&segments_dir).unwrap();
 
-    let repo = load_repo_at_head(&settings, repo.repo_path());
+    let repo = load_repo_at_head(&settings, test_repo.repo_path());
     assert!(repo.index().has_id(commit_a.id()));
 }
 
@@ -641,7 +641,7 @@ fn test_reindex_corrupt_segment_files() {
     assert!(repo.index().has_id(commit_a.id()));
 
     // Corrupt the index files
-    let segments_dir = repo.repo_path().join("index").join("segments");
+    let segments_dir = test_repo.repo_path().join("index").join("segments");
     for entry in segments_dir.read_dir().unwrap() {
         let entry = entry.unwrap();
         // u32: file format version
@@ -653,7 +653,7 @@ fn test_reindex_corrupt_segment_files() {
         fs::write(entry.path(), b"\0".repeat(24)).unwrap()
     }
 
-    let repo = load_repo_at_head(&settings, repo.repo_path());
+    let repo = load_repo_at_head(&settings, test_repo.repo_path());
     assert!(repo.index().has_id(commit_a.id()));
 }
 
@@ -693,7 +693,7 @@ fn test_reindex_from_merged_operation() {
     let index = as_readonly_composite(&repo);
     assert_eq!(index.num_commits(), 4);
 
-    let index_operations_dir = repo.repo_path().join("index").join("operations");
+    let index_operations_dir = test_repo.repo_path().join("index").join("operations");
     for &op_id in &op_ids_to_delete {
         fs::remove_file(index_operations_dir.join(op_id.hex())).unwrap();
     }
@@ -724,7 +724,7 @@ fn test_reindex_missing_commit() {
     // Remove historical head commit to simulate bad GC.
     let test_backend: &TestBackend = repo.store().backend_impl().downcast_ref().unwrap();
     test_backend.remove_commit_unchecked(missing_commit.id());
-    let repo = load_repo_at_head(&settings, repo.repo_path()); // discard cache
+    let repo = load_repo_at_head(&settings, test_repo.repo_path()); // discard cache
     assert!(repo.store().get_commit(missing_commit.id()).is_err());
 
     // Reindexing error should include the operation id where the commit
@@ -745,7 +745,7 @@ fn test_index_store_type() {
     let repo = &test_repo.repo;
 
     assert_eq!(as_readonly_composite(repo).num_commits(), 1);
-    let index_store_type_path = repo.repo_path().join("index").join("type");
+    let index_store_type_path = test_repo.repo_path().join("index").join("type");
     assert_eq!(
         std::fs::read_to_string(index_store_type_path).unwrap(),
         "default"
