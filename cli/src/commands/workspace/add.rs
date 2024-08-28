@@ -107,9 +107,11 @@ pub fn cmd_workspace_add(
     }
 
     let working_copy_factory = command.get_working_copy_factory()?;
+    let repo_path = old_workspace_command.repo_path();
     let (new_workspace, repo) = Workspace::init_workspace_with_existing_repo(
         command.settings(),
         &destination_path,
+        repo_path,
         repo,
         working_copy_factory,
         workspace_id,

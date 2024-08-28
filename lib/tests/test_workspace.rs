@@ -54,6 +54,7 @@ fn test_init_additional_workspace() {
     let (ws2, repo) = Workspace::init_workspace_with_existing_repo(
         &settings,
         &ws2_root,
+        test_workspace.repo_path(),
         &test_workspace.repo,
         &*default_working_copy_factory(),
         ws2_id.clone(),
