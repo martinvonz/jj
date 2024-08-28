@@ -987,21 +987,22 @@ impl MutableRepo {
     /// parents. It does that by considering how previous commits have been
     /// rewritten and abandoned.
     ///
-    /// Panics if `parent_mapping` contains cycles
+    /// If `parent_mapping` contains cycles, this function may either panic or
+    /// drop parents that caused cycles.
     pub fn new_parents(&self, old_ids: Vec<CommitId>) -> Vec<CommitId> {
+        assert!(!old_ids.is_empty());
         let mut new_ids = Vec::with_capacity(old_ids.len());
-        // The longest possible non-cycle substitution sequence goes through each key of
-        // parent_mapping once.
-        let mut allowed_iterations = 0..self.parent_mapping.len();
         let mut to_visit = old_ids.iter().rev().collect_vec();
+        let mut visited = HashSet::new();
         while let Some(id) = to_visit.pop() {
-            let mut made_replacements = false;
+            if !visited.insert(id) {
+                continue;
+            }
             match self.parent_mapping.get(id) {
                 None | Some(Rewrite::Divergent(_)) => {
                     new_ids.push(id.clone());
                 }
                 Some(Rewrite::Rewritten(replacement)) => {
-                    made_replacements = true;
                     to_visit.push(replacement);
                 }
                 Some(Rewrite::Abandoned(replacements)) => {
@@ -1013,25 +1014,16 @@ impl MutableRepo {
                         !replacements.is_empty(),
                         "Found empty value for key {id:?} in the parent mapping",
                     );
-                    made_replacements = true;
                     to_visit.extend(replacements.iter().rev());
                 }
             }
-            if !made_replacements {
-                allowed_iterations = 0..self.parent_mapping.len();
-                continue;
-            }
-            allowed_iterations
-                .next()
-                .expect("cycle detected in the parent mapping");
         }
-        match new_ids.as_slice() {
-            // The first two cases are an optimization for the common case of commits with <=2
-            // parents
-            [_singleton] => new_ids,
-            [a, b] if a != b => new_ids,
-            _ => new_ids.into_iter().unique().collect(),
-        }
+        assert!(
+            !new_ids.is_empty(),
+            "new ids become empty because of cycle in the parent mapping"
+        );
+        debug_assert!(new_ids.iter().all_unique());
+        new_ids
     }
 
     /// Updates branches, working copies, and anonymous heads after rewriting

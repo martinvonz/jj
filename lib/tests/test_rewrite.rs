@@ -694,7 +694,7 @@ fn test_rebase_descendants_multiple_sideways() {
 }
 
 #[test]
-#[should_panic(expected = "cycle detected")]
+#[should_panic(expected = "cycle")]
 fn test_rebase_descendants_multiple_swap() {
     let settings = testutils::user_settings();
     let test_repo = TestRepo::init();
@@ -724,7 +724,7 @@ fn test_rebase_descendants_multiple_swap() {
 }
 
 #[test]
-#[should_panic(expected = "cycle detected")]
+#[should_panic(expected = "cycle")]
 fn test_rebase_descendants_multiple_no_descendants() {
     let settings = testutils::user_settings();
     let test_repo = TestRepo::init();
