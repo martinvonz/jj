@@ -2820,8 +2820,7 @@ checksum = "088c5d71572124929ea7549a8ce98e1a6fd33d0a38367b09027b382e67c033db"
 [[package]]
 name = "scm-record"
 version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4a1bf431016c7a34038f440696c672f0fee1a15d6aea31fe100df6974a35bf5f"
+source = "git+https://github.com/30350n/scm-record.git?branch=fix-jj-split#13ae26bc26bb95469bc26f9a112ff30227310ac0"
 dependencies = [
  "cassowary",
  "crossterm",

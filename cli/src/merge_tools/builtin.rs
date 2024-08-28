@@ -457,33 +457,8 @@ pub fn apply_diff_builtin(
         let (selected, _unselected) = file.get_selected_contents();
         match selected {
             scm_record::SelectedContents::Absent => {
-                // TODO(https://github.com/arxanas/scm-record/issues/26): This
-                // is probably an upstream bug in scm-record. If the file exists
-                // but is empty, `get_selected_contents` should probably return
-                // `Unchanged` or `Present`. When this is fixed upstream we can
-                // simplify this logic.
-
-                // Currently, `Absent` means the file is either empty or
-                // deleted. We need to disambiguate three cases:
-                // 1. The file is new and empty.
-                // 2. The file existed before, is empty, and nothing changed.
-                // 3. The file does not exist (it's been deleted).
-                let old_mode = file.file_mode;
-                let new_mode = file.get_file_mode();
-                let file_existed_previously =
-                    old_mode.is_some() && old_mode != Some(scm_record::FileMode::absent());
-                let file_exists_now =
-                    new_mode.is_some() && new_mode != Some(scm_record::FileMode::absent());
-                let new_empty_file = !file_existed_previously && file_exists_now;
-                let file_deleted = file_existed_previously && !file_exists_now;
-
-                if new_empty_file {
-                    let value = right_tree.path_value(&path)?;
-                    tree_builder.set_or_remove(path, value);
-                } else if file_deleted {
-                    tree_builder.set_or_remove(path, Merge::absent());
-                }
-                // Else: the file is empty and nothing changed.
+                // `Absent` means the file has been deleted.
+                tree_builder.set_or_remove(path, Merge::absent());
             }
             scm_record::SelectedContents::Unchanged => {
                 // Do nothing.
@@ -496,15 +471,39 @@ pub fn apply_diff_builtin(
                 tree_builder.set_or_remove(path, value);
             }
             scm_record::SelectedContents::Present { contents } => {
-                let file_id = store.write_file(&path, &mut contents.as_bytes())?;
-                tree_builder.set_or_remove(
-                    path,
-                    Merge::normal(TreeValue::File {
-                        id: file_id,
-                        executable: file.get_file_mode()
-                            == Some(scm_record::FileMode(mode::EXECUTABLE)),
+                let file_mode = match right_tree.path_value(&path)?.as_resolved() {
+                    Some(Some(TreeValue::File { executable, .. })) => Some(if *executable {
+                        scm_record::FileMode(mode::EXECUTABLE)
+                    } else {
+                        scm_record::FileMode(mode::NORMAL)
                     }),
-                )
+                    Some(Some(TreeValue::Symlink(_))) => Some(scm_record::FileMode(mode::SYMLINK)),
+                    Some(None) => {
+                        if contents.is_empty() {
+                            None
+                        } else {
+                            file.get_file_mode()
+                        }
+                    }
+                    _ => unreachable!(),
+                };
+                match file_mode {
+                    Some(file_mode) => {
+                        let tree_value = match file_mode {
+                            scm_record::FileMode(mode::NORMAL)
+                            | scm_record::FileMode(mode::EXECUTABLE) => TreeValue::File {
+                                id: store.write_file(&path, &mut contents.as_bytes())?,
+                                executable: file_mode == scm_record::FileMode(mode::EXECUTABLE),
+                            },
+                            scm_record::FileMode(mode::SYMLINK) => {
+                                TreeValue::Symlink(store.write_symlink(&path, &contents)?)
+                            }
+                            _ => unreachable!(),
+                        };
+                        tree_builder.set_or_remove(path, Merge::normal(tree_value))
+                    }
+                    None => tree_builder.set_or_remove(path, Merge::absent()),
+                };
             }
         }
     }
@@ -875,6 +874,144 @@ mod tests {
     }
 
     #[test]
+    fn test_edit_diff_builtin_add_executable_file() {
+        let test_repo = TestRepo::init();
+        let store = test_repo.repo.store();
+
+        let added_executable_file_path = RepoPath::from_internal_string("executable_file");
+        let left_tree = testutils::create_tree(&test_repo.repo, &[]);
+        let right_tree = {
+            let store = test_repo.repo.store();
+            let mut tree_builder = store.tree_builder(store.empty_tree_id().clone());
+            testutils::write_executable_file(
+                &mut tree_builder,
+                added_executable_file_path,
+                "executable",
+            );
+            let id = tree_builder.write_tree().unwrap();
+            MergedTree::Legacy(store.get_tree(RepoPath::root(), &id).unwrap())
+        };
+
+        let changed_files = vec![added_executable_file_path.to_owned()];
+        let files = make_diff_files(store, &left_tree, &right_tree, &changed_files).unwrap();
+        insta::assert_debug_snapshot!(files, @r###"
+        [
+            File {
+                old_path: None,
+                path: "executable_file",
+                file_mode: Some(
+                    FileMode(
+                        0,
+                    ),
+                ),
+                sections: [
+                    Changed {
+                        lines: [
+                            SectionChangedLine {
+                                is_checked: false,
+                                change_type: Added,
+                                line: "executable",
+                            },
+                        ],
+                    },
+                ],
+            },
+        ]
+        "###);
+        let no_changes_tree_id = apply_diff_builtin(
+            store,
+            &left_tree,
+            &right_tree,
+            changed_files.clone(),
+            &files,
+        )
+        .unwrap();
+        let no_changes_tree = store.get_root_tree(&no_changes_tree_id).unwrap();
+        assert_eq!(
+            no_changes_tree.id(),
+            left_tree.id(),
+            "no-changes tree was different",
+        );
+
+        let mut files = files;
+        for file in files.iter_mut() {
+            file.toggle_all();
+        }
+        let all_changes_tree_id =
+            apply_diff_builtin(store, &left_tree, &right_tree, changed_files, &files).unwrap();
+        let all_changes_tree = store.get_root_tree(&all_changes_tree_id).unwrap();
+        assert_eq!(
+            all_changes_tree.id(),
+            right_tree.id(),
+            "all-changes tree was different",
+        );
+    }
+
+    #[test]
+    fn test_edit_diff_builtin_delete_file() {
+        let test_repo = TestRepo::init();
+        let store = test_repo.repo.store();
+
+        let file_path = RepoPath::from_internal_string("file_with_content");
+        let left_tree = testutils::create_tree(&test_repo.repo, &[(file_path, "content\n")]);
+        let right_tree = testutils::create_tree(&test_repo.repo, &[]);
+
+        let changed_files = vec![file_path.to_owned()];
+        let files = make_diff_files(store, &left_tree, &right_tree, &changed_files).unwrap();
+        insta::assert_debug_snapshot!(files, @r###"
+        [
+            File {
+                old_path: None,
+                path: "file_with_content",
+                file_mode: Some(
+                    FileMode(
+                        33188,
+                    ),
+                ),
+                sections: [
+                    Changed {
+                        lines: [
+                            SectionChangedLine {
+                                is_checked: false,
+                                change_type: Removed,
+                                line: "content\n",
+                            },
+                        ],
+                    },
+                ],
+            },
+        ]
+        "###);
+        let no_changes_tree_id = apply_diff_builtin(
+            store,
+            &left_tree,
+            &right_tree,
+            changed_files.clone(),
+            &files,
+        )
+        .unwrap();
+        let no_changes_tree = store.get_root_tree(&no_changes_tree_id).unwrap();
+        assert_eq!(
+            no_changes_tree.id(),
+            left_tree.id(),
+            "no-changes tree was different",
+        );
+
+        let mut files = files;
+        for file in files.iter_mut() {
+            file.toggle_all();
+        }
+        let all_changes_tree_id =
+            apply_diff_builtin(store, &left_tree, &right_tree, changed_files, &files).unwrap();
+        let all_changes_tree = store.get_root_tree(&all_changes_tree_id).unwrap();
+        assert_eq!(
+            all_changes_tree.id(),
+            right_tree.id(),
+            "all-changes tree was different",
+        );
+    }
+
+    #[test]
     fn test_edit_diff_builtin_delete_empty_file() {
         let test_repo = TestRepo::init();
         let store = test_repo.repo.store();
@@ -967,6 +1104,70 @@ mod tests {
                                 is_checked: false,
                                 change_type: Added,
                                 line: "modified\n",
+                            },
+                        ],
+                    },
+                ],
+            },
+        ]
+        "###);
+        let no_changes_tree_id = apply_diff_builtin(
+            store,
+            &left_tree,
+            &right_tree,
+            changed_files.clone(),
+            &files,
+        )
+        .unwrap();
+        let no_changes_tree = store.get_root_tree(&no_changes_tree_id).unwrap();
+        assert_eq!(
+            no_changes_tree.id(),
+            left_tree.id(),
+            "no-changes tree was different",
+        );
+
+        let mut files = files;
+        for file in files.iter_mut() {
+            file.toggle_all();
+        }
+        let all_changes_tree_id =
+            apply_diff_builtin(store, &left_tree, &right_tree, changed_files, &files).unwrap();
+        let all_changes_tree = store.get_root_tree(&all_changes_tree_id).unwrap();
+        assert_eq!(
+            all_changes_tree.id(),
+            right_tree.id(),
+            "all-changes tree was different",
+        );
+    }
+
+    #[test]
+    fn test_edit_diff_builtin_make_file_empty() {
+        let test_repo = TestRepo::init();
+        let store = test_repo.repo.store();
+
+        let file_path = RepoPath::from_internal_string("file_with_content");
+        let left_tree = testutils::create_tree(&test_repo.repo, &[(file_path, "content\n")]);
+        let right_tree = testutils::create_tree(&test_repo.repo, &[(file_path, "")]);
+
+        let changed_files = vec![file_path.to_owned()];
+        let files = make_diff_files(store, &left_tree, &right_tree, &changed_files).unwrap();
+        insta::assert_debug_snapshot!(files, @r###"
+        [
+            File {
+                old_path: None,
+                path: "file_with_content",
+                file_mode: Some(
+                    FileMode(
+                        33188,
+                    ),
+                ),
+                sections: [
+                    Changed {
+                        lines: [
+                            SectionChangedLine {
+                                is_checked: false,
+                                change_type: Removed,
+                                line: "content\n",
                             },
                         ],
                     },
