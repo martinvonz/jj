@@ -340,13 +340,14 @@ impl Workspace {
     pub fn init_workspace_with_existing_repo(
         user_settings: &UserSettings,
         workspace_root: &Path,
+        repo_path: &Path,
         repo: &Arc<ReadonlyRepo>,
         working_copy_factory: &dyn WorkingCopyFactory,
         workspace_id: WorkspaceId,
     ) -> Result<(Self, Arc<ReadonlyRepo>), WorkspaceInitError> {
         let jj_dir = create_jj_dir(workspace_root)?;
 
-        let repo_dir = repo.repo_path().canonicalize().context(repo.repo_path())?;
+        let repo_dir = repo_path.canonicalize().context(repo_path)?;
         let repo_file_path = jj_dir.join("repo");
         let mut repo_file = File::create(&repo_file_path).context(&repo_file_path)?;
         repo_file
