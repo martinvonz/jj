@@ -57,6 +57,10 @@ const CHANGE_ID_LENGTH: usize = 16;
 static BACKEND_DATA: OnceLock<Mutex<HashMap<PathBuf, Arc<Mutex<TestBackendData>>>>> =
     OnceLock::new();
 
+// Keyed by canonical store path. Since we just use the path as a key, we can't
+// rely on on the file system to resolve two different uncanonicalized paths to
+// the same real path (as we would if we just used the path with `std::fs`
+// functions).
 fn backend_data() -> &'static Mutex<HashMap<PathBuf, Arc<Mutex<TestBackendData>>>> {
     BACKEND_DATA.get_or_init(|| Mutex::new(HashMap::new()))
 }
@@ -95,7 +99,7 @@ impl TestBackend {
         backend_data()
             .lock()
             .unwrap()
-            .insert(store_path.to_path_buf(), data.clone());
+            .insert(store_path.canonicalize().unwrap(), data.clone());
         TestBackend {
             root_commit_id,
             root_change_id,
@@ -108,7 +112,7 @@ impl TestBackend {
         let data = backend_data()
             .lock()
             .unwrap()
-            .get(store_path)
+            .get(&store_path.canonicalize().unwrap())
             .unwrap()
             .clone();
         let root_commit_id = CommitId::from_bytes(&[0; HASH_LENGTH]);
