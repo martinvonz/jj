@@ -989,7 +989,7 @@ impl MutableRepo {
     ///
     /// If `parent_mapping` contains cycles, this function may either panic or
     /// drop parents that caused cycles.
-    pub fn new_parents(&self, old_ids: Vec<CommitId>) -> Vec<CommitId> {
+    pub fn new_parents(&self, old_ids: &[CommitId]) -> Vec<CommitId> {
         assert!(!old_ids.is_empty());
         let mut new_ids = Vec::with_capacity(old_ids.len());
         let mut to_visit = old_ids.iter().rev().collect_vec();
@@ -1040,7 +1040,7 @@ impl MutableRepo {
             // mappings, not transitive ones.
             // TODO: keep parent_mapping updated with transitive mappings so we don't need
             // to call `new_parents()` here.
-            let new_parent_ids = self.new_parents(rewrite.new_parent_ids().to_vec());
+            let new_parent_ids = self.new_parents(rewrite.new_parent_ids());
             self.update_references(settings, old_parent_id, new_parent_ids)?;
         }
         Ok(())
@@ -1226,7 +1226,7 @@ impl MutableRepo {
     ) -> BackendResult<()> {
         let mut to_visit = self.find_descendants_to_rebase(roots)?;
         while let Some(old_commit) = to_visit.pop() {
-            let new_parent_ids = self.new_parents(old_commit.parent_ids().to_vec());
+            let new_parent_ids = self.new_parents(old_commit.parent_ids());
             let rewriter = CommitRewriter::new(self, old_commit, new_parent_ids);
             callback(rewriter)?;
         }

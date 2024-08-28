@@ -173,7 +173,7 @@ impl<'repo> CommitRewriter<'repo> {
 
     /// Set the old commit's intended new parents to be the rewritten versions
     /// of the given parents.
-    pub fn set_new_rewritten_parents(&mut self, unrewritten_parents: Vec<CommitId>) {
+    pub fn set_new_rewritten_parents(&mut self, unrewritten_parents: &[CommitId]) {
         self.new_parents = self.mut_repo.new_parents(unrewritten_parents);
     }
 
@@ -426,7 +426,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
     fn rebase_one(&mut self, old_commit: Commit) -> BackendResult<()> {
         let old_commit_id = old_commit.id().clone();
         let old_parent_ids = old_commit.parent_ids();
-        let new_parent_ids = self.mut_repo.new_parents(old_parent_ids.to_vec());
+        let new_parent_ids = self.mut_repo.new_parents(old_parent_ids);
         let rewriter = CommitRewriter::new(self.mut_repo, old_commit, new_parent_ids);
         if !rewriter.parents_changed() {
             // The commit is already in place.
@@ -806,10 +806,7 @@ pub fn move_commits(
     // tests.
     while let Some(old_commit_id) = to_visit.pop() {
         let old_commit = to_visit_commits.get(&old_commit_id).unwrap();
-        let parent_ids = to_visit_commits_new_parents
-            .get(&old_commit_id)
-            .cloned()
-            .unwrap();
+        let parent_ids = to_visit_commits_new_parents.get(&old_commit_id).unwrap();
         let new_parent_ids = mut_repo.new_parents(parent_ids);
         let rewriter = CommitRewriter::new(mut_repo, old_commit.clone(), new_parent_ids);
         if rewriter.parents_changed() {
