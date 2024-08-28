@@ -158,7 +158,7 @@ pub fn cmd_git_clone(
     let (mut workspace_command, stats) = clone_result?;
     if let Some(default_branch) = &stats.default_branch {
         // Set repository level `trunk()` alias to the default remote branch.
-        let config_path = workspace_command.repo().repo_path().join("config.toml");
+        let config_path = workspace_command.repo_path().join("config.toml");
         write_config_value_to_file(
             &ConfigNamePathBuf::from_iter(["revset-aliases", "trunk()"]),
             format!("{default_branch}@{remote_name}").into(),

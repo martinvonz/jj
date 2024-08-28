@@ -154,7 +154,7 @@ fn cmd_sparse_edit(
     _args: &SparseEditArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let repo_path = workspace_command.repo().repo_path().to_owned();
+    let repo_path = workspace_command.repo_path().to_owned();
     update_sparse_patterns_with(ui, &mut workspace_command, |_ui, old_patterns| {
         let mut new_patterns = edit_sparse(&repo_path, old_patterns, command.settings())?;
         new_patterns.sort_unstable();

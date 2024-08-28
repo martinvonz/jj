@@ -123,7 +123,6 @@ pub(crate) fn cmd_describe(
             })
             .collect()
     } else {
-        let repo = tx.base_repo().clone();
         let temp_commits: Vec<(_, _)> = commits
             .iter()
             // Edit descriptions in topological order
@@ -147,7 +146,8 @@ pub(crate) fn cmd_describe(
 
         if let [(_, temp_commit)] = &*temp_commits {
             let template = description_template(&tx, "", temp_commit)?;
-            let description = edit_description(&repo, &template, command.settings())?;
+            let description =
+                edit_description(tx.base_workspace_helper(), &template, command.settings())?;
 
             vec![(&commits[0], description)]
         } else {
@@ -156,7 +156,7 @@ pub(crate) fn cmd_describe(
                 missing,
                 duplicates,
                 unexpected,
-            } = edit_multiple_descriptions(&mut tx, &repo, &temp_commits, command.settings())?;
+            } = edit_multiple_descriptions(&mut tx, &temp_commits, command.settings())?;
             if !missing.is_empty() {
                 return Err(user_error(format!(
                     "The description for the following commits were not found in the edited \
