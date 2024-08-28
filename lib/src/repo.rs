@@ -989,50 +989,37 @@ impl MutableRepo {
     ///
     /// Panics if `parent_mapping` contains cycles
     pub fn new_parents(&self, old_ids: Vec<CommitId>) -> Vec<CommitId> {
-        fn single_substitution_round(
-            parent_mapping: &HashMap<CommitId, Rewrite>,
-            ids: Vec<CommitId>,
-        ) -> (Vec<CommitId>, bool) {
-            let mut made_replacements = false;
-            let mut new_ids = vec![];
-            // TODO(ilyagr): (Maybe?) optimize common case of replacements all
-            // being singletons. If CommitId-s were Copy. no allocations would be needed in
-            // that case, but it probably doesn't matter much while they are Vec<u8>-s.
-            for id in ids.into_iter() {
-                match parent_mapping.get(&id) {
-                    None | Some(Rewrite::Divergent(_)) => {
-                        new_ids.push(id);
-                    }
-                    Some(Rewrite::Rewritten(replacement)) => {
-                        made_replacements = true;
-                        new_ids.push(replacement.clone())
-                    }
-                    Some(Rewrite::Abandoned(replacements)) => {
-                        assert!(
-                            // Each commit must have a parent, so a parent can
-                            // not just be mapped to nothing. This assertion
-                            // could be removed if this function is used for
-                            // mapping something other than a commit's parents.
-                            !replacements.is_empty(),
-                            "Found empty value for key {id:?} in the parent mapping",
-                        );
-                        made_replacements = true;
-                        new_ids.extend(replacements.iter().cloned())
-                    }
-                };
-            }
-            (new_ids, made_replacements)
-        }
-
-        let mut new_ids = old_ids;
+        let mut new_ids = Vec::with_capacity(old_ids.len());
         // The longest possible non-cycle substitution sequence goes through each key of
         // parent_mapping once.
         let mut allowed_iterations = 0..self.parent_mapping.len();
-        loop {
-            let made_replacements;
-            (new_ids, made_replacements) = single_substitution_round(&self.parent_mapping, new_ids);
+        let mut to_visit = old_ids.iter().rev().collect_vec();
+        while let Some(id) = to_visit.pop() {
+            let mut made_replacements = false;
+            match self.parent_mapping.get(id) {
+                None | Some(Rewrite::Divergent(_)) => {
+                    new_ids.push(id.clone());
+                }
+                Some(Rewrite::Rewritten(replacement)) => {
+                    made_replacements = true;
+                    to_visit.push(replacement);
+                }
+                Some(Rewrite::Abandoned(replacements)) => {
+                    assert!(
+                        // Each commit must have a parent, so a parent can
+                        // not just be mapped to nothing. This assertion
+                        // could be removed if this function is used for
+                        // mapping something other than a commit's parents.
+                        !replacements.is_empty(),
+                        "Found empty value for key {id:?} in the parent mapping",
+                    );
+                    made_replacements = true;
+                    to_visit.extend(replacements.iter().rev());
+                }
+            }
             if !made_replacements {
-                break;
+                allowed_iterations = 0..self.parent_mapping.len();
+                continue;
             }
             allowed_iterations
                 .next()
