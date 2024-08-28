@@ -42,7 +42,7 @@ fn test_init_local() {
         .backend_impl()
         .downcast_ref::<GitBackend>()
         .is_none());
-    assert_eq!(repo.repo_path(), &canonical.join(".jj").join("repo"));
+    assert_eq!(repo.repo_path(), workspace.repo_path());
     assert_eq!(workspace.workspace_root(), &canonical);
 
     // Just test that we can write a commit to the store
@@ -61,7 +61,8 @@ fn test_init_internal_git() {
         .backend_impl()
         .downcast_ref::<GitBackend>()
         .unwrap();
-    assert_eq!(repo.repo_path(), &canonical.join(".jj").join("repo"));
+    let repo_path = canonical.join(".jj").join("repo");
+    assert_eq!(repo.repo_path(), &repo_path);
     assert_eq!(workspace.workspace_root(), &canonical);
     assert_eq!(
         git_backend.git_repo_path(),
@@ -69,7 +70,7 @@ fn test_init_internal_git() {
     );
     assert!(git_backend.git_workdir().is_none());
     assert_eq!(
-        std::fs::read_to_string(repo.repo_path().join("store").join("git_target")).unwrap(),
+        std::fs::read_to_string(repo_path.join("store").join("git_target")).unwrap(),
         "git"
     );
 
@@ -89,12 +90,13 @@ fn test_init_colocated_git() {
         .backend_impl()
         .downcast_ref::<GitBackend>()
         .unwrap();
-    assert_eq!(repo.repo_path(), &canonical.join(".jj").join("repo"));
+    let repo_path = canonical.join(".jj").join("repo");
+    assert_eq!(repo.repo_path(), &repo_path);
     assert_eq!(workspace.workspace_root(), &canonical);
     assert_eq!(git_backend.git_repo_path(), canonical.join(".git"));
     assert_eq!(git_backend.git_workdir(), Some(canonical.as_ref()));
     assert_eq!(
-        std::fs::read_to_string(repo.repo_path().join("store").join("git_target")).unwrap(),
+        std::fs::read_to_string(repo_path.join("store").join("git_target")).unwrap(),
         "../../../.git"
     );
 

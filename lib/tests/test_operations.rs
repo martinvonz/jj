@@ -47,7 +47,7 @@ fn test_unpublished_operation() {
     let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
-    let op_heads_dir = repo.repo_path().join("op_heads").join("heads");
+    let op_heads_dir = test_repo.repo_path().join("op_heads").join("heads");
     let op_id0 = repo.op_id().clone();
     assert_eq!(list_dir(&op_heads_dir), vec![repo.op_id().hex()]);
 
@@ -69,7 +69,7 @@ fn test_consecutive_operations() {
     let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
-    let op_heads_dir = repo.repo_path().join("op_heads").join("heads");
+    let op_heads_dir = test_repo.repo_path().join("op_heads").join("heads");
     let op_id0 = repo.op_id().clone();
     assert_eq!(list_dir(&op_heads_dir), vec![repo.op_id().hex()]);
 
@@ -101,7 +101,7 @@ fn test_concurrent_operations() {
     let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
-    let op_heads_dir = repo.repo_path().join("op_heads").join("heads");
+    let op_heads_dir = test_repo.repo_path().join("op_heads").join("heads");
     let op_id0 = repo.op_id().clone();
     assert_eq!(list_dir(&op_heads_dir), vec![repo.op_id().hex()]);
 
@@ -601,10 +601,10 @@ fn test_resolve_op_parents_children() {
 fn test_gc() {
     let settings = stable_op_id_settings();
     let test_repo = TestRepo::init();
+    let op_dir = test_repo.repo_path().join("op_store").join("operations");
+    let view_dir = test_repo.repo_path().join("op_store").join("views");
     let repo_0 = test_repo.repo;
     let op_store = repo_0.op_store();
-    let op_dir = repo_0.repo_path().join("op_store").join("operations");
-    let view_dir = repo_0.repo_path().join("op_store").join("views");
 
     // Set up operation graph:
     //

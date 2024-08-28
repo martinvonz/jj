@@ -3098,7 +3098,7 @@ fn test_bulk_update_extra_on_import_refs() {
     let git_repo = get_git_repo(repo);
 
     let count_extra_tables = || {
-        let extra_dir = repo.repo_path().join("store").join("extra");
+        let extra_dir = test_repo.repo_path().join("store").join("extra");
         extra_dir
             .read_dir()
             .unwrap()
@@ -3199,7 +3199,7 @@ fn test_concurrent_write_commit() {
     thread::scope(|s| {
         let barrier = Arc::new(Barrier::new(num_thread));
         for i in 0..num_thread {
-            let repo = load_repo_at_head(settings, repo.repo_path()); // unshare loader
+            let repo = load_repo_at_head(settings, test_repo.repo_path()); // unshare loader
             let barrier = barrier.clone();
             let sender = sender.clone();
             s.spawn(move || {
@@ -3285,7 +3285,7 @@ fn test_concurrent_read_write_commit() {
 
         // Writer assigns random change id
         for (i, commit_id) in commit_ids.iter().enumerate() {
-            let repo = load_repo_at_head(settings, repo.repo_path()); // unshare loader
+            let repo = load_repo_at_head(settings, test_repo.repo_path()); // unshare loader
             let barrier = barrier.clone();
             s.spawn(move || {
                 barrier.wait();
@@ -3301,7 +3301,7 @@ fn test_concurrent_read_write_commit() {
 
         // Reader may generate change id (if not yet assigned by the writer)
         for i in 0..num_reader_thread {
-            let mut repo = load_repo_at_head(settings, repo.repo_path()); // unshare loader
+            let mut repo = load_repo_at_head(settings, test_repo.repo_path()); // unshare loader
             let barrier = barrier.clone();
             let mut pending_commit_ids = commit_ids.clone();
             pending_commit_ids.rotate_left(i); // start lookup from different place

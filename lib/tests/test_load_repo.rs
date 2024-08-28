@@ -34,7 +34,7 @@ fn test_load_at_operation() {
     // removed
     let loader = RepoLoader::init_from_file_system(
         &settings,
-        repo.repo_path(),
+        test_repo.repo_path(),
         &TestRepo::default_store_factories(),
     )
     .unwrap();
@@ -45,7 +45,7 @@ fn test_load_at_operation() {
     // it has not been removed yet
     let loader = RepoLoader::init_from_file_system(
         &settings,
-        repo.repo_path(),
+        test_repo.repo_path(),
         &TestRepo::default_store_factories(),
     )
     .unwrap();

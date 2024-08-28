@@ -202,7 +202,7 @@ fn test_bad_locking_interrupted(backend: TestRepoBackend) {
     // it somewhat hackily by copying the .jj/op_heads/ directory before the
     // operation and then copying that back afterwards, leaving the existing
     // op-head(s) in place.
-    let op_heads_dir = repo.repo_path().join("op_heads");
+    let op_heads_dir = test_workspace.repo_path().join("op_heads");
     let backup_path = test_workspace.root_dir().join("backup");
     copy_directory(&op_heads_dir, &backup_path);
     let mut tx = repo.start_transaction(&settings);
@@ -214,10 +214,10 @@ fn test_bad_locking_interrupted(backend: TestRepoBackend) {
 
     copy_directory(&backup_path, &op_heads_dir);
     // Reload the repo and check that only the new head is present.
-    let reloaded_repo = load_repo_at_head(&settings, repo.repo_path());
+    let reloaded_repo = load_repo_at_head(&settings, test_workspace.repo_path());
     assert_eq!(reloaded_repo.op_id(), &op_id);
     // Reload once more to make sure that the .jj/op_heads/ directory was updated
     // correctly.
-    let reloaded_repo = load_repo_at_head(&settings, repo.repo_path());
+    let reloaded_repo = load_repo_at_head(&settings, test_workspace.repo_path());
     assert_eq!(reloaded_repo.op_id(), &op_id);
 }
