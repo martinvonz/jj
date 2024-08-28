@@ -28,6 +28,7 @@ use jj_lib::workspace::Workspace;
 use crate::cli_util::print_trackable_remote_branches;
 use crate::cli_util::start_repo_transaction;
 use crate::cli_util::CommandHelper;
+use crate::cli_util::WorkspaceCommandHelper;
 use crate::command_error::cli_error;
 use crate::command_error::user_error_with_hint;
 use crate::command_error::user_error_with_message;
@@ -171,7 +172,7 @@ pub fn do_init(
             let mut workspace_command = command.for_workable_repo(ui, workspace, repo)?;
             maybe_add_gitignore(&workspace_command)?;
             workspace_command.maybe_snapshot(ui)?;
-            maybe_set_repository_level_trunk_alias(ui, workspace_command.repo())?;
+            maybe_set_repository_level_trunk_alias(ui, &workspace_command)?;
             if !workspace_command.working_copy_shared_with_git() {
                 let mut tx = workspace_command.start_transaction();
                 jj_lib::git::import_head(tx.repo_mut())?;
@@ -234,9 +235,9 @@ fn init_git_refs(
 // Set repository level `trunk()` alias to the default branch for "origin".
 pub fn maybe_set_repository_level_trunk_alias(
     ui: &Ui,
-    repo: &Arc<ReadonlyRepo>,
+    workspace_command: &WorkspaceCommandHelper,
 ) -> Result<(), CommandError> {
-    let git_repo = get_git_repo(repo.store())?;
+    let git_repo = get_git_repo(workspace_command.repo().store())?;
     if let Ok(reference) = git_repo.find_reference("refs/remotes/origin/HEAD") {
         if let Some(reference_name) = reference.symbolic_target() {
             if let Some(RefName::RemoteBranch {
@@ -244,7 +245,7 @@ pub fn maybe_set_repository_level_trunk_alias(
                 ..
             }) = parse_git_ref(reference_name)
             {
-                let config_path = repo.repo_path().join("config.toml");
+                let config_path = workspace_command.repo_path().join("config.toml");
                 write_config_value_to_file(
                     &ConfigNamePathBuf::from_iter(["revset-aliases", "trunk()"]),
                     format!("{default_branch}@origin").into(),

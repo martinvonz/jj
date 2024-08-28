@@ -7,12 +7,12 @@ use indoc::indoc;
 use itertools::Itertools;
 use jj_lib::backend::CommitId;
 use jj_lib::commit::Commit;
-use jj_lib::repo::ReadonlyRepo;
 use jj_lib::settings::UserSettings;
 use thiserror::Error;
 
 use crate::cli_util::edit_temp_file;
 use crate::cli_util::short_commit_hash;
+use crate::cli_util::WorkspaceCommandHelper;
 use crate::cli_util::WorkspaceCommandTransaction;
 use crate::command_error::CommandError;
 use crate::formatter::PlainTextFormatter;
@@ -33,7 +33,7 @@ where
 }
 
 pub fn edit_description(
-    repo: &ReadonlyRepo,
+    workspace_command: &WorkspaceCommandHelper,
     description: &str,
     settings: &UserSettings,
 ) -> Result<String, CommandError> {
@@ -47,7 +47,7 @@ JJ: Lines starting with "JJ: " (like this one) will be removed.
     let description = edit_temp_file(
         "description",
         ".jjdescription",
-        repo.repo_path(),
+        workspace_command.repo_path(),
         &description,
         settings,
     )?;
@@ -58,7 +58,6 @@ JJ: Lines starting with "JJ: " (like this one) will be removed.
 /// Edits the descriptions of the given commits in a single editor session.
 pub fn edit_multiple_descriptions(
     tx: &mut WorkspaceCommandTransaction,
-    repo: &ReadonlyRepo,
     commits: &[(&CommitId, Commit)],
     settings: &UserSettings,
 ) -> Result<ParsedBulkEditMessage<CommitId>, CommandError> {
@@ -87,7 +86,7 @@ pub fn edit_multiple_descriptions(
     let bulk_message = edit_temp_file(
         "description",
         ".jjdescription",
-        repo.repo_path(),
+        tx.base_workspace_helper().repo_path(),
         &bulk_message,
         settings,
     )?;
@@ -178,7 +177,7 @@ where
 /// then that one is used. Otherwise we concatenate the messages and ask the
 /// user to edit the result in their editor.
 pub fn combine_messages(
-    repo: &ReadonlyRepo,
+    workspace_command: &WorkspaceCommandHelper,
     sources: &[&Commit],
     destination: &Commit,
     settings: &UserSettings,
@@ -208,7 +207,7 @@ pub fn combine_messages(
         combined.push_str("\nJJ: Description from source commit:\n");
         combined.push_str(commit.description());
     }
-    edit_description(repo, &combined, settings)
+    edit_description(workspace_command, &combined, settings)
 }
 
 /// Create a description from a list of paragraphs.

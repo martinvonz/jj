@@ -307,7 +307,12 @@ from the source will be moved into the destination.
                 .iter()
                 .filter_map(|source| source.abandon.then_some(source.commit))
                 .collect_vec();
-            combine_messages(tx.base_repo(), &abandoned_commits, destination, settings)?
+            combine_messages(
+                tx.base_workspace_helper(),
+                &abandoned_commits,
+                destination,
+                settings,
+            )?
         }
     };
     let mut predecessors = vec![destination.id().clone()];

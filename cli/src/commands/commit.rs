@@ -115,7 +115,7 @@ new working-copy commit.
         }
         let temp_commit = commit_builder.write_hidden()?;
         let template = description_template(&tx, "", &temp_commit)?;
-        edit_description(tx.base_repo(), &template, command.settings())?
+        edit_description(tx.base_workspace_helper(), &template, command.settings())?
     };
     commit_builder.set_description(description);
     let new_commit = commit_builder.write(tx.repo_mut())?;
