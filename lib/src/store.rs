@@ -15,14 +15,14 @@
 #![allow(missing_docs)]
 
 use std::any::Any;
-use std::collections::HashMap;
 use std::fmt::Debug;
 use std::fmt::Formatter;
 use std::io::Read;
 use std::sync::Arc;
-use std::sync::RwLock;
+use std::sync::Mutex;
 use std::time::SystemTime;
 
+use clru::CLruCache;
 use futures::stream::BoxStream;
 use pollster::FutureExt;
 
@@ -49,13 +49,18 @@ use crate::signing::Signer;
 use crate::tree::Tree;
 use crate::tree_builder::TreeBuilder;
 
+// There are more tree objects than commits, and trees are often shared across
+// commits.
+const COMMIT_CACHE_CAPACITY: usize = 100;
+const TREE_CACHE_CAPACITY: usize = 1000;
+
 /// Wraps the low-level backend and makes it return more convenient types. Also
 /// adds caching.
 pub struct Store {
     backend: Box<dyn Backend>,
     signer: Signer,
-    commit_cache: RwLock<HashMap<CommitId, Arc<backend::Commit>>>,
-    tree_cache: RwLock<HashMap<(RepoPathBuf, TreeId), Arc<backend::Tree>>>,
+    commit_cache: Mutex<CLruCache<CommitId, Arc<backend::Commit>>>,
+    tree_cache: Mutex<CLruCache<(RepoPathBuf, TreeId), Arc<backend::Tree>>>,
 }
 
 impl Debug for Store {
@@ -71,8 +76,8 @@ impl Store {
         Arc::new(Store {
             backend,
             signer,
-            commit_cache: Default::default(),
-            tree_cache: Default::default(),
+            commit_cache: Mutex::new(CLruCache::new(COMMIT_CACHE_CAPACITY.try_into().unwrap())),
+            tree_cache: Mutex::new(CLruCache::new(TREE_CACHE_CAPACITY.try_into().unwrap())),
         })
     }
 
@@ -136,15 +141,15 @@ impl Store {
 
     async fn get_backend_commit(&self, id: &CommitId) -> BackendResult<Arc<backend::Commit>> {
         {
-            let read_locked_cached = self.commit_cache.read().unwrap();
-            if let Some(data) = read_locked_cached.get(id).cloned() {
+            let mut locked_cache = self.commit_cache.lock().unwrap();
+            if let Some(data) = locked_cache.get(id).cloned() {
                 return Ok(data);
             }
         }
         let commit = self.backend.read_commit(id).await?;
         let data = Arc::new(commit);
-        let mut write_locked_cache = self.commit_cache.write().unwrap();
-        write_locked_cache.insert(id.clone(), data.clone());
+        let mut locked_cache = self.commit_cache.lock().unwrap();
+        locked_cache.put(id.clone(), data.clone());
         Ok(data)
     }
 
@@ -158,8 +163,8 @@ impl Store {
         let (commit_id, commit) = self.backend.write_commit(commit, sign_with)?;
         let data = Arc::new(commit);
         {
-            let mut write_locked_cache = self.commit_cache.write().unwrap();
-            write_locked_cache.insert(commit_id.clone(), data.clone());
+            let mut locked_cache = self.commit_cache.lock().unwrap();
+            locked_cache.put(commit_id.clone(), data.clone());
         }
 
         Ok(Commit::new(self.clone(), commit_id, data))
@@ -185,15 +190,15 @@ impl Store {
     ) -> BackendResult<Arc<backend::Tree>> {
         let key = (dir.to_owned(), id.clone());
         {
-            let read_locked_cache = self.tree_cache.read().unwrap();
-            if let Some(data) = read_locked_cache.get(&key).cloned() {
+            let mut locked_cache = self.tree_cache.lock().unwrap();
+            if let Some(data) = locked_cache.get(&key).cloned() {
                 return Ok(data);
             }
         }
         let data = self.backend.read_tree(dir, id).await?;
         let data = Arc::new(data);
-        let mut write_locked_cache = self.tree_cache.write().unwrap();
-        write_locked_cache.insert(key, data.clone());
+        let mut locked_cache = self.tree_cache.lock().unwrap();
+        locked_cache.put(key, data.clone());
         Ok(data)
     }
 
@@ -218,8 +223,8 @@ impl Store {
         let tree_id = self.backend.write_tree(path, &tree)?;
         let data = Arc::new(tree);
         {
-            let mut write_locked_cache = self.tree_cache.write().unwrap();
-            write_locked_cache.insert((path.to_owned(), tree_id.clone()), data.clone());
+            let mut locked_cache = self.tree_cache.lock().unwrap();
+            locked_cache.put((path.to_owned(), tree_id.clone()), data.clone());
         }
 
         Ok(Tree::new(self.clone(), path.to_owned(), tree_id, data))
