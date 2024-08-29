@@ -113,11 +113,14 @@ use jj_lib::working_copy::SnapshotOptions;
 use jj_lib::working_copy::WorkingCopy;
 use jj_lib::working_copy::WorkingCopyFactory;
 use jj_lib::workspace::default_working_copy_factories;
+use jj_lib::workspace::get_working_copy_factory;
+use jj_lib::workspace::DefaultWorkspaceLoaderFactory;
 use jj_lib::workspace::LockedWorkspace;
 use jj_lib::workspace::WorkingCopyFactories;
 use jj_lib::workspace::Workspace;
 use jj_lib::workspace::WorkspaceLoadError;
 use jj_lib::workspace::WorkspaceLoader;
+use jj_lib::workspace::WorkspaceLoaderFactory;
 use once_cell::unsync::OnceCell;
 use tracing::instrument;
 use tracing_chrome::ChromeLayerBuilder;
@@ -263,7 +266,7 @@ pub struct CommandHelper {
     revset_extensions: Arc<RevsetExtensions>,
     commit_template_extensions: Vec<Arc<dyn CommitTemplateLanguageExtension>>,
     operation_template_extensions: Vec<Arc<dyn OperationTemplateLanguageExtension>>,
-    maybe_workspace_loader: Result<WorkspaceLoader, CommandError>,
+    maybe_workspace_loader: Result<Box<dyn WorkspaceLoader>, CommandError>,
     store_factories: StoreFactories,
     working_copy_factories: WorkingCopyFactories,
 }
@@ -341,8 +344,8 @@ impl CommandHelper {
         &self.operation_template_extensions
     }
 
-    pub fn workspace_loader(&self) -> Result<&WorkspaceLoader, CommandError> {
-        self.maybe_workspace_loader.as_ref().map_err(Clone::clone)
+    pub fn workspace_loader(&self) -> Result<&dyn WorkspaceLoader, CommandError> {
+        self.maybe_workspace_loader.as_deref().map_err(Clone::clone)
     }
 
     /// Loads workspace and repo, then snapshots the working copy if allowed.
@@ -370,9 +373,8 @@ impl CommandHelper {
         let loader = self.workspace_loader()?;
 
         // We convert StoreLoadError -> WorkspaceLoadError -> CommandError
-        let factory: Result<_, WorkspaceLoadError> = loader
-            .get_working_copy_factory(&self.working_copy_factories)
-            .map_err(|e| e.into());
+        let factory: Result<_, WorkspaceLoadError> =
+            get_working_copy_factory(loader, &self.working_copy_factories).map_err(|e| e.into());
         let factory = factory
             .map_err(|err| map_workspace_load_error(err, self.global_args.repository.as_deref()))?;
         Ok(factory)
@@ -2824,6 +2826,7 @@ pub struct CliRunner {
     extra_configs: Vec<config::Config>,
     store_factories: StoreFactories,
     working_copy_factories: WorkingCopyFactories,
+    workspace_loader_factory: Box<dyn WorkspaceLoaderFactory>,
     revset_extensions: RevsetExtensions,
     commit_template_extensions: Vec<Arc<dyn CommitTemplateLanguageExtension>>,
     operation_template_extensions: Vec<Arc<dyn OperationTemplateLanguageExtension>>,
@@ -2848,6 +2851,7 @@ impl CliRunner {
             extra_configs: vec![],
             store_factories: StoreFactories::default(),
             working_copy_factories: default_working_copy_factories(),
+            workspace_loader_factory: Box::new(DefaultWorkspaceLoaderFactory),
             revset_extensions: Default::default(),
             commit_template_extensions: vec![],
             operation_template_extensions: vec![],
@@ -2893,6 +2897,14 @@ impl CliRunner {
         working_copy_factories: WorkingCopyFactories,
     ) -> Self {
         merge_factories_map(&mut self.working_copy_factories, working_copy_factories);
+        self
+    }
+
+    pub fn set_workspace_loader_factory(
+        mut self,
+        workspace_loader_factory: Box<dyn WorkspaceLoaderFactory>,
+    ) -> Self {
+        self.workspace_loader_factory = workspace_loader_factory;
         self
     }
 
@@ -2990,7 +3002,9 @@ impl CliRunner {
         // Use cwd-relative workspace configs to resolve default command and
         // aliases. WorkspaceLoader::init() won't do any heavy lifting other
         // than the path resolution.
-        let maybe_cwd_workspace_loader = WorkspaceLoader::init(find_workspace_dir(&cwd))
+        let maybe_cwd_workspace_loader = self
+            .workspace_loader_factory
+            .create(find_workspace_dir(&cwd))
             .map_err(|err| map_workspace_load_error(err, None));
         layered_configs.read_user_config()?;
         let mut repo_config_path = None;
@@ -3024,7 +3038,9 @@ impl CliRunner {
 
         let maybe_workspace_loader = if let Some(path) = &args.global_args.repository {
             // Invalid -R path is an error. No need to proceed.
-            let loader = WorkspaceLoader::init(&cwd.join(path))
+            let loader = self
+                .workspace_loader_factory
+                .create(&cwd.join(path))
                 .map_err(|err| map_workspace_load_error(err, Some(path)))?;
             layered_configs.read_repo_config(loader.repo_path())?;
             Ok(loader)
