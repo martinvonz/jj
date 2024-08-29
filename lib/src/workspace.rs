@@ -376,7 +376,7 @@ impl Workspace {
         store_factories: &StoreFactories,
         working_copy_factories: &WorkingCopyFactories,
     ) -> Result<Self, WorkspaceLoadError> {
-        let loader = WorkspaceLoader::init(workspace_path)?;
+        let loader = DefaultWorkspaceLoader::new(workspace_path)?;
         let workspace = loader.load(user_settings, store_factories, working_copy_factories)?;
         Ok(workspace)
     }
@@ -460,8 +460,69 @@ impl<'a> LockedWorkspace<'a> {
     }
 }
 
+// Factory trait to build WorkspaceLoaders given the workspace root.
+pub trait WorkspaceLoaderFactory {
+    fn create(&self, workspace_root: &Path)
+        -> Result<Box<dyn WorkspaceLoader>, WorkspaceLoadError>;
+}
+
+pub fn get_working_copy_factory<'a>(
+    workspace_loader: &dyn WorkspaceLoader,
+    working_copy_factories: &'a WorkingCopyFactories,
+) -> Result<&'a dyn WorkingCopyFactory, StoreLoadError> {
+    let working_copy_type = workspace_loader.get_working_copy_type()?;
+
+    if let Some(factory) = working_copy_factories.get(&working_copy_type) {
+        Ok(factory.as_ref())
+    } else {
+        Err(StoreLoadError::UnsupportedType {
+            store: "working copy",
+            store_type: working_copy_type.to_string(),
+        })
+    }
+}
+
+// Loader assigned to a specific workspace root that knows how to load a
+// Workspace object for that path.
+pub trait WorkspaceLoader {
+    // The root of the Workspace to be loaded.
+    fn workspace_root(&self) -> &Path;
+
+    // The path to the repo/ dir for this Workspace.
+    fn repo_path(&self) -> &Path;
+
+    // Loads the specified Workspace with the provided factories.
+    fn load(
+        &self,
+        user_settings: &UserSettings,
+        store_factories: &StoreFactories,
+        working_copy_factories: &WorkingCopyFactories,
+    ) -> Result<Workspace, WorkspaceLoadError>;
+
+    // Returns the type identifier for the WorkingCopy trait in this Workspace.
+    fn get_working_copy_type(&self) -> Result<String, StoreLoadError>;
+
+    // Loads the WorkingCopy trait for this Workspace.
+    fn load_working_copy(
+        &self,
+        store: &Arc<Store>,
+        working_copy_factory: &dyn WorkingCopyFactory,
+    ) -> Result<Box<dyn WorkingCopy>, WorkspaceLoadError>;
+}
+
+pub struct DefaultWorkspaceLoaderFactory;
+
+impl WorkspaceLoaderFactory for DefaultWorkspaceLoaderFactory {
+    fn create(
+        &self,
+        workspace_root: &Path,
+    ) -> Result<Box<dyn WorkspaceLoader>, WorkspaceLoadError> {
+        Ok(Box::new(DefaultWorkspaceLoader::new(workspace_root)?))
+    }
+}
+
 #[derive(Clone, Debug)]
-pub struct WorkspaceLoader {
+struct DefaultWorkspaceLoader {
     workspace_root: PathBuf,
     repo_dir: PathBuf,
     working_copy_state_path: PathBuf,
@@ -469,8 +530,8 @@ pub struct WorkspaceLoader {
 
 pub type WorkingCopyFactories = HashMap<String, Box<dyn WorkingCopyFactory>>;
 
-impl WorkspaceLoader {
-    pub fn init(workspace_root: &Path) -> Result<Self, WorkspaceLoadError> {
+impl DefaultWorkspaceLoader {
+    pub fn new(workspace_root: &Path) -> Result<Self, WorkspaceLoadError> {
         let jj_dir = workspace_root.join(".jj");
         if !jj_dir.is_dir() {
             return Err(WorkspaceLoadError::NoWorkspaceHere(
@@ -493,62 +554,50 @@ impl WorkspaceLoader {
             }
         }
         let working_copy_state_path = jj_dir.join("working_copy");
-        Ok(WorkspaceLoader {
+        Ok(Self {
             workspace_root: workspace_root.to_owned(),
             repo_dir,
             working_copy_state_path,
         })
     }
+}
 
-    pub fn workspace_root(&self) -> &Path {
+impl WorkspaceLoader for DefaultWorkspaceLoader {
+    fn workspace_root(&self) -> &Path {
         &self.workspace_root
     }
 
-    pub fn repo_path(&self) -> &Path {
+    fn repo_path(&self) -> &Path {
         &self.repo_dir
     }
 
-    pub fn load(
+    fn load(
         &self,
         user_settings: &UserSettings,
         store_factories: &StoreFactories,
         working_copy_factories: &WorkingCopyFactories,
     ) -> Result<Workspace, WorkspaceLoadError> {
         let repo_loader = RepoLoader::init(user_settings, &self.repo_dir, store_factories)?;
-        let working_copy = self.load_working_copy(repo_loader.store(), working_copy_factories)?;
+        let working_copy_factory = get_working_copy_factory(self, working_copy_factories)?;
+        let working_copy = self.load_working_copy(repo_loader.store(), working_copy_factory)?;
         let workspace = Workspace::new(&self.workspace_root, working_copy, repo_loader)?;
         Ok(workspace)
     }
 
-    pub fn get_working_copy_factory<'a>(
-        &self,
-        working_copy_factories: &'a WorkingCopyFactories,
-    ) -> Result<&'a dyn WorkingCopyFactory, StoreLoadError> {
-        let working_copy_type =
-            read_store_type("working copy", self.working_copy_state_path.join("type"))?;
-
-        if let Some(factory) = working_copy_factories.get(&working_copy_type) {
-            Ok(factory.as_ref())
-        } else {
-            Err(StoreLoadError::UnsupportedType {
-                store: "working copy",
-                store_type: working_copy_type.to_string(),
-            })
-        }
+    fn get_working_copy_type(&self) -> Result<String, StoreLoadError> {
+        read_store_type("working copy", self.working_copy_state_path.join("type"))
     }
 
     fn load_working_copy(
         &self,
         store: &Arc<Store>,
-        working_copy_factories: &WorkingCopyFactories,
+        working_copy_factory: &dyn WorkingCopyFactory,
     ) -> Result<Box<dyn WorkingCopy>, WorkspaceLoadError> {
-        let working_copy_factory = self.get_working_copy_factory(working_copy_factories)?;
-        let working_copy = working_copy_factory.load_working_copy(
+        Ok(working_copy_factory.load_working_copy(
             store.clone(),
             self.workspace_root.to_owned(),
             self.working_copy_state_path.to_owned(),
-        )?;
-        Ok(working_copy)
+        )?)
     }
 }
 
