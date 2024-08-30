@@ -149,19 +149,6 @@ fn init_working_copy(
 
 impl Workspace {
     pub fn new(
-        workspace_root: &Path,
-        working_copy: Box<dyn WorkingCopy>,
-        repo_loader: RepoLoader,
-    ) -> Result<Workspace, PathError> {
-        let workspace_root = workspace_root.canonicalize().context(workspace_root)?;
-        Ok(Self::new_no_canonicalize(
-            workspace_root,
-            working_copy,
-            repo_loader,
-        ))
-    }
-
-    pub fn new_no_canonicalize(
         workspace_root: PathBuf,
         working_copy: Box<dyn WorkingCopy>,
         repo_loader: RepoLoader,
@@ -211,7 +198,7 @@ impl Workspace {
          -> Result<Box<dyn crate::backend::Backend>, _> {
             // TODO: Clean up path normalization. store_path is canonicalized by
             // ReadonlyRepo::init(). workspace_root will be canonicalized by
-            // Workspace::new(), but it's not yet here.
+            // Workspace::init_with_factories(), but it's not yet here.
             let store_relative_workspace_root =
                 if let Ok(workspace_root) = workspace_root.canonicalize() {
                     crate::file_util::relative_path(store_path, &workspace_root)
@@ -246,7 +233,7 @@ impl Workspace {
             // whole workspace can be moved without breaking.
             // TODO: Clean up path normalization. store_path is canonicalized by
             // ReadonlyRepo::init(). workspace_root will be canonicalized by
-            // Workspace::new(), but it's not yet here.
+            // Workspace::init_with_factories(), but it's not yet here.
             let store_relative_git_repo_path = match (
                 workspace_root.canonicalize(),
                 crate::git_backend::canonicalize_git_repo_path(git_repo_path),
@@ -309,7 +296,8 @@ impl Workspace {
                 workspace_id,
             )?;
             let repo_loader = repo.loader();
-            let workspace = Workspace::new(workspace_root, working_copy, repo_loader)?;
+            let workspace_root = workspace_root.canonicalize().context(workspace_root)?;
+            let workspace = Workspace::new(workspace_root, working_copy, repo_loader);
             Ok((workspace, repo))
         })()
         .inspect_err(|_err| {
@@ -366,7 +354,8 @@ impl Workspace {
             working_copy_factory,
             workspace_id,
         )?;
-        let workspace = Workspace::new(workspace_root, working_copy, repo.loader())?;
+        let workspace_root = workspace_root.canonicalize().context(workspace_root)?;
+        let workspace = Workspace::new(workspace_root, working_copy, repo.loader());
         Ok((workspace, repo))
     }
 
@@ -580,7 +569,11 @@ impl WorkspaceLoader for DefaultWorkspaceLoader {
         let repo_loader = RepoLoader::init(user_settings, &self.repo_dir, store_factories)?;
         let working_copy_factory = get_working_copy_factory(self, working_copy_factories)?;
         let working_copy = self.load_working_copy(repo_loader.store(), working_copy_factory)?;
-        let workspace = Workspace::new(&self.workspace_root, working_copy, repo_loader)?;
+        let workspace_root = self
+            .workspace_root
+            .canonicalize()
+            .context(&self.workspace_root)?;
+        let workspace = Workspace::new(workspace_root, working_copy, repo_loader);
         Ok(workspace)
     }
 
