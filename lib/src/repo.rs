@@ -1032,6 +1032,40 @@ impl MutableRepo {
         new_ids
     }
 
+    /// Fully resolves transitive replacements in `parent_mapping`.
+    ///
+    /// If `parent_mapping` contains cycles, this function will panic.
+    fn resolve_rewrite_mapping_with(
+        &self,
+        mut predicate: impl FnMut(&Rewrite) -> bool,
+    ) -> HashMap<CommitId, Vec<CommitId>> {
+        let sorted_ids = dag_walk::topo_order_forward(
+            self.parent_mapping.keys(),
+            |&id| id,
+            |&id| match self.parent_mapping.get(id).filter(|&v| predicate(v)) {
+                None => &[],
+                Some(rewrite) => rewrite.new_parent_ids(),
+            },
+        );
+        let mut new_mapping: HashMap<CommitId, Vec<CommitId>> = HashMap::new();
+        for old_id in sorted_ids {
+            let Some(rewrite) = self.parent_mapping.get(old_id).filter(|&v| predicate(v)) else {
+                continue;
+            };
+            let lookup = |id| new_mapping.get(id).map_or(slice::from_ref(id), |ids| ids);
+            let new_ids = match rewrite.new_parent_ids() {
+                [id] => lookup(id).to_vec(), // unique() not needed
+                ids => ids.iter().flat_map(lookup).unique().cloned().collect(),
+            };
+            debug_assert_eq!(
+                new_ids,
+                self.rewritten_ids_with(slice::from_ref(old_id), &mut predicate)
+            );
+            new_mapping.insert(old_id.clone(), new_ids);
+        }
+        new_mapping
+    }
+
     /// Updates branches, working copies, and anonymous heads after rewriting
     /// and/or abandoning commits.
     pub fn update_rewritten_references(&mut self, settings: &UserSettings) -> BackendResult<()> {
@@ -1041,13 +1075,8 @@ impl MutableRepo {
     }
 
     fn update_all_references(&mut self, settings: &UserSettings) -> BackendResult<()> {
-        for (old_parent_id, _rewrite) in self.parent_mapping.clone() {
-            // Call `rewritten_ids_with()` here since `parent_mapping` only contains direct
-            // mappings, not transitive ones.
-            // TODO: keep parent_mapping updated with transitive mappings so we don't need
-            // to call `rewritten_ids_with()` here.
-            let new_parent_ids = self.rewritten_ids_with(slice::from_ref(&old_parent_id), |_| true);
-            self.update_references(settings, old_parent_id, new_parent_ids)?;
+        for (old_id, new_ids) in self.resolve_rewrite_mapping_with(|_| true) {
+            self.update_references(settings, old_id, new_ids)?;
         }
         Ok(())
     }
