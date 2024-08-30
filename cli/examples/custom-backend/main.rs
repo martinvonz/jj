@@ -76,7 +76,7 @@ fn run_custom_command(
             // Initialize a workspace with the custom backend
             Workspace::init_with_backend(
                 command_helper.settings(),
-                wc_path,
+                wc_path.canonicalize()?,
                 &|settings, store_path| Ok(Box::new(JitBackend::init(settings, store_path)?)),
                 Signer::from_settings(command_helper.settings())
                     .map_err(WorkspaceInitError::SignInit)?,

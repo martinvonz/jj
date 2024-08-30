@@ -68,7 +68,7 @@ fn run_custom_command(
             };
             Workspace::init_with_factories(
                 command_helper.settings(),
-                wc_path,
+                wc_path.canonicalize()?,
                 &backend_initializer,
                 Signer::from_settings(command_helper.settings())
                     .map_err(WorkspaceInitError::SignInit)?,

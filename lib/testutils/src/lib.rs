@@ -234,7 +234,7 @@ impl TestWorkspace {
 
         let (workspace, repo) = Workspace::init_with_backend(
             settings,
-            &workspace_root,
+            workspace_root,
             &move |settings, store_path| backend.init_backend(settings, store_path),
             signer,
         )
