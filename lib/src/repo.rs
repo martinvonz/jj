@@ -175,7 +175,7 @@ impl ReadonlyRepo {
     #[allow(clippy::too_many_arguments)]
     pub fn init(
         user_settings: &UserSettings,
-        repo_path: &Path,
+        repo_path: PathBuf,
         backend_initializer: &BackendInitializer,
         signer: Signer,
         op_store_initializer: &OpStoreInitializer,
@@ -183,8 +183,6 @@ impl ReadonlyRepo {
         index_store_initializer: &IndexStoreInitializer,
         submodule_store_initializer: &SubmoduleStoreInitializer,
     ) -> Result<Arc<ReadonlyRepo>, RepoInitError> {
-        let repo_path = repo_path.canonicalize().context(repo_path)?;
-
         let store_path = repo_path.join("store");
         fs::create_dir(&store_path).context(&store_path)?;
         let backend = backend_initializer(user_settings, &store_path)?;

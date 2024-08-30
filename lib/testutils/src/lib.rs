@@ -37,6 +37,7 @@ use jj_lib::backend::Timestamp;
 use jj_lib::backend::TreeValue;
 use jj_lib::commit::Commit;
 use jj_lib::commit_builder::CommitBuilder;
+use jj_lib::file_util::IoResultExt;
 use jj_lib::git_backend::GitBackend;
 use jj_lib::local_backend::LocalBackend;
 use jj_lib::merged_tree::MergedTree;
@@ -165,10 +166,11 @@ impl TestRepo {
 
         let repo_dir = temp_dir.path().join("repo");
         fs::create_dir(&repo_dir).unwrap();
+        let repo_dir = repo_dir.canonicalize().context(&repo_dir).unwrap();
 
         let repo = ReadonlyRepo::init(
             settings,
-            &repo_dir,
+            repo_dir,
             &move |settings, store_path| backend.init_backend(settings, store_path),
             Signer::from_settings(settings).unwrap(),
             ReadonlyRepo::default_op_store_initializer(),

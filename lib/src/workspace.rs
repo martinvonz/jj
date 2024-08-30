@@ -196,9 +196,9 @@ impl Workspace {
         let backend_initializer = |settings: &UserSettings,
                                    store_path: &Path|
          -> Result<Box<dyn crate::backend::Backend>, _> {
-            // TODO: Clean up path normalization. store_path is canonicalized by
-            // ReadonlyRepo::init(). workspace_root will be canonicalized by
-            // Workspace::init_with_factories(), but it's not yet here.
+            // TODO: Clean up path normalization. store_path and workspace_root will be
+            // canonicalized by Workspace::init_with_factories(), but it's not
+            // yet here.
             let store_relative_workspace_root =
                 if let Ok(workspace_root) = workspace_root.canonicalize() {
                     crate::file_util::relative_path(store_path, &workspace_root)
@@ -231,9 +231,9 @@ impl Workspace {
          -> Result<Box<dyn crate::backend::Backend>, _> {
             // If the git repo is inside the workspace, use a relative path to it so the
             // whole workspace can be moved without breaking.
-            // TODO: Clean up path normalization. store_path is canonicalized by
-            // ReadonlyRepo::init(). workspace_root will be canonicalized by
-            // Workspace::init_with_factories(), but it's not yet here.
+            // TODO: Clean up path normalization. store_path and workspace_root will be
+            // canonicalized by Workspace::init_with_factories(), but it's not
+            // yet here.
             let store_relative_git_repo_path = match (
                 workspace_root.canonicalize(),
                 crate::git_backend::canonicalize_git_repo_path(git_repo_path),
@@ -273,9 +273,10 @@ impl Workspace {
         (|| {
             let repo_dir = jj_dir.join("repo");
             std::fs::create_dir(&repo_dir).context(&repo_dir)?;
+            let repo_dir = repo_dir.canonicalize().context(repo_dir)?;
             let repo = ReadonlyRepo::init(
                 user_settings,
-                &repo_dir,
+                repo_dir,
                 backend_initializer,
                 signer,
                 op_store_initializer,
