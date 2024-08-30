@@ -269,11 +269,11 @@ impl Workspace {
         working_copy_factory: &dyn WorkingCopyFactory,
         workspace_id: WorkspaceId,
     ) -> Result<(Self, Arc<ReadonlyRepo>), WorkspaceInitError> {
-        let jj_dir = create_jj_dir(workspace_root)?;
+        let workspace_root = workspace_root.canonicalize().context(workspace_root)?;
+        let jj_dir = create_jj_dir(&workspace_root)?;
         (|| {
             let repo_dir = jj_dir.join("repo");
             std::fs::create_dir(&repo_dir).context(&repo_dir)?;
-            let repo_dir = repo_dir.canonicalize().context(repo_dir)?;
             let repo = ReadonlyRepo::init(
                 user_settings,
                 repo_dir,
@@ -291,13 +291,12 @@ impl Workspace {
             let (working_copy, repo) = init_working_copy(
                 user_settings,
                 &repo,
-                workspace_root,
+                &workspace_root,
                 &jj_dir,
                 working_copy_factory,
                 workspace_id,
             )?;
             let repo_loader = repo.loader();
-            let workspace_root = workspace_root.canonicalize().context(workspace_root)?;
             let workspace = Workspace::new(workspace_root, working_copy, repo_loader);
             Ok((workspace, repo))
         })()
@@ -333,7 +332,8 @@ impl Workspace {
         working_copy_factory: &dyn WorkingCopyFactory,
         workspace_id: WorkspaceId,
     ) -> Result<(Self, Arc<ReadonlyRepo>), WorkspaceInitError> {
-        let jj_dir = create_jj_dir(workspace_root)?;
+        let workspace_root = workspace_root.canonicalize().context(workspace_root)?;
+        let jj_dir = create_jj_dir(&workspace_root)?;
 
         let repo_dir = repo.repo_path().canonicalize().context(repo.repo_path())?;
         let repo_file_path = jj_dir.join("repo");
@@ -350,12 +350,11 @@ impl Workspace {
         let (working_copy, repo) = init_working_copy(
             user_settings,
             repo,
-            workspace_root,
+            &workspace_root,
             &jj_dir,
             working_copy_factory,
             workspace_id,
         )?;
-        let workspace_root = workspace_root.canonicalize().context(workspace_root)?;
         let workspace = Workspace::new(workspace_root, working_copy, repo.loader());
         Ok((workspace, repo))
     }
@@ -569,11 +568,11 @@ impl WorkspaceLoader for DefaultWorkspaceLoader {
     ) -> Result<Workspace, WorkspaceLoadError> {
         let repo_loader = RepoLoader::init(user_settings, &self.repo_dir, store_factories)?;
         let working_copy_factory = get_working_copy_factory(self, working_copy_factories)?;
-        let working_copy = self.load_working_copy(repo_loader.store(), working_copy_factory)?;
         let workspace_root = self
             .workspace_root
             .canonicalize()
             .context(&self.workspace_root)?;
+        let working_copy = self.load_working_copy(repo_loader.store(), working_copy_factory)?;
         let workspace = Workspace::new(workspace_root, working_copy, repo_loader);
         Ok(workspace)
     }
