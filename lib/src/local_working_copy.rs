@@ -579,11 +579,9 @@ impl TreeState {
 
     fn empty(store: Arc<Store>, working_copy_path: PathBuf, state_path: PathBuf) -> TreeState {
         let tree_id = store.empty_merged_tree_id();
-        // Canonicalize the working copy path because "repo/." makes libgit2 think that
-        // everything should be ignored
         TreeState {
             store,
-            working_copy_path: working_copy_path.canonicalize().unwrap(),
+            working_copy_path,
             state_path,
             tree_id,
             file_states: FileStatesMap::new(),
