@@ -64,7 +64,7 @@ Git, losing a branch pointer does not lead to losing commits.
 ## Operation log
 
 The most important piece in the lock-free design is the "operation log". That is
-what allows us to detect and merge concurrent operations.
+what allows us to detect and merge divergent operations.
 
 The operation log is similar to a commit DAG (such as in
 [Git's object model](https://git-scm.com/book/en/v2/Git-Internals-Git-Objects)),
@@ -75,14 +75,14 @@ contains a pointer to the view object (like how commit objects point to tree
 objects), pointers to parent operation(s) (like how commit objects point to
 parent commit(s)), and metadata about the operation. These types are defined
 in `op_store.proto` The operation log is normally linear.
-It becomes non-linear if there are concurrent operations.
+It becomes non-linear if there are divergent operations.
 
 When a command starts, it loads the repo at the latest operation. Because the
 associated view object completely defines the repo state, the running command
 will not see any changes made by other processes thereafter. When the operation
 completes, it is written with the start operation as parent. The operation
 cannot fail to commit (except for disk failures and such). It is left for the
-next command to notice if there were concurrent operations. It will have to be
+next command to notice if there were divergent operations. It will have to be
 able to do that anyway since the concurrent operation could have arrived via a
 distributed file system. This model -- where each operation sees a consistent
 view of the repo and is guaranteed to be able to commit their changes -- greatly
@@ -94,9 +94,9 @@ will result in a fork in the operation log. That works exactly the same as if
 any later operations had not existed when the command started. In other words,
 running commands on a repo loaded at an earlier operation works the same way as
 if the operations had been concurrent. This can be useful for simulating
-concurrent operations.
+divergent operations.
 
-### Merging concurrent operations
+### Merging divergent operations
 
 If Jujutsu tries to load the repo and finds multiple heads in the operation log,
 it will do a 3-way merge of the view objects based on their common ancestor

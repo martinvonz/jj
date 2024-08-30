@@ -637,7 +637,7 @@ fn test_new_conflicting_branches() {
         ],
     );
 
-    // Trigger resolution of concurrent operations
+    // Trigger resolution of divergent operations
     test_env.jj_cmd_ok(&repo_path, &["st"]);
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["new", "foo"]);
@@ -660,7 +660,7 @@ fn test_new_conflicting_change_ids() {
     test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "one"]);
     test_env.jj_cmd_ok(&repo_path, &["--at-op=@-", "describe", "-m", "two"]);
 
-    // Trigger resolution of concurrent operations
+    // Trigger resolution of divergent operations
     test_env.jj_cmd_ok(&repo_path, &["st"]);
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["new", "qpvuntsm"]);

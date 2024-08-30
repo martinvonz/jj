@@ -563,8 +563,8 @@ fn test_op_abandon_multiple_heads() {
 
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["op", "log"]);
     insta::assert_snapshot!(stdout, @r###"
-    @    a232d055d331 test-username@host.example.com 2001-02-03 04:05:17.000 +07:00 - 2001-02-03 04:05:17.000 +07:00
-    ├─╮  resolve concurrent operations
+    @    fb7f33a29cd8 test-username@host.example.com 2001-02-03 04:05:17.000 +07:00 - 2001-02-03 04:05:17.000 +07:00
+    ├─╮  reconcile divergent operations
     │ │  args: jj op log
     ○ │  467d42715f00 test-username@host.example.com 2001-02-03 04:05:10.000 +07:00 - 2001-02-03 04:05:10.000 +07:00
     │ │  commit 220cb0b1b5d1c03cc0d351139d824598bb3c1967
@@ -847,8 +847,8 @@ fn test_op_diff() {
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["op", "log"]);
     insta::assert_snapshot!(&stdout, @r###"
-    @    6eeb006eccd0 test-username@host.example.com 2001-02-03 04:05:16.000 +07:00 - 2001-02-03 04:05:16.000 +07:00
-    ├─╮  resolve concurrent operations
+    @    afab0949fddc test-username@host.example.com 2001-02-03 04:05:16.000 +07:00 - 2001-02-03 04:05:16.000 +07:00
+    ├─╮  reconcile divergent operations
     │ │  args: jj log
     ○ │  984d5ceb039f test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
     │ │  check out git remote's default branch
@@ -877,7 +877,7 @@ fn test_op_diff() {
     );
     insta::assert_snapshot!(&stdout, @r###"
     From operation 984d5ceb039f: check out git remote's default branch
-      To operation 6eeb006eccd0: resolve concurrent operations
+      To operation afab0949fddc: reconcile divergent operations
 
     Changed local branches:
     branch-1:
@@ -894,7 +894,7 @@ fn test_op_diff() {
     );
     insta::assert_snapshot!(&stdout, @r###"
     From operation 5ed581429582: point branch branch-1 to commit 3d9189bc56a1972729350456eb95ec5bf90be2a8
-      To operation 6eeb006eccd0: resolve concurrent operations
+      To operation afab0949fddc: reconcile divergent operations
 
     Changed commits:
     ○  Change sqpuoqvxutmz
@@ -927,8 +927,8 @@ fn test_op_diff() {
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["op", "diff"]);
     insta::assert_snapshot!(&stdout, @r###"
-    From operation 6eeb006eccd0: resolve concurrent operations
-      To operation 9c57642e4a18: fetch from git remote(s) origin
+    From operation afab0949fddc: reconcile divergent operations
+      To operation aa3c1cbed385: fetch from git remote(s) origin
 
     Changed commits:
     ○  Change qzxslznxxpoz
@@ -969,8 +969,8 @@ fn test_op_diff() {
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["op", "diff"]);
     insta::assert_snapshot!(&stdout, @r###"
-    From operation 9c57642e4a18: fetch from git remote(s) origin
-      To operation 8b280b4a5ea2: create branch branch-2 pointing to commit d487febd08e690ee775a4e0387e30d544307e409
+    From operation aa3c1cbed385: fetch from git remote(s) origin
+      To operation be49cc959876: create branch branch-2 pointing to commit d487febd08e690ee775a4e0387e30d544307e409
 
     Changed local branches:
     branch-2:
@@ -987,8 +987,8 @@ fn test_op_diff() {
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["op", "diff"]);
     insta::assert_snapshot!(&stdout, @r###"
-    From operation 8b280b4a5ea2: create branch branch-2 pointing to commit d487febd08e690ee775a4e0387e30d544307e409
-      To operation be38bc6501bc: track remote branch branch-2@origin
+    From operation be49cc959876: create branch branch-2 pointing to commit d487febd08e690ee775a4e0387e30d544307e409
+      To operation c6bace1690a5: track remote branch branch-2@origin
 
     Changed remote branches:
     branch-2@origin:
@@ -1008,8 +1008,8 @@ fn test_op_diff() {
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["op", "diff"]);
     insta::assert_snapshot!(&stdout, @r###"
-    From operation be38bc6501bc: track remote branch branch-2@origin
-      To operation 8c9091fb718a: new empty commit
+    From operation c6bace1690a5: track remote branch branch-2@origin
+      To operation 06ad17cad045: new empty commit
 
     Changed commits:
     ○  Change nmzmmopxokps
@@ -1028,8 +1028,8 @@ fn test_op_diff() {
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["op", "diff"]);
     insta::assert_snapshot!(&stdout, @r###"
-    From operation 8c9091fb718a: new empty commit
-      To operation 6ff61c177324: point branch branch-1 to commit bed2698f6baf06f7eea56c616bc3fe36d9065651
+    From operation 06ad17cad045: new empty commit
+      To operation f98d2aca274d: point branch branch-1 to commit bed2698f6baf06f7eea56c616bc3fe36d9065651
 
     Changed local branches:
     branch-1:
@@ -1047,8 +1047,8 @@ fn test_op_diff() {
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["op", "diff"]);
     insta::assert_snapshot!(&stdout, @r###"
-    From operation 6ff61c177324: point branch branch-1 to commit bed2698f6baf06f7eea56c616bc3fe36d9065651
-      To operation ecae5e879b40: delete branch branch-2
+    From operation f98d2aca274d: point branch branch-1 to commit bed2698f6baf06f7eea56c616bc3fe36d9065651
+      To operation 238af436e327: delete branch branch-2
 
     Changed local branches:
     branch-2:
@@ -1070,8 +1070,8 @@ fn test_op_diff() {
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["op", "diff"]);
     insta::assert_snapshot!(&stdout, @r###"
-    From operation ecae5e879b40: delete branch branch-2
-      To operation 96f11847b661: push all tracked branches to git remote origin
+    From operation 238af436e327: delete branch branch-2
+      To operation c5aa1d1304a6: push all tracked branches to git remote origin
 
     Changed commits:
     ○  Change uuuvxpvwspwr
@@ -1290,8 +1290,8 @@ fn test_op_show() {
     // Showing a merge operation is empty.
     let stdout = test_env.jj_cmd_success(&repo_path, &["op", "show"]);
     insta::assert_snapshot!(&stdout, @r###"
-    6c131cd79314 test-username@host.example.com 2001-02-03 04:05:14.000 +07:00 - 2001-02-03 04:05:14.000 +07:00
-    resolve concurrent operations
+    40495fbd29b6 test-username@host.example.com 2001-02-03 04:05:14.000 +07:00 - 2001-02-03 04:05:14.000 +07:00
+    reconcile divergent operations
     args: jj log
     "###);
 
@@ -1308,7 +1308,7 @@ fn test_op_show() {
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["op", "show"]);
     insta::assert_snapshot!(&stdout, @r###"
-    84466f397d80 test-username@host.example.com 2001-02-03 04:05:16.000 +07:00 - 2001-02-03 04:05:16.000 +07:00
+    1ed37acf8335 test-username@host.example.com 2001-02-03 04:05:16.000 +07:00 - 2001-02-03 04:05:16.000 +07:00
     fetch from git remote(s) origin
     args: jj git fetch
 
@@ -1351,7 +1351,7 @@ fn test_op_show() {
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["op", "show"]);
     insta::assert_snapshot!(&stdout, @r###"
-    eea894b7c72f test-username@host.example.com 2001-02-03 04:05:18.000 +07:00 - 2001-02-03 04:05:18.000 +07:00
+    61235941fe15 test-username@host.example.com 2001-02-03 04:05:18.000 +07:00 - 2001-02-03 04:05:18.000 +07:00
     create branch branch-2 pointing to commit d487febd08e690ee775a4e0387e30d544307e409
     args: jj branch create branch-2 -r branch-2@origin
 
@@ -1370,7 +1370,7 @@ fn test_op_show() {
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["op", "show"]);
     insta::assert_snapshot!(&stdout, @r###"
-    d2d43732186a test-username@host.example.com 2001-02-03 04:05:20.000 +07:00 - 2001-02-03 04:05:20.000 +07:00
+    18035ff599c1 test-username@host.example.com 2001-02-03 04:05:20.000 +07:00 - 2001-02-03 04:05:20.000 +07:00
     track remote branch branch-2@origin
     args: jj branch track branch-2@origin
 
@@ -1392,7 +1392,7 @@ fn test_op_show() {
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["op", "show"]);
     insta::assert_snapshot!(&stdout, @r###"
-    f85f06d144b6 test-username@host.example.com 2001-02-03 04:05:22.000 +07:00 - 2001-02-03 04:05:22.000 +07:00
+    6ae7eab9f2c5 test-username@host.example.com 2001-02-03 04:05:22.000 +07:00 - 2001-02-03 04:05:22.000 +07:00
     new empty commit
     args: jj new branch-1@origin -m 'new commit'
 
@@ -1413,7 +1413,7 @@ fn test_op_show() {
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["op", "show"]);
     insta::assert_snapshot!(&stdout, @r###"
-    b55c8d9fdc63 test-username@host.example.com 2001-02-03 04:05:24.000 +07:00 - 2001-02-03 04:05:24.000 +07:00
+    044836a4ea77 test-username@host.example.com 2001-02-03 04:05:24.000 +07:00 - 2001-02-03 04:05:24.000 +07:00
     point branch branch-1 to commit 71fe694da7811a184f404fffe35cd62b0adb3d89
     args: jj branch set branch-1 -r @
 
@@ -1433,7 +1433,7 @@ fn test_op_show() {
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["op", "show"]);
     insta::assert_snapshot!(&stdout, @r###"
-    25dbc902dbf0 test-username@host.example.com 2001-02-03 04:05:26.000 +07:00 - 2001-02-03 04:05:26.000 +07:00
+    6595a222e6f1 test-username@host.example.com 2001-02-03 04:05:26.000 +07:00 - 2001-02-03 04:05:26.000 +07:00
     delete branch branch-2
     args: jj branch delete branch-2
 
@@ -1457,7 +1457,7 @@ fn test_op_show() {
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["op", "show"]);
     insta::assert_snapshot!(&stdout, @r###"
-    d8d2184e1621 test-username@host.example.com 2001-02-03 04:05:28.000 +07:00 - 2001-02-03 04:05:28.000 +07:00
+    c69699290f76 test-username@host.example.com 2001-02-03 04:05:28.000 +07:00 - 2001-02-03 04:05:28.000 +07:00
     push all tracked branches to git remote origin
     args: jj git push --tracked
 

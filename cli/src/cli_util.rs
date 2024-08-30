@@ -440,7 +440,7 @@ impl CommandHelper {
                         }
                     }
                     Ok(tx
-                        .write("resolve concurrent operations")
+                        .write("reconcile divergent operations")
                         .leave_unpublished()
                         .operation()
                         .clone())
@@ -2508,14 +2508,14 @@ pub struct GlobalArgs {
     /// Operation to load the repo at
     ///
     /// Operation to load the repo at. By default, Jujutsu loads the repo at the
-    /// most recent operation, or at the merge of the concurrent operations if
+    /// most recent operation, or at the merge of the divergent operations if
     /// any.
     ///
     /// You can use `--at-op=<operation ID>` to see what the repo looked like at
     /// an earlier operation. For example `jj --at-op=<operation ID> st` will
     /// show you what `jj st` would have shown you when the given operation had
     /// just finished. `--at-op=@` is pretty much the same as the default except
-    /// that concurrent operations will never be merged.
+    /// that divergent operations will never be merged.
     ///
     /// Use `jj op log` to find the operation ID you want. Any unambiguous
     /// prefix of the operation ID is enough.

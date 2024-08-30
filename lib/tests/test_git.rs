@@ -1066,7 +1066,7 @@ fn test_import_refs_reimport_conflicted_remote_branch() {
     let mut tx2 = repo.start_transaction(&settings);
     git::import_refs(tx2.mut_repo(), &git_settings).unwrap();
 
-    // Remote branch can diverge by concurrent operations (like `jj git fetch`)
+    // Remote branch can diverge by divergent operations (like `jj git fetch`)
     let repo = commit_transactions(&settings, vec![tx1, tx2]);
     assert_eq!(
         repo.view().get_git_ref("refs/remotes/origin/main"),
