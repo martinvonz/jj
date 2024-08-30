@@ -28,8 +28,8 @@ use crate::ui::Ui;
 /// Show the operation log
 ///
 /// Like other commands, `jj op log` snapshots the current working-copy changes
-/// and merges concurrent operations. Use `--at-op=@ --ignore-working-copy` to
-/// inspect the current state without mutation.
+/// and reconciles divergent operations. Use `--at-op=@ --ignore-working-copy`
+/// to inspect the current state without mutation.
 #[derive(clap::Args, Clone, Debug)]
 pub struct OperationLogArgs {
     /// Limit number of operations to show

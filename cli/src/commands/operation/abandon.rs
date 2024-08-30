@@ -55,7 +55,7 @@ pub fn cmd_op_abandon(
     let repo_loader = workspace.repo_loader();
     let op_store = repo_loader.op_store();
     let op_heads_store = repo_loader.op_heads_store();
-    // It doesn't make sense to create concurrent operations that will be merged
+    // It doesn't make sense to create divergent operations that will be merged
     // with the current head.
     if command.global_args().at_operation.is_some() {
         return Err(cli_error("--at-op is not respected"));
@@ -129,7 +129,7 @@ pub fn cmd_op_abandon(
         op_heads_store.update_op_heads(slice::from_ref(old.id()), new_id);
     }
     // Remap the operation id of the current workspace. If there were any
-    // concurrent operations, user will need to re-abandon their ancestors.
+    // divergent operations, user will need to re-abandon their ancestors.
     if !command.global_args().ignore_working_copy {
         let mut locked_ws = workspace.start_working_copy_mutation()?;
         let old_op_id = locked_ws.locked_wc().old_operation_id();

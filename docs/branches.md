@@ -201,7 +201,7 @@ a revision will resolve to all potential targets. That means that `jj new main`
 will error out, complaining that the revset resolved to multiple revisions.
 
 Both local branches (e.g. `main`) and the remote branch (e.g. `main@origin`) can
-have conflicts. Both can end up in that state if concurrent operations were run
+have conflicts. Both can end up in that state if divergent operations were run
 in the repo. The local branch more typically becomes conflicted because it was
 updated both locally and on a remote.
 

@@ -46,7 +46,7 @@ pub fn cmd_workspace_update_stale(
     _args: &WorkspaceUpdateStaleArgs,
 ) -> Result<(), CommandError> {
     // Snapshot the current working copy on top of the last known working-copy
-    // operation, then merge the concurrent operations. The wc_commit_id of the
+    // operation, then merge the divergent operations. The wc_commit_id of the
     // merged repo wouldn't change because the old one wins, but it's probably
     // fine if we picked the new wc_commit_id.
     let known_wc_commit = {

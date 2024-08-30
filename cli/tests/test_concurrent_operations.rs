@@ -154,7 +154,7 @@ fn test_concurrent_operations_wc_modified() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["op", "log", "-Tdescription"]);
     insta::assert_snapshot!(stdout, @r###"
     @  snapshot working copy
-    ○    resolve concurrent operations
+    ○    reconcile divergent operations
     ├─╮
     ○ │  new empty commit
     │ ○  new empty commit

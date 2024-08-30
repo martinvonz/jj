@@ -199,7 +199,7 @@ fn test_workspaces_add_at_operation() {
     let stdout = test_env.jj_cmd_success(&secondary_path, &["op", "log", "-Tdescription"]);
     insta::assert_snapshot!(stdout, @r###"
     @  snapshot working copy
-    ○    resolve concurrent operations
+    ○    reconcile divergent operations
     ├─╮
     ○ │  commit cd06097124e3e5860867e35c2bb105902c28ea38
     │ ○  create initial working-copy commit in workspace secondary

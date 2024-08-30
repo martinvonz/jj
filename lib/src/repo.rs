@@ -791,7 +791,7 @@ impl RepoLoader {
         self.merge_operations(
             user_settings,
             op_heads,
-            Some("resolve concurrent operations"),
+            Some("reconcile divergent operations"),
         )
     }
 
