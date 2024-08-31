@@ -1041,12 +1041,12 @@ impl MutableRepo {
     }
 
     fn update_all_references(&mut self, settings: &UserSettings) -> BackendResult<()> {
-        for (old_parent_id, rewrite) in self.parent_mapping.clone() {
-            // Call `new_parents()` here since `parent_mapping` only contains direct
+        for (old_parent_id, _rewrite) in self.parent_mapping.clone() {
+            // Call `rewritten_ids_with()` here since `parent_mapping` only contains direct
             // mappings, not transitive ones.
             // TODO: keep parent_mapping updated with transitive mappings so we don't need
-            // to call `new_parents()` here.
-            let new_parent_ids = self.new_parents(rewrite.new_parent_ids());
+            // to call `rewritten_ids_with()` here.
+            let new_parent_ids = self.rewritten_ids_with(slice::from_ref(&old_parent_id), |_| true);
             self.update_references(settings, old_parent_id, new_parent_ids)?;
         }
         Ok(())
