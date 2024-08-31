@@ -990,6 +990,14 @@ impl MutableRepo {
     /// If `parent_mapping` contains cycles, this function may either panic or
     /// drop parents that caused cycles.
     pub fn new_parents(&self, old_ids: &[CommitId]) -> Vec<CommitId> {
+        self.rewritten_ids_with(old_ids, |rewrite| !matches!(rewrite, Rewrite::Divergent(_)))
+    }
+
+    fn rewritten_ids_with(
+        &self,
+        old_ids: &[CommitId],
+        mut predicate: impl FnMut(&Rewrite) -> bool,
+    ) -> Vec<CommitId> {
         assert!(!old_ids.is_empty());
         let mut new_ids = Vec::with_capacity(old_ids.len());
         let mut to_visit = old_ids.iter().rev().collect_vec();
@@ -998,14 +1006,12 @@ impl MutableRepo {
             if !visited.insert(id) {
                 continue;
             }
-            match self.parent_mapping.get(id) {
-                None | Some(Rewrite::Divergent(_)) => {
+            match self.parent_mapping.get(id).filter(|&v| predicate(v)) {
+                None => {
                     new_ids.push(id.clone());
                 }
-                Some(Rewrite::Rewritten(replacement)) => {
-                    to_visit.push(replacement);
-                }
-                Some(Rewrite::Abandoned(replacements)) => {
+                Some(rewrite) => {
+                    let replacements = rewrite.new_parent_ids();
                     assert!(
                         // Each commit must have a parent, so a parent can
                         // not just be mapped to nothing. This assertion
