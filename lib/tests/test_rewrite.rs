@@ -1159,15 +1159,17 @@ fn test_rebase_descendants_update_branches_after_divergent_rewrite() {
     let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
-    // Branch "main" points to commit B. B gets rewritten as B2, B3, B4. Branch main
-    // should become a conflict pointing to all of them.
+    // Branch "main" points to commit B. B gets rewritten as {B2, B3, B4}, then
+    // B4 as {B41, B42}. Branch main should become a conflict pointing to {B2,
+    // B3, B41, B42}.
     //
-    //                C other
-    // C other        | B4 main?
-    // |              |/B3 main?
-    // B main         |/B2 main?
-    // |         =>   |/
-    // A              A
+    //                                  C other
+    //                C other           | B42 main?
+    // C other        | B4 main?        |/B41 main?
+    // |              |/B3 main?        |/B3 main?
+    // B main         |/B2 main?        |/B2 main?
+    // |         =>   |/           =>   |/
+    // A              A                 A
     let mut tx = repo.start_transaction(&settings);
     let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
     let commit_a = graph_builder.initial_commit();
@@ -1207,20 +1209,39 @@ fn test_rebase_descendants_update_branches_after_divergent_rewrite() {
             commit_b4.id().clone(),
         ],
     );
+    let commit_b41 = tx
+        .mut_repo()
+        .rewrite_commit(&settings, &commit_b4)
+        .write()
+        .unwrap();
+    let commit_b42 = tx
+        .mut_repo()
+        .rewrite_commit(&settings, &commit_b4)
+        .set_description("different")
+        .write()
+        .unwrap();
+    tx.mut_repo().set_divergent_rewrite(
+        commit_b4.id().clone(),
+        vec![commit_b41.id().clone(), commit_b42.id().clone()],
+    );
     tx.mut_repo().rebase_descendants(&settings).unwrap();
 
     let main_target = tx.mut_repo().get_local_branch("main");
     assert!(main_target.has_conflict());
+    // If the branch were moved at each rewrite point, there would be separate
+    // negative terms: { commit_b => 2, commit_b4 => 1 }. Since we flatten
+    // intermediate rewrites, commit_b4 doesn't appear in the removed_ids.
     assert_eq!(
         main_target.removed_ids().counts(),
-        hashmap! { commit_b.id() => 2 },
+        hashmap! { commit_b.id() => 3 },
     );
     assert_eq!(
         main_target.added_ids().counts(),
         hashmap! {
             commit_b2.id() => 1,
             commit_b3.id() => 1,
-            commit_b4.id() => 1,
+            commit_b41.id() => 1,
+            commit_b42.id() => 1,
         },
     );
 
@@ -1232,7 +1253,8 @@ fn test_rebase_descendants_update_branches_after_divergent_rewrite() {
         hashset! {
             commit_b2.id().clone(),
             commit_b3.id().clone(),
-            commit_b4.id().clone(),
+            commit_b41.id().clone(),
+            commit_b42.id().clone(),
             commit_c.id().clone(),
         }
     );
