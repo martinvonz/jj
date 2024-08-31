@@ -5957,8 +5957,8 @@ does not match the <code>jj help</code> output exactly.</p>
 </li>
 <li>
 <p><code>--at-operation &lt;AT_OPERATION&gt;</code> — Operation to load the repo at</p>
-<p>Operation to load the repo at. By default, Jujutsu loads the repo at the most recent operation, or at the merge of the concurrent operations if any.</p>
-<p>You can use <code>--at-op=&lt;operation ID&gt;</code> to see what the repo looked like at an earlier operation. For example <code>jj --at-op=&lt;operation ID&gt; st</code> will show you what <code>jj st</code> would have shown you when the given operation had just finished. <code>--at-op=@</code> is pretty much the same as the default except that concurrent operations will never be merged.</p>
+<p>Operation to load the repo at. By default, Jujutsu loads the repo at the most recent operation, or at the merge of the divergent operations if any.</p>
+<p>You can use <code>--at-op=&lt;operation ID&gt;</code> to see what the repo looked like at an earlier operation. For example <code>jj --at-op=&lt;operation ID&gt; st</code> will show you what <code>jj st</code> would have shown you when the given operation had just finished. <code>--at-op=@</code> is pretty much the same as the default except that divergent operations will never be merged.</p>
 <p>Use <code>jj op log</code> to find the operation ID you want. Any unambiguous prefix of the operation ID is enough.</p>
 <p>When loading the repo at an earlier operation, the working copy will be ignored, as if <code>--ignore-working-copy</code> had been specified.</p>
 <p>It is possible to run mutating commands when loading the repo at an earlier operation. Doing that is equivalent to having run concurrent commands starting at the earlier operation. There's rarely a reason to do that, but it is possible.</p>
@@ -6895,7 +6895,7 @@ implied.</p>
 </ul>
 <h2 id="jj-operation-log"><code>jj operation log</code><a class="headerlink" href="#jj-operation-log" title="Permanent link">&para;</a></h2>
 <p>Show the operation log</p>
-<p>Like other commands, <code>jj op log</code> snapshots the current working-copy changes and merges concurrent operations. Use <code>--at-op=@ --ignore-working-copy</code> to inspect the current state without mutation.</p>
+<p>Like other commands, <code>jj op log</code> snapshots the current working-copy changes and reconciles divergent operations. Use <code>--at-op=@ --ignore-working-copy</code> to inspect the current state without mutation.</p>
 <p><strong>Usage:</strong> <code>jj operation log [OPTIONS]</code></p>
 <h6 id="options_29"><strong>Options:</strong><a class="headerlink" href="#options_29" title="Permanent link">&para;</a></h6>
 <ul>
