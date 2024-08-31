@@ -1078,28 +1078,8 @@ impl MutableRepo {
     fn update_all_references(&mut self, settings: &UserSettings) -> BackendResult<()> {
         let rewrite_mapping = self.resolve_rewrite_mapping_with(|_| true);
         self.update_local_branches(&rewrite_mapping);
-        for (old_id, new_ids) in rewrite_mapping {
-            self.update_references(settings, old_id, new_ids)?;
-        }
+        self.update_wc_commits(settings, &rewrite_mapping)?;
         Ok(())
-    }
-
-    fn update_references(
-        &mut self,
-        settings: &UserSettings,
-        old_commit_id: CommitId,
-        new_commit_ids: Vec<CommitId>,
-    ) -> BackendResult<()> {
-        let abandoned_old_commit = matches!(
-            self.parent_mapping.get(&old_commit_id),
-            Some(Rewrite::Abandoned(_))
-        );
-        self.update_wc_commits(
-            settings,
-            &old_commit_id,
-            &new_commit_ids,
-            abandoned_old_commit,
-        )
     }
 
     fn update_local_branches(&mut self, rewrite_mapping: &HashMap<CommitId, Vec<CommitId>>) {
@@ -1129,32 +1109,44 @@ impl MutableRepo {
     fn update_wc_commits(
         &mut self,
         settings: &UserSettings,
-        old_commit_id: &CommitId,
-        new_commit_ids: &[CommitId],
-        abandoned_old_commit: bool,
+        rewrite_mapping: &HashMap<CommitId, Vec<CommitId>>,
     ) -> BackendResult<()> {
-        let workspaces_to_update = self.view().workspaces_for_wc_commit_id(old_commit_id);
-        if workspaces_to_update.is_empty() {
-            return Ok(());
-        }
-
-        let new_wc_commit = if !abandoned_old_commit {
-            // We arbitrarily pick a new working-copy commit among the candidates.
-            self.store().get_commit(&new_commit_ids[0])?
-        } else {
-            let new_commits: Vec<_> = new_commit_ids
-                .iter()
-                .map(|id| self.store().get_commit(id))
-                .try_collect()?;
-            let merged_parents_tree = merge_commit_trees(self, &new_commits)?;
-            self.new_commit(
-                settings,
-                new_commit_ids.to_vec(),
-                merged_parents_tree.id().clone(),
-            )
-            .write()?
-        };
-        for workspace_id in workspaces_to_update.into_iter() {
+        let changed_wc_commits = self
+            .view()
+            .wc_commit_ids()
+            .iter()
+            .filter_map(|(workspace_id, commit_id)| {
+                let change = rewrite_mapping.get_key_value(commit_id)?;
+                Some((workspace_id.to_owned(), change))
+            })
+            .collect_vec();
+        let mut recreated_wc_commits: HashMap<&CommitId, Commit> = HashMap::new();
+        for (workspace_id, (old_commit_id, new_commit_ids)) in changed_wc_commits {
+            let abandoned_old_commit = matches!(
+                self.parent_mapping.get(old_commit_id),
+                Some(Rewrite::Abandoned(_))
+            );
+            let new_wc_commit = if !abandoned_old_commit {
+                // We arbitrarily pick a new working-copy commit among the candidates.
+                self.store().get_commit(&new_commit_ids[0])?
+            } else if let Some(commit) = recreated_wc_commits.get(old_commit_id) {
+                commit.clone()
+            } else {
+                let new_commits: Vec<_> = new_commit_ids
+                    .iter()
+                    .map(|id| self.store().get_commit(id))
+                    .try_collect()?;
+                let merged_parents_tree = merge_commit_trees(self, &new_commits)?;
+                let commit = self
+                    .new_commit(
+                        settings,
+                        new_commit_ids.to_vec(),
+                        merged_parents_tree.id().clone(),
+                    )
+                    .write()?;
+                recreated_wc_commits.insert(old_commit_id, commit.clone());
+                commit
+            };
             self.edit(workspace_id, &new_wc_commit).unwrap();
         }
         Ok(())
