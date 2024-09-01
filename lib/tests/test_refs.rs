@@ -363,6 +363,36 @@ fn test_merge_ref_targets() {
         target4
     );
 
+    // Existing conflict on left, right moves one side of conflict to the other
+    // side ("A - B + A" - type conflict)
+    assert_eq!(
+        merge_ref_targets(
+            index,
+            &RefTarget::from_legacy_form(
+                [commit5.id().clone()], // not an ancestor of commit3, 4
+                [commit3.id().clone(), commit4.id().clone()],
+            ),
+            &target4,
+            &target3,
+        ),
+        target3
+    );
+
+    // Existing conflict on right, left moves one side of conflict to the other
+    // side ("A - B + A" - type conflict)
+    assert_eq!(
+        merge_ref_targets(
+            index,
+            &target4,
+            &target3,
+            &RefTarget::from_legacy_form(
+                [commit5.id().clone()], // not an ancestor of commit3, 4
+                [commit3.id().clone(), commit4.id().clone()],
+            ),
+        ),
+        target4
+    );
+
     // Existing conflict on left, right makes unrelated update
     assert_eq!(
         merge_ref_targets(
