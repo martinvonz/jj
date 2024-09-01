@@ -20,7 +20,6 @@ use std::collections::HashSet;
 use std::fmt::Debug;
 use std::fmt::Formatter;
 use std::fs;
-use std::iter;
 use std::path::Path;
 use std::path::PathBuf;
 use std::slice;
@@ -57,6 +56,7 @@ use crate::index::IndexStore;
 use crate::index::MutableIndex;
 use crate::index::ReadonlyIndex;
 use crate::local_backend::LocalBackend;
+use crate::merge::MergeBuilder;
 use crate::object_id::HexPrefix;
 use crate::object_id::ObjectId;
 use crate::object_id::PrefixResolution;
@@ -1115,10 +1115,12 @@ impl MutableRepo {
             .collect_vec();
         for (branch_name, (old_commit_id, new_commit_ids)) in changed_branches {
             let old_target = RefTarget::normal(old_commit_id.clone());
-            assert!(!new_commit_ids.is_empty());
-            let new_target = RefTarget::from_legacy_form(
-                iter::repeat(old_commit_id.clone()).take(new_commit_ids.len() - 1),
-                new_commit_ids.iter().cloned(),
+            let new_target = RefTarget::from_merge(
+                MergeBuilder::from_iter(
+                    itertools::intersperse(new_commit_ids, old_commit_id)
+                        .map(|id| Some(id.clone())),
+                )
+                .build(),
             );
             self.merge_local_branch(&branch_name, &old_target, &new_target);
         }
