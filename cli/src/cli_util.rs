@@ -591,15 +591,11 @@ impl AdvanceBranchesSettings {
 /// Provides utilities for writing a command that works on a [`Workspace`]
 /// (which most commands do).
 pub struct WorkspaceCommandHelper {
-    string_args: Vec<String>,
-    global_args: GlobalArgs,
-    settings: UserSettings,
+    command: CommandHelper,
     workspace: Workspace,
     user_repo: ReadonlyUserRepo,
-    revset_extensions: Arc<RevsetExtensions>,
     // TODO: Parsed template can be cached if it doesn't capture 'repo lifetime
     commit_summary_template_text: String,
-    commit_template_extensions: Vec<Arc<dyn CommitTemplateLanguageExtension>>,
     revset_aliases_map: RevsetAliasesMap,
     template_aliases_map: TemplateAliasesMap,
     may_update_working_copy: bool,
@@ -616,28 +612,23 @@ impl WorkspaceCommandHelper {
         repo: Arc<ReadonlyRepo>,
         loaded_at_head: bool,
     ) -> Result<Self, CommandError> {
-        let settings = command.data.settings.clone();
+        let settings = command.settings();
         let commit_summary_template_text =
             settings.config().get_string("templates.commit_summary")?;
         let revset_aliases_map =
             revset_util::load_revset_aliases(ui, &command.data.layered_configs)?;
         let template_aliases_map = command.load_template_aliases(ui)?;
-        let may_update_working_copy =
-            loaded_at_head && !command.data.global_args.ignore_working_copy;
+        let may_update_working_copy = loaded_at_head && !command.global_args().ignore_working_copy;
         let working_copy_shared_with_git = is_colocated_git_workspace(&workspace, &repo);
         let path_converter = RepoPathUiConverter::Fs {
-            cwd: command.data.cwd.clone(),
+            cwd: command.cwd().to_owned(),
             base: workspace.workspace_root().clone(),
         };
         let helper = Self {
-            string_args: command.data.string_args.clone(),
-            global_args: command.data.global_args.clone(),
-            settings,
+            command: command.clone(),
             workspace,
             user_repo: ReadonlyUserRepo::new(repo),
-            revset_extensions: command.data.revset_extensions.clone(),
             commit_summary_template_text,
-            commit_template_extensions: command.data.commit_template_extensions.clone(),
             revset_aliases_map,
             template_aliases_map,
             may_update_working_copy,
@@ -650,6 +641,10 @@ impl WorkspaceCommandHelper {
         Ok(helper)
     }
 
+    pub fn settings(&self) -> &UserSettings {
+        self.command.settings()
+    }
+
     pub fn git_backend(&self) -> Option<&GitBackend> {
         self.user_repo.git_backend()
     }
@@ -658,7 +653,7 @@ impl WorkspaceCommandHelper {
         if self.may_update_working_copy {
             Ok(())
         } else {
-            let hint = if self.global_args.ignore_working_copy {
+            let hint = if self.command.global_args().ignore_working_copy {
                 "Don't use --ignore-working-copy."
             } else {
                 "Don't use --at-op."
@@ -700,6 +695,7 @@ impl WorkspaceCommandHelper {
     #[instrument(skip_all)]
     fn import_git_head(&mut self, ui: &mut Ui) -> Result<(), CommandError> {
         assert!(self.may_update_working_copy);
+        let command = self.command.clone();
         let mut tx = self.start_transaction();
         git::import_head(tx.mut_repo())?;
         if !tx.mut_repo().has_changes() {
@@ -723,13 +719,13 @@ impl WorkspaceCommandHelper {
             let workspace_id = self.workspace_id().to_owned();
             let new_git_head_commit = tx.mut_repo().store().get_commit(new_git_head_id)?;
             tx.mut_repo()
-                .check_out(workspace_id, &self.settings, &new_git_head_commit)?;
+                .check_out(workspace_id, command.settings(), &new_git_head_commit)?;
             let mut locked_ws = self.workspace.start_working_copy_mutation()?;
             // The working copy was presumably updated by the git command that updated
             // HEAD, so we just need to reset our working copy
             // state to it without updating working copy files.
             locked_ws.locked_wc().reset(&new_git_head_commit)?;
-            tx.mut_repo().rebase_descendants(&self.settings)?;
+            tx.mut_repo().rebase_descendants(command.settings())?;
             self.user_repo = ReadonlyUserRepo::new(tx.commit("import git head"));
             locked_ws.finish(self.user_repo.repo.op_id().clone())?;
             if old_git_head.is_present() {
@@ -757,7 +753,7 @@ impl WorkspaceCommandHelper {
     /// the working copy parent if the repository is colocated.
     #[instrument(skip_all)]
     fn import_git_refs(&mut self, ui: &mut Ui) -> Result<(), CommandError> {
-        let git_settings = self.settings.git_settings();
+        let git_settings = self.settings().git_settings();
         let mut tx = self.start_transaction();
         // Automated import shouldn't fail because of reserved remote name.
         let stats = git::import_some_refs(tx.mut_repo(), &git_settings, |ref_name| {
@@ -770,7 +766,7 @@ impl WorkspaceCommandHelper {
         print_git_import_stats(ui, tx.repo(), &stats, false)?;
         let mut tx = tx.into_inner();
         // Rebase here to show slightly different status message.
-        let num_rebased = tx.mut_repo().rebase_descendants(&self.settings)?;
+        let num_rebased = tx.mut_repo().rebase_descendants(self.settings())?;
         if num_rebased > 0 {
             writeln!(
                 ui.status(),
@@ -854,7 +850,7 @@ impl WorkspaceCommandHelper {
         // empty arguments.
         if values.is_empty() {
             Ok(FilesetExpression::all())
-        } else if self.settings.config().get_bool("ui.allow-filesets")? {
+        } else if self.settings().config().get_bool("ui.allow-filesets")? {
             self.parse_union_filesets(values)
         } else {
             let expressions = values
@@ -934,7 +930,7 @@ impl WorkspaceCommandHelper {
         &self,
         args: &DiffFormatArgs,
     ) -> Result<DiffRenderer<'_>, CommandError> {
-        let formats = diff_util::diff_formats_for(&self.settings, args)?;
+        let formats = diff_util::diff_formats_for(self.settings(), args)?;
         Ok(self.diff_renderer(formats))
     }
 
@@ -946,7 +942,7 @@ impl WorkspaceCommandHelper {
         args: &DiffFormatArgs,
         patch: bool,
     ) -> Result<Option<DiffRenderer<'_>>, CommandError> {
-        let formats = diff_util::diff_formats_for_log(&self.settings, args, patch)?;
+        let formats = diff_util::diff_formats_for_log(self.settings(), args, patch)?;
         Ok((!formats.is_empty()).then(|| self.diff_renderer(formats)))
     }
 
@@ -960,9 +956,13 @@ impl WorkspaceCommandHelper {
     ) -> Result<DiffEditor, CommandError> {
         let base_ignores = self.base_ignores()?;
         if let Some(name) = tool_name {
-            Ok(DiffEditor::with_name(name, &self.settings, base_ignores)?)
+            Ok(DiffEditor::with_name(name, self.settings(), base_ignores)?)
         } else {
-            Ok(DiffEditor::from_settings(ui, &self.settings, base_ignores)?)
+            Ok(DiffEditor::from_settings(
+                ui,
+                self.settings(),
+                base_ignores,
+            )?)
         }
     }
 
@@ -991,9 +991,9 @@ impl WorkspaceCommandHelper {
         tool_name: Option<&str>,
     ) -> Result<MergeEditor, MergeToolConfigError> {
         if let Some(name) = tool_name {
-            MergeEditor::with_name(name, &self.settings)
+            MergeEditor::with_name(name, self.settings())
         } else {
-            MergeEditor::from_settings(ui, &self.settings)
+            MergeEditor::from_settings(ui, self.settings())
         }
     }
 
@@ -1029,7 +1029,7 @@ impl WorkspaceCommandHelper {
             let all = match modifier {
                 Some(RevsetModifier::All) => true,
                 None => self
-                    .settings
+                    .settings()
                     .config()
                     .get_bool("ui.always-allow-large-revsets")?,
             };
@@ -1101,7 +1101,7 @@ impl WorkspaceCommandHelper {
     ) -> Result<RevsetExpressionEvaluator<'_>, CommandError> {
         Ok(RevsetExpressionEvaluator::new(
             self.repo().as_ref(),
-            self.revset_extensions.clone(),
+            self.command.revset_extensions().clone(),
             self.id_prefix_context()?,
             expression,
         ))
@@ -1112,7 +1112,7 @@ impl WorkspaceCommandHelper {
             path_converter: &self.path_converter,
             workspace_id: self.workspace_id(),
         };
-        let now = if let Some(timestamp) = self.settings.commit_timestamp() {
+        let now = if let Some(timestamp) = self.settings().commit_timestamp() {
             chrono::Local
                 .timestamp_millis_opt(timestamp.timestamp.0)
                 .unwrap()
@@ -1121,20 +1121,21 @@ impl WorkspaceCommandHelper {
         };
         RevsetParseContext::new(
             &self.revset_aliases_map,
-            self.settings.user_email(),
+            self.settings().user_email(),
             now.into(),
-            &self.revset_extensions,
+            self.command.revset_extensions(),
             Some(workspace_context),
         )
     }
 
     fn new_id_prefix_context(&self) -> Result<IdPrefixContext, CommandError> {
-        let mut context: IdPrefixContext = IdPrefixContext::new(self.revset_extensions.clone());
+        let mut context: IdPrefixContext =
+            IdPrefixContext::new(self.command.revset_extensions().clone());
         let revset_string: String = self
-            .settings
+            .settings()
             .config()
             .get_string("revsets.short-prefixes")
-            .unwrap_or_else(|_| self.settings.default_revset());
+            .unwrap_or_else(|_| self.settings().default_revset());
         if !revset_string.is_empty() {
             let (expression, modifier) =
                 revset::parse_with_modifier(&revset_string, &self.revset_parse_context()).map_err(
@@ -1196,7 +1197,7 @@ impl WorkspaceCommandHelper {
             self.workspace_id(),
             self.revset_parse_context(),
             self.id_prefix_context()?,
-            &self.commit_template_extensions,
+            &self.command.data.commit_template_extensions,
         ))
     }
 
@@ -1235,7 +1236,7 @@ impl WorkspaceCommandHelper {
         repo: &dyn Repo,
         commits: impl IntoIterator<Item = &'a CommitId>,
     ) -> Result<(), CommandError> {
-        if self.global_args.ignore_immutable {
+        if self.command.global_args().ignore_immutable {
             let root_id = self.repo().store().root_commit_id();
             return if commits.into_iter().contains(root_id) {
                 Err(user_error(format!(
@@ -1250,7 +1251,7 @@ impl WorkspaceCommandHelper {
         // Not using self.id_prefix_context() because the disambiguation data
         // must not be calculated and cached against arbitrary repo. It's also
         // unlikely that the immutable expression contains short hashes.
-        let id_prefix_context = IdPrefixContext::new(self.revset_extensions.clone());
+        let id_prefix_context = IdPrefixContext::new(self.command.revset_extensions().clone());
         let to_rewrite_revset =
             RevsetExpression::commits(commits.into_iter().cloned().collect_vec());
         let immutable = revset_util::parse_immutable_expression(&self.revset_parse_context())
@@ -1259,7 +1260,7 @@ impl WorkspaceCommandHelper {
             })?;
         let mut expression = RevsetExpressionEvaluator::new(
             repo,
-            self.revset_extensions.clone(),
+            self.command.revset_extensions().clone(),
             &id_prefix_context,
             immutable,
         );
@@ -1313,6 +1314,9 @@ impl WorkspaceCommandHelper {
         let base_ignores = self.base_ignores()?;
 
         // Compare working-copy tree and operation with repo's, and reload as needed.
+        let fsmonitor_settings = self.settings().fsmonitor_settings()?;
+        let max_new_file_size = self.settings().max_new_file_size()?;
+        let command = self.command.clone();
         let mut locked_ws = self.workspace.start_working_copy_mutation()?;
         let old_op_id = locked_ws.locked_wc().old_operation_id().clone();
         let (repo, wc_commit) =
@@ -1361,24 +1365,27 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
         let progress = crate::progress::snapshot_progress(ui);
         let new_tree_id = locked_ws.locked_wc().snapshot(SnapshotOptions {
             base_ignores,
-            fsmonitor_settings: self.settings.fsmonitor_settings()?,
+            fsmonitor_settings,
             progress: progress.as_ref().map(|x| x as _),
-            max_new_file_size: self.settings.max_new_file_size()?,
+            max_new_file_size,
         })?;
         drop(progress);
         if new_tree_id != *wc_commit.tree_id() {
-            let mut tx =
-                start_repo_transaction(&self.user_repo.repo, &self.settings, &self.string_args);
+            let mut tx = start_repo_transaction(
+                &self.user_repo.repo,
+                command.settings(),
+                command.string_args(),
+            );
             tx.set_is_snapshot(true);
             let mut_repo = tx.mut_repo();
             let commit = mut_repo
-                .rewrite_commit(&self.settings, &wc_commit)
+                .rewrite_commit(command.settings(), &wc_commit)
                 .set_tree_id(new_tree_id)
                 .write()?;
             mut_repo.set_wc_commit(workspace_id, commit.id().clone())?;
 
             // Rebase descendants
-            let num_rebased = mut_repo.rebase_descendants(&self.settings)?;
+            let num_rebased = mut_repo.rebase_descendants(command.settings())?;
             if num_rebased > 0 {
                 writeln!(
                     ui.status(),
@@ -1441,7 +1448,7 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
     }
 
     pub fn start_transaction(&mut self) -> WorkspaceCommandTransaction {
-        let tx = start_repo_transaction(self.repo(), &self.settings, &self.string_args);
+        let tx = start_repo_transaction(self.repo(), self.settings(), self.command.string_args());
         let id_prefix_context = mem::take(&mut self.user_repo.id_prefix_context);
         WorkspaceCommandTransaction {
             helper: self,
@@ -1460,7 +1467,7 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
             writeln!(ui.status(), "Nothing changed.")?;
             return Ok(());
         }
-        let num_rebased = tx.mut_repo().rebase_descendants(&self.settings)?;
+        let num_rebased = tx.mut_repo().rebase_descendants(self.settings())?;
         if num_rebased > 0 {
             writeln!(ui.status(), "Rebased {num_rebased} descendant commits")?;
         }
@@ -1475,7 +1482,7 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
             {
                 let wc_commit = tx.repo().store().get_commit(wc_commit_id)?;
                 tx.mut_repo()
-                    .check_out(workspace_id.clone(), &self.settings, &wc_commit)?;
+                    .check_out(workspace_id.clone(), self.settings(), &wc_commit)?;
                 writeln!(
                     ui.warning_default(),
                     "The working-copy commit in workspace '{}' became immutable, so a new commit \
@@ -1520,7 +1527,7 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
             }
         }
 
-        let settings = &self.settings;
+        let settings = self.settings();
         if settings.user_name().is_empty() || settings.user_email().is_empty() {
             writeln!(
                 ui.warning_default(),
@@ -1706,7 +1713,7 @@ Then run `jj squash` to move the resolution into the conflicted commit."#,
         &self,
         from: impl IntoIterator<Item = &'a CommitId>,
     ) -> Result<Vec<AdvanceableBranch>, CommandError> {
-        let ab_settings = AdvanceBranchesSettings::from_config(self.settings.config())?;
+        let ab_settings = AdvanceBranchesSettings::from_config(self.settings().config())?;
         if !ab_settings.feature_enabled() {
             // Return early if we know that there's no work to do.
             return Ok(Vec::new());
@@ -1749,7 +1756,7 @@ impl WorkspaceCommandTransaction<'_> {
     }
 
     pub fn settings(&self) -> &UserSettings {
-        &self.helper.settings
+        self.helper.settings()
     }
 
     pub fn base_repo(&self) -> &Arc<ReadonlyRepo> {
@@ -1767,7 +1774,7 @@ impl WorkspaceCommandTransaction<'_> {
 
     pub fn check_out(&mut self, commit: &Commit) -> Result<Commit, CheckOutCommitError> {
         let workspace_id = self.helper.workspace_id().to_owned();
-        let settings = &self.helper.settings;
+        let settings = self.helper.settings();
         self.id_prefix_context.take(); // invalidate
         self.tx.mut_repo().check_out(workspace_id, settings, commit)
     }
@@ -1813,7 +1820,7 @@ impl WorkspaceCommandTransaction<'_> {
             self.helper.workspace_id(),
             self.helper.revset_parse_context(),
             id_prefix_context,
-            &self.helper.commit_template_extensions,
+            &self.helper.command.data.commit_template_extensions,
         )
     }
 
