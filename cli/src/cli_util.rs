@@ -255,7 +255,12 @@ impl TracingSubscription {
     }
 }
 
+#[derive(Clone)]
 pub struct CommandHelper {
+    data: Rc<CommandHelperData>,
+}
+
+struct CommandHelperData {
     app: Command,
     cwd: PathBuf,
     string_args: Vec<String>,
@@ -273,7 +278,7 @@ pub struct CommandHelper {
 
 impl CommandHelper {
     pub fn app(&self) -> &Command {
-        &self.app
+        &self.data.app
     }
 
     /// Canonical form of the current working directory path.
@@ -281,34 +286,34 @@ impl CommandHelper {
     /// A loaded `Workspace::workspace_root()` also returns a canonical path, so
     /// relative paths can be easily computed from these paths.
     pub fn cwd(&self) -> &Path {
-        &self.cwd
+        &self.data.cwd
     }
 
     pub fn string_args(&self) -> &Vec<String> {
-        &self.string_args
+        &self.data.string_args
     }
 
     pub fn matches(&self) -> &ArgMatches {
-        &self.matches
+        &self.data.matches
     }
 
     pub fn global_args(&self) -> &GlobalArgs {
-        &self.global_args
+        &self.data.global_args
     }
 
     pub fn settings(&self) -> &UserSettings {
-        &self.settings
+        &self.data.settings
     }
 
     pub fn resolved_config_values(
         &self,
         prefix: &ConfigNamePathBuf,
     ) -> Result<Vec<AnnotatedValue>, crate::config::ConfigError> {
-        self.layered_configs.resolved_config_values(prefix)
+        self.data.layered_configs.resolved_config_values(prefix)
     }
 
     pub fn revset_extensions(&self) -> &Arc<RevsetExtensions> {
-        &self.revset_extensions
+        &self.data.revset_extensions
     }
 
     /// Loads template aliases from the configs.
@@ -316,7 +321,7 @@ impl CommandHelper {
     /// For most commands that depend on a loaded repo, you should use
     /// `WorkspaceCommandHelper::template_aliases_map()` instead.
     fn load_template_aliases(&self, ui: &Ui) -> Result<TemplateAliasesMap, CommandError> {
-        load_template_aliases(ui, &self.layered_configs)
+        load_template_aliases(ui, &self.data.layered_configs)
     }
 
     /// Parses template of the given language into evaluation tree.
@@ -341,11 +346,14 @@ impl CommandHelper {
     }
 
     pub fn operation_template_extensions(&self) -> &[Arc<dyn OperationTemplateLanguageExtension>] {
-        &self.operation_template_extensions
+        &self.data.operation_template_extensions
     }
 
     pub fn workspace_loader(&self) -> Result<&dyn WorkspaceLoader, CommandError> {
-        self.maybe_workspace_loader.as_deref().map_err(Clone::clone)
+        self.data
+            .maybe_workspace_loader
+            .as_deref()
+            .map_err(Clone::clone)
     }
 
     /// Loads workspace and repo, then snapshots the working copy if allowed.
@@ -374,9 +382,11 @@ impl CommandHelper {
 
         // We convert StoreLoadError -> WorkspaceLoadError -> CommandError
         let factory: Result<_, WorkspaceLoadError> =
-            get_working_copy_factory(loader, &self.working_copy_factories).map_err(|e| e.into());
-        let factory = factory
-            .map_err(|err| map_workspace_load_error(err, self.global_args.repository.as_deref()))?;
+            get_working_copy_factory(loader, &self.data.working_copy_factories)
+                .map_err(|e| e.into());
+        let factory = factory.map_err(|err| {
+            map_workspace_load_error(err, self.data.global_args.repository.as_deref())
+        })?;
         Ok(factory)
     }
 
@@ -385,24 +395,29 @@ impl CommandHelper {
         let loader = self.workspace_loader()?;
         loader
             .load(
-                &self.settings,
-                &self.store_factories,
-                &self.working_copy_factories,
+                &self.data.settings,
+                &self.data.store_factories,
+                &self.data.working_copy_factories,
             )
-            .map_err(|err| map_workspace_load_error(err, self.global_args.repository.as_deref()))
+            .map_err(|err| {
+                map_workspace_load_error(err, self.data.global_args.repository.as_deref())
+            })
     }
 
     /// Returns true if the working copy to be loaded is writable, and therefore
     /// should usually be snapshotted.
     pub fn is_working_copy_writable(&self) -> bool {
-        self.is_at_head_operation() && !self.global_args.ignore_working_copy
+        self.is_at_head_operation() && !self.data.global_args.ignore_working_copy
     }
 
     /// Returns true if the current operation is considered to be the head.
     pub fn is_at_head_operation(&self) -> bool {
         // TODO: should we accept --at-op=<head_id> as the head op? or should we
         // make --at-op=@ imply --ignore-workign-copy (i.e. not at the head.)
-        matches!(self.global_args.at_operation.as_deref(), None | Some("@"))
+        matches!(
+            self.data.global_args.at_operation.as_deref(),
+            None | Some("@")
+        )
     }
 
     /// Resolves the current operation from the command-line argument.
@@ -415,7 +430,7 @@ impl CommandHelper {
         ui: &mut Ui,
         repo_loader: &RepoLoader,
     ) -> Result<Operation, CommandError> {
-        if let Some(op_str) = &self.global_args.at_operation {
+        if let Some(op_str) = &self.data.global_args.at_operation {
             Ok(op_walk::resolve_op_for_load(repo_loader, op_str)?)
         } else {
             op_heads_store::resolve_op_heads(
@@ -428,11 +443,14 @@ impl CommandHelper {
                     )?;
                     let base_repo = repo_loader.load_at(&op_heads[0])?;
                     // TODO: It may be helpful to print each operation we're merging here
-                    let mut tx =
-                        start_repo_transaction(&base_repo, &self.settings, &self.string_args);
+                    let mut tx = start_repo_transaction(
+                        &base_repo,
+                        &self.data.settings,
+                        &self.data.string_args,
+                    );
                     for other_op_head in op_heads.into_iter().skip(1) {
                         tx.merge_operation(other_op_head)?;
-                        let num_rebased = tx.mut_repo().rebase_descendants(&self.settings)?;
+                        let num_rebased = tx.mut_repo().rebase_descendants(&self.data.settings)?;
                         if num_rebased > 0 {
                             writeln!(
                                 ui.status(),
@@ -598,26 +616,28 @@ impl WorkspaceCommandHelper {
         repo: Arc<ReadonlyRepo>,
         loaded_at_head: bool,
     ) -> Result<Self, CommandError> {
-        let settings = command.settings.clone();
+        let settings = command.data.settings.clone();
         let commit_summary_template_text =
             settings.config().get_string("templates.commit_summary")?;
-        let revset_aliases_map = revset_util::load_revset_aliases(ui, &command.layered_configs)?;
+        let revset_aliases_map =
+            revset_util::load_revset_aliases(ui, &command.data.layered_configs)?;
         let template_aliases_map = command.load_template_aliases(ui)?;
-        let may_update_working_copy = loaded_at_head && !command.global_args.ignore_working_copy;
+        let may_update_working_copy =
+            loaded_at_head && !command.data.global_args.ignore_working_copy;
         let working_copy_shared_with_git = is_colocated_git_workspace(&workspace, &repo);
         let path_converter = RepoPathUiConverter::Fs {
-            cwd: command.cwd.clone(),
+            cwd: command.data.cwd.clone(),
             base: workspace.workspace_root().clone(),
         };
         let helper = Self {
-            string_args: command.string_args.clone(),
-            global_args: command.global_args.clone(),
+            string_args: command.data.string_args.clone(),
+            global_args: command.data.global_args.clone(),
             settings,
             workspace,
             user_repo: ReadonlyUserRepo::new(repo),
-            revset_extensions: command.revset_extensions.clone(),
+            revset_extensions: command.data.revset_extensions.clone(),
             commit_summary_template_text,
-            commit_template_extensions: command.commit_template_extensions.clone(),
+            commit_template_extensions: command.data.commit_template_extensions.clone(),
             revset_aliases_map,
             template_aliases_map,
             may_update_working_copy,
@@ -1333,7 +1353,7 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
                         "Run `jj workspace update-stale` to recover.
 See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-working-copy \
                          for more information.",
-                    ))
+                    ));
                 }
                 Err(e) => return Err(e.into()),
             };
@@ -3065,7 +3085,7 @@ impl CliRunner {
         }
 
         let settings = UserSettings::from_config(config);
-        let command_helper = CommandHelper {
+        let command_helper_data = CommandHelperData {
             app: self.app,
             cwd,
             string_args,
@@ -3079,6 +3099,9 @@ impl CliRunner {
             maybe_workspace_loader,
             store_factories: self.store_factories,
             working_copy_factories: self.working_copy_factories,
+        };
+        let command_helper = CommandHelper {
+            data: Rc::new(command_helper_data),
         };
         for start_hook_fn in self.start_hook_fns {
             start_hook_fn(ui, &command_helper)?;
