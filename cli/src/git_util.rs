@@ -261,7 +261,7 @@ pub fn with_remote_git_callbacks<T>(
 }
 
 pub fn print_git_import_stats(
-    ui: &mut Ui,
+    ui: &Ui,
     repo: &dyn Repo,
     stats: &GitImportStats,
     show_ref_stats: bool,

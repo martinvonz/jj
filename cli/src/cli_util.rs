@@ -358,7 +358,7 @@ impl CommandHelper {
 
     /// Loads workspace and repo, then snapshots the working copy if allowed.
     #[instrument(skip(self, ui))]
-    pub fn workspace_helper(&self, ui: &mut Ui) -> Result<WorkspaceCommandHelper, CommandError> {
+    pub fn workspace_helper(&self, ui: &Ui) -> Result<WorkspaceCommandHelper, CommandError> {
         let mut workspace_command = self.workspace_helper_no_snapshot(ui)?;
         workspace_command.maybe_snapshot(ui)?;
         Ok(workspace_command)
@@ -369,7 +369,7 @@ impl CommandHelper {
     #[instrument(skip(self, ui))]
     pub fn workspace_helper_no_snapshot(
         &self,
-        ui: &mut Ui,
+        ui: &Ui,
     ) -> Result<WorkspaceCommandHelper, CommandError> {
         let workspace = self.load_workspace()?;
         let op_head = self.resolve_operation(ui, workspace.repo_loader())?;
@@ -427,7 +427,7 @@ impl CommandHelper {
     #[instrument(skip_all)]
     pub fn resolve_operation(
         &self,
-        ui: &mut Ui,
+        ui: &Ui,
         repo_loader: &RepoLoader,
     ) -> Result<Operation, CommandError> {
         if let Some(op_str) = &self.data.global_args.at_operation {
@@ -475,7 +475,7 @@ impl CommandHelper {
     #[instrument(skip_all)]
     pub fn for_workable_repo(
         &self,
-        ui: &mut Ui,
+        ui: &Ui,
         workspace: Workspace,
         repo: Arc<ReadonlyRepo>,
     ) -> Result<WorkspaceCommandHelper, CommandError> {
@@ -488,7 +488,7 @@ impl CommandHelper {
     #[instrument(skip_all)]
     pub fn for_temporary_repo(
         &self,
-        ui: &mut Ui,
+        ui: &Ui,
         workspace: Workspace,
         repo: Arc<ReadonlyRepo>,
     ) -> Result<WorkspaceCommandHelper, CommandError> {
@@ -606,7 +606,7 @@ pub struct WorkspaceCommandHelper {
 impl WorkspaceCommandHelper {
     #[instrument(skip_all)]
     fn new(
-        ui: &mut Ui,
+        ui: &Ui,
         command: &CommandHelper,
         workspace: Workspace,
         repo: Arc<ReadonlyRepo>,
@@ -668,7 +668,7 @@ impl WorkspaceCommandHelper {
     /// Snapshot the working copy if allowed, and import Git refs if the working
     /// copy is collocated with Git.
     #[instrument(skip_all)]
-    pub fn maybe_snapshot(&mut self, ui: &mut Ui) -> Result<(), CommandError> {
+    pub fn maybe_snapshot(&mut self, ui: &Ui) -> Result<(), CommandError> {
         if self.may_update_working_copy {
             if self.working_copy_shared_with_git {
                 self.import_git_head(ui)?;
@@ -693,7 +693,7 @@ impl WorkspaceCommandHelper {
     /// working-copy state will be reset to point to the new Git HEAD. The
     /// working-copy contents won't be updated.
     #[instrument(skip_all)]
-    fn import_git_head(&mut self, ui: &mut Ui) -> Result<(), CommandError> {
+    fn import_git_head(&mut self, ui: &Ui) -> Result<(), CommandError> {
         assert!(self.may_update_working_copy);
         let command = self.command.clone();
         let mut tx = self.start_transaction();
@@ -752,7 +752,7 @@ impl WorkspaceCommandHelper {
     /// This function does not import the Git HEAD, but the HEAD may be reset to
     /// the working copy parent if the repository is colocated.
     #[instrument(skip_all)]
-    fn import_git_refs(&mut self, ui: &mut Ui) -> Result<(), CommandError> {
+    fn import_git_refs(&mut self, ui: &Ui) -> Result<(), CommandError> {
         let git_settings = self.settings().git_settings();
         let mut tx = self.start_transaction();
         // Automated import shouldn't fail because of reserved remote name.
@@ -1313,7 +1313,7 @@ impl WorkspaceCommandHelper {
     }
 
     #[instrument(skip_all)]
-    fn snapshot_working_copy(&mut self, ui: &mut Ui) -> Result<(), CommandError> {
+    fn snapshot_working_copy(&mut self, ui: &Ui) -> Result<(), CommandError> {
         let workspace_id = self.workspace_id().to_owned();
         let get_wc_commit = |repo: &ReadonlyRepo| -> Result<Option<_>, _> {
             repo.view()
@@ -1424,7 +1424,7 @@ See https://martinvonz.github.io/jj/latest/working-copy/#stale-working-copy \
 
     fn update_working_copy(
         &mut self,
-        ui: &mut Ui,
+        ui: &Ui,
         maybe_old_commit: Option<&Commit>,
         new_commit: &Commit,
     ) -> Result<(), CommandError> {
@@ -1477,7 +1477,7 @@ See https://martinvonz.github.io/jj/latest/working-copy/#stale-working-copy \
 
     fn finish_transaction(
         &mut self,
-        ui: &mut Ui,
+        ui: &Ui,
         mut tx: Transaction,
         description: impl Into<String>,
     ) -> Result<(), CommandError> {
@@ -1560,7 +1560,7 @@ See https://martinvonz.github.io/jj/latest/working-copy/#stale-working-copy \
     /// operation (when `old_repo` was loaded).
     fn report_repo_changes(
         &self,
-        ui: &mut Ui,
+        ui: &Ui,
         old_repo: &Arc<ReadonlyRepo>,
     ) -> Result<(), CommandError> {
         let Some(mut fmt) = ui.status_formatter() else {
@@ -1854,7 +1854,7 @@ impl WorkspaceCommandTransaction<'_> {
         )
     }
 
-    pub fn finish(self, ui: &mut Ui, description: impl Into<String>) -> Result<(), CommandError> {
+    pub fn finish(self, ui: &Ui, description: impl Into<String>) -> Result<(), CommandError> {
         self.helper.finish_transaction(ui, self.tx, description)
     }
 
@@ -2113,7 +2113,7 @@ pub fn print_conflicted_paths(
 }
 
 pub fn print_checkout_stats(
-    ui: &mut Ui,
+    ui: &Ui,
     stats: CheckoutStats,
     new_commit: &Commit,
 ) -> Result<(), std::io::Error> {
