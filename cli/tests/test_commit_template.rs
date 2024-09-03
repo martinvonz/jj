@@ -1017,7 +1017,7 @@ fn test_log_diff_predefined_formats() {
     === summary ===
     [38;5;6mM file1[39m
     [38;5;6mM file2[39m
-    R {rename-source => rename-target}
+    [38;5;6mR {rename-source => rename-target}[39m
     "###);
 
     // color labels
@@ -1063,7 +1063,7 @@ fn test_log_diff_predefined_formats() {
     <<log::=== summary ===>>
     [38;5;6m<<log diff summary modified::M file1>>[39m
     [38;5;6m<<log diff summary modified::M file2>>[39m
-    <<log diff summary renamed::R {rename-source => rename-target}>>
+    [38;5;6m<<log diff summary renamed::R {rename-source => rename-target}>>[39m
     "###);
 
     // cwd != workspace root
