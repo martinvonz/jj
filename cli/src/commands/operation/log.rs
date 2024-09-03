@@ -24,6 +24,7 @@ use crate::command_error::CommandError;
 use crate::graphlog::get_graphlog;
 use crate::graphlog::node_template_for_key;
 use crate::graphlog::Edge;
+use crate::graphlog::GraphStyle;
 use crate::operation_templater::OperationTemplateLanguage;
 use crate::ui::Ui;
 
@@ -116,7 +117,8 @@ pub fn cmd_op_log(
     let limit = args.limit.or(args.deprecated_limit).unwrap_or(usize::MAX);
     let iter = op_walk::walk_ancestors(slice::from_ref(&current_op)).take(limit);
     if !args.no_graph {
-        let mut graph = get_graphlog(command.settings(), formatter.raw());
+        let graph_style = GraphStyle::from_settings(command.settings());
+        let mut graph = get_graphlog(graph_style, formatter.raw());
         for op in iter {
             let op = op?;
             let mut edges = vec![];

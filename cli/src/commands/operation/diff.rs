@@ -47,6 +47,7 @@ use crate::diff_util::DiffRenderer;
 use crate::formatter::Formatter;
 use crate::graphlog::get_graphlog;
 use crate::graphlog::Edge;
+use crate::graphlog::GraphStyle;
 use crate::templater::TemplateRenderer;
 use crate::ui::Ui;
 
@@ -216,7 +217,8 @@ pub fn show_op_diff(
         writeln!(formatter)?;
         writeln!(formatter, "Changed commits:")?;
         if show_graph {
-            let mut graph = get_graphlog(command.settings(), formatter.raw());
+            let graph_style = GraphStyle::from_settings(command.settings());
+            let mut graph = get_graphlog(graph_style, formatter.raw());
 
             let graph_iter =
                 TopoGroupedGraphIterator::new(ordered_change_ids.iter().map(|change_id| {

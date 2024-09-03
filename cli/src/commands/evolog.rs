@@ -32,6 +32,7 @@ use crate::diff_util::DiffRenderer;
 use crate::formatter::Formatter;
 use crate::graphlog::get_graphlog;
 use crate::graphlog::Edge;
+use crate::graphlog::GraphStyle;
 use crate::ui::Ui;
 
 /// Show how a change has evolved over time
@@ -143,7 +144,8 @@ pub(crate) fn cmd_evolog(
         commits.truncate(n);
     }
     if !args.no_graph {
-        let mut graph = get_graphlog(command.settings(), formatter.raw());
+        let graph_style = GraphStyle::from_settings(command.settings());
+        let mut graph = get_graphlog(graph_style, formatter.raw());
         for commit in commits {
             let mut edges = vec![];
             for predecessor in commit.predecessors() {
