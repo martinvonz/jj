@@ -15,12 +15,14 @@
 use std::slice;
 
 use jj_lib::op_walk;
+use jj_lib::settings::UserSettings;
 
 use crate::cli_util::format_template;
 use crate::cli_util::CommandHelper;
 use crate::cli_util::LogContentFormat;
 use crate::command_error::CommandError;
 use crate::graphlog::get_graphlog;
+use crate::graphlog::node_template_for_key;
 use crate::graphlog::Edge;
 use crate::operation_templater::OperationTemplateLanguage;
 use crate::ui::Ui;
@@ -96,7 +98,7 @@ pub fn cmd_op_log(
             .parse_template(
                 ui,
                 &language,
-                &command.settings().op_node_template(),
+                &get_node_template(command.settings()),
                 OperationTemplateLanguage::wrap_operation,
             )?
             .labeled("node");
@@ -146,4 +148,13 @@ pub fn cmd_op_log(
     }
 
     Ok(())
+}
+
+fn get_node_template(settings: &UserSettings) -> String {
+    node_template_for_key(
+        settings,
+        "templates.op_log_node",
+        "builtin_op_log_node",
+        "builtin_op_log_node_ascii",
+    )
 }

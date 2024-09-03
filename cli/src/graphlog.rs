@@ -102,12 +102,32 @@ impl<'writer, R> SaplingGraphLog<'writer, R> {
     }
 }
 
+pub fn graph_style(settings: &UserSettings) -> String {
+    settings
+        .config()
+        .get_string("ui.graph.style")
+        .unwrap_or_else(|_| "curved".to_string())
+}
+
+pub fn node_template_for_key(
+    settings: &UserSettings,
+    key: &str,
+    fallback: &str,
+    ascii_fallback: &str,
+) -> String {
+    let symbol = settings.config().get_string(key);
+    match graph_style(settings).as_str() {
+        "ascii" | "ascii-large" => symbol.unwrap_or_else(|_| ascii_fallback.to_owned()),
+        _ => symbol.unwrap_or_else(|_| fallback.to_owned()),
+    }
+}
+
 pub fn get_graphlog<'a, K: Clone + Eq + Hash + 'a>(
     settings: &UserSettings,
     formatter: &'a mut dyn Write,
 ) -> Box<dyn GraphLog<K> + 'a> {
     let builder = GraphRowRenderer::new().output().with_min_row_height(0);
-    match settings.graph_style().as_str() {
+    match graph_style(settings).as_str() {
         "square" => {
             SaplingGraphLog::create(builder.build_box_drawing().with_square_glyphs(), formatter)
         }

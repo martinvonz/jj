@@ -20,6 +20,7 @@ use jj_lib::repo::Repo;
 use jj_lib::rewrite::rebase_to_dest_parent;
 use tracing::instrument;
 
+use super::log::get_node_template;
 use crate::cli_util::format_template;
 use crate::cli_util::CommandHelper;
 use crate::cli_util::LogContentFormat;
@@ -103,7 +104,7 @@ pub(crate) fn cmd_evolog(
         node_template = workspace_command
             .parse_template(
                 &language,
-                &command.settings().commit_node_template(),
+                &get_node_template(command.settings()),
                 CommitTemplateLanguage::wrap_commit_opt,
             )?
             .labeled("node");

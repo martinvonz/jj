@@ -229,28 +229,6 @@ impl UserSettings {
         GitSettings::from_config(&self.config)
     }
 
-    pub fn graph_style(&self) -> String {
-        self.config
-            .get_string("ui.graph.style")
-            .unwrap_or_else(|_| "curved".to_string())
-    }
-
-    pub fn commit_node_template(&self) -> String {
-        self.node_template_for_key(
-            "templates.log_node",
-            "builtin_log_node",
-            "builtin_log_node_ascii",
-        )
-    }
-
-    pub fn op_node_template(&self) -> String {
-        self.node_template_for_key(
-            "templates.op_log_node",
-            "builtin_op_log_node",
-            "builtin_op_log_node_ascii",
-        )
-    }
-
     pub fn max_new_file_size(&self) -> Result<u64, config::ConfigError> {
         let cfg = self
             .config
@@ -272,14 +250,6 @@ impl UserSettings {
 
     pub fn sign_settings(&self) -> SignSettings {
         SignSettings::from_settings(self)
-    }
-
-    fn node_template_for_key(&self, key: &str, fallback: &str, ascii_fallback: &str) -> String {
-        let symbol = self.config.get_string(key);
-        match self.graph_style().as_str() {
-            "ascii" | "ascii-large" => symbol.unwrap_or_else(|_| ascii_fallback.to_owned()),
-            _ => symbol.unwrap_or_else(|_| fallback.to_owned()),
-        }
     }
 }
 
