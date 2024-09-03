@@ -33,6 +33,7 @@ use crate::diff_util::DiffFormatArgs;
 use crate::graphlog::get_graphlog;
 use crate::graphlog::node_template_for_key;
 use crate::graphlog::Edge;
+use crate::graphlog::GraphStyle;
 use crate::ui::Ui;
 
 /// Show revision history
@@ -164,7 +165,8 @@ pub(crate) fn cmd_log(
         let limit = args.limit.or(args.deprecated_limit).unwrap_or(usize::MAX);
 
         if !args.no_graph {
-            let mut graph = get_graphlog(command.settings(), formatter.raw());
+            let graph_style = GraphStyle::from_settings(command.settings());
+            let mut graph = get_graphlog(graph_style, formatter.raw());
             let forward_iter = TopoGroupedGraphIterator::new(revset.iter_graph());
             let iter: Box<dyn Iterator<Item = _>> = if args.reversed {
                 Box::new(ReverseGraphIterator::new(forward_iter))

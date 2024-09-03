@@ -142,11 +142,11 @@ pub fn node_template_for_key(
 }
 
 pub fn get_graphlog<'a, K: Clone + Eq + Hash + 'a>(
-    settings: &UserSettings,
+    style: GraphStyle,
     formatter: &'a mut dyn Write,
 ) -> Box<dyn GraphLog<K> + 'a> {
     let builder = GraphRowRenderer::new().output().with_min_row_height(0);
-    match GraphStyle::from_settings(settings) {
+    match style {
         GraphStyle::Ascii => SaplingGraphLog::create(builder.build_ascii(), formatter),
         GraphStyle::AsciiLarge => SaplingGraphLog::create(builder.build_ascii_large(), formatter),
         GraphStyle::Curved => SaplingGraphLog::create(builder.build_box_drawing(), formatter),
