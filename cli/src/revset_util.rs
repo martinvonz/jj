@@ -25,6 +25,7 @@ use jj_lib::id_prefix::IdPrefixContext;
 use jj_lib::repo::Repo;
 use jj_lib::revset;
 use jj_lib::revset::DefaultSymbolResolver;
+use jj_lib::revset::ResolvedExpression;
 use jj_lib::revset::Revset;
 use jj_lib::revset::RevsetAliasesMap;
 use jj_lib::revset::RevsetCommitRef;
@@ -90,14 +91,19 @@ impl<'repo> RevsetExpressionEvaluator<'repo> {
         self.expression = self.expression.intersection(other);
     }
 
-    /// Evaluates the expression.
-    pub fn evaluate(&self) -> Result<Box<dyn Revset + 'repo>, UserRevsetEvaluationError> {
+    /// Resolves the expression.
+    pub fn resolve(&self) -> Result<ResolvedExpression, UserRevsetEvaluationError> {
         let symbol_resolver = default_symbol_resolver(
             self.repo,
             self.extensions.symbol_resolvers(),
             self.id_prefix_context,
         );
-        evaluate(self.repo, &symbol_resolver, self.expression.clone())
+        resolve(self.repo, &symbol_resolver, self.expression.clone())
+    }
+
+    /// Evaluates the expression.
+    pub fn evaluate(&self) -> Result<Box<dyn Revset + 'repo>, UserRevsetEvaluationError> {
+        evaluate_resolved(self.repo, &self.resolve()?)
     }
 
     /// Evaluates the expression to an iterator over commit ids. Entries are
@@ -175,17 +181,31 @@ pub fn load_revset_aliases(
     Ok(aliases_map)
 }
 
+fn resolve(
+    repo: &dyn Repo,
+    symbol_resolver: &DefaultSymbolResolver,
+    expression: Rc<RevsetExpression>,
+) -> Result<ResolvedExpression, UserRevsetEvaluationError> {
+    revset::optimize(expression)
+        .resolve_user_expression(repo, symbol_resolver)
+        .map_err(UserRevsetEvaluationError::Resolution)
+}
+
+fn evaluate_resolved<'a>(
+    repo: &'a dyn Repo,
+    resolved_expression: &ResolvedExpression,
+) -> Result<Box<dyn Revset + 'a>, UserRevsetEvaluationError> {
+    resolved_expression
+        .evaluate(repo)
+        .map_err(UserRevsetEvaluationError::Evaluation)
+}
+
 pub fn evaluate<'a>(
     repo: &'a dyn Repo,
     symbol_resolver: &DefaultSymbolResolver,
     expression: Rc<RevsetExpression>,
 ) -> Result<Box<dyn Revset + 'a>, UserRevsetEvaluationError> {
-    let resolved = revset::optimize(expression)
-        .resolve_user_expression(repo, symbol_resolver)
-        .map_err(UserRevsetEvaluationError::Resolution)?;
-    resolved
-        .evaluate(repo)
-        .map_err(UserRevsetEvaluationError::Evaluation)
+    evaluate_resolved(repo, &resolve(repo, symbol_resolver, expression)?)
 }
 
 /// Wraps the given `IdPrefixContext` in `SymbolResolver` to be passed in to
