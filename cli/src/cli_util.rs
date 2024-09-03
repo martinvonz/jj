@@ -2359,18 +2359,19 @@ impl LogContentFormat {
     }
 
     /// Writes content which will optionally be wrapped at the current width.
-    pub fn write(
+    pub fn write<E: From<io::Error>>(
         &self,
         formatter: &mut dyn Formatter,
-        content_fn: impl FnOnce(&mut dyn Formatter) -> std::io::Result<()>,
-    ) -> std::io::Result<()> {
+        content_fn: impl FnOnce(&mut dyn Formatter) -> Result<(), E>,
+    ) -> Result<(), E> {
         if self.word_wrap {
             let mut recorder = FormatRecorder::new();
             content_fn(&mut recorder)?;
-            text_util::write_wrapped(formatter, &recorder, self.width)
+            text_util::write_wrapped(formatter, &recorder, self.width)?;
         } else {
-            content_fn(formatter)
+            content_fn(formatter)?;
         }
+        Ok(())
     }
 }
 
