@@ -98,6 +98,7 @@ pub fn cmd_op_diff(
         }
         from_op = repo_loader.merge_operations(command.settings(), to_op_parents, None)?;
     }
+    let graph_style = GraphStyle::from_settings(command.settings())?;
     let with_content_format = LogContentFormat::new(ui, command.settings())?;
 
     let from_repo = repo_loader.load_at(&from_op)?;
@@ -155,12 +156,11 @@ pub fn cmd_op_diff(
 
     show_op_diff(
         ui,
-        command,
         tx.repo(),
         &from_repo,
         &to_repo,
         &commit_summary_template,
-        !args.no_graph,
+        (!args.no_graph).then_some(graph_style),
         &with_content_format,
         diff_renderer,
     )
@@ -173,12 +173,11 @@ pub fn cmd_op_diff(
 #[allow(clippy::too_many_arguments)]
 pub fn show_op_diff(
     ui: &mut Ui,
-    command: &CommandHelper,
     current_repo: &dyn Repo,
     from_repo: &Arc<ReadonlyRepo>,
     to_repo: &Arc<ReadonlyRepo>,
     commit_summary_template: &TemplateRenderer<Commit>,
-    show_graph: bool,
+    graph_style: Option<GraphStyle>,
     with_content_format: &LogContentFormat,
     diff_renderer: Option<DiffRenderer>,
 ) -> Result<(), CommandError> {
@@ -216,8 +215,7 @@ pub fn show_op_diff(
     if !ordered_change_ids.is_empty() {
         writeln!(formatter)?;
         writeln!(formatter, "Changed commits:")?;
-        if show_graph {
-            let graph_style = GraphStyle::from_settings(command.settings())?;
+        if let Some(graph_style) = graph_style {
             let mut graph = get_graphlog(graph_style, formatter.raw());
 
             let graph_iter =
