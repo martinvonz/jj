@@ -902,6 +902,10 @@ impl WorkspaceCommandHelper {
         self.workspace.repo_path()
     }
 
+    pub fn workspace(&self) -> &Workspace {
+        &self.workspace
+    }
+
     pub fn working_copy(&self) -> &dyn WorkingCopy {
         self.workspace.working_copy()
     }

@@ -1390,6 +1390,22 @@ Like other commands, `jj op log` snapshots the current working-copy changes and 
 * `-T`, `--template <TEMPLATE>` — Render each operation using the given template
 
    For the syntax, see https://martinvonz.github.io/jj/latest/templates/
+* `--op-diff` — Show changes to the repository at each operation
+* `-p`, `--patch` — Show patch of modifications to changes (implies --op-diff)
+
+   If the previous version has different parents, it will be temporarily rebased to the parents of the new version, so the diff is not contaminated by unrelated changes.
+* `-s`, `--summary` — For each path, show only whether it was modified, added, or deleted
+* `--stat` — Show a histogram of the changes
+* `--types` — For each path, show only its type before and after
+
+   The diff is shown as two letters. The first letter indicates the type before and the second letter indicates the type after. '-' indicates that the path was not present, 'F' represents a regular file, `L' represents a symlink, 'C' represents a conflict, and 'G' represents a Git submodule.
+* `--name-only` — For each path, show only its path
+
+   Typically useful for shell commands like: `jj diff -r @- --name_only | xargs perl -pi -e's/OLD/NEW/g`
+* `--git` — Show a Git-format diff
+* `--color-words` — Show a word-level diff with changes indicated only by color
+* `--tool <TOOL>` — Generate diff by external command
+* `--context <CONTEXT>` — Number of lines of context to show
 
 
 
