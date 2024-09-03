@@ -81,10 +81,12 @@ pub fn cmd_op_show(
     }
 
     ui.request_pager();
-    template.format(&op, ui.stdout_formatter().as_mut())?;
+    let mut formatter = ui.stdout_formatter();
+    template.format(&op, formatter.as_mut())?;
 
     show_op_diff(
         ui,
+        formatter.as_mut(),
         repo.as_ref(),
         &parent_repo,
         &repo,
