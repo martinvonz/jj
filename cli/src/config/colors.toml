@@ -82,6 +82,8 @@
 "diff added" = { fg = "green" }
 "diff token" = { underline = true }
 "diff modified" = "cyan"
+"diff renamed" = "cyan"
+"diff copied" = "green"
 "diff access-denied" = { bg = "red" }
 
 "op_log id" = "blue"
