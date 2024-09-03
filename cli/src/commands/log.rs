@@ -145,7 +145,7 @@ pub(crate) fn cmd_log(
         node_template = workspace_command
             .parse_template(
                 &language,
-                &get_node_template(command.settings()),
+                &get_node_template(command.settings())?,
                 CommitTemplateLanguage::wrap_commit_opt,
             )?
             .labeled("node");
@@ -165,7 +165,7 @@ pub(crate) fn cmd_log(
         let limit = args.limit.or(args.deprecated_limit).unwrap_or(usize::MAX);
 
         if !args.no_graph {
-            let graph_style = GraphStyle::from_settings(command.settings());
+            let graph_style = GraphStyle::from_settings(command.settings())?;
             let mut graph = get_graphlog(graph_style, formatter.raw());
             let forward_iter = TopoGroupedGraphIterator::new(revset.iter_graph());
             let iter: Box<dyn Iterator<Item = _>> = if args.reversed {
@@ -297,7 +297,7 @@ pub(crate) fn cmd_log(
     Ok(())
 }
 
-pub fn get_node_template(settings: &UserSettings) -> String {
+pub fn get_node_template(settings: &UserSettings) -> Result<String, config::ConfigError> {
     node_template_for_key(
         settings,
         "templates.log_node",
