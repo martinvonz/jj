@@ -222,7 +222,9 @@ pub fn show_op_diff(
 
     if !ordered_change_ids.is_empty() {
         writeln!(formatter)?;
-        writeln!(formatter, "Changed commits:")?;
+        with_content_format.write(formatter, |formatter| {
+            writeln!(formatter, "Changed commits:")
+        })?;
         if let Some(graph_style) = graph_style {
             let mut graph = get_graphlog(graph_style, formatter.raw());
 
@@ -281,14 +283,16 @@ pub fn show_op_diff(
         } else {
             for change_id in ordered_change_ids {
                 let modified_change = changes.get(&change_id).unwrap();
-                write_modified_change_summary(
-                    formatter,
-                    commit_summary_template,
-                    &change_id,
-                    modified_change,
-                )?;
+                with_content_format.write(formatter, |formatter| {
+                    write_modified_change_summary(
+                        formatter,
+                        commit_summary_template,
+                        &change_id,
+                        modified_change,
+                    )
+                })?;
                 if let Some(diff_renderer) = &diff_renderer {
-                    let width = ui.term_width();
+                    let width = with_content_format.width();
                     show_change_diff(ui, formatter, diff_renderer, modified_change, width)?;
                 }
             }
@@ -302,25 +306,29 @@ pub fn show_op_diff(
     .collect_vec();
     if !changed_local_bookmarks.is_empty() {
         writeln!(formatter)?;
-        writeln!(formatter, "Changed local branches:")?;
+        with_content_format.write(formatter, |formatter| {
+            writeln!(formatter, "Changed local branches:")
+        })?;
         for (name, (from_target, to_target)) in changed_local_bookmarks {
-            writeln!(formatter, "{}:", name)?;
-            write_ref_target_summary(
-                formatter,
-                current_repo,
-                commit_summary_template,
-                to_target,
-                true,
-                None,
-            )?;
-            write_ref_target_summary(
-                formatter,
-                current_repo,
-                commit_summary_template,
-                from_target,
-                false,
-                None,
-            )?;
+            with_content_format.write(formatter, |formatter| {
+                writeln!(formatter, "{}:", name)?;
+                write_ref_target_summary(
+                    formatter,
+                    current_repo,
+                    commit_summary_template,
+                    to_target,
+                    true,
+                    None,
+                )?;
+                write_ref_target_summary(
+                    formatter,
+                    current_repo,
+                    commit_summary_template,
+                    from_target,
+                    false,
+                    None,
+                )
+            })?;
         }
     }
 
@@ -328,25 +336,27 @@ pub fn show_op_diff(
         diff_named_ref_targets(from_repo.view().tags(), to_repo.view().tags()).collect_vec();
     if !changed_tags.is_empty() {
         writeln!(formatter)?;
-        writeln!(formatter, "Changed tags:")?;
+        with_content_format.write(formatter, |formatter| writeln!(formatter, "Changed tags:"))?;
         for (name, (from_target, to_target)) in changed_tags {
-            writeln!(formatter, "{}:", name)?;
-            write_ref_target_summary(
-                formatter,
-                current_repo,
-                commit_summary_template,
-                to_target,
-                true,
-                None,
-            )?;
-            write_ref_target_summary(
-                formatter,
-                current_repo,
-                commit_summary_template,
-                from_target,
-                false,
-                None,
-            )?;
+            with_content_format.write(formatter, |formatter| {
+                writeln!(formatter, "{}:", name)?;
+                write_ref_target_summary(
+                    formatter,
+                    current_repo,
+                    commit_summary_template,
+                    to_target,
+                    true,
+                    None,
+                )?;
+                write_ref_target_summary(
+                    formatter,
+                    current_repo,
+                    commit_summary_template,
+                    from_target,
+                    false,
+                    None,
+                )
+            })?;
         }
         writeln!(formatter)?;
     }
@@ -361,29 +371,33 @@ pub fn show_op_diff(
     .collect_vec();
     if !changed_remote_branches.is_empty() {
         writeln!(formatter)?;
-        writeln!(formatter, "Changed remote branches:")?;
+        with_content_format.write(formatter, |formatter| {
+            writeln!(formatter, "Changed remote branches:")
+        })?;
         let get_remote_ref_prefix = |remote_ref: &RemoteRef| match remote_ref.state {
             RemoteRefState::New => "untracked",
             RemoteRefState::Tracking => "tracked",
         };
         for ((name, remote_name), (from_ref, to_ref)) in changed_remote_branches {
-            writeln!(formatter, "{}@{}:", name, remote_name)?;
-            write_ref_target_summary(
-                formatter,
-                current_repo,
-                commit_summary_template,
-                &to_ref.target,
-                true,
-                Some(get_remote_ref_prefix(to_ref)),
-            )?;
-            write_ref_target_summary(
-                formatter,
-                current_repo,
-                commit_summary_template,
-                &from_ref.target,
-                false,
-                Some(get_remote_ref_prefix(from_ref)),
-            )?;
+            with_content_format.write(formatter, |formatter| {
+                writeln!(formatter, "{}@{}:", name, remote_name)?;
+                write_ref_target_summary(
+                    formatter,
+                    current_repo,
+                    commit_summary_template,
+                    &to_ref.target,
+                    true,
+                    Some(get_remote_ref_prefix(to_ref)),
+                )?;
+                write_ref_target_summary(
+                    formatter,
+                    current_repo,
+                    commit_summary_template,
+                    &from_ref.target,
+                    false,
+                    Some(get_remote_ref_prefix(from_ref)),
+                )
+            })?;
         }
     }
 

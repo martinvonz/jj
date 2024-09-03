@@ -1346,6 +1346,156 @@ fn test_op_diff_sibling() {
 }
 
 #[test]
+fn test_op_diff_word_wrap() {
+    let test_env = TestEnvironment::default();
+    let git_repo_path = test_env.env_root().join("git-repo");
+    init_bare_git_repo(&git_repo_path);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "clone", "git-repo", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+    let render = |args: &[&str], columns: u32, word_wrap: bool| {
+        let mut args = args.to_vec();
+        if word_wrap {
+            args.push("--config-toml=ui.log-word-wrap=true");
+        }
+        let assert = test_env
+            .jj_cmd(&repo_path, &args)
+            .env("COLUMNS", columns.to_string())
+            .assert()
+            .success()
+            .stderr("");
+        get_stdout_string(&assert)
+    };
+
+    // Add some file content changes
+    std::fs::write(repo_path.join("file1"), "foo\n".repeat(100)).unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["debug", "snapshot"]);
+
+    // ui.log-word-wrap option works, and diff stat respects content width
+    insta::assert_snapshot!(render(&["op", "diff", "--from=@---", "--stat"], 40, true), @r#"
+    From operation b51416386f26: add workspace 'default'
+      To operation d12081b11443: snapshot working copy
+
+    Changed commits:
+    ○  Change sqpuoqvxutmz
+    │  + sqpuoqvx 850efc9e (no description
+    │  set)
+    │  file1 | 100 ++++++++++++++++++++++
+    │  1 file changed, 100 insertions(+), 0 deletions(-)
+    ○  Change ulyvmwyzwuwt
+       + ulyvmwyz 1d843d1f bookmark-1 |
+       Commit 1
+       some-file | 1 +
+       1 file changed, 1 insertion(+), 0 deletions(-)
+    ○  Change tqyxmsztkvot
+       + tqyxmszt 3e785984 bookmark-3@origin
+       | Commit 3
+       some-file | 1 +
+       1 file changed, 1 insertion(+), 0 deletions(-)
+    ○  Change yuvsmzqkmpws
+       + yuvsmzqk 3d9189bc bookmark-2@origin
+       | Commit 2
+       some-file | 1 +
+       1 file changed, 1 insertion(+), 0 deletions(-)
+    ○  Change qpvuntsmwlqt
+       - qpvuntsm hidden 230dd059 (empty)
+       (no description set)
+       0 files changed, 0 insertions(+), 0 deletions(-)
+
+    Changed local branches:
+    bookmark-1:
+    + ulyvmwyz 1d843d1f bookmark-1 | Commit
+    1
+    - (absent)
+
+    Changed remote branches:
+    bookmark-1@origin:
+    + tracked ulyvmwyz 1d843d1f bookmark-1 |
+    Commit 1
+    - untracked (absent)
+    bookmark-2@origin:
+    + untracked yuvsmzqk 3d9189bc
+    bookmark-2@origin | Commit 2
+    - untracked (absent)
+    bookmark-3@origin:
+    + untracked tqyxmszt 3e785984
+    bookmark-3@origin | Commit 3
+    - untracked (absent)
+    "#);
+
+    // Graph width should be subtracted from the term width
+    let config = r#"templates.commit_summary='"0 1 2 3 4 5 6 7 8 9"'"#;
+    insta::assert_snapshot!(
+        render(&["op", "diff", "--from=@---", "--config-toml", config], 10, true), @r#"
+    From operation b51416386f26: add workspace 'default'
+      To operation d12081b11443: snapshot working copy
+
+    Changed
+    commits:
+    ○  Change
+    │  sqpuoqvxutmz
+    │  + 0 1 2
+    │  3 4 5 6
+    │  7 8 9
+    ○  Change
+       ulyvmwyzwuwt
+       + 0 1 2
+       3 4 5 6
+       7 8 9
+    ○  Change
+       tqyxmsztkvot
+       + 0 1 2
+       3 4 5 6
+       7 8 9
+    ○  Change
+       yuvsmzqkmpws
+       + 0 1 2
+       3 4 5 6
+       7 8 9
+    ○  Change
+       qpvuntsmwlqt
+       - 0 1 2
+       3 4 5 6
+       7 8 9
+
+    Changed
+    local
+    branches:
+    bookmark-1:
+    + 0 1 2 3
+    4 5 6 7 8
+    9
+    - (absent)
+
+    Changed
+    remote
+    branches:
+    bookmark-1@origin:
+    + tracked
+    0 1 2 3 4
+    5 6 7 8 9
+    -
+    untracked
+    (absent)
+    bookmark-2@origin:
+    +
+    untracked
+    0 1 2 3 4
+    5 6 7 8 9
+    -
+    untracked
+    (absent)
+    bookmark-3@origin:
+    +
+    untracked
+    0 1 2 3 4
+    5 6 7 8 9
+    -
+    untracked
+    (absent)
+    "#);
+}
+
+#[test]
 fn test_op_show() {
     let test_env = TestEnvironment::default();
     let git_repo_path = test_env.env_root().join("git-repo");
