@@ -20,6 +20,7 @@ use crate::cli_util::LogContentFormat;
 use crate::command_error::user_error;
 use crate::command_error::CommandError;
 use crate::diff_util::DiffFormatArgs;
+use crate::graphlog::GraphStyle;
 use crate::operation_templater::OperationTemplateLanguage;
 use crate::ui::Ui;
 
@@ -65,6 +66,7 @@ pub fn cmd_op_show(
         command.for_temporary_repo(ui, command.load_workspace()?, repo.clone())?;
     let commit_summary_template = workspace_command.commit_summary_template();
 
+    let graph_style = GraphStyle::from_settings(command.settings())?;
     let with_content_format = LogContentFormat::new(ui, command.settings())?;
     let diff_renderer = workspace_command.diff_renderer_for_log(&args.diff_format, args.patch)?;
 
@@ -87,12 +89,11 @@ pub fn cmd_op_show(
 
     show_op_diff(
         ui,
-        command,
         repo.as_ref(),
         &parent_repo,
         &repo,
         &commit_summary_template,
-        !args.no_graph,
+        (!args.no_graph).then_some(graph_style),
         &with_content_format,
         diff_renderer,
     )
