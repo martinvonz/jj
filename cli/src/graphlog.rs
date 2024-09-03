@@ -102,11 +102,29 @@ impl<'writer, R> SaplingGraphLog<'writer, R> {
     }
 }
 
-pub fn graph_style(settings: &UserSettings) -> String {
-    settings
-        .config()
-        .get_string("ui.graph.style")
-        .unwrap_or_else(|_| "curved".to_string())
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize)]
+#[serde(rename_all(deserialize = "kebab-case"))]
+pub enum GraphStyle {
+    Ascii,
+    AsciiLarge,
+    Curved,
+    Square,
+}
+
+impl GraphStyle {
+    pub fn from_settings(settings: &UserSettings) -> Self {
+        settings
+            .config()
+            .get("ui.graph.style")
+            .unwrap_or(GraphStyle::Curved)
+    }
+
+    pub fn is_ascii(self) -> bool {
+        match self {
+            GraphStyle::Ascii | GraphStyle::AsciiLarge => true,
+            GraphStyle::Curved | GraphStyle::Square => false,
+        }
+    }
 }
 
 pub fn node_template_for_key(
@@ -116,9 +134,10 @@ pub fn node_template_for_key(
     ascii_fallback: &str,
 ) -> String {
     let symbol = settings.config().get_string(key);
-    match graph_style(settings).as_str() {
-        "ascii" | "ascii-large" => symbol.unwrap_or_else(|_| ascii_fallback.to_owned()),
-        _ => symbol.unwrap_or_else(|_| fallback.to_owned()),
+    if GraphStyle::from_settings(settings).is_ascii() {
+        symbol.unwrap_or_else(|_| ascii_fallback.to_owned())
+    } else {
+        symbol.unwrap_or_else(|_| fallback.to_owned())
     }
 }
 
@@ -127,13 +146,12 @@ pub fn get_graphlog<'a, K: Clone + Eq + Hash + 'a>(
     formatter: &'a mut dyn Write,
 ) -> Box<dyn GraphLog<K> + 'a> {
     let builder = GraphRowRenderer::new().output().with_min_row_height(0);
-    match graph_style(settings).as_str() {
-        "square" => {
+    match GraphStyle::from_settings(settings) {
+        GraphStyle::Ascii => SaplingGraphLog::create(builder.build_ascii(), formatter),
+        GraphStyle::AsciiLarge => SaplingGraphLog::create(builder.build_ascii_large(), formatter),
+        GraphStyle::Curved => SaplingGraphLog::create(builder.build_box_drawing(), formatter),
+        GraphStyle::Square => {
             SaplingGraphLog::create(builder.build_box_drawing().with_square_glyphs(), formatter)
         }
-        "ascii" => SaplingGraphLog::create(builder.build_ascii(), formatter),
-        "ascii-large" => SaplingGraphLog::create(builder.build_ascii_large(), formatter),
-        // "curved"
-        _ => SaplingGraphLog::create(builder.build_box_drawing(), formatter),
     }
 }
