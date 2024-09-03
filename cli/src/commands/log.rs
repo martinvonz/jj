@@ -20,6 +20,7 @@ use jj_lib::repo::Repo;
 use jj_lib::revset::RevsetExpression;
 use jj_lib::revset::RevsetFilterPredicate;
 use jj_lib::revset::RevsetIteratorExt;
+use jj_lib::settings::ConfigResultExt as _;
 use jj_lib::settings::UserSettings;
 use tracing::instrument;
 
@@ -31,7 +32,6 @@ use crate::command_error::CommandError;
 use crate::commit_templater::CommitTemplateLanguage;
 use crate::diff_util::DiffFormatArgs;
 use crate::graphlog::get_graphlog;
-use crate::graphlog::node_template_for_key;
 use crate::graphlog::Edge;
 use crate::graphlog::GraphStyle;
 use crate::ui::Ui;
@@ -120,6 +120,7 @@ pub(crate) fn cmd_log(
 
     let store = repo.store();
     let diff_renderer = workspace_command.diff_renderer_for_log(&args.diff_format, args.patch)?;
+    let graph_style = GraphStyle::from_settings(command.settings())?;
 
     let use_elided_nodes = command
         .settings()
@@ -145,7 +146,7 @@ pub(crate) fn cmd_log(
         node_template = workspace_command
             .parse_template(
                 &language,
-                &get_node_template(command.settings())?,
+                &get_node_template(graph_style, command.settings())?,
                 CommitTemplateLanguage::wrap_commit_opt,
             )?
             .labeled("node");
@@ -165,7 +166,6 @@ pub(crate) fn cmd_log(
         let limit = args.limit.or(args.deprecated_limit).unwrap_or(usize::MAX);
 
         if !args.no_graph {
-            let graph_style = GraphStyle::from_settings(command.settings())?;
             let mut graph = get_graphlog(graph_style, formatter.raw());
             let forward_iter = TopoGroupedGraphIterator::new(revset.iter_graph());
             let iter: Box<dyn Iterator<Item = _>> = if args.reversed {
@@ -297,11 +297,18 @@ pub(crate) fn cmd_log(
     Ok(())
 }
 
-pub fn get_node_template(settings: &UserSettings) -> Result<String, config::ConfigError> {
-    node_template_for_key(
-        settings,
-        "templates.log_node",
-        "builtin_log_node",
-        "builtin_log_node_ascii",
-    )
+pub fn get_node_template(
+    style: GraphStyle,
+    settings: &UserSettings,
+) -> Result<String, config::ConfigError> {
+    let symbol = settings
+        .config()
+        .get_string("templates.log_node")
+        .optional()?;
+    let default = if style.is_ascii() {
+        "builtin_log_node_ascii"
+    } else {
+        "builtin_log_node"
+    };
+    Ok(symbol.unwrap_or_else(|| default.to_owned()))
 }

@@ -15,6 +15,7 @@
 use std::slice;
 
 use jj_lib::op_walk;
+use jj_lib::settings::ConfigResultExt as _;
 use jj_lib::settings::UserSettings;
 
 use crate::cli_util::format_template;
@@ -22,7 +23,6 @@ use crate::cli_util::CommandHelper;
 use crate::cli_util::LogContentFormat;
 use crate::command_error::CommandError;
 use crate::graphlog::get_graphlog;
-use crate::graphlog::node_template_for_key;
 use crate::graphlog::Edge;
 use crate::graphlog::GraphStyle;
 use crate::operation_templater::OperationTemplateLanguage;
@@ -73,6 +73,7 @@ pub fn cmd_op_log(
     };
     let op_store = current_op.op_store();
 
+    let graph_style = GraphStyle::from_settings(command.settings())?;
     let with_content_format = LogContentFormat::new(ui, command.settings())?;
 
     let template;
@@ -99,7 +100,7 @@ pub fn cmd_op_log(
             .parse_template(
                 ui,
                 &language,
-                &get_node_template(command.settings())?,
+                &get_node_template(graph_style, command.settings())?,
                 OperationTemplateLanguage::wrap_operation,
             )?
             .labeled("node");
@@ -117,7 +118,6 @@ pub fn cmd_op_log(
     let limit = args.limit.or(args.deprecated_limit).unwrap_or(usize::MAX);
     let iter = op_walk::walk_ancestors(slice::from_ref(&current_op)).take(limit);
     if !args.no_graph {
-        let graph_style = GraphStyle::from_settings(command.settings())?;
         let mut graph = get_graphlog(graph_style, formatter.raw());
         for op in iter {
             let op = op?;
@@ -152,11 +152,18 @@ pub fn cmd_op_log(
     Ok(())
 }
 
-fn get_node_template(settings: &UserSettings) -> Result<String, config::ConfigError> {
-    node_template_for_key(
-        settings,
-        "templates.op_log_node",
-        "builtin_op_log_node",
-        "builtin_op_log_node_ascii",
-    )
+fn get_node_template(
+    style: GraphStyle,
+    settings: &UserSettings,
+) -> Result<String, config::ConfigError> {
+    let symbol = settings
+        .config()
+        .get_string("templates.op_log_node")
+        .optional()?;
+    let default = if style.is_ascii() {
+        "builtin_op_log_node_ascii"
+    } else {
+        "builtin_op_log_node"
+    };
+    Ok(symbol.unwrap_or_else(|| default.to_owned()))
 }
