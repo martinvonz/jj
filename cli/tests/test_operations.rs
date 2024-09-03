@@ -79,6 +79,31 @@ fn test_op_log() {
     Error: Operation ID "foo" is not a valid hexadecimal prefix
     "###);
 
+    let stdout = test_env.jj_cmd_success(&repo_path, &["op", "log", "--op-diff"]);
+    insta::assert_snapshot!(&stdout, @r#"
+    @  c1851f1c3d90 test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
+    │  describe commit 230dd059e1b059aefc0da06a2e5a7dbf22362f22
+    │  args: jj describe -m 'description 0'
+    │
+    │  Changed commits:
+    │  ○  Change qpvuntsmwlqt
+    │     + qpvuntsm 19611c99 (empty) description 0
+    │     - qpvuntsm hidden 230dd059 (empty) (no description set)
+    ○  b51416386f26 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
+    │  add workspace 'default'
+    │
+    │  Changed commits:
+    │  ○  Change qpvuntsmwlqt
+    │     + qpvuntsm 230dd059 (empty) (no description set)
+    ○  9a7d829846af test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
+    │  initialize repo
+    │
+    │  Changed commits:
+    │  ○  Change zzzzzzzzzzzz
+    │     + zzzzzzzz 00000000 (empty) (no description set)
+    ○  000000000000 root()
+    "#);
+
     test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "description 1"]);
     test_env.jj_cmd_ok(
         &repo_path,
@@ -92,7 +117,7 @@ fn test_op_log() {
     );
     insta::assert_snapshot!(test_env.jj_cmd_failure(&repo_path, &["log", "--at-op", "@-"]), @r###"
     Error: The "@" expression resolved to more than one operation
-    Hint: Try specifying one of the operations by ID: 5f690688f7d7, cfb67eb2b65c
+    Hint: Try specifying one of the operations by ID: c05f56726c27, f9fdb4e100bd
     "###);
 }
 
@@ -183,6 +208,23 @@ fn test_op_log_no_graph() {
     initialize repo
     [38;5;4m000000000000[39m [38;5;2mroot()[39m
     "###);
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["op", "log", "--op-diff", "--no-graph"]);
+    insta::assert_snapshot!(&stdout, @r#"
+    b51416386f26 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
+    add workspace 'default'
+
+    Changed commits:
+    Change qpvuntsmwlqt
+    + qpvuntsm 230dd059 (empty) (no description set)
+    9a7d829846af test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
+    initialize repo
+
+    Changed commits:
+    Change zzzzzzzzzzzz
+    + zzzzzzzz 00000000 (empty) (no description set)
+    000000000000 root()
+    "#);
 }
 
 #[test]
@@ -299,6 +341,9 @@ fn test_op_log_word_wrap() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
+    std::fs::write(repo_path.join("file1"), "foo\n".repeat(100)).unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["debug", "snapshot"]);
+
     let render = |args: &[&str], columns: u32, word_wrap: bool| {
         let mut args = args.to_vec();
         if word_wrap {
@@ -314,15 +359,24 @@ fn test_op_log_word_wrap() {
     };
 
     // ui.log-word-wrap option works
-    insta::assert_snapshot!(render(&["op", "log"], 40, false), @r###"
-    @  b51416386f26 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
+    insta::assert_snapshot!(render(&["op", "log"], 40, false), @r#"
+    @  cf25045e0079 test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
+    │  snapshot working copy
+    │  args: jj debug snapshot
+    ○  b51416386f26 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
     │  add workspace 'default'
     ○  9a7d829846af test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
     │  initialize repo
     ○  000000000000 root()
-    "###);
-    insta::assert_snapshot!(render(&["op", "log"], 40, true), @r###"
-    @  b51416386f26
+    "#);
+    insta::assert_snapshot!(render(&["op", "log"], 40, true), @r#"
+    @  cf25045e0079
+    │  test-username@host.example.com
+    │  2001-02-03 04:05:08.000 +07:00 -
+    │  2001-02-03 04:05:08.000 +07:00
+    │  snapshot working copy
+    │  args: jj debug snapshot
+    ○  b51416386f26
     │  test-username@host.example.com
     │  2001-02-03 04:05:07.000 +07:00 -
     │  2001-02-03 04:05:07.000 +07:00
@@ -333,7 +387,98 @@ fn test_op_log_word_wrap() {
     │  2001-02-03 04:05:07.000 +07:00
     │  initialize repo
     ○  000000000000 root()
-    "###);
+    "#);
+
+    // Nested graph should be wrapped
+    insta::assert_snapshot!(render(&["op", "log", "--op-diff"], 40, true), @r#"
+    @  cf25045e0079
+    │  test-username@host.example.com
+    │  2001-02-03 04:05:08.000 +07:00 -
+    │  2001-02-03 04:05:08.000 +07:00
+    │  snapshot working copy
+    │  args: jj debug snapshot
+    │
+    │  Changed commits:
+    │  ○  Change qpvuntsmwlqt
+    │     + qpvuntsm e292def1 (no
+    │     description set)
+    │     - qpvuntsm hidden 230dd059 (empty)
+    │     (no description set)
+    ○  b51416386f26
+    │  test-username@host.example.com
+    │  2001-02-03 04:05:07.000 +07:00 -
+    │  2001-02-03 04:05:07.000 +07:00
+    │  add workspace 'default'
+    │
+    │  Changed commits:
+    │  ○  Change qpvuntsmwlqt
+    │     + qpvuntsm 230dd059 (empty) (no
+    │     description set)
+    ○  9a7d829846af
+    │  test-username@host.example.com
+    │  2001-02-03 04:05:07.000 +07:00 -
+    │  2001-02-03 04:05:07.000 +07:00
+    │  initialize repo
+    │
+    │  Changed commits:
+    │  ○  Change zzzzzzzzzzzz
+    │     + zzzzzzzz 00000000 (empty) (no
+    │     description set)
+    ○  000000000000 root()
+    "#);
+
+    // Nested diff stat shouldn't exceed the terminal width
+    insta::assert_snapshot!(render(&["op", "log", "-n1", "--stat"], 40, true), @r#"
+    @  cf25045e0079
+    │  test-username@host.example.com
+    │  2001-02-03 04:05:08.000 +07:00 -
+    │  2001-02-03 04:05:08.000 +07:00
+    │  snapshot working copy
+    │  args: jj debug snapshot
+    │
+    │  Changed commits:
+    │  ○  Change qpvuntsmwlqt
+    │     + qpvuntsm e292def1 (no
+    │     description set)
+    │     - qpvuntsm hidden 230dd059 (empty)
+    │     (no description set)
+    │     file1 | 100 +++++++++++++++++++
+    │     1 file changed, 100 insertions(+), 0 deletions(-)
+    "#);
+    insta::assert_snapshot!(render(&["op", "log", "-n1", "--no-graph", "--stat"], 40, true), @r#"
+    cf25045e0079
+    test-username@host.example.com
+    2001-02-03 04:05:08.000 +07:00 -
+    2001-02-03 04:05:08.000 +07:00
+    snapshot working copy
+    args: jj debug snapshot
+
+    Changed commits:
+    Change qpvuntsmwlqt
+    + qpvuntsm e292def1 (no description set)
+    - qpvuntsm hidden 230dd059 (empty) (no
+    description set)
+    file1 | 100 +++++++++++++++++++++++++
+    1 file changed, 100 insertions(+), 0 deletions(-)
+    "#);
+
+    // Nested graph widths should be subtracted from the term width
+    let config = r#"templates.commit_summary='"0 1 2 3 4 5 6 7 8 9"'"#;
+    insta::assert_snapshot!(
+        render(&["op", "log", "-T''", "--op-diff", "-n1", "--config-toml", config], 15, true), @r#"
+    @
+    │
+    │  Changed
+    │  commits:
+    │  ○  Change
+    │     qpvuntsmwlqt
+    │     + 0 1 2 3
+    │     4 5 6 7 8
+    │     9
+    │     - 0 1 2 3
+    │     4 5 6 7 8
+    │     9
+    "#);
 }
 
 #[test]
@@ -1915,6 +2060,96 @@ fn test_op_show_patch() {
     ○  Change mzvwutvlkqwt
        - mzvwutvl hidden 9f4fb57f (empty) (no description set)
     "###);
+
+    // Try again with "op log".
+    let stdout = test_env.jj_cmd_success(&repo_path, &["op", "log", "--git"]);
+    insta::assert_snapshot!(&stdout, @r#"
+    @  e13dc1c7a3b3 test-username@host.example.com 2001-02-03 04:05:13.000 +07:00 - 2001-02-03 04:05:13.000 +07:00
+    │  abandon commit 9f4fb57fba25a7b47ce5980a5d9a4766778331e8
+    │  args: jj abandon
+    │
+    │  Changed commits:
+    │  ○  Change yqosqzytrlsw
+    │     + yqosqzyt 33f321c4 (empty) (no description set)
+    │  ○  Change mzvwutvlkqwt
+    │     - mzvwutvl hidden 9f4fb57f (empty) (no description set)
+    ○  c53f5f1afbc6 test-username@host.example.com 2001-02-03 04:05:11.000 +07:00 - 2001-02-03 04:05:11.000 +07:00
+    │  squash commits into 6b1027d2770cd0a39c468e525e52bf8c47e1464a
+    │  args: jj squash
+    │
+    │  Changed commits:
+    │  ○  Change mzvwutvlkqwt
+    │  │  + mzvwutvl 9f4fb57f (empty) (no description set)
+    │  │ ○  Change rlvkpnrzqnoo
+    │  ├─╯  - rlvkpnrz hidden 1d7f8f94 (no description set)
+    │  │    diff --git a/file b/file
+    │  │    index 7898192261..6178079822 100644
+    │  │    --- a/file
+    │  │    +++ b/file
+    │  │    @@ -1,1 +1,1 @@
+    │  │    -a
+    │  │    +b
+    │  ○  Change qpvuntsmwlqt
+    │     + qpvuntsm 2ac85fd1 (no description set)
+    │     - qpvuntsm hidden 6b1027d2 (no description set)
+    │     diff --git a/file b/file
+    │     index 7898192261..6178079822 100644
+    │     --- a/file
+    │     +++ b/file
+    │     @@ -1,1 +1,1 @@
+    │     -a
+    │     +b
+    ○  874d3a8b4c77 test-username@host.example.com 2001-02-03 04:05:11.000 +07:00 - 2001-02-03 04:05:11.000 +07:00
+    │  snapshot working copy
+    │  args: jj squash
+    │
+    │  Changed commits:
+    │  ○  Change rlvkpnrzqnoo
+    │     + rlvkpnrz 1d7f8f94 (no description set)
+    │     - rlvkpnrz hidden 56950632 (empty) (no description set)
+    │     diff --git a/file b/file
+    │     index 7898192261..6178079822 100644
+    │     --- a/file
+    │     +++ b/file
+    │     @@ -1,1 +1,1 @@
+    │     -a
+    │     +b
+    ○  8f6a879bef11 test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
+    │  new empty commit
+    │  args: jj new
+    │
+    │  Changed commits:
+    │  ○  Change rlvkpnrzqnoo
+    │     + rlvkpnrz 56950632 (empty) (no description set)
+    ○  6188e9d1f7da test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
+    │  snapshot working copy
+    │  args: jj new
+    │
+    │  Changed commits:
+    │  ○  Change qpvuntsmwlqt
+    │     + qpvuntsm 6b1027d2 (no description set)
+    │     - qpvuntsm hidden 230dd059 (empty) (no description set)
+    │     diff --git a/file b/file
+    │     new file mode 100644
+    │     index 0000000000..7898192261
+    │     --- /dev/null
+    │     +++ b/file
+    │     @@ -1,0 +1,1 @@
+    │     +a
+    ○  b51416386f26 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
+    │  add workspace 'default'
+    │
+    │  Changed commits:
+    │  ○  Change qpvuntsmwlqt
+    │     + qpvuntsm 230dd059 (empty) (no description set)
+    ○  9a7d829846af test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
+    │  initialize repo
+    │
+    │  Changed commits:
+    │  ○  Change zzzzzzzzzzzz
+    │     + zzzzzzzz 00000000 (empty) (no description set)
+    ○  000000000000 root()
+    "#);
 }
 
 fn init_bare_git_repo(git_repo_path: &Path) -> git2::Repository {
