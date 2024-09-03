@@ -20,6 +20,7 @@ use jj_lib::repo::Repo;
 use jj_lib::revset::RevsetExpression;
 use jj_lib::revset::RevsetFilterPredicate;
 use jj_lib::revset::RevsetIteratorExt;
+use jj_lib::settings::UserSettings;
 use tracing::instrument;
 
 use crate::cli_util::format_template;
@@ -30,6 +31,7 @@ use crate::command_error::CommandError;
 use crate::commit_templater::CommitTemplateLanguage;
 use crate::diff_util::DiffFormatArgs;
 use crate::graphlog::get_graphlog;
+use crate::graphlog::node_template_for_key;
 use crate::graphlog::Edge;
 use crate::ui::Ui;
 
@@ -142,7 +144,7 @@ pub(crate) fn cmd_log(
         node_template = workspace_command
             .parse_template(
                 &language,
-                &command.settings().commit_node_template(),
+                &get_node_template(command.settings()),
                 CommitTemplateLanguage::wrap_commit_opt,
             )?
             .labeled("node");
@@ -291,4 +293,13 @@ pub(crate) fn cmd_log(
     }
 
     Ok(())
+}
+
+pub fn get_node_template(settings: &UserSettings) -> String {
+    node_template_for_key(
+        settings,
+        "templates.log_node",
+        "builtin_log_node",
+        "builtin_log_node_ascii",
+    )
 }
