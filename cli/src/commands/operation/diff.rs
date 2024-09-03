@@ -113,7 +113,8 @@ pub fn cmd_op_diff(
     let commit_summary_template = tx.commit_summary_template();
 
     ui.request_pager();
-    ui.stdout_formatter().with_label("op_log", |formatter| {
+    let mut formatter = ui.stdout_formatter();
+    formatter.with_label("op_log", |formatter| {
         write!(formatter, "From operation ")?;
         write!(
             formatter.labeled("id"),
@@ -152,6 +153,7 @@ pub fn cmd_op_diff(
 
     show_op_diff(
         ui,
+        formatter.as_mut(),
         tx.repo(),
         &from_repo,
         &to_repo,
@@ -168,7 +170,8 @@ pub fn cmd_op_diff(
 /// into it.
 #[allow(clippy::too_many_arguments)]
 pub fn show_op_diff(
-    ui: &mut Ui,
+    ui: &Ui,
+    formatter: &mut dyn Formatter,
     current_repo: &dyn Repo,
     from_repo: &Arc<ReadonlyRepo>,
     to_repo: &Arc<ReadonlyRepo>,
@@ -204,9 +207,6 @@ pub fn show_op_diff(
         |change_id: &ChangeId| change_id.clone(),
         |change_id: &ChangeId| change_parents.get(change_id).unwrap().clone(),
     );
-
-    let mut formatter = ui.stdout_formatter();
-    let formatter = formatter.as_mut();
 
     if !ordered_change_ids.is_empty() {
         writeln!(formatter)?;
