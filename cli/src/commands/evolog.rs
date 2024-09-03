@@ -85,6 +85,7 @@ pub(crate) fn cmd_evolog(
     let start_commit = workspace_command.resolve_single_rev(&args.revision)?;
 
     let diff_renderer = workspace_command.diff_renderer_for_log(&args.diff_format, args.patch)?;
+    let graph_style = GraphStyle::from_settings(command.settings())?;
     let with_content_format = LogContentFormat::new(ui, command.settings())?;
 
     let template;
@@ -105,7 +106,7 @@ pub(crate) fn cmd_evolog(
         node_template = workspace_command
             .parse_template(
                 &language,
-                &get_node_template(command.settings())?,
+                &get_node_template(graph_style, command.settings())?,
                 CommitTemplateLanguage::wrap_commit_opt,
             )?
             .labeled("node");
@@ -144,7 +145,6 @@ pub(crate) fn cmd_evolog(
         commits.truncate(n);
     }
     if !args.no_graph {
-        let graph_style = GraphStyle::from_settings(command.settings())?;
         let mut graph = get_graphlog(graph_style, formatter.raw());
         for commit in commits {
             let mut edges = vec![];

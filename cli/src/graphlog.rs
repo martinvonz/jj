@@ -17,7 +17,6 @@ use std::io;
 use std::io::Write;
 
 use itertools::Itertools;
-use jj_lib::settings::ConfigResultExt as _;
 use jj_lib::settings::UserSettings;
 use renderdag::Ancestor;
 use renderdag::GraphRowRenderer;
@@ -122,20 +121,6 @@ impl GraphStyle {
             GraphStyle::Ascii | GraphStyle::AsciiLarge => true,
             GraphStyle::Curved | GraphStyle::Square => false,
         }
-    }
-}
-
-pub fn node_template_for_key(
-    settings: &UserSettings,
-    key: &str,
-    fallback: &str,
-    ascii_fallback: &str,
-) -> Result<String, config::ConfigError> {
-    let symbol = settings.config().get_string(key).optional()?;
-    if GraphStyle::from_settings(settings)?.is_ascii() {
-        Ok(symbol.unwrap_or_else(|| ascii_fallback.to_owned()))
-    } else {
-        Ok(symbol.unwrap_or_else(|| fallback.to_owned()))
     }
 }
 
