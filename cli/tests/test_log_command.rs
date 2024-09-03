@@ -1280,6 +1280,16 @@ fn test_graph_styles() {
     ○  initial
     ◆
     "###);
+
+    // Invalid style name
+    let stderr = test_env.jj_cmd_failure(
+        &repo_path,
+        &["log", "--config-toml=ui.graph.style='unknown'"],
+    );
+    insta::assert_snapshot!(stderr, @r###"
+    Config error: enum GraphStyle does not have variant constructor unknown
+    For help, see https://martinvonz.github.io/jj/latest/config/.
+    "###);
 }
 
 #[test]

@@ -217,7 +217,7 @@ pub fn show_op_diff(
         writeln!(formatter)?;
         writeln!(formatter, "Changed commits:")?;
         if show_graph {
-            let graph_style = GraphStyle::from_settings(command.settings());
+            let graph_style = GraphStyle::from_settings(command.settings())?;
             let mut graph = get_graphlog(graph_style, formatter.raw());
 
             let graph_iter =

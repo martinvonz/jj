@@ -99,7 +99,7 @@ pub fn cmd_op_log(
             .parse_template(
                 ui,
                 &language,
-                &get_node_template(command.settings()),
+                &get_node_template(command.settings())?,
                 OperationTemplateLanguage::wrap_operation,
             )?
             .labeled("node");
@@ -117,7 +117,7 @@ pub fn cmd_op_log(
     let limit = args.limit.or(args.deprecated_limit).unwrap_or(usize::MAX);
     let iter = op_walk::walk_ancestors(slice::from_ref(&current_op)).take(limit);
     if !args.no_graph {
-        let graph_style = GraphStyle::from_settings(command.settings());
+        let graph_style = GraphStyle::from_settings(command.settings())?;
         let mut graph = get_graphlog(graph_style, formatter.raw());
         for op in iter {
             let op = op?;
@@ -152,7 +152,7 @@ pub fn cmd_op_log(
     Ok(())
 }
 
-fn get_node_template(settings: &UserSettings) -> String {
+fn get_node_template(settings: &UserSettings) -> Result<String, config::ConfigError> {
     node_template_for_key(
         settings,
         "templates.op_log_node",

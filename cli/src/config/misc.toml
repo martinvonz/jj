@@ -13,6 +13,7 @@ max-inline-alternation = 3
 allow-filesets = true
 always-allow-large-revsets = false
 diff-instructions = true
+graph.style = "curved"
 paginate = "auto"
 pager = { command = ["less", "-FRX"], env = { LESSCHARSET = "utf-8" } }
 log-word-wrap = false

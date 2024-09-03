@@ -11,6 +11,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Breaking changes
 
+* Invalid `ui.graph.style` configuration is now an error.
+
 ### Deprecations
 
 * `jj obslog` is now called `jj evolution-log`/`jj evolog`. `jj obslog` remains
