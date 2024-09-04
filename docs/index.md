@@ -23,3 +23,4 @@ You may want to jump to:
 - [Installation and Setup](install-and-setup.md)
 - [Tutorial and Birds-Eye View](tutorial.md)
 - [Working with GitHub](github.md)
+- [Development Roadmap](roadmap.md)
