@@ -22,6 +22,7 @@ use std::hash::Hasher;
 use std::io::Read;
 use std::sync::Arc;
 
+use futures::future::try_join_all;
 use itertools::Itertools;
 use pollster::FutureExt;
 use tracing::instrument;
@@ -457,20 +458,19 @@ pub async fn try_resolve_file_conflict(
     //    cannot
     let file_id_conflict = file_id_conflict.simplify();
 
-    // TODO: Read the files concurrently
-    let contents: Merge<Vec<u8>> =
-        file_id_conflict.try_map(|&file_id| -> BackendResult<Vec<u8>> {
-            let mut content = vec![];
-            store
-                .read_file(filename, file_id)?
-                .read_to_end(&mut content)
-                .map_err(|err| BackendError::ReadObject {
-                    object_type: file_id.object_type(),
-                    hash: file_id.hex(),
-                    source: err.into(),
-                })?;
-            Ok(content)
-        })?;
+    let content_futures = file_id_conflict.into_iter().map(|file_id| async {
+        let mut content = vec![];
+        let mut reader = store.read_file_async(filename, file_id).await?;
+        reader
+            .read_to_end(&mut content)
+            .map_err(|err| BackendError::ReadObject {
+                object_type: file_id.object_type(),
+                hash: file_id.hex(),
+                source: err.into(),
+            })?;
+        BackendResult::Ok(content)
+    });
+    let contents = Merge::from_vec(try_join_all(content_futures).await?);
     let merge_result = files::merge(&contents);
     match merge_result {
         MergeResult::Resolved(merged_content) => {
