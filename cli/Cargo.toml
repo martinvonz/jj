@@ -47,9 +47,6 @@ required-features = ["test-fakes"]
 [[test]]
 name = "runner"
 
-[build-dependencies]
-cargo_metadata = { workspace = true }
-
 [dependencies]
 bstr = { workspace = true }
 chrono = { workspace = true }
