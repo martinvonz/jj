@@ -344,8 +344,10 @@ fn fix_file_ids<'a>(
                         }
                     });
                 if new_content != old_content {
-                    let new_file_id =
-                        store.write_file(&tool_input.repo_path, &mut new_content.as_slice())?;
+                    // TODO: send futures back over channel
+                    let new_file_id = store
+                        .write_file(&tool_input.repo_path, &mut new_content.as_slice())
+                        .block_on()?;
                     updates_tx.send((tool_input, new_file_id)).unwrap();
                 }
             }

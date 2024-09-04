@@ -231,7 +231,8 @@ pub fn run_mergetool_external(
     } else {
         let new_file_id = tree
             .store()
-            .write_file(repo_path, &mut output_file_contents.as_slice())?;
+            .write_file(repo_path, &mut output_file_contents.as_slice())
+            .block_on()?;
         Merge::normal(new_file_id)
     };
     let new_tree_value = match new_file_ids.into_resolved() {

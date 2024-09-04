@@ -606,7 +606,7 @@ impl TreeState {
                 return Err(TreeStateError::ReadTreeState {
                     path: tree_state_path,
                     source: err,
-                })
+                });
             }
             Ok(file) => file,
         };
@@ -709,7 +709,7 @@ impl TreeState {
         self.store.get_root_tree(&self.tree_id)
     }
 
-    fn write_file_to_store(
+    async fn write_file_to_store(
         &self,
         path: &RepoPath,
         disk_path: &Path,
@@ -718,7 +718,7 @@ impl TreeState {
             message: format!("Failed to open file {}", disk_path.display()),
             err: err.into(),
         })?;
-        Ok(self.store.write_file(path, &mut file)?)
+        Ok(self.store.write_file(path, &mut file).await?)
     }
 
     fn write_symlink_to_store(
@@ -1152,12 +1152,9 @@ impl TreeState {
                 new_file_state.file_type.clone()
             };
             let new_tree_values = match new_file_type {
-                FileType::Normal { executable } => self.write_path_to_store(
-                    repo_path,
-                    &disk_path,
-                    &current_tree_values,
-                    executable,
-                )?,
+                FileType::Normal { executable } => self
+                    .write_path_to_store(repo_path, &disk_path, &current_tree_values, executable)
+                    .block_on()?,
                 FileType::Symlink => {
                     let id = self.write_symlink_to_store(repo_path, &disk_path)?;
                     Merge::normal(TreeValue::Symlink(id))
@@ -1172,7 +1169,7 @@ impl TreeState {
         }
     }
 
-    fn write_path_to_store(
+    async fn write_path_to_store(
         &self,
         repo_path: &RepoPath,
         disk_path: &Path,
@@ -1184,7 +1181,7 @@ impl TreeState {
         if let Some(current_tree_value) = current_tree_values.as_resolved() {
             #[cfg(unix)]
             let _ = current_tree_value; // use the variable
-            let id = self.write_file_to_store(repo_path, disk_path)?;
+            let id = self.write_file_to_store(repo_path, disk_path).await?;
             // On Windows, we preserve the executable bit from the current tree.
             #[cfg(windows)]
             let executable = {

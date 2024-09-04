@@ -298,7 +298,10 @@ pub fn read_file(store: &Store, path: &RepoPath, id: &FileId) -> Vec<u8> {
 }
 
 pub fn write_file(store: &Store, path: &RepoPath, contents: &str) -> FileId {
-    store.write_file(path, &mut contents.as_bytes()).unwrap()
+    store
+        .write_file(path, &mut contents.as_bytes())
+        .block_on()
+        .unwrap()
 }
 
 pub fn write_normal_file(
