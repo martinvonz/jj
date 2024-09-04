@@ -23,6 +23,7 @@ use std::io::Read;
 use std::sync::Arc;
 
 use itertools::Itertools;
+use pollster::FutureExt;
 use tracing::instrument;
 
 use crate::backend;
@@ -330,7 +331,7 @@ pub fn merge_trees(side1_tree: &Tree, base_tree: &Tree, side2_tree: &Tree) -> Ba
             new_tree.set_or_remove(basename, new_value);
         }
     }
-    store.write_tree(dir, new_tree)
+    store.write_tree(dir, new_tree).block_on()
 }
 
 /// Returns `Some(TreeId)` if this is a directory or missing. If it's missing,
