@@ -174,216 +174,198 @@ pub enum RevsetExpression {
     Commits(Vec<CommitId>),
     CommitRef(RevsetCommitRef),
     Ancestors {
-        heads: Rc<RevsetExpression>,
+        heads: Rc<Self>,
         generation: Range<u64>,
     },
     Descendants {
-        roots: Rc<RevsetExpression>,
+        roots: Rc<Self>,
         generation: Range<u64>,
     },
     // Commits that are ancestors of "heads" but not ancestors of "roots"
     Range {
-        roots: Rc<RevsetExpression>,
-        heads: Rc<RevsetExpression>,
+        roots: Rc<Self>,
+        heads: Rc<Self>,
         generation: Range<u64>,
     },
     // Commits that are descendants of "roots" and ancestors of "heads"
     DagRange {
-        roots: Rc<RevsetExpression>,
-        heads: Rc<RevsetExpression>,
+        roots: Rc<Self>,
+        heads: Rc<Self>,
         // TODO: maybe add generation_from_roots/heads?
     },
     // Commits reachable from "sources" within "domain"
     Reachable {
-        sources: Rc<RevsetExpression>,
-        domain: Rc<RevsetExpression>,
+        sources: Rc<Self>,
+        domain: Rc<Self>,
     },
-    Heads(Rc<RevsetExpression>),
-    Roots(Rc<RevsetExpression>),
+    Heads(Rc<Self>),
+    Roots(Rc<Self>),
     Latest {
-        candidates: Rc<RevsetExpression>,
+        candidates: Rc<Self>,
         count: usize,
     },
     Filter(RevsetFilterPredicate),
     /// Marker for subtree that should be intersected as filter.
-    AsFilter(Rc<RevsetExpression>),
-    Present(Rc<RevsetExpression>),
-    NotIn(Rc<RevsetExpression>),
-    Union(Rc<RevsetExpression>, Rc<RevsetExpression>),
-    Intersection(Rc<RevsetExpression>, Rc<RevsetExpression>),
-    Difference(Rc<RevsetExpression>, Rc<RevsetExpression>),
+    AsFilter(Rc<Self>),
+    Present(Rc<Self>),
+    NotIn(Rc<Self>),
+    Union(Rc<Self>, Rc<Self>),
+    Intersection(Rc<Self>, Rc<Self>),
+    Difference(Rc<Self>, Rc<Self>),
 }
 
 impl RevsetExpression {
-    pub fn none() -> Rc<RevsetExpression> {
-        Rc::new(RevsetExpression::None)
+    pub fn none() -> Rc<Self> {
+        Rc::new(Self::None)
     }
 
-    pub fn all() -> Rc<RevsetExpression> {
-        Rc::new(RevsetExpression::All)
+    pub fn all() -> Rc<Self> {
+        Rc::new(Self::All)
     }
 
-    pub fn working_copy(workspace_id: WorkspaceId) -> Rc<RevsetExpression> {
-        Rc::new(RevsetExpression::CommitRef(RevsetCommitRef::WorkingCopy(
-            workspace_id,
-        )))
+    pub fn working_copy(workspace_id: WorkspaceId) -> Rc<Self> {
+        Rc::new(Self::CommitRef(RevsetCommitRef::WorkingCopy(workspace_id)))
     }
 
-    pub fn working_copies() -> Rc<RevsetExpression> {
-        Rc::new(RevsetExpression::CommitRef(RevsetCommitRef::WorkingCopies))
+    pub fn working_copies() -> Rc<Self> {
+        Rc::new(Self::CommitRef(RevsetCommitRef::WorkingCopies))
     }
 
-    pub fn symbol(value: String) -> Rc<RevsetExpression> {
-        Rc::new(RevsetExpression::CommitRef(RevsetCommitRef::Symbol(value)))
+    pub fn symbol(value: String) -> Rc<Self> {
+        Rc::new(Self::CommitRef(RevsetCommitRef::Symbol(value)))
     }
 
-    pub fn remote_symbol(name: String, remote: String) -> Rc<RevsetExpression> {
+    pub fn remote_symbol(name: String, remote: String) -> Rc<Self> {
         let commit_ref = RevsetCommitRef::RemoteSymbol { name, remote };
-        Rc::new(RevsetExpression::CommitRef(commit_ref))
+        Rc::new(Self::CommitRef(commit_ref))
     }
 
-    pub fn commit(commit_id: CommitId) -> Rc<RevsetExpression> {
-        RevsetExpression::commits(vec![commit_id])
+    pub fn commit(commit_id: CommitId) -> Rc<Self> {
+        Self::commits(vec![commit_id])
     }
 
-    pub fn commits(commit_ids: Vec<CommitId>) -> Rc<RevsetExpression> {
-        Rc::new(RevsetExpression::Commits(commit_ids))
+    pub fn commits(commit_ids: Vec<CommitId>) -> Rc<Self> {
+        Rc::new(Self::Commits(commit_ids))
     }
 
-    pub fn visible_heads() -> Rc<RevsetExpression> {
-        Rc::new(RevsetExpression::CommitRef(RevsetCommitRef::VisibleHeads))
+    pub fn visible_heads() -> Rc<Self> {
+        Rc::new(Self::CommitRef(RevsetCommitRef::VisibleHeads))
     }
 
-    pub fn root() -> Rc<RevsetExpression> {
-        Rc::new(RevsetExpression::CommitRef(RevsetCommitRef::Root))
+    pub fn root() -> Rc<Self> {
+        Rc::new(Self::CommitRef(RevsetCommitRef::Root))
     }
 
-    pub fn bookmarks(pattern: StringPattern) -> Rc<RevsetExpression> {
-        Rc::new(RevsetExpression::CommitRef(RevsetCommitRef::Bookmarks(
-            pattern,
-        )))
+    pub fn bookmarks(pattern: StringPattern) -> Rc<Self> {
+        Rc::new(Self::CommitRef(RevsetCommitRef::Bookmarks(pattern)))
     }
 
     pub fn remote_bookmarks(
         bookmark_pattern: StringPattern,
         remote_pattern: StringPattern,
         remote_ref_state: Option<RemoteRefState>,
-    ) -> Rc<RevsetExpression> {
-        Rc::new(RevsetExpression::CommitRef(
-            RevsetCommitRef::RemoteBookmarks {
-                bookmark_pattern,
-                remote_pattern,
-                remote_ref_state,
-            },
-        ))
+    ) -> Rc<Self> {
+        Rc::new(Self::CommitRef(RevsetCommitRef::RemoteBookmarks {
+            bookmark_pattern,
+            remote_pattern,
+            remote_ref_state,
+        }))
     }
 
-    pub fn tags() -> Rc<RevsetExpression> {
-        Rc::new(RevsetExpression::CommitRef(RevsetCommitRef::Tags))
+    pub fn tags() -> Rc<Self> {
+        Rc::new(Self::CommitRef(RevsetCommitRef::Tags))
     }
 
-    pub fn git_refs() -> Rc<RevsetExpression> {
-        Rc::new(RevsetExpression::CommitRef(RevsetCommitRef::GitRefs))
+    pub fn git_refs() -> Rc<Self> {
+        Rc::new(Self::CommitRef(RevsetCommitRef::GitRefs))
     }
 
-    pub fn git_head() -> Rc<RevsetExpression> {
-        Rc::new(RevsetExpression::CommitRef(RevsetCommitRef::GitHead))
+    pub fn git_head() -> Rc<Self> {
+        Rc::new(Self::CommitRef(RevsetCommitRef::GitHead))
     }
 
-    pub fn latest(self: &Rc<RevsetExpression>, count: usize) -> Rc<RevsetExpression> {
-        Rc::new(RevsetExpression::Latest {
+    pub fn latest(self: &Rc<Self>, count: usize) -> Rc<Self> {
+        Rc::new(Self::Latest {
             candidates: self.clone(),
             count,
         })
     }
 
-    pub fn filter(predicate: RevsetFilterPredicate) -> Rc<RevsetExpression> {
-        Rc::new(RevsetExpression::Filter(predicate))
+    pub fn filter(predicate: RevsetFilterPredicate) -> Rc<Self> {
+        Rc::new(Self::Filter(predicate))
     }
 
     /// Find any empty commits.
-    pub fn is_empty() -> Rc<RevsetExpression> {
+    pub fn is_empty() -> Rc<Self> {
         Self::filter(RevsetFilterPredicate::File(FilesetExpression::all())).negated()
     }
 
     /// Commits in `self` that don't have descendants in `self`.
-    pub fn heads(self: &Rc<RevsetExpression>) -> Rc<RevsetExpression> {
-        Rc::new(RevsetExpression::Heads(self.clone()))
+    pub fn heads(self: &Rc<Self>) -> Rc<Self> {
+        Rc::new(Self::Heads(self.clone()))
     }
 
     /// Commits in `self` that don't have ancestors in `self`.
-    pub fn roots(self: &Rc<RevsetExpression>) -> Rc<RevsetExpression> {
-        Rc::new(RevsetExpression::Roots(self.clone()))
+    pub fn roots(self: &Rc<Self>) -> Rc<Self> {
+        Rc::new(Self::Roots(self.clone()))
     }
 
     /// Parents of `self`.
-    pub fn parents(self: &Rc<RevsetExpression>) -> Rc<RevsetExpression> {
+    pub fn parents(self: &Rc<Self>) -> Rc<Self> {
         self.ancestors_at(1)
     }
 
     /// Ancestors of `self`, including `self`.
-    pub fn ancestors(self: &Rc<RevsetExpression>) -> Rc<RevsetExpression> {
+    pub fn ancestors(self: &Rc<Self>) -> Rc<Self> {
         self.ancestors_range(GENERATION_RANGE_FULL)
     }
 
     /// Ancestors of `self` at an offset of `generation` behind `self`.
     /// The `generation` offset is zero-based starting from `self`.
-    pub fn ancestors_at(self: &Rc<RevsetExpression>, generation: u64) -> Rc<RevsetExpression> {
+    pub fn ancestors_at(self: &Rc<Self>, generation: u64) -> Rc<Self> {
         self.ancestors_range(generation..(generation + 1))
     }
 
     /// Ancestors of `self` in the given range.
-    pub fn ancestors_range(
-        self: &Rc<RevsetExpression>,
-        generation_range: Range<u64>,
-    ) -> Rc<RevsetExpression> {
-        Rc::new(RevsetExpression::Ancestors {
+    pub fn ancestors_range(self: &Rc<Self>, generation_range: Range<u64>) -> Rc<Self> {
+        Rc::new(Self::Ancestors {
             heads: self.clone(),
             generation: generation_range,
         })
     }
 
     /// Children of `self`.
-    pub fn children(self: &Rc<RevsetExpression>) -> Rc<RevsetExpression> {
+    pub fn children(self: &Rc<Self>) -> Rc<Self> {
         self.descendants_at(1)
     }
 
     /// Descendants of `self`, including `self`.
-    pub fn descendants(self: &Rc<RevsetExpression>) -> Rc<RevsetExpression> {
+    pub fn descendants(self: &Rc<Self>) -> Rc<Self> {
         self.descendants_range(GENERATION_RANGE_FULL)
     }
 
     /// Descendants of `self` at an offset of `generation` ahead of `self`.
     /// The `generation` offset is zero-based starting from `self`.
-    pub fn descendants_at(self: &Rc<RevsetExpression>, generation: u64) -> Rc<RevsetExpression> {
+    pub fn descendants_at(self: &Rc<Self>, generation: u64) -> Rc<Self> {
         self.descendants_range(generation..(generation + 1))
     }
 
     /// Descendants of `self` in the given range.
-    pub fn descendants_range(
-        self: &Rc<RevsetExpression>,
-        generation_range: Range<u64>,
-    ) -> Rc<RevsetExpression> {
-        Rc::new(RevsetExpression::Descendants {
+    pub fn descendants_range(self: &Rc<Self>, generation_range: Range<u64>) -> Rc<Self> {
+        Rc::new(Self::Descendants {
             roots: self.clone(),
             generation: generation_range,
         })
     }
 
     /// Filter all commits by `predicate` in `self`.
-    pub fn filtered(
-        self: &Rc<RevsetExpression>,
-        predicate: RevsetFilterPredicate,
-    ) -> Rc<RevsetExpression> {
-        self.intersection(&RevsetExpression::filter(predicate))
+    pub fn filtered(self: &Rc<Self>, predicate: RevsetFilterPredicate) -> Rc<Self> {
+        self.intersection(&Self::filter(predicate))
     }
     /// Commits that are descendants of `self` and ancestors of `heads`, both
     /// inclusive.
-    pub fn dag_range_to(
-        self: &Rc<RevsetExpression>,
-        heads: &Rc<RevsetExpression>,
-    ) -> Rc<RevsetExpression> {
-        Rc::new(RevsetExpression::DagRange {
+    pub fn dag_range_to(self: &Rc<Self>, heads: &Rc<Self>) -> Rc<Self> {
+        Rc::new(Self::DagRange {
             roots: self.clone(),
             heads: heads.clone(),
         })
@@ -391,28 +373,22 @@ impl RevsetExpression {
 
     /// Connects any ancestors and descendants in the set by adding the commits
     /// between them.
-    pub fn connected(self: &Rc<RevsetExpression>) -> Rc<RevsetExpression> {
+    pub fn connected(self: &Rc<Self>) -> Rc<Self> {
         self.dag_range_to(self)
     }
 
     /// All commits within `domain` reachable from this set of commits, by
     /// traversing either parent or child edges.
-    pub fn reachable(
-        self: &Rc<RevsetExpression>,
-        domain: &Rc<RevsetExpression>,
-    ) -> Rc<RevsetExpression> {
-        Rc::new(RevsetExpression::Reachable {
+    pub fn reachable(self: &Rc<Self>, domain: &Rc<Self>) -> Rc<Self> {
+        Rc::new(Self::Reachable {
             sources: self.clone(),
             domain: domain.clone(),
         })
     }
 
     /// Commits reachable from `heads` but not from `self`.
-    pub fn range(
-        self: &Rc<RevsetExpression>,
-        heads: &Rc<RevsetExpression>,
-    ) -> Rc<RevsetExpression> {
-        Rc::new(RevsetExpression::Range {
+    pub fn range(self: &Rc<Self>, heads: &Rc<Self>) -> Rc<Self> {
+        Rc::new(Self::Range {
             roots: self.clone(),
             heads: heads.clone(),
             generation: GENERATION_RANGE_FULL,
@@ -420,20 +396,17 @@ impl RevsetExpression {
     }
 
     /// Commits that are not in `self`, i.e. the complement of `self`.
-    pub fn negated(self: &Rc<RevsetExpression>) -> Rc<RevsetExpression> {
-        Rc::new(RevsetExpression::NotIn(self.clone()))
+    pub fn negated(self: &Rc<Self>) -> Rc<Self> {
+        Rc::new(Self::NotIn(self.clone()))
     }
 
     /// Commits that are in `self` or in `other` (or both).
-    pub fn union(
-        self: &Rc<RevsetExpression>,
-        other: &Rc<RevsetExpression>,
-    ) -> Rc<RevsetExpression> {
-        Rc::new(RevsetExpression::Union(self.clone(), other.clone()))
+    pub fn union(self: &Rc<Self>, other: &Rc<Self>) -> Rc<Self> {
+        Rc::new(Self::Union(self.clone(), other.clone()))
     }
 
     /// Commits that are in any of the `expressions`.
-    pub fn union_all(expressions: &[Rc<RevsetExpression>]) -> Rc<RevsetExpression> {
+    pub fn union_all(expressions: &[Rc<Self>]) -> Rc<Self> {
         match expressions {
             [] => Self::none(),
             [expression] => expression.clone(),
@@ -446,19 +419,13 @@ impl RevsetExpression {
     }
 
     /// Commits that are in `self` and in `other`.
-    pub fn intersection(
-        self: &Rc<RevsetExpression>,
-        other: &Rc<RevsetExpression>,
-    ) -> Rc<RevsetExpression> {
-        Rc::new(RevsetExpression::Intersection(self.clone(), other.clone()))
+    pub fn intersection(self: &Rc<Self>, other: &Rc<Self>) -> Rc<Self> {
+        Rc::new(Self::Intersection(self.clone(), other.clone()))
     }
 
     /// Commits that are in `self` but not in `other`.
-    pub fn minus(
-        self: &Rc<RevsetExpression>,
-        other: &Rc<RevsetExpression>,
-    ) -> Rc<RevsetExpression> {
-        Rc::new(RevsetExpression::Difference(self.clone(), other.clone()))
+    pub fn minus(self: &Rc<Self>, other: &Rc<Self>) -> Rc<Self> {
+        Rc::new(Self::Difference(self.clone(), other.clone()))
     }
 
     /// Resolve a programmatically created revset expression. In particular, the
@@ -520,41 +487,41 @@ pub enum ResolvedPredicateExpression {
 pub enum ResolvedExpression {
     Commits(Vec<CommitId>),
     Ancestors {
-        heads: Box<ResolvedExpression>,
+        heads: Box<Self>,
         generation: Range<u64>,
     },
     /// Commits that are ancestors of `heads` but not ancestors of `roots`.
     Range {
-        roots: Box<ResolvedExpression>,
-        heads: Box<ResolvedExpression>,
+        roots: Box<Self>,
+        heads: Box<Self>,
         generation: Range<u64>,
     },
     /// Commits that are descendants of `roots` and ancestors of `heads`.
     DagRange {
-        roots: Box<ResolvedExpression>,
-        heads: Box<ResolvedExpression>,
+        roots: Box<Self>,
+        heads: Box<Self>,
         generation_from_roots: Range<u64>,
     },
     /// Commits reachable from `sources` within `domain`.
     Reachable {
-        sources: Box<ResolvedExpression>,
-        domain: Box<ResolvedExpression>,
+        sources: Box<Self>,
+        domain: Box<Self>,
     },
-    Heads(Box<ResolvedExpression>),
-    Roots(Box<ResolvedExpression>),
+    Heads(Box<Self>),
+    Roots(Box<Self>),
     Latest {
-        candidates: Box<ResolvedExpression>,
+        candidates: Box<Self>,
         count: usize,
     },
-    Union(Box<ResolvedExpression>, Box<ResolvedExpression>),
+    Union(Box<Self>, Box<Self>),
     /// Intersects `candidates` with `predicate` by filtering.
     FilterWithin {
-        candidates: Box<ResolvedExpression>,
+        candidates: Box<Self>,
         predicate: ResolvedPredicateExpression,
     },
     /// Intersects expressions by merging.
-    Intersection(Box<ResolvedExpression>, Box<ResolvedExpression>),
-    Difference(Box<ResolvedExpression>, Box<ResolvedExpression>),
+    Intersection(Box<Self>, Box<Self>),
+    Difference(Box<Self>, Box<Self>),
 }
 
 impl ResolvedExpression {
