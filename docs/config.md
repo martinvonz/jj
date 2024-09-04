@@ -303,8 +303,8 @@ ui.graph.style = "square"
 The symbols used to represent commits or operations can be customized via
 templates.
 
-  * `templates.log_node` for commits (with `Option<Commit>` keywords)
-  * `templates.op_log_node` for operations (with `Operation` keywords)
+- `templates.log_node` for commits (with `Option<Commit>` keywords)
+- `templates.op_log_node` for operations (with `Operation` keywords)
 
 For example:
 ```toml
