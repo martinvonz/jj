@@ -721,7 +721,7 @@ impl TreeState {
         Ok(self.store.write_file(path, &mut file).await?)
     }
 
-    fn write_symlink_to_store(
+    async fn write_symlink_to_store(
         &self,
         path: &RepoPath,
         disk_path: &Path,
@@ -737,7 +737,7 @@ impl TreeState {
                     .ok_or_else(|| SnapshotError::InvalidUtf8SymlinkTarget {
                         path: disk_path.to_path_buf(),
                     })?;
-            Ok(self.store.write_symlink(path, str_target)?)
+            Ok(self.store.write_symlink(path, str_target).await?)
         } else {
             let target = fs::read(disk_path).map_err(|err| SnapshotError::Other {
                 message: format!("Failed to read file {}", disk_path.display()),
@@ -747,7 +747,7 @@ impl TreeState {
                 String::from_utf8(target).map_err(|_| SnapshotError::InvalidUtf8SymlinkTarget {
                     path: disk_path.to_path_buf(),
                 })?;
-            Ok(self.store.write_symlink(path, &string_target)?)
+            Ok(self.store.write_symlink(path, &string_target).await?)
         }
     }
 
@@ -1156,7 +1156,9 @@ impl TreeState {
                     .write_path_to_store(repo_path, &disk_path, &current_tree_values, executable)
                     .block_on()?,
                 FileType::Symlink => {
-                    let id = self.write_symlink_to_store(repo_path, &disk_path)?;
+                    let id = self
+                        .write_symlink_to_store(repo_path, &disk_path)
+                        .block_on()?;
                     Merge::normal(TreeValue::Symlink(id))
                 }
                 FileType::GitSubmodule => panic!("git submodule cannot be written to store"),
