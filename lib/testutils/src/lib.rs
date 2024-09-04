@@ -332,7 +332,11 @@ pub fn write_executable_file(tree_builder: &mut TreeBuilder, path: &RepoPath, co
 }
 
 pub fn write_symlink(tree_builder: &mut TreeBuilder, path: &RepoPath, target: &str) {
-    let id = tree_builder.store().write_symlink(path, target).unwrap();
+    let id = tree_builder
+        .store()
+        .write_symlink(path, target)
+        .block_on()
+        .unwrap();
     tree_builder.set(path.to_owned(), TreeValue::Symlink(id));
 }
 

@@ -47,6 +47,7 @@ use jj_lib::working_copy::SnapshotOptions;
 use jj_lib::workspace::default_working_copy_factories;
 use jj_lib::workspace::LockedWorkspace;
 use jj_lib::workspace::Workspace;
+use pollster::FutureExt;
 use test_case::test_case;
 use testutils::commit_with_tree;
 use testutils::create_tree;
@@ -189,7 +190,7 @@ fn test_checkout_file_transitions(backend: TestRepoBackend) {
                 )
             }
             Kind::Symlink => {
-                let id = store.write_symlink(path, "target").unwrap();
+                let id = store.write_symlink(path, "target").block_on().unwrap();
                 Merge::normal(TreeValue::Symlink(id))
             }
             Kind::Tree => {
@@ -501,7 +502,7 @@ fn test_conflicting_changes_on_disk() {
             updated_files: 0,
             added_files: 3,
             removed_files: 0,
-            skipped_files: 3,
+            skipped_files: 3
         }
     );
 
@@ -657,7 +658,7 @@ fn test_materialize_snapshot_conflicted_files() {
             updated_files: 0,
             added_files: 2,
             removed_files: 0,
-            skipped_files: 0,
+            skipped_files: 0
         }
     );
 

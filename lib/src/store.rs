@@ -262,8 +262,8 @@ impl Store {
         self.backend.read_symlink(path, id).await
     }
 
-    pub fn write_symlink(&self, path: &RepoPath, contents: &str) -> BackendResult<SymlinkId> {
-        self.backend.write_symlink(path, contents).block_on()
+    pub async fn write_symlink(&self, path: &RepoPath, contents: &str) -> BackendResult<SymlinkId> {
+        self.backend.write_symlink(path, contents).await
     }
 
     pub fn read_conflict(
