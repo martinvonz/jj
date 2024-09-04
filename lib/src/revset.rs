@@ -238,6 +238,7 @@ pub enum RevsetExpression {
     Difference(Rc<Self>, Rc<Self>),
 }
 
+// Leaf expression that never contains unresolved commit refs
 impl RevsetExpression {
     pub fn none() -> Rc<Self> {
         Rc::new(Self::None)
@@ -247,6 +248,34 @@ impl RevsetExpression {
         Rc::new(Self::All)
     }
 
+    pub fn visible_heads() -> Rc<Self> {
+        Rc::new(Self::VisibleHeads)
+    }
+
+    pub fn root() -> Rc<Self> {
+        Rc::new(Self::Root)
+    }
+
+    pub fn commit(commit_id: CommitId) -> Rc<Self> {
+        Self::commits(vec![commit_id])
+    }
+
+    pub fn commits(commit_ids: Vec<CommitId>) -> Rc<Self> {
+        Rc::new(Self::Commits(commit_ids))
+    }
+
+    pub fn filter(predicate: RevsetFilterPredicate) -> Rc<Self> {
+        Rc::new(Self::Filter(predicate))
+    }
+
+    /// Find any empty commits.
+    pub fn is_empty() -> Rc<Self> {
+        Self::filter(RevsetFilterPredicate::File(FilesetExpression::all())).negated()
+    }
+}
+
+// Leaf expression that represents unresolved commit refs
+impl RevsetExpression {
     pub fn working_copy(workspace_id: WorkspaceId) -> Rc<Self> {
         Rc::new(Self::CommitRef(RevsetCommitRef::WorkingCopy(workspace_id)))
     }
@@ -262,22 +291,6 @@ impl RevsetExpression {
     pub fn remote_symbol(name: String, remote: String) -> Rc<Self> {
         let commit_ref = RevsetCommitRef::RemoteSymbol { name, remote };
         Rc::new(Self::CommitRef(commit_ref))
-    }
-
-    pub fn commit(commit_id: CommitId) -> Rc<Self> {
-        Self::commits(vec![commit_id])
-    }
-
-    pub fn commits(commit_ids: Vec<CommitId>) -> Rc<Self> {
-        Rc::new(Self::Commits(commit_ids))
-    }
-
-    pub fn visible_heads() -> Rc<Self> {
-        Rc::new(Self::VisibleHeads)
-    }
-
-    pub fn root() -> Rc<Self> {
-        Rc::new(Self::Root)
     }
 
     pub fn bookmarks(pattern: StringPattern) -> Rc<Self> {
@@ -307,21 +320,15 @@ impl RevsetExpression {
     pub fn git_head() -> Rc<Self> {
         Rc::new(Self::CommitRef(RevsetCommitRef::GitHead))
     }
+}
 
+// Compound expression
+impl RevsetExpression {
     pub fn latest(self: &Rc<Self>, count: usize) -> Rc<Self> {
         Rc::new(Self::Latest {
             candidates: self.clone(),
             count,
         })
-    }
-
-    pub fn filter(predicate: RevsetFilterPredicate) -> Rc<Self> {
-        Rc::new(Self::Filter(predicate))
-    }
-
-    /// Find any empty commits.
-    pub fn is_empty() -> Rc<Self> {
-        Self::filter(RevsetFilterPredicate::File(FilesetExpression::all())).negated()
     }
 
     /// Commits in `self` that don't have descendants in `self`.
@@ -386,6 +393,7 @@ impl RevsetExpression {
     pub fn filtered(self: &Rc<Self>, predicate: RevsetFilterPredicate) -> Rc<Self> {
         self.intersection(&Self::filter(predicate))
     }
+
     /// Commits that are descendants of `self` and ancestors of `heads`, both
     /// inclusive.
     pub fn dag_range_to(self: &Rc<Self>, heads: &Rc<Self>) -> Rc<Self> {
@@ -470,7 +478,9 @@ impl RevsetExpression {
             }
         }
     }
+}
 
+impl RevsetExpression {
     /// Returns symbol string if this expression is of that type.
     pub fn as_symbol(&self) -> Option<&str> {
         match self {
