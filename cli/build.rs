@@ -16,20 +16,11 @@ use std::path::Path;
 use std::process::Command;
 use std::str;
 
-use cargo_metadata::MetadataCommand;
-
 const GIT_HEAD_PATH: &str = "../.git/HEAD";
 const JJ_OP_HEADS_PATH: &str = "../.jj/repo/op_heads/heads";
 
 fn main() -> std::io::Result<()> {
-    let path = std::env::var("CARGO_MANIFEST_DIR").unwrap();
-    let meta = MetadataCommand::new()
-        .manifest_path("./Cargo.toml")
-        .current_dir(&path)
-        .exec()
-        .unwrap();
-    let root = meta.root_package().unwrap();
-    let version = &root.version;
+    let version = std::env::var("CARGO_PKG_VERSION").unwrap();
 
     if Path::new(GIT_HEAD_PATH).exists() {
         // In colocated repo, .git/HEAD should reflect the working-copy parent.
