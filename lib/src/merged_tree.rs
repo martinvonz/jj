@@ -35,6 +35,7 @@ use futures::Stream;
 use futures::TryStreamExt;
 use itertools::EitherOrBoth;
 use itertools::Itertools;
+use pollster::FutureExt;
 
 use crate::backend;
 use crate::backend::BackendResult;
@@ -463,7 +464,7 @@ fn merge_trees(merge: &Merge<Tree>) -> BackendResult<Merge<Tree>> {
         };
     }
     if conflicts.is_empty() {
-        let new_tree_id = store.write_tree(dir, new_tree)?;
+        let new_tree_id = store.write_tree(dir, new_tree).block_on()?;
         Ok(Merge::resolved(new_tree_id))
     } else {
         // For each side of the conflict, overwrite the entries in `new_tree` with the
@@ -475,7 +476,7 @@ fn merge_trees(merge: &Merge<Tree>) -> BackendResult<Merge<Tree>> {
             for (basename, path_conflict) in &mut conflicts {
                 new_tree.set_or_remove(basename, path_conflict.next().unwrap());
             }
-            let tree = store.write_tree(dir, new_tree.clone())?;
+            let tree = store.write_tree(dir, new_tree.clone()).block_on()?;
             new_trees.push(tree);
         }
         Ok(Merge::from_vec(new_trees))
@@ -799,13 +800,13 @@ impl Iterator for TreeDiffIterator<'_> {
                         return Some(TreeDiffEntry {
                             path,
                             values: Err(before_err),
-                        })
+                        });
                     }
                     (_, Err(after_err)) => {
                         return Some(TreeDiffEntry {
                             path,
                             values: Err(after_err),
-                        })
+                        });
                     }
                 };
                 let subdir =

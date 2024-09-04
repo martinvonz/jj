@@ -17,6 +17,8 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
+use pollster::FutureExt;
+
 use crate::backend;
 use crate::backend::BackendResult;
 use crate::backend::TreeId;
@@ -95,6 +97,7 @@ impl TreeBuilder {
 
         // Write trees in reverse lexicographical order, starting with trees without
         // children.
+        // TODO: Writing trees concurrently should help on high-latency backends
         let store = &self.store;
         while let Some((dir, tree)) = trees_to_write.pop_last() {
             if let Some((parent, basename)) = dir.split() {
@@ -106,13 +109,13 @@ impl TreeBuilder {
                         // Entry would have been replaced with file (see above)
                     }
                 } else {
-                    let tree = store.write_tree(&dir, tree)?;
+                    let tree = store.write_tree(&dir, tree).block_on()?;
                     parent_tree.set(basename.to_owned(), TreeValue::Tree(tree.id().clone()));
                 }
             } else {
                 // We're writing the root tree. Write it even if empty. Return its id.
                 assert!(trees_to_write.is_empty());
-                let written_tree = store.write_tree(&dir, tree)?;
+                let written_tree = store.write_tree(&dir, tree).block_on()?;
                 return Ok(written_tree.id().clone());
             }
         }

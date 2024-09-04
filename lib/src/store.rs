@@ -215,12 +215,12 @@ impl Store {
         }
     }
 
-    pub fn write_tree(
+    pub async fn write_tree(
         self: &Arc<Self>,
         path: &RepoPath,
         tree: backend::Tree,
     ) -> BackendResult<Tree> {
-        let tree_id = self.backend.write_tree(path, &tree).block_on()?;
+        let tree_id = self.backend.write_tree(path, &tree).await?;
         let data = Arc::new(tree);
         {
             let mut locked_cache = self.tree_cache.lock().unwrap();
