@@ -16,6 +16,8 @@
 
 use std::sync::Arc;
 
+use pollster::FutureExt;
+
 use crate::backend;
 use crate::backend::BackendResult;
 use crate::backend::ChangeId;
@@ -341,5 +343,7 @@ fn write_to_store(
     // if we're rewriting a signed commit
     commit.secure_sig = None;
 
-    store.write_commit(commit, should_sign.then_some(&mut &sign_fn))
+    store
+        .write_commit(commit, should_sign.then_some(&mut &sign_fn))
+        .block_on()
 }
