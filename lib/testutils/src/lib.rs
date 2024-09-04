@@ -58,6 +58,7 @@ use jj_lib::tree_builder::TreeBuilder;
 use jj_lib::working_copy::SnapshotError;
 use jj_lib::working_copy::SnapshotOptions;
 use jj_lib::workspace::Workspace;
+use pollster::FutureExt;
 use tempfile::TempDir;
 
 use crate::test_backend::TestBackend;
@@ -387,7 +388,7 @@ pub fn commit_with_tree(store: &Arc<Store>, tree_id: MergedTreeId) -> Commit {
         committer: signature,
         secure_sig: None,
     };
-    store.write_commit(commit, None).unwrap()
+    store.write_commit(commit, None).block_on().unwrap()
 }
 
 pub fn dump_tree(store: &Arc<Store>, tree_id: &MergedTreeId) -> String {

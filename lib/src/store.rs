@@ -153,14 +153,14 @@ impl Store {
         Ok(data)
     }
 
-    pub fn write_commit(
+    pub async fn write_commit(
         self: &Arc<Self>,
         commit: backend::Commit,
-        sign_with: Option<&mut SigningFn>,
+        sign_with: Option<&mut SigningFn<'_>>,
     ) -> BackendResult<Commit> {
         assert!(!commit.parents.is_empty());
 
-        let (commit_id, commit) = self.backend.write_commit(commit, sign_with).block_on()?;
+        let (commit_id, commit) = self.backend.write_commit(commit, sign_with).await?;
         let data = Arc::new(commit);
         {
             let mut locked_cache = self.commit_cache.lock().unwrap();
