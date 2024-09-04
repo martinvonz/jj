@@ -6,7 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres
 to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+
 ## [Unreleased]
+
+### Breaking changes
+
+### Deprecations
+
+### New features
+
+### Fixed bugs
+
+## [0.21.0] - 2024-09-04
 
 ### Breaking changes
 
@@ -42,6 +53,27 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * Release binaries for Intel Macs have been restored. They were previously
   broken due to using a sunset version of GitHub's macOS runners (but nobody had
   previously complained.)
+
+### Contributors
+
+Thanks to the people who made this release happen!
+
+* Aaron Bull Schaefer (@elasticdog)
+* Austin Seipp (@thoughtpolice)
+* Benjamin Tan (@bnjmnt4n)
+* Raniz Daniel Raneland (@Raniz85)
+* Daniel Ploch (@torquestomp)
+* Essien Ita Essien (@essiene)
+* Ilya Grigoriev (@ilyagr)
+* Kaleb Pace (@kalebpace)
+* Marie (@NyCodeGHG)
+* Marijan Smetko (@InCogNiTo124)
+* Martin von Zweigbergk (@martinvonz)
+* Matt Kulukundis (@fowles)
+* Scott Taylor (@scott2000)
+* Stephen Jennings (@jennings)
+* tingerrr (@tingerrr)
+* Yuya Nishihara (@yuja)
 
 ## [0.20.0] - 2024-08-07
 
