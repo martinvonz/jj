@@ -242,12 +242,12 @@ impl Store {
         self.backend.read_file(path, id).await
     }
 
-    pub fn write_file(
+    pub async fn write_file(
         &self,
         path: &RepoPath,
         contents: &mut (dyn Read + Send),
     ) -> BackendResult<FileId> {
-        self.backend.write_file(path, contents).block_on()
+        self.backend.write_file(path, contents).await
     }
 
     pub fn read_symlink(&self, path: &RepoPath, id: &SymlinkId) -> BackendResult<String> {

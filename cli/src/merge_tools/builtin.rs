@@ -453,6 +453,7 @@ pub fn apply_diff_builtin(
         files.len(),
         "result had a different number of files"
     );
+    // TODO: Write files concurrently
     for (path, file) in changed_files.into_iter().zip(files) {
         let (selected, _unselected) = file.get_selected_contents();
         match selected {
@@ -496,7 +497,9 @@ pub fn apply_diff_builtin(
                 tree_builder.set_or_remove(path, value);
             }
             scm_record::SelectedContents::Present { contents } => {
-                let file_id = store.write_file(&path, &mut contents.as_bytes())?;
+                let file_id = store
+                    .write_file(&path, &mut contents.as_bytes())
+                    .block_on()?;
                 tree_builder.set_or_remove(
                     path,
                     Merge::normal(TreeValue::File {

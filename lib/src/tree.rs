@@ -397,7 +397,8 @@ fn merge_tree_value(
                 Err(conflict) => {
                     let conflict_borrowed = conflict.map(|value| value.as_ref());
                     if let Some(tree_value) =
-                        try_resolve_file_conflict(store, &filename, &conflict_borrowed)?
+                        try_resolve_file_conflict(store, &filename, &conflict_borrowed)
+                            .block_on()?
                     {
                         Some(tree_value)
                     } else {
@@ -414,10 +415,10 @@ fn merge_tree_value(
 ///
 /// The input `conflict` is supposed to be simplified. It shouldn't contain
 /// non-file values that cancel each other.
-pub fn try_resolve_file_conflict(
+pub async fn try_resolve_file_conflict(
     store: &Store,
     filename: &RepoPath,
-    conflict: &MergedTreeVal,
+    conflict: &MergedTreeVal<'_>,
 ) -> BackendResult<Option<TreeValue>> {
     // If there are any non-file or any missing parts in the conflict, we can't
     // merge it. We check early so we don't waste time reading file contents if
@@ -456,6 +457,7 @@ pub fn try_resolve_file_conflict(
     //    cannot
     let file_id_conflict = file_id_conflict.simplify();
 
+    // TODO: Read the files concurrently
     let contents: Merge<Vec<u8>> =
         file_id_conflict.try_map(|&file_id| -> BackendResult<Vec<u8>> {
             let mut content = vec![];
@@ -472,7 +474,9 @@ pub fn try_resolve_file_conflict(
     let merge_result = files::merge(&contents);
     match merge_result {
         MergeResult::Resolved(merged_content) => {
-            let id = store.write_file(filename, &mut merged_content.as_slice())?;
+            let id = store
+                .write_file(filename, &mut merged_content.as_slice())
+                .await?;
             Ok(Some(TreeValue::File { id, executable }))
         }
         MergeResult::Conflict(_) => Ok(None),
