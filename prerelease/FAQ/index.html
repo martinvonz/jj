@@ -1669,14 +1669,14 @@ not change.</p>
 parent-child relationships between commits you can see in <code>jj log</code>, this is
 simply not what they mean. What you can see in <code>jj log</code> is that after the
 working copy commit gets amended (after any edit), the commit ID changes.</p>
-<p>You can see the actual history of working copy changes using <code>jj obslog</code>. This
+<p>You can see the actual history of working copy changes using <code>jj evolog</code>. This
 will show the history of the commits that were previously the "working-copy
 commit", since the last time the change id of the working copy commit changed.
 The obsolete changes will be marked as "hidden". They are still accessible with
 any <code>jj</code> command (<code>jj diff</code>, for example), but you will need to use the commit
 id to refer to hidden commits.</p>
-<p>You can also use <code>jj obslog -r</code> on revisions that were previously the
-working-copy revisions (or on any other revisions). Use <code>jj obslog -p</code> as an
+<p>You can also use <code>jj evolog -r</code> on revisions that were previously the
+working-copy revisions (or on any other revisions). Use <code>jj evolog -p</code> as an
 easy way to see the evolution of the commit's contents.</p>
 <h3 id="can-i-prevent-jujutsu-from-recording-my-unfinished-work-im-not-ready-to-commit-it">Can I prevent Jujutsu from recording my unfinished work? I'm not ready to commit it.<a class="headerlink" href="#can-i-prevent-jujutsu-from-recording-my-unfinished-work-im-not-ready-to-commit-it" title="Permanent link">&para;</a></h3>
 <p>Jujutsu automatically records new files in the current working-copy commit and
@@ -1780,7 +1780,7 @@ $<span class="w"> </span>jj<span class="w"> </span>new<span class="w"> </span>vv
 <div class="highlight"><pre><span></span><code>$ jj config set --user git.private-commits &#39;description(glob:&quot;private:*&quot;)&#39;
 </code></pre></div>
 <h3 id="i-accidentally-changed-files-in-the-wrong-commit-how-do-i-move-the-recent-changes-into-another-commit">I accidentally changed files in the wrong commit, how do I move the recent changes into another commit?<a class="headerlink" href="#i-accidentally-changed-files-in-the-wrong-commit-how-do-i-move-the-recent-changes-into-another-commit" title="Permanent link">&para;</a></h3>
-<p>Use <code>jj obslog -p</code> to see how your working-copy commit has evolved. Find the
+<p>Use <code>jj evolog -p</code> to see how your working-copy commit has evolved. Find the
 commit you want to restore the contents to. Let's say the current commit (with
 the changes intended for a new commit) are in commit X and the state you wanted
 is in commit Y. Note the commit id (normally in blue at the end of the line in
