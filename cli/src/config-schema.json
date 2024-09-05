@@ -554,6 +554,11 @@
                                     "type": "string"
                                 },
                                 "description": "Filesets that will be affected by this tool"
+                            },
+                            "enabled": {
+                                "type": "boolean",
+                                "description": "Disables this tool if set to false",
+                                "default": true
                             }
                         }
                     },

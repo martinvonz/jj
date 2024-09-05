@@ -64,6 +64,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 * CommitId / ChangeId template types now support `.normal_hex()`.
 
+* Fix tools have a new config `fix.tools.NAME.enabled` which can be
+  used to configure a disabled tool in user config and enable it in a
+  individual repo's config.
+
 ### Fixed bugs
 
  * Fixed panic when parsing invalid conflict markers of a particular form.
