@@ -93,6 +93,6 @@ pub fn cmd_op_show(
         &commit_summary_template,
         (!args.no_graph).then_some(graph_style),
         &with_content_format,
-        diff_renderer,
+        diff_renderer.as_ref(),
     )
 }
