@@ -41,6 +41,7 @@ use crate::cli_util::short_operation_hash;
 use crate::cli_util::CommandHelper;
 use crate::cli_util::LogContentFormat;
 use crate::command_error::CommandError;
+use crate::diff_util::diff_formats_for_log;
 use crate::diff_util::DiffFormatArgs;
 use crate::diff_util::DiffRenderer;
 use crate::formatter::Formatter;
@@ -107,9 +108,12 @@ pub fn cmd_op_diff(
     // Merge index from `from_repo` to `to_repo`, so commits in `from_repo` are
     // accessible.
     tx.mut_repo().merge_index(&from_repo);
-    let diff_renderer = tx
-        .base_workspace_helper()
-        .diff_renderer_for_log(&args.diff_format, args.patch)?;
+    let diff_renderer = {
+        // diff_renderer_for_log(), but captures the merged MutableRepo.
+        let formats = diff_formats_for_log(command.settings(), &args.diff_format, args.patch)?;
+        let path_converter = tx.base_workspace_helper().path_converter();
+        (!formats.is_empty()).then(|| DiffRenderer::new(tx.repo(), path_converter, formats))
+    };
     let commit_summary_template = tx.commit_summary_template();
 
     ui.request_pager();
