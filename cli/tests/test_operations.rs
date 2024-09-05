@@ -1187,6 +1187,135 @@ fn test_op_diff_patch() {
 }
 
 #[test]
+fn test_op_diff_sibling() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &["op", "log", "--no-graph", r#"-Tid.short() ++ "\n""#],
+    );
+    let base_op_id = stdout.lines().next().unwrap();
+    insta::assert_snapshot!(base_op_id, @"b51416386f26");
+
+    // Create merge commit at one operation side. The parent trees will have to
+    // be merged when diffing, which requires the commit index of this side.
+    test_env.jj_cmd_ok(&repo_path, &["new", "root()", "-mA.1"]);
+    std::fs::write(repo_path.join("file1"), "a\n").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["new", "root()", "-mA.2"]);
+    std::fs::write(repo_path.join("file2"), "a\n").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["new", "all:@-+", "-mA"]);
+
+    // Create another operation diverged from the base operation.
+    test_env.jj_cmd_ok(&repo_path, &["describe", "--at-op", base_op_id, "-mB"]);
+
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["op", "log"]);
+    insta::assert_snapshot!(&stdout, @r###"
+    @    2629707e5305 test-username@host.example.com 2001-02-03 04:05:13.000 +07:00 - 2001-02-03 04:05:13.000 +07:00
+    ├─╮  reconcile divergent operations
+    │ │  args: jj op log
+    ○ │  b8584dcdb220 test-username@host.example.com 2001-02-03 04:05:11.000 +07:00 - 2001-02-03 04:05:11.000 +07:00
+    │ │  new empty commit
+    │ │  args: jj new 'all:@-+' -mA
+    ○ │  f0bb05eb2e7e test-username@host.example.com 2001-02-03 04:05:11.000 +07:00 - 2001-02-03 04:05:11.000 +07:00
+    │ │  snapshot working copy
+    │ │  args: jj new 'all:@-+' -mA
+    ○ │  ee4ec332e269 test-username@host.example.com 2001-02-03 04:05:10.000 +07:00 - 2001-02-03 04:05:10.000 +07:00
+    │ │  new empty commit
+    │ │  args: jj new 'root()' -mA.2
+    ○ │  971683f333fa test-username@host.example.com 2001-02-03 04:05:10.000 +07:00 - 2001-02-03 04:05:10.000 +07:00
+    │ │  snapshot working copy
+    │ │  args: jj new 'root()' -mA.2
+    ○ │  3df45c2cdcb4 test-username@host.example.com 2001-02-03 04:05:09.000 +07:00 - 2001-02-03 04:05:09.000 +07:00
+    │ │  new empty commit
+    │ │  args: jj new 'root()' -mA.1
+    │ ○  654f3215449e test-username@host.example.com 2001-02-03 04:05:12.000 +07:00 - 2001-02-03 04:05:12.000 +07:00
+    ├─╯  describe commit 230dd059e1b059aefc0da06a2e5a7dbf22362f22
+    │    args: jj describe --at-op b51416386f26 -mB
+    ○  b51416386f26 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
+    │  add workspace 'default'
+    ○  9a7d829846af test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
+    │  initialize repo
+    ○  000000000000 root()
+    "###);
+    insta::assert_snapshot!(&stderr, @r###"
+    Concurrent modification detected, resolving automatically.
+    "###);
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &["op", "log", "--no-graph", r#"-Tid.short() ++ "\n""#],
+    );
+    let (head_op_id, p1_op_id, _, _, _, _, p2_op_id) = stdout.lines().next_tuple().unwrap();
+    insta::assert_snapshot!(head_op_id, @"2629707e5305");
+    insta::assert_snapshot!(p1_op_id, @"b8584dcdb220");
+    insta::assert_snapshot!(p2_op_id, @"654f3215449e");
+
+    // Diff between p1 and p2 operations should work no matter if p2 is chosen
+    // as a base operation.
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &[
+            "op",
+            "diff",
+            "--at-op",
+            p1_op_id,
+            "--from",
+            p1_op_id,
+            "--to",
+            p2_op_id,
+            "--summary",
+        ],
+    );
+    insta::assert_snapshot!(&stdout, @r###"
+    From operation b8584dcdb220: new empty commit
+      To operation 654f3215449e: describe commit 230dd059e1b059aefc0da06a2e5a7dbf22362f22
+
+    Changed commits:
+    ○  Change qpvuntsmwlqt
+       + qpvuntsm 02ef2bc4 (empty) B
+    ○    Change mzvwutvlkqwt
+    ├─╮  - mzvwutvl hidden 270db3d9 (empty) A
+    │ ○  Change kkmpptxzrspx
+    │    - kkmpptxz hidden 8331e0a3 A.1
+    │    A file1
+    ○  Change zsuskulnrvyr
+       - zsuskuln hidden 8afecaef A.2
+       A file2
+    "###);
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &[
+            "op",
+            "diff",
+            "--at-op",
+            p2_op_id,
+            "--from",
+            p2_op_id,
+            "--to",
+            p1_op_id,
+            "--summary",
+        ],
+    );
+    insta::assert_snapshot!(&stdout, @r###"
+    From operation 654f3215449e: describe commit 230dd059e1b059aefc0da06a2e5a7dbf22362f22
+      To operation b8584dcdb220: new empty commit
+
+    Changed commits:
+    ○    Change mzvwutvlkqwt
+    ├─╮  + mzvwutvl 270db3d9 (empty) A
+    │ ○  Change kkmpptxzrspx
+    │    + kkmpptxz 8331e0a3 A.1
+    │    A file1
+    ○  Change zsuskulnrvyr
+       + zsuskuln 8afecaef A.2
+       A file2
+    ○  Change qpvuntsmwlqt
+       - qpvuntsm hidden 02ef2bc4 (empty) B
+    "###);
+}
+
+#[test]
 fn test_op_show() {
     let test_env = TestEnvironment::default();
     let git_repo_path = test_env.env_root().join("git-repo");
