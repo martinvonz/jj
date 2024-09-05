@@ -26,8 +26,6 @@ use crate::cli_util::RevisionArg;
 use crate::command_error::CommandError;
 use crate::commit_templater::CommitTemplateLanguage;
 use crate::diff_util::DiffFormatArgs;
-use crate::diff_util::DiffRenderer;
-use crate::formatter::Formatter;
 use crate::graphlog::get_graphlog;
 use crate::graphlog::Edge;
 use crate::graphlog::GraphStyle;
@@ -159,9 +157,17 @@ pub(crate) fn cmd_evolog(
                 buffer.push(b'\n');
             }
             if let Some(renderer) = &diff_renderer {
+                let predecessors: Vec<_> = commit.predecessors().try_collect()?;
                 let mut formatter = ui.new_formatter(&mut buffer);
                 let width = usize::saturating_sub(ui.term_width(), graph_width());
-                show_predecessor_patch(ui, renderer, formatter.as_mut(), &commit, width)?;
+                renderer.show_inter_diff(
+                    ui,
+                    formatter.as_mut(),
+                    &predecessors,
+                    &commit,
+                    &EverythingMatcher,
+                    width,
+                )?;
             }
             let node_symbol = format_template(ui, &Some(commit.clone()), &node_template);
             graph.add_node(
@@ -176,30 +182,19 @@ pub(crate) fn cmd_evolog(
             with_content_format
                 .write(formatter, |formatter| template.format(&commit, formatter))?;
             if let Some(renderer) = &diff_renderer {
+                let predecessors: Vec<_> = commit.predecessors().try_collect()?;
                 let width = ui.term_width();
-                show_predecessor_patch(ui, renderer, formatter, &commit, width)?;
+                renderer.show_inter_diff(
+                    ui,
+                    formatter,
+                    &predecessors,
+                    &commit,
+                    &EverythingMatcher,
+                    width,
+                )?;
             }
         }
     }
 
-    Ok(())
-}
-
-fn show_predecessor_patch(
-    ui: &Ui,
-    renderer: &DiffRenderer,
-    formatter: &mut dyn Formatter,
-    commit: &Commit,
-    width: usize,
-) -> Result<(), CommandError> {
-    let predecessors: Vec<_> = commit.predecessors().try_collect()?;
-    renderer.show_inter_diff(
-        ui,
-        formatter,
-        &predecessors,
-        &commit,
-        &EverythingMatcher,
-        width,
-    )?;
     Ok(())
 }
