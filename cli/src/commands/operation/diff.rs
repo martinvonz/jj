@@ -160,7 +160,7 @@ pub fn cmd_op_diff(
         &commit_summary_template,
         (!args.no_graph).then_some(graph_style),
         &with_content_format,
-        diff_renderer,
+        diff_renderer.as_ref(),
     )
 }
 
@@ -178,7 +178,7 @@ pub fn show_op_diff(
     commit_summary_template: &TemplateRenderer<Commit>,
     graph_style: Option<GraphStyle>,
     with_content_format: &LogContentFormat,
-    diff_renderer: Option<DiffRenderer>,
+    diff_renderer: Option<&DiffRenderer>,
 ) -> Result<(), CommandError> {
     let changes = compute_operation_commits_diff(current_repo, from_repo, to_repo)?;
 
