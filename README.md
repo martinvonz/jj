@@ -12,12 +12,12 @@
 **[Homepage] &nbsp;&nbsp;&bull;&nbsp;&nbsp;**
 **[Installation] &nbsp;&nbsp;&bull;&nbsp;&nbsp;**
 **[Getting Started] &nbsp;&nbsp;&bull;&nbsp;&nbsp;**
-**[Roadmap]**
+**[Development Roadmap]**
 
 [Homepage]: https://martinvonz.github.io/jj
 [Installation]: https://martinvonz.github.io/jj/latest/install-and-setup
 [Getting Started]: https://martinvonz.github.io/jj/latest/tutorial
-[Roadmap]: https://martinvonz.github.io/jj/latest/roadmap
+[Development Roadmap]: https://martinvonz.github.io/jj/latest/roadmap
 
 </div>
 
