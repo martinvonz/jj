@@ -27,6 +27,7 @@ use crate::cli_util::DiffSelector;
 use crate::cli_util::RevisionArg;
 use crate::cli_util::WorkspaceCommandTransaction;
 use crate::command_error::user_error;
+use crate::command_error::user_error_with_hint;
 use crate::command_error::CommandError;
 use crate::description_util::combine_messages;
 use crate::description_util::join_message_paragraphs;
@@ -117,7 +118,10 @@ pub(crate) fn cmd_squash(
             .resolve_single_rev(args.revision.as_ref().unwrap_or(&RevisionArg::AT))?;
         let mut parents: Vec<_> = source.parents().try_collect()?;
         if parents.len() != 1 {
-            return Err(user_error("Cannot squash merge commits"));
+            return Err(user_error_with_hint(
+                "Cannot squash merge commits without a specified destination",
+                "Use `--into` to specify which parent to squash into",
+            ));
         }
         sources = vec![source];
         destination = parents.pop().unwrap();
