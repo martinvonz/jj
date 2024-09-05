@@ -89,6 +89,7 @@ impl TestEnvironment {
         cmd.current_dir(current_dir);
         cmd.args(args);
         cmd.env_clear();
+        cmd.env("COLUMNS", "100");
         for (key, value) in &self.env_vars {
             cmd.env(key, value);
         }
