@@ -142,10 +142,11 @@ pub(crate) fn cmd_evolog(
     if !args.no_graph {
         let mut graph = get_graphlog(graph_style, formatter.raw());
         for commit in commits {
-            let mut edges = vec![];
-            for predecessor in commit.predecessors() {
-                edges.push(Edge::Direct(predecessor?.id().clone()));
-            }
+            let edges = commit
+                .predecessor_ids()
+                .iter()
+                .map(|id| Edge::Direct(id.clone()))
+                .collect_vec();
             let graph_width = || graph.width(commit.id(), &edges);
             let mut buffer = vec![];
             with_content_format.write_graph_text(
