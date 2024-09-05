@@ -456,7 +456,7 @@ fn parse_conflict_hunk(input: &[u8]) -> Merge<BString> {
                     removes.last_mut().unwrap().extend_from_slice(rest);
                     adds.last_mut().unwrap().extend_from_slice(rest);
                 } else {
-                    // Doesn't look like a conflict
+                    // Doesn't look like a valid conflict
                     return Merge::resolved(BString::new(vec![]));
                 }
             }
@@ -467,13 +467,18 @@ fn parse_conflict_hunk(input: &[u8]) -> Merge<BString> {
                 adds.last_mut().unwrap().extend_from_slice(line);
             }
             State::Unknown => {
-                // Doesn't look like a conflict
+                // Doesn't look like a valid conflict
                 return Merge::resolved(BString::new(vec![]));
             }
         }
     }
 
-    Merge::from_removes_adds(removes, adds)
+    if adds.len() == removes.len() + 1 {
+        Merge::from_removes_adds(removes, adds)
+    } else {
+        // Doesn't look like a valid conflict
+        Merge::resolved(BString::new(vec![]))
+    }
 }
 
 /// Parses conflict markers in `content` and returns an updated version of

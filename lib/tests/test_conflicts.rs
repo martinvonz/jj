@@ -750,8 +750,6 @@ fn test_parse_conflict_wrong_arity() {
 }
 
 #[test]
-// TODO: Should *not* panic
-#[should_panic]
 fn test_parse_conflict_malformed_missing_removes() {
     // Right number of adds but missing removes
     assert_eq!(
