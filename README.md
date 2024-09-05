@@ -195,7 +195,9 @@ the header of the website when you scroll to the top of any page.
 
 Jujutsu is designed so that the underlying data and storage model is abstract.
 Today, it features two [backends]—one of them uses a Git repository for storage,
-while the other is a native storage backend[^native-backend].
+while the other is a native storage backend[^native-backend]. The Git backend
+uses the [libgit2](https://libgit2.org/) C library and the
+[gitoxide](https://github.com/Byron/gitoxide) Rust library.
 
 [backends]: https://martinvonz.github.io/jj/latest/glossary#backend
 
@@ -205,9 +207,7 @@ add functionality that cannot easily be added to the Git backend.
 
 The Git backend is fully featured and maintained, and allows you to use Jujutsu
 as an alternative interface to Git. The commits you create will look like
-regular Git commits. You can always switch back to Git. The Git support uses the
-[libgit2](https://libgit2.org/) C library.
-
+regular Git commits. You can always switch back to Git.
 
 <img src="demos/git_compat.png" />
 
