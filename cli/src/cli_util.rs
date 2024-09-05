@@ -1339,7 +1339,7 @@ impl WorkspaceCommandHelper {
                             short_operation_hash(&old_op_id)
                         ),
                         "Run `jj workspace update-stale` to update it.
-See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-working-copy \
+See https://martinvonz.github.io/jj/latest/working-copy/#stale-working-copy \
                          for more information.",
                     ));
                 }
@@ -1355,7 +1355,7 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
                     return Err(user_error_with_hint(
                         "Could not read working copy's operation.",
                         "Run `jj workspace update-stale` to recover.
-See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-working-copy \
+See https://martinvonz.github.io/jj/latest/working-copy/#stale-working-copy \
                          for more information.",
                     ));
                 }
@@ -2492,7 +2492,7 @@ impl fmt::Display for RemoteBranchNamePattern {
 
 /// Jujutsu (An experimental VCS)
 ///
-/// To get started, see the tutorial at https://github.com/martinvonz/jj/blob/main/docs/tutorial.md.
+/// To get started, see the tutorial at https://martinvonz.github.io/jj/latest/tutorial/.
 #[allow(rustdoc::bare_urls)]
 #[derive(clap::Parser, Clone, Debug)]
 #[command(name = "jj")]

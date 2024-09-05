@@ -45,7 +45,7 @@ use crate::ui::Ui;
 /// `main` branch and the working copy as parents.
 ///
 /// For more information, see
-/// https://github.com/martinvonz/jj/blob/main/docs/working-copy.md.
+/// https://martinvonz.github.io/jj/latest/working-copy/.
 #[derive(clap::Args, Clone, Debug)]
 pub(crate) struct NewArgs {
     /// Parent(s) of the new change

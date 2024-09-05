@@ -34,7 +34,7 @@ use crate::ui::Ui;
 /// "+".
 ///
 /// For information about branches, see
-/// https://github.com/martinvonz/jj/blob/main/docs/branches.md.
+/// https://martinvonz.github.io/jj/latest/branches/.
 #[derive(clap::Args, Clone, Debug)]
 pub struct BranchListArgs {
     /// Show all tracking and non-tracking remote branches including the ones
@@ -55,7 +55,7 @@ pub struct BranchListArgs {
     ///
     /// By default, the specified name matches exactly. Use `glob:` prefix to
     /// select branches by wildcard pattern. For details, see
-    /// https://github.com/martinvonz/jj/blob/main/docs/revsets.md#string-patterns.
+    /// https://martinvonz.github.io/jj/latest/revsets/#string-patterns.
     #[arg(value_parser = StringPattern::parse)]
     names: Vec<StringPattern>,
 
@@ -70,7 +70,7 @@ pub struct BranchListArgs {
     ///
     /// All 0-argument methods of the `RefName` type are available as keywords.
     ///
-    /// For the syntax, see https://github.com/martinvonz/jj/blob/main/docs/templates.md
+    /// For the syntax, see https://martinvonz.github.io/jj/latest/templates/
     #[arg(long, short = 'T')]
     template: Option<String>,
 }

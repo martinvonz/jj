@@ -34,7 +34,7 @@ use crate::ui::Ui;
 ///  * The working copy commit and its (first) parent, and a summary of the
 ///    changes between them
 ///
-///  * Conflicted branches (see https://github.com/martinvonz/jj/blob/main/docs/branches.md)
+///  * Conflicted branches (see https://martinvonz.github.io/jj/latest/branches/)
 #[derive(clap::Args, Clone, Debug)]
 #[command(visible_alias = "st")]
 pub(crate) struct StatusArgs {

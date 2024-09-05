@@ -35,7 +35,7 @@ pub struct BranchForgetArgs {
     ///
     /// By default, the specified name matches exactly. Use `glob:` prefix to
     /// select branches by wildcard pattern. For details, see
-    /// https://github.com/martinvonz/jj/blob/main/docs/revsets.md#string-patterns.
+    /// https://martinvonz.github.io/jj/latest/revsets/#string-patterns.
     #[arg(required = true, value_parser = StringPattern::parse)]
     names: Vec<StringPattern>,
 }

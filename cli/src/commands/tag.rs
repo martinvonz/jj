@@ -34,14 +34,14 @@ pub struct TagListArgs {
     ///
     /// By default, the specified name matches exactly. Use `glob:` prefix to
     /// select tags by wildcard pattern. For details, see
-    /// https://github.com/martinvonz/jj/blob/main/docs/revsets.md#string-patterns.
+    /// https://martinvonz.github.io/jj/latest/revsets/#string-patterns.
     #[arg(value_parser = StringPattern::parse)]
     pub names: Vec<StringPattern>,
     /// Render each tag using the given template
     ///
     /// All 0-argument methods of the `RefName` type are available as keywords.
     ///
-    /// For the syntax, see https://github.com/martinvonz/jj/blob/main/docs/templates.md
+    /// For the syntax, see https://martinvonz.github.io/jj/latest/templates/
     #[arg(long, short = 'T')]
     template: Option<String>,
 }

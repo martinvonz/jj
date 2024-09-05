@@ -549,7 +549,7 @@ fn test_invalid_config() {
     let stderr = test_env.jj_cmd_failure(test_env.env_root(), &["init", "repo"]);
     insta::assert_snapshot!(stderr.replace('\\', "/"), @r###"
     Config error: expected newline, found an identifier at line 1 column 10 in config/config0002.toml
-    For help, see https://github.com/martinvonz/jj/blob/main/docs/config.md.
+    For help, see https://martinvonz.github.io/jj/latest/config/.
     "###);
 }
 

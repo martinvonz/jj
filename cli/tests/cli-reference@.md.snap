@@ -104,7 +104,7 @@ This document contains the help content for the `jj` command-line program.
 
 Jujutsu (An experimental VCS)
 
-To get started, see the tutorial at https://github.com/martinvonz/jj/blob/main/docs/tutorial.md.
+To get started, see the tutorial at https://martinvonz.github.io/jj/latest/tutorial/.
 
 **Usage:** `jj [OPTIONS] [COMMAND]`
 
@@ -229,7 +229,7 @@ Apply the reverse of a revision on top of another revision
 
 Manage branches
 
-For information about branches, see https://github.com/martinvonz/jj/blob/main/docs/branches.md.
+For information about branches, see https://martinvonz.github.io/jj/latest/branches/.
 
 **Usage:** `jj branch <COMMAND>`
 
@@ -273,7 +273,7 @@ Delete an existing branch and propagate the deletion to remotes on the next push
 
 * `<NAMES>` — The branches to delete
 
-   By default, the specified name matches exactly. Use `glob:` prefix to select branches by wildcard pattern. For details, see https://github.com/martinvonz/jj/blob/main/docs/revsets.md#string-patterns.
+   By default, the specified name matches exactly. Use `glob:` prefix to select branches by wildcard pattern. For details, see https://martinvonz.github.io/jj/latest/revsets/#string-patterns.
 
 
 
@@ -289,7 +289,7 @@ A forgotten branch will not impact remotes on future pushes. It will be recreate
 
 * `<NAMES>` — The branches to forget
 
-   By default, the specified name matches exactly. Use `glob:` prefix to select branches by wildcard pattern. For details, see https://github.com/martinvonz/jj/blob/main/docs/revsets.md#string-patterns.
+   By default, the specified name matches exactly. Use `glob:` prefix to select branches by wildcard pattern. For details, see https://martinvonz.github.io/jj/latest/revsets/#string-patterns.
 
 
 
@@ -299,7 +299,7 @@ List branches and their targets
 
 By default, a tracking remote branch will be included only if its target is different from the local target. A non-tracking remote branch won't be listed. For a conflicted branch (both local and remote), old target revisions are preceded by a "-" and new target revisions are preceded by a "+".
 
-For information about branches, see https://github.com/martinvonz/jj/blob/main/docs/branches.md.
+For information about branches, see https://martinvonz.github.io/jj/latest/branches/.
 
 **Usage:** `jj branch list [OPTIONS] [NAMES]...`
 
@@ -307,7 +307,7 @@ For information about branches, see https://github.com/martinvonz/jj/blob/main/d
 
 * `<NAMES>` — Show branches whose local name matches
 
-   By default, the specified name matches exactly. Use `glob:` prefix to select branches by wildcard pattern. For details, see https://github.com/martinvonz/jj/blob/main/docs/revsets.md#string-patterns.
+   By default, the specified name matches exactly. Use `glob:` prefix to select branches by wildcard pattern. For details, see https://martinvonz.github.io/jj/latest/revsets/#string-patterns.
 
 ###### **Options:**
 
@@ -321,7 +321,7 @@ For information about branches, see https://github.com/martinvonz/jj/blob/main/d
 
    All 0-argument methods of the `RefName` type are available as keywords.
 
-   For the syntax, see https://github.com/martinvonz/jj/blob/main/docs/templates.md
+   For the syntax, see https://martinvonz.github.io/jj/latest/templates/
 
 
 
@@ -343,7 +343,7 @@ $ jj branch move --from 'heads(::@- & branches())' --to @-
 
 * `<NAMES>` — Move branches matching the given name patterns
 
-   By default, the specified name matches exactly. Use `glob:` prefix to select branches by wildcard pattern. For details, see https://github.com/martinvonz/jj/blob/main/docs/revsets.md#string-patterns.
+   By default, the specified name matches exactly. Use `glob:` prefix to select branches by wildcard pattern. For details, see https://martinvonz.github.io/jj/latest/revsets/#string-patterns.
 
 ###### **Options:**
 
@@ -399,7 +399,7 @@ A tracking remote branch will be imported as a local branch of the same name. Ch
 
 * `<BRANCH@REMOTE>` — Remote branches to track
 
-   By default, the specified name matches exactly. Use `glob:` prefix to select branches by wildcard pattern. For details, see https://github.com/martinvonz/jj/blob/main/docs/revsets.md#string-patterns.
+   By default, the specified name matches exactly. Use `glob:` prefix to select branches by wildcard pattern. For details, see https://martinvonz.github.io/jj/latest/revsets/#string-patterns.
 
    Examples: branch@remote, glob:main@*, glob:jjfan-*@upstream
 
@@ -417,7 +417,7 @@ A non-tracking remote branch is just a pointer to the last-fetched remote branch
 
 * `<BRANCH@REMOTE>` — Remote branches to untrack
 
-   By default, the specified name matches exactly. Use `glob:` prefix to select branches by wildcard pattern. For details, see https://github.com/martinvonz/jj/blob/main/docs/revsets.md#string-patterns.
+   By default, the specified name matches exactly. Use `glob:` prefix to select branches by wildcard pattern. For details, see https://martinvonz.github.io/jj/latest/revsets/#string-patterns.
 
    Examples: branch@remote, glob:main@*, glob:jjfan-*@upstream
 
@@ -454,7 +454,7 @@ Manage config options
 
 Operates on jj configuration, which comes from the config file and environment variables.
 
-For file locations, supported config options, and other details about jj config, see https://github.com/martinvonz/jj/blob/main/docs/config.md.
+For file locations, supported config options, and other details about jj config, see https://martinvonz.github.io/jj/latest/config/.
 
 **Usage:** `jj config <COMMAND>`
 
@@ -527,7 +527,7 @@ List variables set in config file, along with their values
    * `value: String`: Serialized value in TOML syntax.
    * `overridden: Boolean`: True if the value is shadowed by other.
 
-   For the syntax, see https://github.com/martinvonz/jj/blob/main/docs/templates.md
+   For the syntax, see https://martinvonz.github.io/jj/latest/templates/
 
 
 
@@ -709,7 +709,7 @@ Lists the previous commits which a change has pointed to. The current commit of 
 * `--no-graph` — Don't show the graph, show a flat list of revisions
 * `-T`, `--template <TEMPLATE>` — Render each revision using the given template
 
-   For the syntax, see https://github.com/martinvonz/jj/blob/main/docs/templates.md
+   For the syntax, see https://martinvonz.github.io/jj/latest/templates/
 * `-p`, `--patch` — Show patch compared to the previous version of this change
 
    If the previous version has different parents, it will be temporarily rebased to the parents of the new version, so the diff is not contaminated by unrelated changes.
@@ -907,7 +907,7 @@ will be removed in a future version.
 
 Commands for working with Git remotes and the underlying Git repo
 
-For a comparison with Git, including a table of commands, see https://github.com/martinvonz/jj/blob/main/docs/git-comparison.md.
+For a comparison with Git, including a table of commands, see https://martinvonz.github.io/jj/latest/git-comparison/.
 
 **Usage:** `jj git <COMMAND>`
 
@@ -1192,7 +1192,7 @@ Spans of revisions that are not included in the graph per `--revisions` are rend
 * `--no-graph` — Don't show the graph, show a flat list of revisions
 * `-T`, `--template <TEMPLATE>` — Render each revision using the given template
 
-   For the syntax, see https://github.com/martinvonz/jj/blob/main/docs/templates.md
+   For the syntax, see https://martinvonz.github.io/jj/latest/templates/
 * `-p`, `--patch` — Show patch
 * `-s`, `--summary` — For each path, show only whether it was modified, added, or deleted
 * `--stat` — Show a histogram of the changes
@@ -1217,7 +1217,7 @@ By default, `jj` will edit the new change, making the working copy represent the
 
 Note that you can create a merge commit by specifying multiple revisions as argument. For example, `jj new main @` will create a new commit with the `main` branch and the working copy as parents.
 
-For more information, see https://github.com/martinvonz/jj/blob/main/docs/working-copy.md.
+For more information, see https://martinvonz.github.io/jj/latest/working-copy/.
 
 **Usage:** `jj new [OPTIONS] [REVISIONS]...`
 
@@ -1293,7 +1293,7 @@ implied.
 
 Commands for working with the operation log
 
-For information about the operation log, see https://github.com/martinvonz/jj/blob/main/docs/operation-log.md.
+For information about the operation log, see https://martinvonz.github.io/jj/latest/operation-log/.
 
 **Usage:** `jj operation <COMMAND>`
 
@@ -1370,7 +1370,7 @@ Like other commands, `jj op log` snapshots the current working-copy changes and 
 * `--no-graph` — Don't show the graph, show a flat list of operations
 * `-T`, `--template <TEMPLATE>` — Render each operation using the given template
 
-   For the syntax, see https://github.com/martinvonz/jj/blob/main/docs/templates.md
+   For the syntax, see https://martinvonz.github.io/jj/latest/templates/
 
 
 
@@ -1756,7 +1756,7 @@ Show commit description and changes in a revision
 
 * `-T`, `--template <TEMPLATE>` — Render a revision using the given template
 
-   For the syntax, see https://github.com/martinvonz/jj/blob/main/docs/templates.md
+   For the syntax, see https://martinvonz.github.io/jj/latest/templates/
 * `-s`, `--summary` — For each path, show only whether it was modified, added, or deleted
 * `--stat` — Show a histogram of the changes
 * `--types` — For each path, show only its type before and after
@@ -1899,7 +1899,7 @@ This includes:
 
 * The working copy commit and its (first) parent, and a summary of the changes between them
 
-* Conflicted branches (see https://github.com/martinvonz/jj/blob/main/docs/branches.md)
+* Conflicted branches (see https://martinvonz.github.io/jj/latest/branches/)
 
 **Usage:** `jj status [PATHS]...`
 
@@ -1931,7 +1931,7 @@ List tags
 
 * `<NAMES>` — Show tags whose local name matches
 
-   By default, the specified name matches exactly. Use `glob:` prefix to select tags by wildcard pattern. For details, see https://github.com/martinvonz/jj/blob/main/docs/revsets.md#string-patterns.
+   By default, the specified name matches exactly. Use `glob:` prefix to select tags by wildcard pattern. For details, see https://martinvonz.github.io/jj/latest/revsets/#string-patterns.
 
 ###### **Options:**
 
@@ -1939,7 +1939,7 @@ List tags
 
    All 0-argument methods of the `RefName` type are available as keywords.
 
-   For the syntax, see https://github.com/martinvonz/jj/blob/main/docs/templates.md
+   For the syntax, see https://martinvonz.github.io/jj/latest/templates/
 
 
 
@@ -2172,7 +2172,7 @@ Show the current workspace root directory
 
 Update a workspace that has become stale
 
-For information about stale working copies, see https://github.com/martinvonz/jj/blob/main/docs/working-copy.md.
+For information about stale working copies, see https://martinvonz.github.io/jj/latest/working-copy/.
 
 **Usage:** `jj workspace update-stale`
 

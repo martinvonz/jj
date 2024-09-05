@@ -35,7 +35,7 @@ use crate::ui::Ui;
 /// Update a workspace that has become stale
 ///
 /// For information about stale working copies, see
-/// https://github.com/martinvonz/jj/blob/main/docs/working-copy.md.
+/// https://martinvonz.github.io/jj/latest/working-copy/.
 #[derive(clap::Args, Clone, Debug)]
 pub struct WorkspaceUpdateStaleArgs {}
 

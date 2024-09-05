@@ -725,7 +725,7 @@ fn try_handle_command_result(
             print_error(ui, "Config error: ", err, hints)?;
             writeln!(
                 ui.stderr_formatter().labeled("hint"),
-                "For help, see https://github.com/martinvonz/jj/blob/main/docs/config.md."
+                "For help, see https://martinvonz.github.io/jj/latest/config/."
             )?;
             Ok(ExitCode::from(1))
         }

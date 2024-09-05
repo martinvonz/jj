@@ -25,7 +25,7 @@ use crate::ui::Ui;
 /// `jj new`)
 ///
 /// For more information, see
-/// https://github.com/martinvonz/jj/blob/main/docs/working-copy.md.
+/// https://martinvonz.github.io/jj/latest/working-copy/.
 #[derive(clap::Args, Clone, Debug)]
 pub(crate) struct CheckoutArgs {
     /// The revision to update to

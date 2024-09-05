@@ -210,7 +210,7 @@ pub struct AnnotatedValue {
 /// Sources from the lowest precedence:
 /// 1. Default
 /// 2. Base environment variables
-/// 3. [User config](https://github.com/martinvonz/jj/blob/main/docs/config.md#configuration)
+/// 3. [User config](https://martinvonz.github.io/jj/latest/config/)
 /// 4. Repo config `.jj/repo/config.toml`
 /// 5. TODO: Workspace config `.jj/config.toml`
 /// 6. Override environment variables

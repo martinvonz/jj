@@ -2,7 +2,7 @@
     "$schema": "http://json-schema.org/draft-07/schema",
     "title": "Jujutsu config",
     "type": "object",
-    "description": "User configuration for Jujutsu VCS. See https://github.com/martinvonz/jj/blob/main/docs/config.md for details",
+    "description": "User configuration for Jujutsu VCS. See https://martinvonz.github.io/jj/latest/config/ for details",
     "properties": {
         "user": {
             "type": "object",
@@ -125,7 +125,7 @@
                     "description": "Options for rendering revision graphs from jj log etc",
                     "properties": {
                         "style": {
-                            "description": "Style of connectors/markings used to render the graph. See https://github.com/martinvonz/jj/blob/main/docs/config.md#graph-style",
+                            "description": "Style of connectors/markings used to render the graph. See https://martinvonz.github.io/jj/latest/config/#graph-style",
                             "enum": [
                                 "curved",
                                 "square",
@@ -299,7 +299,7 @@
             "properties": {
                 "auto-local-branch": {
                     "type": "boolean",
-                    "description": "Whether jj creates a local branch with the same name when it imports a remote-tracking branch from git. See https://github.com/martinvonz/jj/blob/main/docs/config.md#automatic-local-branch-creation",
+                    "description": "Whether jj creates a local branch with the same name when it imports a remote-tracking branch from git. See https://martinvonz.github.io/jj/latest/config/#automatic-local-branch-creation",
                     "default": false
                 },
                 "abandon-unreachable-commits": {
@@ -371,7 +371,7 @@
                     },
                     "merge-tool-edits-conflict-markers": {
                         "type": "boolean",
-                        "description": "Whether to populate the output file with conflict markers before starting the merge tool. See https://github.com/martinvonz/jj/blob/main/docs/config.md#editing-conflict-markers-with-a-tool-or-a-text-editor",
+                        "description": "Whether to populate the output file with conflict markers before starting the merge tool. See https://martinvonz.github.io/jj/latest/config/#editing-conflict-markers-with-a-tool-or-a-text-editor",
                         "default": false
                     }
                 }

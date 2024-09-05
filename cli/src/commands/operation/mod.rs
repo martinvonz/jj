@@ -40,7 +40,7 @@ use crate::ui::Ui;
 /// Commands for working with the operation log
 ///
 /// For information about the operation log, see
-/// https://github.com/martinvonz/jj/blob/main/docs/operation-log.md.
+/// https://martinvonz.github.io/jj/latest/operation-log/.
 #[derive(Subcommand, Clone, Debug)]
 pub enum OperationCommand {
     Abandon(OperationAbandonArgs),
