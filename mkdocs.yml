@@ -130,6 +130,7 @@ nav:
       - 'Code of conduct': 'code-of-conduct.md'
       - 'Design Docs': 'design_docs.md'
       - 'Design Doc Blueprint': 'design_doc_blueprint.md'
+      - 'Temporary Voting for Governance': 'governance/temporary-voting.md'
 
 - 'Design docs':
     - 'Roadmap': "roadmap.md"
