@@ -29,21 +29,21 @@ fn test_undo_rewrite_with_child() {
     let op_id_hex = stdout[3..15].to_string();
     test_env.jj_cmd_ok(&repo_path, &["new", "-m", "child"]);
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "description"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @r#"
     @  child
-    ○  modified
+    ◌  modified
     ◆
-    "###);
+    "#);
     test_env.jj_cmd_ok(&repo_path, &["undo", &op_id_hex]);
 
     // Since we undid the description-change, the child commit should now be on top
     // of the initial commit
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "description"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @r#"
     @  child
-    ○  initial
+    ◌  initial
     ◆
-    "###);
+    "#);
 }
 
 #[test]

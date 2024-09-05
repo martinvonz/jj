@@ -25,32 +25,32 @@ fn test_new() {
     test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "add a file"]);
     test_env.jj_cmd_ok(&repo_path, &["new", "-m", "a new commit"]);
 
-    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r#"
     @  34f3c770f1db22ac5c58df21d587aed1a030201f a new commit
-    ○  bf8753cb48b860b68386c5c8cc997e8e37122485 add a file
+    ◌  bf8753cb48b860b68386c5c8cc997e8e37122485 add a file
     ◆  0000000000000000000000000000000000000000
-    "###);
+    "#);
 
     // Start a new change off of a specific commit (the root commit in this case).
     test_env.jj_cmd_ok(&repo_path, &["new", "-m", "off of root", "root()"]);
-    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r#"
     @  026537ddb96b801b9cb909985d5443aab44616c1 off of root
-    │ ○  34f3c770f1db22ac5c58df21d587aed1a030201f a new commit
-    │ ○  bf8753cb48b860b68386c5c8cc997e8e37122485 add a file
+    │ ◌  34f3c770f1db22ac5c58df21d587aed1a030201f a new commit
+    │ ◌  bf8753cb48b860b68386c5c8cc997e8e37122485 add a file
     ├─╯
     ◆  0000000000000000000000000000000000000000
-    "###);
+    "#);
 
     // --edit is a no-op
     test_env.jj_cmd_ok(&repo_path, &["new", "--edit", "-m", "yet another commit"]);
-    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r#"
     @  101cbec5cae8049cb9850a906ef3675631ed48fa yet another commit
-    ○  026537ddb96b801b9cb909985d5443aab44616c1 off of root
-    │ ○  34f3c770f1db22ac5c58df21d587aed1a030201f a new commit
-    │ ○  bf8753cb48b860b68386c5c8cc997e8e37122485 add a file
+    ◌  026537ddb96b801b9cb909985d5443aab44616c1 off of root
+    │ ◌  34f3c770f1db22ac5c58df21d587aed1a030201f a new commit
+    │ ◌  bf8753cb48b860b68386c5c8cc997e8e37122485 add a file
     ├─╯
     ◆  0000000000000000000000000000000000000000
-    "###);
+    "#);
 
     // --edit cannot be used with --no-edit
     let stderr = test_env.jj_cmd_cli_error(&repo_path, &["new", "--edit", "B", "--no-edit", "D"]);
@@ -97,14 +97,14 @@ fn test_new_merge() {
     insta::assert_snapshot!(stderr, @r###"
     Created new commit znkkpsqq 496490a6 (empty) (no description set)
     "###);
-    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    ○    496490a66cebb31730c4103b7b22a1098d49af91
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r#"
+    ◌    496490a66cebb31730c4103b7b22a1098d49af91
     ├─╮
     │ @  f399209d9dda06e8a25a0c8e9a0cde9f421ff35d add file2
     ○ │  8d996e001c23e298d0d353ab455665c81bf2080c add file1
     ├─╯
     ◆  0000000000000000000000000000000000000000
-    "###);
+    "#);
 
     // Same test with `jj merge`
     test_env.jj_cmd_ok(&repo_path, &["undo"]);
@@ -158,18 +158,18 @@ fn test_new_insert_after() {
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
     setup_before_insertion(&test_env, &repo_path);
-    insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r###"
+    insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r#"
     @    F
     ├─╮
-    │ ○  E
-    ○ │  D
+    │ ◌  E
+    ◌ │  D
     ├─╯
-    │ ○  C
-    │ ○  B
-    │ ○  A
+    │ ◌  C
+    │ ◌  B
+    │ ◌  A
     ├─╯
     ◆  root
-    "###);
+    "#);
 
     // --insert-after can be repeated; --after is an alias
     let (stdout, stderr) = test_env.jj_cmd_ok(
@@ -183,20 +183,20 @@ fn test_new_insert_after() {
     Parent commit      : kkmpptxz bfd4157e B | (empty) B
     Parent commit      : vruxwmqv c9257eff D | (empty) D
     "###);
-    insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r###"
-    ○  C
-    │ ○  F
+    insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r#"
+    ◌  C
+    │ ◌  F
     ╭─┤
     @ │    G
     ├───╮
-    │ │ ○  D
-    ○ │ │  B
-    ○ │ │  A
+    │ │ ◌  D
+    ◌ │ │  B
+    ◌ │ │  A
     ├───╯
-    │ ○  E
+    │ ◌  E
     ├─╯
     ◆  root
-    "###);
+    "#);
 
     let (stdout, stderr) =
         test_env.jj_cmd_ok(&repo_path, &["new", "-m", "H", "--insert-after", "D"]);
@@ -206,21 +206,21 @@ fn test_new_insert_after() {
     Working copy now at: uyznsvlq fcf8281b (empty) H
     Parent commit      : vruxwmqv c9257eff D | (empty) D
     "###);
-    insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r###"
-    ○  C
-    │ ○  F
+    insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r#"
+    ◌  C
+    │ ◌  F
     ╭─┤
-    ○ │    G
+    ◌ │    G
     ├───╮
     │ │ @  H
-    │ │ ○  D
-    ○ │ │  B
-    ○ │ │  A
+    │ │ ◌  D
+    ◌ │ │  B
+    ◌ │ │  A
     ├───╯
-    │ ○  E
+    │ ◌  E
     ├─╯
     ◆  root
-    "###);
+    "#);
 
     // --after cannot be used with revisions
     let stderr = test_env.jj_cmd_cli_error(&repo_path, &["new", "--after", "B", "D"]);
@@ -239,18 +239,18 @@ fn test_new_insert_after_children() {
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
     setup_before_insertion(&test_env, &repo_path);
-    insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r###"
+    insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r#"
     @    F
     ├─╮
-    │ ○  E
-    ○ │  D
+    │ ◌  E
+    ◌ │  D
     ├─╯
-    │ ○  C
-    │ ○  B
-    │ ○  A
+    │ ◌  C
+    │ ◌  B
+    │ ◌  A
     ├─╯
     ◆  root
-    "###);
+    "#);
 
     // Check that inserting G after A and C doesn't try to rebase B (which is
     // initially a child of A) onto G as that would create a cycle since B is
@@ -273,21 +273,21 @@ fn test_new_insert_after_children() {
     Parent commit      : qpvuntsm 5ef24e4b A | (empty) A
     Parent commit      : mzvwutvl 83376b27 C | (empty) C
     "###);
-    insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r###"
+    insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r#"
     @    G
     ├─╮
-    │ ○  C
-    │ ○  B
+    │ ◌  C
+    │ ◌  B
     ├─╯
-    ○  A
-    │ ○    F
+    ◌  A
+    │ ◌    F
     │ ├─╮
-    │ │ ○  E
+    │ │ ◌  E
     ├───╯
-    │ ○  D
+    │ ◌  D
     ├─╯
     ◆  root
-    "###);
+    "#);
 }
 
 #[test]
@@ -296,18 +296,18 @@ fn test_new_insert_before() {
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
     setup_before_insertion(&test_env, &repo_path);
-    insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r###"
+    insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r#"
     @    F
     ├─╮
-    │ ○  E
-    ○ │  D
+    │ ◌  E
+    ◌ │  D
     ├─╯
-    │ ○  C
-    │ ○  B
-    │ ○  A
+    │ ◌  C
+    │ ◌  B
+    │ ◌  A
     ├─╯
     ◆  root
-    "###);
+    "#);
 
     let (stdout, stderr) = test_env.jj_cmd_ok(
         &repo_path,
@@ -329,20 +329,20 @@ fn test_new_insert_before() {
     Parent commit      : vruxwmqv c9257eff D | (empty) D
     Parent commit      : znkkpsqq 41a89ffc E | (empty) E
     "###);
-    insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r###"
-    ○  F
-    │ ○  C
+    insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r#"
+    ◌  F
+    │ ◌  C
     ├─╯
     @      G
     ├─┬─╮
-    │ │ ○  E
-    │ ○ │  D
+    │ │ ◌  E
+    │ ◌ │  D
     │ ├─╯
-    ○ │  B
-    ○ │  A
+    ◌ │  B
+    ◌ │  A
     ├─╯
     ◆  root
-    "###);
+    "#);
 
     // --before cannot be used with revisions
     let stderr = test_env.jj_cmd_cli_error(&repo_path, &["new", "--before", "B", "D"]);
@@ -361,18 +361,18 @@ fn test_new_insert_before_root_successors() {
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
     setup_before_insertion(&test_env, &repo_path);
-    insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r###"
+    insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r#"
     @    F
     ├─╮
-    │ ○  E
-    ○ │  D
+    │ ◌  E
+    ◌ │  D
     ├─╯
-    │ ○  C
-    │ ○  B
-    │ ○  A
+    │ ◌  C
+    │ ◌  B
+    │ ◌  A
     ├─╯
     ◆  root
-    "###);
+    "#);
 
     let (stdout, stderr) = test_env.jj_cmd_ok(
         &repo_path,
@@ -392,19 +392,19 @@ fn test_new_insert_before_root_successors() {
     Working copy now at: kxryzmor 36541977 (empty) G
     Parent commit      : zzzzzzzz 00000000 (empty) (no description set)
     "###);
-    insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r###"
-    ○    F
+    insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r#"
+    ◌    F
     ├─╮
-    │ ○  E
-    ○ │  D
-    │ │ ○  C
-    │ │ ○  B
-    │ │ ○  A
+    │ ◌  E
+    ◌ │  D
+    │ │ ◌  C
+    │ │ ◌  B
+    │ │ ◌  A
     ├───╯
     @ │  G
     ├─╯
     ◆  root
-    "###);
+    "#);
 }
 
 #[test]
@@ -415,18 +415,18 @@ fn test_new_insert_before_no_loop() {
     setup_before_insertion(&test_env, &repo_path);
     let template = r#"commit_id.short() ++ " " ++ if(description, description, "root")"#;
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", template]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @r#"
     @    7705d353bf5d F
     ├─╮
-    │ ○  41a89ffcbba2 E
-    ○ │  c9257eff5bf9 D
+    │ ◌  41a89ffcbba2 E
+    ◌ │  c9257eff5bf9 D
     ├─╯
-    │ ○  83376b270925 C
-    │ ○  bfd4157e6ea4 B
-    │ ○  5ef24e4bf2be A
+    │ ◌  83376b270925 C
+    │ ◌  bfd4157e6ea4 B
+    │ ◌  5ef24e4bf2be A
     ├─╯
     ◆  000000000000 root
-    "###);
+    "#);
 
     let stderr = test_env.jj_cmd_failure(
         &repo_path,
@@ -451,18 +451,18 @@ fn test_new_insert_before_no_root_merge() {
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
     setup_before_insertion(&test_env, &repo_path);
-    insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r###"
+    insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r#"
     @    F
     ├─╮
-    │ ○  E
-    ○ │  D
+    │ ◌  E
+    ◌ │  D
     ├─╯
-    │ ○  C
-    │ ○  B
-    │ ○  A
+    │ ◌  C
+    │ ◌  B
+    │ ◌  A
     ├─╯
     ◆  root
-    "###);
+    "#);
 
     let stderr = test_env.jj_cmd_failure(
         &repo_path,
@@ -487,18 +487,18 @@ fn test_new_insert_before_root() {
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
     setup_before_insertion(&test_env, &repo_path);
-    insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r###"
+    insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r#"
     @    F
     ├─╮
-    │ ○  E
-    ○ │  D
+    │ ◌  E
+    ◌ │  D
     ├─╯
-    │ ○  C
-    │ ○  B
-    │ ○  A
+    │ ◌  C
+    │ ◌  B
+    │ ◌  A
     ├─╯
     ◆  root
-    "###);
+    "#);
 
     let stderr =
         test_env.jj_cmd_failure(&repo_path, &["new", "-m", "G", "--insert-before", "root()"]);
@@ -513,18 +513,18 @@ fn test_new_insert_after_before() {
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
     setup_before_insertion(&test_env, &repo_path);
-    insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r###"
+    insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r#"
     @    F
     ├─╮
-    │ ○  E
-    ○ │  D
+    │ ◌  E
+    ◌ │  D
     ├─╯
-    │ ○  C
-    │ ○  B
-    │ ○  A
+    │ ◌  C
+    │ ◌  B
+    │ ◌  A
     ├─╯
     ◆  root
-    "###);
+    "#);
 
     let (stdout, stderr) = test_env.jj_cmd_ok(
         &repo_path,
@@ -536,19 +536,19 @@ fn test_new_insert_after_before() {
     Working copy now at: kxryzmor 78a97058 (empty) G
     Parent commit      : mzvwutvl 83376b27 C | (empty) C
     "###);
-    insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r###"
-    ○      F
+    insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r#"
+    ◌      F
     ├─┬─╮
     │ │ @  G
-    │ │ ○  C
-    │ │ ○  B
-    │ │ ○  A
-    │ ○ │  E
+    │ │ ◌  C
+    │ │ ◌  B
+    │ │ ◌  A
+    │ ◌ │  E
     │ ├─╯
-    ○ │  D
+    ◌ │  D
     ├─╯
     ◆  root
-    "###);
+    "#);
 
     let (stdout, stderr) = test_env.jj_cmd_ok(
         &repo_path,
@@ -560,22 +560,22 @@ fn test_new_insert_after_before() {
     Working copy now at: uyznsvlq fcf8281b (empty) H
     Parent commit      : vruxwmqv c9257eff D | (empty) D
     "###);
-    insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r###"
-    ○      F
+    insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r#"
+    ◌      F
     ├─┬─╮
-    │ │ ○  G
-    │ │ ○  C
-    │ │ ○    B
+    │ │ ◌  G
+    │ │ ◌  C
+    │ │ ◌    B
     │ │ ├─╮
     │ │ │ @  H
     ├─────╯
-    ○ │ │  D
-    │ │ ○  A
+    ◌ │ │  D
+    │ │ ◌  A
     ├───╯
-    │ ○  E
+    │ ◌  E
     ├─╯
     ◆  root
-    "###);
+    "#);
 }
 
 #[test]
@@ -586,18 +586,18 @@ fn test_new_insert_after_before_no_loop() {
     setup_before_insertion(&test_env, &repo_path);
     let template = r#"commit_id.short() ++ " " ++ if(description, description, "root")"#;
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", template]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @r#"
     @    7705d353bf5d F
     ├─╮
-    │ ○  41a89ffcbba2 E
-    ○ │  c9257eff5bf9 D
+    │ ◌  41a89ffcbba2 E
+    ◌ │  c9257eff5bf9 D
     ├─╯
-    │ ○  83376b270925 C
-    │ ○  bfd4157e6ea4 B
-    │ ○  5ef24e4bf2be A
+    │ ◌  83376b270925 C
+    │ ◌  bfd4157e6ea4 B
+    │ ◌  5ef24e4bf2be A
     ├─╯
     ◆  000000000000 root
-    "###);
+    "#);
 
     let stderr = test_env.jj_cmd_failure(
         &repo_path,

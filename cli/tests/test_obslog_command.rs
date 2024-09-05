@@ -29,34 +29,34 @@ fn test_obslog_with_or_without_diff() {
     std::fs::write(repo_path.join("file1"), "resolved\n").unwrap();
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["obslog"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @r#"
     @  rlvkpnrz test.user@example.com 2001-02-03 08:05:10 66b42ad3
     │  my description
     ×  rlvkpnrz hidden test.user@example.com 2001-02-03 08:05:09 cf73917d conflict
     │  my description
     ○  rlvkpnrz hidden test.user@example.com 2001-02-03 08:05:09 068224a7
     │  my description
-    ○  rlvkpnrz hidden test.user@example.com 2001-02-03 08:05:08 2b023b5f
+    ◌  rlvkpnrz hidden test.user@example.com 2001-02-03 08:05:08 2b023b5f
        (empty) my description
-    "###);
+    "#);
 
     // Color
     let stdout = test_env.jj_cmd_success(&repo_path, &["--color=always", "obslog"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @r#"
     [1m[38;5;2m@[0m  [1m[38;5;13mr[38;5;8mlvkpnrz[39m [38;5;3mtest.user@example.com[39m [38;5;14m2001-02-03 08:05:10[39m [38;5;12m6[38;5;8m6b42ad3[39m[0m
     │  [1mmy description[0m
     [1m[38;5;1m×[0m  [1m[39mr[0m[38;5;8mlvkpnrz[39m hidden [38;5;3mtest.user@example.com[39m [38;5;6m2001-02-03 08:05:09[39m [1m[38;5;4mc[0m[38;5;8mf73917d[39m [38;5;1mconflict[39m
     │  my description
     ○  [1m[39mr[0m[38;5;8mlvkpnrz[39m hidden [38;5;3mtest.user@example.com[39m [38;5;6m2001-02-03 08:05:09[39m [1m[38;5;4m06[0m[38;5;8m8224a7[39m
     │  my description
-    ○  [1m[39mr[0m[38;5;8mlvkpnrz[39m hidden [38;5;3mtest.user@example.com[39m [38;5;6m2001-02-03 08:05:08[39m [1m[38;5;4m2b[0m[38;5;8m023b5f[39m
+    ◌  [1m[39mr[0m[38;5;8mlvkpnrz[39m hidden [38;5;3mtest.user@example.com[39m [38;5;6m2001-02-03 08:05:08[39m [1m[38;5;4m2b[0m[38;5;8m023b5f[39m
        [38;5;2m(empty)[39m my description
-    "###);
+    "#);
 
     // There should be no diff caused by the rebase because it was a pure rebase
     // (even even though it resulted in a conflict).
     let stdout = test_env.jj_cmd_success(&repo_path, &["obslog", "-p"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @r##"
     @  rlvkpnrz test.user@example.com 2001-02-03 08:05:10 66b42ad3
     │  my description
     │  Resolved conflict in file1:
@@ -76,9 +76,9 @@ fn test_obslog_with_or_without_diff() {
     │          2: bar
     │  Added regular file file2:
     │          1: foo
-    ○  rlvkpnrz hidden test.user@example.com 2001-02-03 08:05:08 2b023b5f
+    ◌  rlvkpnrz hidden test.user@example.com 2001-02-03 08:05:08 2b023b5f
        (empty) my description
-    "###);
+    "##);
 
     // Test `--limit`
     let stdout = test_env.jj_cmd_success(&repo_path, &["obslog", "--limit=2"]);
@@ -194,20 +194,20 @@ fn test_obslog_word_wrap() {
     test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "first"]);
 
     // ui.log-word-wrap option applies to both graph/no-graph outputs
-    insta::assert_snapshot!(render(&["obslog"], 40, false), @r###"
+    insta::assert_snapshot!(render(&["obslog"], 40, false), @r#"
     @  qpvuntsm test.user@example.com 2001-02-03 08:05:08 fa15625b
     │  (empty) first
-    ○  qpvuntsm hidden test.user@example.com 2001-02-03 08:05:07 230dd059
+    ◌  qpvuntsm hidden test.user@example.com 2001-02-03 08:05:07 230dd059
        (empty) (no description set)
-    "###);
-    insta::assert_snapshot!(render(&["obslog"], 40, true), @r###"
+    "#);
+    insta::assert_snapshot!(render(&["obslog"], 40, true), @r#"
     @  qpvuntsm test.user@example.com
     │  2001-02-03 08:05:08 fa15625b
     │  (empty) first
-    ○  qpvuntsm hidden test.user@example.com
+    ◌  qpvuntsm hidden test.user@example.com
        2001-02-03 08:05:07 230dd059
        (empty) (no description set)
-    "###);
+    "#);
     insta::assert_snapshot!(render(&["obslog", "--no-graph"], 40, false), @r###"
     qpvuntsm test.user@example.com 2001-02-03 08:05:08 fa15625b
     (empty) first
@@ -265,20 +265,20 @@ fn test_obslog_squash() {
 
     let stdout =
         test_env.jj_cmd_success(&repo_path, &["obslog", "-p", "-r", "description('squash')"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @r#"
     ○      qpvuntsm test.user@example.com 2001-02-03 08:05:15 d49749bf
     ├─┬─╮  squashed 3
     │ │ ○  vruxwmqv hidden test.user@example.com 2001-02-03 08:05:15 8f2ae2b5
     │ │ │  fifth
     │ │ │  Added regular file file5:
     │ │ │          1: foo5
-    │ │ ○  vruxwmqv hidden test.user@example.com 2001-02-03 08:05:14 04d28ca9
+    │ │ ◌  vruxwmqv hidden test.user@example.com 2001-02-03 08:05:14 04d28ca9
     │ │    (empty) fifth
     │ ○  yqosqzyt hidden test.user@example.com 2001-02-03 08:05:14 c5801e10
     │ │  fourth
     │ │  Added regular file file4:
     │ │          1: foo4
-    │ ○  yqosqzyt hidden test.user@example.com 2001-02-03 08:05:13 bb54a199
+    │ ◌  yqosqzyt hidden test.user@example.com 2001-02-03 08:05:13 bb54a199
     │    (empty) fourth
     ○    qpvuntsm hidden test.user@example.com 2001-02-03 08:05:12 1408a0a7
     ├─╮  squashed 2
@@ -296,9 +296,9 @@ fn test_obslog_squash() {
     │ │          1: foo2
     │ │  Added regular file file3:
     │ │          1: foo3
-    │ ○  zsuskuln hidden test.user@example.com 2001-02-03 08:05:11 66645763
+    │ ◌  zsuskuln hidden test.user@example.com 2001-02-03 08:05:11 66645763
     │ │  (empty) third
-    │ ○  zsuskuln hidden test.user@example.com 2001-02-03 08:05:10 1c7afcb4
+    │ ◌  zsuskuln hidden test.user@example.com 2001-02-03 08:05:10 1c7afcb4
     │    (empty) (no description set)
     ○    qpvuntsm hidden test.user@example.com 2001-02-03 08:05:10 e3c2a446
     ├─╮  squashed 1
@@ -307,17 +307,17 @@ fn test_obslog_squash() {
     │ │  Modified regular file file1:
     │ │     1    1: foo
     │ │          2: bar
-    │ ○  kkmpptxz hidden test.user@example.com 2001-02-03 08:05:09 cba41deb
+    │ ◌  kkmpptxz hidden test.user@example.com 2001-02-03 08:05:09 cba41deb
     │    (empty) second
     ○  qpvuntsm hidden test.user@example.com 2001-02-03 08:05:09 766420db
     │  first
     │  Added regular file file1:
     │          1: foo
-    ○  qpvuntsm hidden test.user@example.com 2001-02-03 08:05:08 fa15625b
+    ◌  qpvuntsm hidden test.user@example.com 2001-02-03 08:05:08 fa15625b
     │  (empty) first
-    ○  qpvuntsm hidden test.user@example.com 2001-02-03 08:05:07 230dd059
+    ◌  qpvuntsm hidden test.user@example.com 2001-02-03 08:05:07 230dd059
        (empty) (no description set)
-    "###);
+    "#);
 }
 
 #[test]

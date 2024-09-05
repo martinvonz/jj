@@ -433,15 +433,15 @@ fn test_baseless_conflict_input_files() {
     create_commit(&test_env, &repo_path, "b", &["base"], &[("file", "b\n")]);
     create_commit(&test_env, &repo_path, "conflict", &["a", "b"], &[]);
     // Test the setup
-    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r#"
     @    conflict
     ├─╮
     │ ○  b
     ○ │  a
     ├─╯
-    ○  base
+    ◌  base
     ◆
-    "###);
+    "#);
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["resolve", "--list"]), 
     @r###"
     file    2-sided conflict

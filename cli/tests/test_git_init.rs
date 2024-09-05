@@ -695,11 +695,11 @@ fn test_git_init_external_but_git_dir_exists() {
 
     // Check that Git HEAD is not set because this isn't a colocated repo
     test_env.jj_cmd_ok(&workspace_root, &["new"]);
-    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r#"
     @  4db490c88528
-    ○  230dd059e1b0
+    ◌  230dd059e1b0
     ◆  000000000000
-    "###);
+    "#);
 }
 
 #[test]

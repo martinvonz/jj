@@ -146,11 +146,11 @@ fn test_builtin_user_redefines_builtin_immutable_heads() {
     test_env.add_config(r#"revset-aliases.'immutable()' = '@'"#);
 
     let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["log", "-r", "trunk()"]);
-    insta::assert_snapshot!(stdout, @r###"
-    ○  xtvrqkyv test.user@example.com 2001-02-03 08:05:08 main d13ecdbd
+    insta::assert_snapshot!(stdout, @r#"
+    ◌  xtvrqkyv test.user@example.com 2001-02-03 08:05:08 main d13ecdbd
     │  (empty) description 1
     ~
-    "###);
+    "#);
     insta::assert_snapshot!(stderr, @r###"
     Warning: Redefining `revset-aliases.builtin_immutable_heads()` is not recommended; redefine `immutable_heads()` instead
     Warning: Redefining `revset-aliases.immutable()` is not recommended; redefine `immutable_heads()` instead

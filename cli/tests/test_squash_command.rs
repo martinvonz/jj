@@ -308,12 +308,12 @@ fn test_squash_keep_emptied() {
     Parent commit      : kkmpptxz 9490bd7f b | (empty) (no description set)
     "###);
     // With --keep-emptied, b remains even though it is now empty.
-    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r#"
     @  7ee7f18a5223 c
-    ○  9490bd7f1e6a b (empty)
+    ◌  9490bd7f1e6a b (empty)
     ○  53bf93080518 a
     ◆  000000000000 (empty)
-    "###);
+    "#);
     let stdout = test_env.jj_cmd_success(&repo_path, &["file", "show", "file1", "-r", "a"]);
     insta::assert_snapshot!(stdout, @r###"
     b
@@ -971,14 +971,14 @@ fn test_squash_from_multiple_partial_no_op() {
             r#"separate(" ", commit_id.short(), description)"#,
         ],
     );
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @r#"
     @    e178068add8c d
     ├─╮
     │ ○  b73077b08c59 b
-    │ ○  a786561e909f b
+    │ ◌  a786561e909f b
     ○  b37ca1ee3306 d
-    ○  1d9eb34614c9 d
-    "###);
+    ◌  1d9eb34614c9 d
+    "#);
 
     // If no source commits match the paths, then the whole operation is a no-op
     test_env.jj_cmd_ok(&repo_path, &["undo"]);
@@ -1161,21 +1161,21 @@ fn test_squash_use_destination_message() {
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m=b"]);
     test_env.jj_cmd_ok(&repo_path, &["describe", "-m=c"]);
     // Test the setup
-    insta::assert_snapshot!(get_log_output_with_description(&test_env, &repo_path), @r###"
+    insta::assert_snapshot!(get_log_output_with_description(&test_env, &repo_path), @r#"
     @  8aac283daeac c
-    ○  017c7f689ed7 b
-    ○  d8d5f980a897 a
+    ◌  017c7f689ed7 b
+    ◌  d8d5f980a897 a
     ◆  000000000000
-    "###);
+    "#);
 
     // Squash the current revision using the short name for the option.
     test_env.jj_cmd_ok(&repo_path, &["squash", "-u"]);
-    insta::assert_snapshot!(get_log_output_with_description(&test_env, &repo_path), @r###"
+    insta::assert_snapshot!(get_log_output_with_description(&test_env, &repo_path), @r#"
     @  fd33e4bc332b
-    ○  3a17aa5dcce9 b
-    ○  d8d5f980a897 a
+    ◌  3a17aa5dcce9 b
+    ◌  d8d5f980a897 a
     ◆  000000000000
-    "###);
+    "#);
 
     // Undo and squash again, but this time squash both "b" and "c" into "a".
     test_env.jj_cmd_ok(&repo_path, &["undo"]);
@@ -1190,11 +1190,11 @@ fn test_squash_use_destination_message() {
             "description(a)",
         ],
     );
-    insta::assert_snapshot!(get_log_output_with_description(&test_env, &repo_path), @r###"
+    insta::assert_snapshot!(get_log_output_with_description(&test_env, &repo_path), @r#"
     @  7c832accbf60
-    ○  688660377651 a
+    ◌  688660377651 a
     ◆  000000000000
-    "###);
+    "#);
 }
 
 // The --use-destination-message and --message options are incompatible.

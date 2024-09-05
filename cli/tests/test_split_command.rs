@@ -110,12 +110,12 @@ fn test_split_by_paths() {
     Parent commit      : znkkpsqq 5b5714a3 (empty) (no description set)
     "###);
 
-    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r#"
     @  zsuskulnrvyr false
-    ○  znkkpsqqskkl true
+    ◌  znkkpsqqskkl true
     ○  qpvuntsmwlqt false
     ◆  zzzzzzzzzzzz true
-    "###);
+    "#);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s", "-r", "@--"]);
     insta::assert_snapshot!(stdout, @r###"
@@ -138,12 +138,12 @@ fn test_split_by_paths() {
     Parent commit      : lylxulpl ed55c86b (no description set)
     "###);
 
-    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r#"
     @  zsuskulnrvyr false
     ○  lylxulplsnyw false
-    ○  qpvuntsmwlqt true
+    ◌  qpvuntsmwlqt true
     ◆  zzzzzzzzzzzz true
-    "###);
+    "#);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s", "-r", "@-"]);
     insta::assert_snapshot!(stdout, @r###"
@@ -278,14 +278,14 @@ fn test_split_with_merge_child() {
         &workspace_path,
         &["new", "description(1)", "description(a)", "-m=2"],
     );
-    insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r#"
     @    zsuskulnrvyr true 2
     ├─╮
     │ ○  kkmpptxzrspx false a
-    ○ │  qpvuntsmwlqt true 1
+    ◌ │  qpvuntsmwlqt true 1
     ├─╯
     ◆  zzzzzzzzzzzz true
-    "###);
+    "#);
 
     // Set up the editor and do the split.
     let edit_script = test_env.set_up_fake_editor();
@@ -305,15 +305,15 @@ fn test_split_with_merge_child() {
     Parent commit      : qpvuntsm 8b64ddff (empty) 1
     Parent commit      : royxmykx 5e1b793d Add file2
     "###);
-    insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r#"
     @    zsuskulnrvyr true 2
     ├─╮
     │ ○  royxmykxtrkr false Add file2
     │ ○  kkmpptxzrspx false Add file1
-    ○ │  qpvuntsmwlqt true 1
+    ◌ │  qpvuntsmwlqt true 1
     ├─╯
     ◆  zzzzzzzzzzzz true
-    "###);
+    "#);
 }
 
 #[test]
@@ -479,14 +479,14 @@ fn test_split_siblings_with_merge_child() {
         &workspace_path,
         &["new", "description(1)", "description(a)", "-m=2"],
     );
-    insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r#"
     @    zsuskulnrvyr true 2
     ├─╮
     │ ○  kkmpptxzrspx false a
-    ○ │  qpvuntsmwlqt true 1
+    ◌ │  qpvuntsmwlqt true 1
     ├─╯
     ◆  zzzzzzzzzzzz true
-    "###);
+    "#);
 
     // Set up the editor and do the split.
     let edit_script = test_env.set_up_fake_editor();
@@ -509,16 +509,16 @@ fn test_split_siblings_with_merge_child() {
     Parent commit      : kkmpptxz e8006b47 Add file1
     Parent commit      : royxmykx 2cc60f3d Add file2
     "###);
-    insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r#"
     @      zsuskulnrvyr true 2
     ├─┬─╮
     │ │ ○  royxmykxtrkr false Add file2
     │ ○ │  kkmpptxzrspx false Add file1
     │ ├─╯
-    ○ │  qpvuntsmwlqt true 1
+    ◌ │  qpvuntsmwlqt true 1
     ├─╯
     ◆  zzzzzzzzzzzz true
-    "###);
+    "#);
 }
 
 // Make sure `jj split` would refuse to split an empty commit.
