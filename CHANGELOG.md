@@ -17,6 +17,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed bugs
 
+ * Fixed panic when parsing invalid conflict markers of a particular form.
+   ([#2611](https://github.com/martinvonz/jj/pull/2611))
+
 ## [0.21.0] - 2024-09-04
 
 ### Breaking changes
