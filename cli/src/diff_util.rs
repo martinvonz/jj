@@ -51,6 +51,7 @@ use jj_lib::object_id::ObjectId;
 use jj_lib::repo::Repo;
 use jj_lib::repo_path::RepoPath;
 use jj_lib::repo_path::RepoPathUiConverter;
+use jj_lib::rewrite::rebase_to_dest_parent;
 use jj_lib::settings::ConfigResultExt as _;
 use jj_lib::settings::UserSettings;
 use jj_lib::store::Store;
@@ -355,6 +356,32 @@ impl<'a> DiffRenderer<'a> {
             }
         }
         Ok(())
+    }
+
+    /// Generates diff between `from_commits` and `to_commit` based off their
+    /// parents. The `from_commits` will temporarily be rebased onto the
+    /// `to_commit` parents to exclude unrelated changes.
+    pub fn show_inter_diff(
+        &self,
+        ui: &Ui,
+        formatter: &mut dyn Formatter,
+        from_commits: &[Commit],
+        to_commit: &Commit,
+        matcher: &dyn Matcher,
+        width: usize,
+    ) -> Result<(), DiffRenderError> {
+        let from_tree = rebase_to_dest_parent(self.repo, from_commits, to_commit)?;
+        let to_tree = to_commit.tree()?;
+        let copy_records = CopyRecords::default(); // TODO
+        self.show_diff(
+            ui,
+            formatter,
+            &from_tree,
+            &to_tree,
+            matcher,
+            &copy_records,
+            width,
+        )
     }
 
     /// Generates diff of the given `commit` compared to its parents.

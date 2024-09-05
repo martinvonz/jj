@@ -15,7 +15,6 @@
 use std::slice;
 
 use clap::ArgGroup;
-use jj_lib::rewrite::rebase_to_dest_parent;
 use tracing::instrument;
 
 use crate::cli_util::CommandHelper;
@@ -55,25 +54,17 @@ pub(crate) fn cmd_interdiff(
     let from =
         workspace_command.resolve_single_rev(args.from.as_ref().unwrap_or(&RevisionArg::AT))?;
     let to = workspace_command.resolve_single_rev(args.to.as_ref().unwrap_or(&RevisionArg::AT))?;
-
-    let from_tree = rebase_to_dest_parent(
-        workspace_command.repo().as_ref(),
-        slice::from_ref(&from),
-        &to,
-    )?;
-    let to_tree = to.tree()?;
     let matcher = workspace_command
         .parse_file_patterns(&args.paths)?
         .to_matcher();
     let diff_renderer = workspace_command.diff_renderer_for(&args.format)?;
     ui.request_pager();
-    diff_renderer.show_diff(
+    diff_renderer.show_inter_diff(
         ui,
         ui.stdout_formatter().as_mut(),
-        &from_tree,
-        &to_tree,
+        slice::from_ref(&from),
+        &to,
         matcher.as_ref(),
-        &Default::default(),
         ui.term_width(),
     )?;
     Ok(())
