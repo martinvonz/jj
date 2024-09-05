@@ -16,8 +16,6 @@ use itertools::Itertools;
 use jj_lib::commit::Commit;
 use jj_lib::dag_walk::topo_order_reverse_ok;
 use jj_lib::matchers::EverythingMatcher;
-use jj_lib::repo::Repo;
-use jj_lib::rewrite::rebase_to_dest_parent;
 use tracing::instrument;
 
 use super::log::get_node_template;
@@ -80,7 +78,6 @@ pub(crate) fn cmd_evolog(
     args: &EvologArgs,
 ) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
-    let repo = workspace_command.repo().as_ref();
 
     let start_commit = workspace_command.resolve_single_rev(&args.revision)?;
 
@@ -164,7 +161,7 @@ pub(crate) fn cmd_evolog(
             if let Some(renderer) = &diff_renderer {
                 let mut formatter = ui.new_formatter(&mut buffer);
                 let width = usize::saturating_sub(ui.term_width(), graph_width());
-                show_predecessor_patch(ui, repo, renderer, formatter.as_mut(), &commit, width)?;
+                show_predecessor_patch(ui, renderer, formatter.as_mut(), &commit, width)?;
             }
             let node_symbol = format_template(ui, &Some(commit.clone()), &node_template);
             graph.add_node(
@@ -180,7 +177,7 @@ pub(crate) fn cmd_evolog(
                 .write(formatter, |formatter| template.format(&commit, formatter))?;
             if let Some(renderer) = &diff_renderer {
                 let width = ui.term_width();
-                show_predecessor_patch(ui, repo, renderer, formatter, &commit, width)?;
+                show_predecessor_patch(ui, renderer, formatter, &commit, width)?;
             }
         }
     }
@@ -190,22 +187,18 @@ pub(crate) fn cmd_evolog(
 
 fn show_predecessor_patch(
     ui: &Ui,
-    repo: &dyn Repo,
     renderer: &DiffRenderer,
     formatter: &mut dyn Formatter,
     commit: &Commit,
     width: usize,
 ) -> Result<(), CommandError> {
     let predecessors: Vec<_> = commit.predecessors().try_collect()?;
-    let predecessor_tree = rebase_to_dest_parent(repo, &predecessors, commit)?;
-    let tree = commit.tree()?;
-    renderer.show_diff(
+    renderer.show_inter_diff(
         ui,
         formatter,
-        &predecessor_tree,
-        &tree,
+        &predecessors,
+        &commit,
         &EverythingMatcher,
-        &Default::default(),
         width,
     )?;
     Ok(())

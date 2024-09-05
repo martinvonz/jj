@@ -34,7 +34,6 @@ use jj_lib::repo::ReadonlyRepo;
 use jj_lib::repo::Repo;
 use jj_lib::revset;
 use jj_lib::revset::RevsetIteratorExt as _;
-use jj_lib::rewrite::rebase_to_dest_parent;
 
 use crate::cli_util::short_change_hash;
 use crate::cli_util::short_operation_hash;
@@ -260,7 +259,6 @@ pub fn show_op_diff(
                     show_change_diff(
                         ui,
                         formatter.as_mut(),
-                        current_repo,
                         diff_renderer,
                         modified_change,
                         width,
@@ -287,14 +285,7 @@ pub fn show_op_diff(
                 )?;
                 if let Some(diff_renderer) = &diff_renderer {
                     let width = ui.term_width();
-                    show_change_diff(
-                        ui,
-                        formatter,
-                        current_repo,
-                        diff_renderer,
-                        modified_change,
-                        width,
-                    )?;
+                    show_change_diff(ui, formatter, diff_renderer, modified_change, width)?;
                 }
             }
         }
@@ -563,7 +554,6 @@ fn compute_operation_commits_diff(
 fn show_change_diff(
     ui: &Ui,
     formatter: &mut dyn Formatter,
-    repo: &dyn Repo,
     diff_renderer: &DiffRenderer,
     change: &ModifiedChange,
     width: usize,
@@ -572,15 +562,12 @@ fn show_change_diff(
         (predecessors @ ([] | [_]), [commit]) => {
             // New or modified change. If the modification involved a rebase,
             // show diffs from the rebased tree.
-            let predecessor_tree = rebase_to_dest_parent(repo, predecessors, commit)?;
-            let tree = commit.tree()?;
-            diff_renderer.show_diff(
+            diff_renderer.show_inter_diff(
                 ui,
                 formatter,
-                &predecessor_tree,
-                &tree,
+                predecessors,
+                commit,
                 &EverythingMatcher,
-                &Default::default(),
                 width,
             )?;
         }
