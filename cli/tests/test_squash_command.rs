@@ -100,9 +100,10 @@ fn test_squash() {
     ◆  000000000000 (empty)
     "###);
     let stderr = test_env.jj_cmd_failure(&repo_path, &["squash"]);
-    insta::assert_snapshot!(stderr, @r###"
-    Error: Cannot squash merge commits
-    "###);
+    insta::assert_snapshot!(stderr, @r#"
+    Error: Cannot squash merge commits without a specified destination
+    Hint: Use `--into` to specify which parent to squash into
+    "#);
 
     // Can squash into a merge commit
     test_env.jj_cmd_ok(&repo_path, &["new", "e"]);
