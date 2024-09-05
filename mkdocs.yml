@@ -132,6 +132,7 @@ nav:
       - 'Design Doc Blueprint': 'design_doc_blueprint.md'
 
 - 'Design docs':
+    - 'Roadmap': "roadmap.md"
     - 'git-submodules': 'design/git-submodules.md'
     - 'git-submodule-storage': 'design/git-submodule-storage.md'
     - 'JJ run': 'design/run.md'
