@@ -726,7 +726,8 @@ fn test_parse_conflict_multi_way() {
 }
 
 #[test]
-fn test_parse_conflict_different_wrong_arity() {
+fn test_parse_conflict_wrong_arity() {
+    // Valid conflict marker but it has fewer sides than the caller expected
     assert_eq!(
         parse_conflict(
             indoc! {b"
@@ -743,6 +744,29 @@ fn test_parse_conflict_different_wrong_arity() {
             line 5
             "},
             3
+        ),
+        None
+    )
+}
+
+#[test]
+// TODO: Should *not* panic
+#[should_panic]
+fn test_parse_conflict_malformed_missing_removes() {
+    // Right number of adds but missing removes
+    assert_eq!(
+        parse_conflict(
+            indoc! {b"
+            line 1
+            <<<<<<<
+            +++++++
+            left
+            +++++++
+            right
+            >>>>>>>
+            line 5
+            "},
+            2
         ),
         None
     )
