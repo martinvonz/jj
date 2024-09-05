@@ -27,7 +27,7 @@ fn test_util_config_schema() {
             "$schema": "http://json-schema.org/draft-07/schema",
             "title": "Jujutsu config",
             "type": "object",
-            "description": "User configuration for Jujutsu VCS. See https://github.com/martinvonz/jj/blob/main/docs/config.md for details",
+            "description": "User configuration for Jujutsu VCS. See https://martinvonz.github.io/jj/latest/config/ for details",
             "properties": {
                 [...]
             "fix": {

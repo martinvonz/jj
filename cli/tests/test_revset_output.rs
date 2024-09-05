@@ -626,7 +626,7 @@ fn test_all_modifier() {
       | ^-^
       |
       = Modifier "all:" is not allowed in sub expression
-    For help, see https://github.com/martinvonz/jj/blob/main/docs/config.md.
+    For help, see https://martinvonz.github.io/jj/latest/config/.
     "###);
 }
 

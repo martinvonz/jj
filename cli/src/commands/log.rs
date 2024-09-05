@@ -72,7 +72,7 @@ pub(crate) struct LogArgs {
     no_graph: bool,
     /// Render each revision using the given template
     ///
-    /// For the syntax, see https://github.com/martinvonz/jj/blob/main/docs/templates.md
+    /// For the syntax, see https://martinvonz.github.io/jj/latest/templates/
     #[arg(long, short = 'T')]
     template: Option<String>,
     /// Show patch

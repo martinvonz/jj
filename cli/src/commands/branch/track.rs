@@ -35,7 +35,7 @@ pub struct BranchTrackArgs {
     ///
     /// By default, the specified name matches exactly. Use `glob:` prefix to
     /// select branches by wildcard pattern. For details, see
-    /// https://github.com/martinvonz/jj/blob/main/docs/revsets.md#string-patterns.
+    /// https://martinvonz.github.io/jj/latest/revsets/#string-patterns.
     ///
     /// Examples: branch@remote, glob:main@*, glob:jjfan-*@upstream
     #[arg(required = true, value_name = "BRANCH@REMOTE")]

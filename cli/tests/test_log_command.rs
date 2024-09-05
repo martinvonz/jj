@@ -456,7 +456,7 @@ fn test_log_bad_short_prefixes() {
       | ^---
       |
       = expected <identifier> or <expression>
-    For help, see https://github.com/martinvonz/jj/blob/main/docs/config.md.
+    For help, see https://martinvonz.github.io/jj/latest/config/.
     "###);
 }
 

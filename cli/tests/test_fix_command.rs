@@ -65,7 +65,7 @@ fn test_config_no_tools() {
     let stderr = test_env.jj_cmd_failure(&repo_path, &["fix"]);
     insta::assert_snapshot!(stderr, @r###"
     Config error: At least one entry of `fix.tools` or `fix.tool-command` is required.
-    For help, see https://github.com/martinvonz/jj/blob/main/docs/config.md.
+    For help, see https://martinvonz.github.io/jj/latest/config/.
     "###);
 
     let content = test_env.jj_cmd_success(&repo_path, &["file", "show", "file", "-r", "@"]);
@@ -177,12 +177,12 @@ fn test_config_multiple_tools_with_same_name() {
     #[cfg(unix)]
     insta::assert_snapshot!(stderr, @r###"
     Config error: redefinition of table `fix.tools.my-tool` for key `fix.tools.my-tool` at line 6 column 9 in ../config/config0002.toml
-    For help, see https://github.com/martinvonz/jj/blob/main/docs/config.md.
+    For help, see https://martinvonz.github.io/jj/latest/config/.
     "###);
     #[cfg(windows)]
     insta::assert_snapshot!(stderr, @r###"
     Config error: redefinition of table `fix.tools.my-tool` for key `fix.tools.my-tool` at line 6 column 9 in ..\config\config0002.toml
-    For help, see https://github.com/martinvonz/jj/blob/main/docs/config.md.
+    For help, see https://martinvonz.github.io/jj/latest/config/.
     "###);
 
     test_env.set_config_path("/dev/null".into());
@@ -258,7 +258,7 @@ fn test_config_tables_all_commands_missing() {
     let stderr = test_env.jj_cmd_failure(&repo_path, &["fix"]);
     insta::assert_snapshot!(stderr, @r###"
     Config error: missing field `command`
-    For help, see https://github.com/martinvonz/jj/blob/main/docs/config.md.
+    For help, see https://martinvonz.github.io/jj/latest/config/.
     "###);
 
     let content = test_env.jj_cmd_success(&repo_path, &["file", "show", "foo", "-r", "@"]);
@@ -290,7 +290,7 @@ fn test_config_tables_some_commands_missing() {
     let stderr = test_env.jj_cmd_failure(&repo_path, &["fix"]);
     insta::assert_snapshot!(stderr, @r###"
     Config error: missing field `command`
-    For help, see https://github.com/martinvonz/jj/blob/main/docs/config.md.
+    For help, see https://martinvonz.github.io/jj/latest/config/.
     "###);
 
     let content = test_env.jj_cmd_success(&repo_path, &["file", "show", "foo", "-r", "@"]);

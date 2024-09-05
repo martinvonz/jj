@@ -478,7 +478,7 @@ fn test_git_clone_ignore_working_copy() {
     insta::assert_snapshot!(stderr, @r###"
     Error: The working copy is stale (not updated since operation b51416386f26).
     Hint: Run `jj workspace update-stale` to update it.
-    See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-working-copy for more information.
+    See https://martinvonz.github.io/jj/latest/working-copy/#stale-working-copy for more information.
     "###);
 }
 

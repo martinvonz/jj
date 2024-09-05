@@ -64,7 +64,7 @@ fn test_rewrite_immutable_generic() {
     insta::assert_snapshot!(stderr, @r###"
     Config error: Invalid `revset-aliases.immutable_heads()`
     Caused by: Revision "branch_that_does_not_exist" doesn't exist
-    For help, see https://github.com/martinvonz/jj/blob/main/docs/config.md.
+    For help, see https://martinvonz.github.io/jj/latest/config/.
     "###);
 
     // Can use --ignore-immutable to override

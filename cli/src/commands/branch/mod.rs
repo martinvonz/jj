@@ -59,7 +59,7 @@ use crate::ui::Ui;
 /// Manage branches
 ///
 /// For information about branches, see
-/// https://github.com/martinvonz/jj/blob/main/docs/branches.md.
+/// https://martinvonz.github.io/jj/latest/branches/.
 #[derive(clap::Subcommand, Clone, Debug)]
 pub enum BranchCommand {
     #[command(visible_alias("c"))]

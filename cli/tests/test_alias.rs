@@ -151,7 +151,7 @@ fn test_alias_calls_help() {
     insta::assert_snapshot!(stdout.lines().take(5).join("\n"), @r###"
     Jujutsu (An experimental VCS)
 
-    To get started, see the tutorial at https://github.com/martinvonz/jj/blob/main/docs/tutorial.md.
+    To get started, see the tutorial at https://martinvonz.github.io/jj/latest/tutorial/.
 
     Usage: jj [OPTIONS] <COMMAND>
     "###);

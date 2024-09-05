@@ -476,14 +476,14 @@ fn test_workspaces_conflicting_edits() {
     insta::assert_snapshot!(stderr, @r###"
     Error: The working copy is stale (not updated since operation 0da24da631e3).
     Hint: Run `jj workspace update-stale` to update it.
-    See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-working-copy for more information.
+    See https://martinvonz.github.io/jj/latest/working-copy/#stale-working-copy for more information.
     "###);
     // Same error on second run, and from another command
     let stderr = test_env.jj_cmd_failure(&secondary_path, &["log"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: The working copy is stale (not updated since operation 0da24da631e3).
     Hint: Run `jj workspace update-stale` to update it.
-    See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-working-copy for more information.
+    See https://martinvonz.github.io/jj/latest/working-copy/#stale-working-copy for more information.
     "###);
     let (stdout, stderr) = test_env.jj_cmd_ok(&secondary_path, &["workspace", "update-stale"]);
     // It was detected that the working copy is now stale.
@@ -563,7 +563,7 @@ fn test_workspaces_updated_by_other() {
     insta::assert_snapshot!(stderr, @r###"
     Error: The working copy is stale (not updated since operation 0da24da631e3).
     Hint: Run `jj workspace update-stale` to update it.
-    See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-working-copy for more information.
+    See https://martinvonz.github.io/jj/latest/working-copy/#stale-working-copy for more information.
     "###);
     let (stdout, stderr) = test_env.jj_cmd_ok(&secondary_path, &["workspace", "update-stale"]);
     // It was detected that the working copy is now stale, but clean. So no
@@ -660,7 +660,7 @@ fn test_workspaces_current_op_discarded_by_other() {
     insta::assert_snapshot!(stderr, @r###"
     Error: Could not read working copy's operation.
     Hint: Run `jj workspace update-stale` to recover.
-    See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-working-copy for more information.
+    See https://martinvonz.github.io/jj/latest/working-copy/#stale-working-copy for more information.
     "###);
 
     let (stdout, stderr) = test_env.jj_cmd_ok(&secondary_path, &["workspace", "update-stale"]);

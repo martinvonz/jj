@@ -700,7 +700,7 @@ fn test_config_get() {
     let stdout = test_env.jj_cmd_failure(test_env.env_root(), &["config", "get", "nonexistent"]);
     insta::assert_snapshot!(stdout, @r###"
     Config error: configuration property "nonexistent" not found
-    For help, see https://github.com/martinvonz/jj/blob/main/docs/config.md.
+    For help, see https://martinvonz.github.io/jj/latest/config/.
     "###);
 
     let stdout = test_env.jj_cmd_success(test_env.env_root(), &["config", "get", "table.string"]);
@@ -716,13 +716,13 @@ fn test_config_get() {
     let stdout = test_env.jj_cmd_failure(test_env.env_root(), &["config", "get", "table.list"]);
     insta::assert_snapshot!(stdout, @r###"
     Config error: invalid type: sequence, expected a value convertible to a string
-    For help, see https://github.com/martinvonz/jj/blob/main/docs/config.md.
+    For help, see https://martinvonz.github.io/jj/latest/config/.
     "###);
 
     let stdout = test_env.jj_cmd_failure(test_env.env_root(), &["config", "get", "table"]);
     insta::assert_snapshot!(stdout, @r###"
     Config error: invalid type: map, expected a value convertible to a string
-    For help, see https://github.com/martinvonz/jj/blob/main/docs/config.md.
+    For help, see https://martinvonz.github.io/jj/latest/config/.
     "###);
 
     let stdout =
@@ -776,7 +776,7 @@ fn test_config_path_syntax() {
     let stderr = test_env.jj_cmd_failure(test_env.env_root(), &["config", "get", "a.'b()'.x"]);
     insta::assert_snapshot!(stderr, @r###"
     Config error: configuration property "a.'b()'.x" not found
-    For help, see https://github.com/martinvonz/jj/blob/main/docs/config.md.
+    For help, see https://martinvonz.github.io/jj/latest/config/.
     "###);
 
     // "-" and "_" are valid TOML keys
@@ -853,7 +853,7 @@ fn test_config_show_paths() {
     Caused by: enum PaginationChoice does not have variant constructor :builtin
     Hint: Check the following config files:
     - $TEST_ENV/config/config.toml
-    For help, see https://github.com/martinvonz/jj/blob/main/docs/config.md.
+    For help, see https://martinvonz.github.io/jj/latest/config/.
     "###);
 }
 
