@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::borrow::Borrow;
 use std::io::Write;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -29,8 +28,6 @@ use jj_lib::repo::Repo;
 use jj_lib::revset::RevsetExpression;
 use jj_lib::revset::RevsetIteratorExt;
 use jj_lib::rewrite::move_commits;
-use jj_lib::rewrite::rebase_commit_with_options;
-use jj_lib::rewrite::CommitRewriter;
 use jj_lib::rewrite::EmptyBehaviour;
 use jj_lib::rewrite::MoveCommitsStats;
 use jj_lib::rewrite::RebaseOptions;
@@ -41,7 +38,6 @@ use crate::cli_util::short_commit_hash;
 use crate::cli_util::CommandHelper;
 use crate::cli_util::RevisionArg;
 use crate::cli_util::WorkspaceCommandHelper;
-use crate::cli_util::WorkspaceCommandTransaction;
 use crate::command_error::cli_error;
 use crate::command_error::user_error;
 use crate::command_error::CommandError;
@@ -173,26 +169,24 @@ pub(crate) struct RebaseArgs {
     /// The revision(s) to insert after (can be repeated to create a merge
     /// commit)
     ///
-    /// Only works with `-r`.
+    /// Only works with `-r` and `-s`.
     #[arg(
         long,
         short = 'A',
         visible_alias = "after",
         conflicts_with = "destination",
-        conflicts_with = "source",
         conflicts_with = "branch"
     )]
     insert_after: Vec<RevisionArg>,
     /// The revision(s) to insert before (can be repeated to create a merge
     /// commit)
     ///
-    /// Only works with `-r`.
+    /// Only works with `-r` and `-s`.
     #[arg(
         long,
         short = 'B',
         visible_alias = "before",
         conflicts_with = "destination",
-        conflicts_with = "source",
         conflicts_with = "branch"
     )]
     insert_before: Vec<RevisionArg>,
@@ -245,69 +239,27 @@ pub(crate) fn cmd_rebase(
             EmptyBehaviour::Keep,
             "clap should forbid `-r --skip-empty`"
         );
-        let target_commits: Vec<_> = workspace_command
-            .parse_union_revsets(&args.revisions)?
-            .evaluate_to_commits()?
-            .try_collect()?; // in reverse topological order
-        if !args.insert_after.is_empty() && !args.insert_before.is_empty() {
-            let after_commits =
-                workspace_command.resolve_some_revsets_default_single(&args.insert_after)?;
-            let before_commits =
-                workspace_command.resolve_some_revsets_default_single(&args.insert_before)?;
-            rebase_revisions_after_before(
-                ui,
-                command.settings(),
-                &mut workspace_command,
-                &after_commits,
-                &before_commits,
-                &target_commits,
-            )?;
-        } else if !args.insert_after.is_empty() {
-            let after_commits =
-                workspace_command.resolve_some_revsets_default_single(&args.insert_after)?;
-            rebase_revisions_after(
-                ui,
-                command.settings(),
-                &mut workspace_command,
-                &after_commits,
-                &target_commits,
-            )?;
-        } else if !args.insert_before.is_empty() {
-            let before_commits =
-                workspace_command.resolve_some_revsets_default_single(&args.insert_before)?;
-            rebase_revisions_before(
-                ui,
-                command.settings(),
-                &mut workspace_command,
-                &before_commits,
-                &target_commits,
-            )?;
-        } else {
-            let new_parents = workspace_command
-                .resolve_some_revsets_default_single(&args.destination)?
-                .into_iter()
-                .collect_vec();
-            rebase_revisions(
-                ui,
-                command.settings(),
-                &mut workspace_command,
-                &new_parents,
-                &target_commits,
-            )?;
-        }
-    } else if !args.source.is_empty() {
-        let new_parents = workspace_command
-            .resolve_some_revsets_default_single(&args.destination)?
-            .into_iter()
-            .collect_vec();
-        let source_commits = workspace_command.resolve_some_revsets_default_single(&args.source)?;
-        rebase_descendants_transaction(
+
+        rebase_revisions(
             ui,
             command.settings(),
             &mut workspace_command,
-            new_parents,
-            &source_commits,
-            rebase_options,
+            &args.revisions,
+            &args.destination,
+            &args.insert_after,
+            &args.insert_before,
+            &rebase_options,
+        )?;
+    } else if !args.source.is_empty() {
+        rebase_source(
+            ui,
+            command.settings(),
+            &mut workspace_command,
+            &args.source,
+            &args.destination,
+            &args.insert_after,
+            &args.insert_before,
+            &rebase_options,
         )?;
     } else {
         let new_parents = workspace_command
@@ -331,6 +283,83 @@ pub(crate) fn cmd_rebase(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
+fn rebase_revisions(
+    ui: &mut Ui,
+    settings: &UserSettings,
+    workspace_command: &mut WorkspaceCommandHelper,
+    revisions: &[RevisionArg],
+    destination: &[RevisionArg],
+    insert_after: &[RevisionArg],
+    insert_before: &[RevisionArg],
+    rebase_options: &RebaseOptions,
+) -> Result<(), CommandError> {
+    let target_commits: Vec<_> = workspace_command
+        .parse_union_revsets(revisions)?
+        .evaluate_to_commits()?
+        .try_collect()?; // in reverse topological order
+    workspace_command.check_rewritable(target_commits.iter().ids())?;
+
+    let (new_parents, new_children) =
+        compute_rebase_destination(workspace_command, destination, insert_after, insert_before)?;
+    if !destination.is_empty() && new_children.is_empty() {
+        for commit in target_commits.iter() {
+            if new_parents.contains(commit) {
+                return Err(user_error(format!(
+                    "Cannot rebase {} onto itself",
+                    short_commit_hash(commit.id()),
+                )));
+            }
+        }
+    }
+    rebase_revisions_transaction(
+        ui,
+        settings,
+        workspace_command,
+        &new_parents.iter().ids().cloned().collect_vec(),
+        &new_children,
+        &target_commits,
+        &[],
+        rebase_options,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn rebase_source(
+    ui: &mut Ui,
+    settings: &UserSettings,
+    workspace_command: &mut WorkspaceCommandHelper,
+    source: &[RevisionArg],
+    destination: &[RevisionArg],
+    insert_after: &[RevisionArg],
+    insert_before: &[RevisionArg],
+    rebase_options: &RebaseOptions,
+) -> Result<(), CommandError> {
+    let source_commits = workspace_command
+        .resolve_some_revsets_default_single(source)?
+        .into_iter()
+        .collect_vec();
+    workspace_command.check_rewritable(source_commits.iter().ids())?;
+
+    let (new_parents, new_children) =
+        compute_rebase_destination(workspace_command, destination, insert_after, insert_before)?;
+    if !destination.is_empty() && new_children.is_empty() {
+        for commit in source_commits.iter() {
+            check_rebase_destinations(workspace_command.repo(), &new_parents, commit)?;
+        }
+    }
+
+    rebase_descendants_transaction(
+        ui,
+        settings,
+        workspace_command,
+        &new_parents.iter().ids().cloned().collect_vec(),
+        &new_children,
+        &source_commits,
+        rebase_options,
+    )
+}
+
 fn rebase_branch(
     ui: &mut Ui,
     settings: &UserSettings,
@@ -339,249 +368,186 @@ fn rebase_branch(
     branch_commits: &IndexSet<Commit>,
     rebase_options: RebaseOptions,
 ) -> Result<(), CommandError> {
-    let parent_ids = new_parents
-        .iter()
-        .map(|commit| commit.id().clone())
-        .collect_vec();
+    let parent_ids = new_parents.iter().ids().cloned().collect_vec();
     let branch_commit_ids = branch_commits
         .iter()
         .map(|commit| commit.id().clone())
         .collect_vec();
-    let roots_expression = RevsetExpression::commits(parent_ids)
+    let roots_expression = RevsetExpression::commits(parent_ids.clone())
         .range(&RevsetExpression::commits(branch_commit_ids))
         .roots();
-    let root_commits: IndexSet<_> = roots_expression
+    let root_commits: Vec<_> = roots_expression
         .evaluate_programmatic(workspace_command.repo().as_ref())
         .unwrap()
         .iter()
         .commits(workspace_command.repo().store())
         .try_collect()?;
+    workspace_command.check_rewritable(root_commits.iter().ids())?;
+    for commit in root_commits.iter() {
+        check_rebase_destinations(workspace_command.repo(), &new_parents, commit)?;
+    }
+
     rebase_descendants_transaction(
         ui,
         settings,
         workspace_command,
-        new_parents,
+        &parent_ids,
+        &[],
         &root_commits,
-        rebase_options,
+        &rebase_options,
     )
-}
-
-/// Rebases `old_commits` onto `new_parents`.
-fn rebase_descendants(
-    tx: &mut WorkspaceCommandTransaction,
-    settings: &UserSettings,
-    new_parents: Vec<Commit>,
-    old_commits: &[impl Borrow<Commit>],
-    rebase_options: RebaseOptions,
-) -> Result<usize, CommandError> {
-    for old_commit in old_commits.iter() {
-        let rewriter = CommitRewriter::new(
-            tx.mut_repo(),
-            old_commit.borrow().clone(),
-            new_parents
-                .iter()
-                .map(|parent| parent.id().clone())
-                .collect(),
-        );
-        rebase_commit_with_options(settings, rewriter, &rebase_options)?;
-    }
-    let num_rebased = old_commits.len()
-        + tx.mut_repo()
-            .rebase_descendants_with_options(settings, rebase_options)?;
-    Ok(num_rebased)
 }
 
 fn rebase_descendants_transaction(
     ui: &mut Ui,
     settings: &UserSettings,
     workspace_command: &mut WorkspaceCommandHelper,
-    new_parents: Vec<Commit>,
-    old_commits: &IndexSet<Commit>,
-    rebase_options: RebaseOptions,
+    new_parent_ids: &[CommitId],
+    new_children: &[Commit],
+    target_roots: &[Commit],
+    rebase_options: &RebaseOptions,
 ) -> Result<(), CommandError> {
-    workspace_command.check_rewritable(old_commits.iter().ids())?;
-    let (skipped_commits, old_commits) = old_commits
-        .iter()
-        .partition::<Vec<_>, _>(|commit| commit.parent_ids().iter().eq(new_parents.iter().ids()));
-    let num_skipped_rebases = skipped_commits.len();
+    if target_roots.is_empty() {
+        return Ok(());
+    }
+
+    let mut tx = workspace_command.start_transaction();
+    let tx_description = if target_roots.len() == 1 {
+        format!(
+            "rebase commit {} and descendants",
+            target_roots.first().unwrap().id().hex()
+        )
+    } else {
+        format!(
+            "rebase {} commits and their descendants",
+            target_roots.len()
+        )
+    };
+
+    let target_commits: Vec<_> =
+        RevsetExpression::commits(target_roots.iter().ids().cloned().collect_vec())
+            .descendants()
+            .evaluate_programmatic(tx.repo())?
+            .iter()
+            .commits(tx.repo().store())
+            .try_collect()?;
+    let target_roots = target_roots.iter().ids().cloned().collect_vec();
+
+    let MoveCommitsStats {
+        num_rebased_targets,
+        num_rebased_descendants,
+        num_skipped_rebases,
+        num_abandoned,
+    } = move_commits(
+        settings,
+        tx.mut_repo(),
+        new_parent_ids,
+        new_children,
+        &target_commits,
+        &target_roots,
+        rebase_options,
+    )?;
+
     if num_skipped_rebases > 0 {
         writeln!(
             ui.status(),
             "Skipped rebase of {num_skipped_rebases} commits that were already in place"
         )?;
     }
-    if old_commits.is_empty() {
-        return Ok(());
+    if num_rebased_targets > 0 {
+        writeln!(ui.status(), "Rebased {num_rebased_targets} commits")?;
     }
-    for old_commit in old_commits.iter() {
-        check_rebase_destinations(workspace_command.repo(), &new_parents, old_commit)?;
+    if num_rebased_descendants > 0 {
+        writeln!(
+            ui.status(),
+            "Rebased {num_rebased_descendants} descendant commits"
+        )?;
     }
-    let mut tx = workspace_command.start_transaction();
-    let num_rebased =
-        rebase_descendants(&mut tx, settings, new_parents, &old_commits, rebase_options)?;
-    writeln!(ui.status(), "Rebased {num_rebased} commits")?;
-    let tx_message = if old_commits.len() == 1 {
-        format!(
-            "rebase commit {} and descendants",
-            old_commits.first().unwrap().id().hex()
-        )
-    } else {
-        format!("rebase {} commits and their descendants", old_commits.len())
-    };
-    tx.finish(ui, tx_message)?;
-    Ok(())
+    if num_abandoned > 0 {
+        writeln!(
+            ui.status(),
+            "Abandoned {num_abandoned} newly emptied commits"
+        )?;
+    }
+
+    tx.finish(ui, tx_description)
 }
 
-fn rebase_revisions(
-    ui: &mut Ui,
-    settings: &UserSettings,
+/// Computes the new parents and children given the input arguments for
+/// `destination`, `insert_after`, and `insert_before`.
+fn compute_rebase_destination(
     workspace_command: &mut WorkspaceCommandHelper,
-    new_parents: &[Commit],
-    target_commits: &[Commit],
-) -> Result<(), CommandError> {
-    if target_commits.is_empty() {
-        return Ok(());
-    }
-
-    workspace_command.check_rewritable(target_commits.iter().ids())?;
-    for commit in target_commits.iter() {
-        if new_parents.contains(commit) {
-            return Err(user_error(format!(
-                "Cannot rebase {} onto itself",
-                short_commit_hash(commit.id()),
-            )));
+    destination: &[RevisionArg],
+    insert_after: &[RevisionArg],
+    insert_before: &[RevisionArg],
+) -> Result<(Vec<Commit>, Vec<Commit>), CommandError> {
+    let resolve_revisions = |revisions: &[RevisionArg]| -> Result<Vec<Commit>, CommandError> {
+        if revisions.is_empty() {
+            Ok(vec![])
+        } else {
+            Ok(workspace_command
+                .resolve_some_revsets_default_single(revisions)?
+                .into_iter()
+                .collect_vec())
         }
+    };
+    let destination_commits = resolve_revisions(destination)?;
+    let after_commits = resolve_revisions(insert_after)?;
+    let before_commits = resolve_revisions(insert_before)?;
+
+    let (new_parents, new_children) = if !after_commits.is_empty() && !before_commits.is_empty() {
+        (after_commits, before_commits)
+    } else if !after_commits.is_empty() {
+        let new_children: Vec<_> =
+            RevsetExpression::commits(after_commits.iter().ids().cloned().collect_vec())
+                .children()
+                .evaluate_programmatic(workspace_command.repo().as_ref())?
+                .iter()
+                .commits(workspace_command.repo().store())
+                .try_collect()?;
+
+        (after_commits, new_children)
+    } else if !before_commits.is_empty() {
+        // Not using `RevsetExpression::parents` here to persist the order of parents
+        // specified in `before_commits`.
+        let new_parent_ids = before_commits
+            .iter()
+            .flat_map(|commit| commit.parent_ids().iter().cloned().collect_vec())
+            .unique()
+            .collect_vec();
+        let new_parents: Vec<_> = new_parent_ids
+            .iter()
+            .map(|commit_id| workspace_command.repo().store().get_commit(commit_id))
+            .try_collect()?;
+
+        (new_parents, before_commits)
+    } else {
+        (destination_commits, vec![])
+    };
+
+    if !new_children.is_empty() {
+        workspace_command.check_rewritable(new_children.iter().ids())?;
+        ensure_no_commit_loop(
+            workspace_command.repo().as_ref(),
+            &RevsetExpression::commits(new_children.iter().ids().cloned().collect_vec()),
+            &RevsetExpression::commits(new_parents.iter().ids().cloned().collect_vec()),
+        )?;
     }
 
-    move_commits_transaction(
-        ui,
-        settings,
-        workspace_command,
-        &new_parents.iter().ids().cloned().collect_vec(),
-        &[],
-        target_commits,
-    )
+    Ok((new_parents, new_children))
 }
 
-fn rebase_revisions_after(
-    ui: &mut Ui,
-    settings: &UserSettings,
-    workspace_command: &mut WorkspaceCommandHelper,
-    after_commits: &IndexSet<Commit>,
-    target_commits: &[Commit],
-) -> Result<(), CommandError> {
-    workspace_command.check_rewritable(target_commits.iter().ids())?;
-
-    let after_commit_ids = after_commits.iter().ids().cloned().collect_vec();
-    let new_parents_expression = RevsetExpression::commits(after_commit_ids.clone());
-    let new_children_expression = new_parents_expression.children();
-
-    ensure_no_commit_loop(
-        workspace_command.repo().as_ref(),
-        &new_children_expression,
-        &new_parents_expression,
-    )?;
-
-    let new_parent_ids = after_commit_ids;
-    let new_children: Vec<_> = new_children_expression
-        .evaluate_programmatic(workspace_command.repo().as_ref())?
-        .iter()
-        .commits(workspace_command.repo().store())
-        .try_collect()?;
-    workspace_command.check_rewritable(new_children.iter().ids())?;
-
-    move_commits_transaction(
-        ui,
-        settings,
-        workspace_command,
-        &new_parent_ids,
-        &new_children,
-        target_commits,
-    )
-}
-
-fn rebase_revisions_before(
-    ui: &mut Ui,
-    settings: &UserSettings,
-    workspace_command: &mut WorkspaceCommandHelper,
-    before_commits: &IndexSet<Commit>,
-    target_commits: &[Commit],
-) -> Result<(), CommandError> {
-    workspace_command.check_rewritable(target_commits.iter().ids())?;
-    let before_commit_ids = before_commits.iter().ids().cloned().collect_vec();
-    workspace_command.check_rewritable(&before_commit_ids)?;
-
-    let new_children_expression = RevsetExpression::commits(before_commit_ids);
-    let new_parents_expression = new_children_expression.parents();
-
-    ensure_no_commit_loop(
-        workspace_command.repo().as_ref(),
-        &new_children_expression,
-        &new_parents_expression,
-    )?;
-
-    // Not using `new_parents_expression` here to persist the order of parents
-    // specified in `before_commits`.
-    let new_parent_ids: IndexSet<_> = before_commits
-        .iter()
-        .flat_map(|commit| commit.parent_ids().iter().cloned().collect_vec())
-        .collect();
-    let new_parent_ids = new_parent_ids.into_iter().collect_vec();
-    let new_children = before_commits.iter().cloned().collect_vec();
-
-    move_commits_transaction(
-        ui,
-        settings,
-        workspace_command,
-        &new_parent_ids,
-        &new_children,
-        target_commits,
-    )
-}
-
-fn rebase_revisions_after_before(
-    ui: &mut Ui,
-    settings: &UserSettings,
-    workspace_command: &mut WorkspaceCommandHelper,
-    after_commits: &IndexSet<Commit>,
-    before_commits: &IndexSet<Commit>,
-    target_commits: &[Commit],
-) -> Result<(), CommandError> {
-    workspace_command.check_rewritable(target_commits.iter().ids())?;
-    let before_commit_ids = before_commits.iter().ids().cloned().collect_vec();
-    workspace_command.check_rewritable(&before_commit_ids)?;
-
-    let after_commit_ids = after_commits.iter().ids().cloned().collect_vec();
-    let new_children_expression = RevsetExpression::commits(before_commit_ids);
-    let new_parents_expression = RevsetExpression::commits(after_commit_ids.clone());
-
-    ensure_no_commit_loop(
-        workspace_command.repo().as_ref(),
-        &new_children_expression,
-        &new_parents_expression,
-    )?;
-
-    let new_parent_ids = after_commit_ids;
-    let new_children = before_commits.iter().cloned().collect_vec();
-
-    move_commits_transaction(
-        ui,
-        settings,
-        workspace_command,
-        &new_parent_ids,
-        &new_children,
-        target_commits,
-    )
-}
-
-/// Wraps `move_commits` in a transaction.
-fn move_commits_transaction(
+/// Creates a transaction for rebasing revisions.
+#[allow(clippy::too_many_arguments)]
+fn rebase_revisions_transaction(
     ui: &mut Ui,
     settings: &UserSettings,
     workspace_command: &mut WorkspaceCommandHelper,
     new_parent_ids: &[CommitId],
     new_children: &[Commit],
     target_commits: &[Commit],
+    target_roots: &[CommitId],
+    rebase_options: &RebaseOptions,
 ) -> Result<(), CommandError> {
     if target_commits.is_empty() {
         return Ok(());
@@ -602,13 +568,20 @@ fn move_commits_transaction(
         num_rebased_targets,
         num_rebased_descendants,
         num_skipped_rebases,
+        num_abandoned,
     } = move_commits(
         settings,
         tx.mut_repo(),
         new_parent_ids,
         new_children,
         target_commits,
+        target_roots,
+        rebase_options,
     )?;
+    // TODO(ilyagr): Consider making it possible for descendants of the target set
+    // to become emptied, like --skip-empty. This would require writing careful
+    // tests.
+    debug_assert_eq!(num_abandoned, 0);
 
     if let Some(mut fmt) = ui.status_formatter() {
         if num_skipped_rebases > 0 {

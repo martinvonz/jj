@@ -56,6 +56,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   
 * When reconfiguring the author, warn that the working copy won't be updated
 
+* `jj rebase -s` can now be used with the `--insert-after` and `--insert-before`
+  options, like `jj rebase -r`.
+
 ### Fixed bugs
 
 * Release binaries for Intel Macs have been restored. They were previously
