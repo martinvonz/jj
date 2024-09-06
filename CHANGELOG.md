@@ -24,6 +24,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   can be used to more easily introduce automatic formatting changes in a new
   commit separate from other changes.
 
+* `jj workspace add` now accepts a `--sparse-patterns=<MODE>` option, which
+  allows control of the sparse patterns for a newly created workspace: `copy`
+  (inherit from parent; default), `full` (full working copy), or `empty` (the
+  empty working copy).
+
 ### Fixed bugs
 
  * Fixed panic when parsing invalid conflict markers of a particular form.

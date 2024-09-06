@@ -77,6 +77,9 @@ fn test_workspaces_sparse_patterns() {
     let ws1_path = test_env.env_root().join("ws1");
     let ws2_path = test_env.env_root().join("ws2");
     let ws3_path = test_env.env_root().join("ws3");
+    let ws4_path = test_env.env_root().join("ws4");
+    let ws5_path = test_env.env_root().join("ws5");
+    let ws6_path = test_env.env_root().join("ws6");
 
     test_env.jj_cmd_ok(&ws1_path, &["sparse", "set", "--clear", "--add=foo"]);
     test_env.jj_cmd_ok(&ws1_path, &["workspace", "add", "../ws2"]);
@@ -91,6 +94,30 @@ fn test_workspaces_sparse_patterns() {
     bar
     foo
     "###);
+    // --sparse-patterns behavior
+    test_env.jj_cmd_ok(
+        &ws3_path,
+        &["workspace", "add", "--sparse-patterns=copy", "../ws4"],
+    );
+    let stdout = test_env.jj_cmd_success(&ws4_path, &["sparse", "list"]);
+    insta::assert_snapshot!(stdout, @r###"
+    bar
+    foo
+    "###);
+    test_env.jj_cmd_ok(
+        &ws3_path,
+        &["workspace", "add", "--sparse-patterns=full", "../ws5"],
+    );
+    let stdout = test_env.jj_cmd_success(&ws5_path, &["sparse", "list"]);
+    insta::assert_snapshot!(stdout, @r###"
+    .
+    "###);
+    test_env.jj_cmd_ok(
+        &ws3_path,
+        &["workspace", "add", "--sparse-patterns=empty", "../ws6"],
+    );
+    let stdout = test_env.jj_cmd_success(&ws6_path, &["sparse", "list"]);
+    insta::assert_snapshot!(stdout, @"");
 }
 
 /// Test adding a second workspace while the current workspace is editing a
