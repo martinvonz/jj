@@ -65,16 +65,13 @@ for script in "$@"; do
   #
   # `-resize 100%` is a no-op. `-resize 700x10000`` would make the width 700 px
   # and preserve aspect ratio.
+  #
+  # (!) The order of operations is important and confusingly different from what
+  # would happen to a PNG with transparency. If editing this, it might help to
+  # look at https://github.com/ImageMagick/ImageMagick/discussions/7600
   which magick > /dev/null \
-    && magick "$script_base".svg \
-            -colors 63 -background black -resize 100%  \
-            "$script_base".png \
+    && magick -background black "$script_base".svg \
+         -type Palette -colors 63 -resize 100%  \
+        "$script_base".png \
     || true
-  # TODO/FIXME: The above command doesn't seem to work properly;
-  # the PNG files end up larger than they should be and are RGB
-  # as opposed to expected indexed 63-color. This is caused by
-  # https://github.com/martinvonz/jj/commit/6d573ef6d7a45151495de18b6f4c5063ce39f6bd
-  # and
-  # https://github.com/martinvonz/jj/commit/42dee7d08ce8e362cf9d44f844b25e001b6ac94f
-  # and needs debugging of ImageMagick invocations.
 done
