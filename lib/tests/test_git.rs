@@ -2642,6 +2642,7 @@ fn test_push_branches_success() {
         &clone_repo,
         "origin",
         &targets,
+        &[],
         git::RemoteCallbacks::default(),
     );
     assert_eq!(result, Ok(()));
@@ -2711,6 +2712,7 @@ fn test_push_branches_deletion() {
         &get_git_repo(&setup.jj_repo),
         "origin",
         &targets,
+        &[],
         git::RemoteCallbacks::default(),
     );
     assert_eq!(result, Ok(()));
@@ -2768,6 +2770,7 @@ fn test_push_branches_mixed_deletion_and_addition() {
         &clone_repo,
         "origin",
         &targets,
+        &[],
         git::RemoteCallbacks::default(),
     );
     assert_eq!(result, Ok(()));
@@ -2827,6 +2830,7 @@ fn test_push_branches_not_fast_forward() {
         &get_git_repo(&setup.jj_repo),
         "origin",
         &targets,
+        &[],
         git::RemoteCallbacks::default(),
     );
     assert_eq!(result, Ok(()));
@@ -2872,6 +2876,7 @@ fn test_push_updates_unexpectedly_moved_sideways_on_remote() {
             &get_git_repo(&setup.jj_repo),
             "origin",
             &targets,
+            &[],
             git::RemoteCallbacks::default(),
         )
     };
@@ -2939,6 +2944,7 @@ fn test_push_updates_unexpectedly_moved_forward_on_remote() {
             &get_git_repo(&setup.jj_repo),
             "origin",
             &targets,
+            &[],
             git::RemoteCallbacks::default(),
         )
     };
@@ -2997,6 +3003,7 @@ fn test_push_updates_unexpectedly_exists_on_remote() {
             &get_git_repo(&setup.jj_repo),
             "origin",
             &targets,
+            &[],
             git::RemoteCallbacks::default(),
         )
     };
@@ -3028,6 +3035,7 @@ fn test_push_updates_success() {
             expected_current_target: Some(setup.main_commit.id().clone()),
             new_target: Some(setup.child_of_main_commit.id().clone()),
         }],
+        &[],
         git::RemoteCallbacks::default(),
     );
     assert_eq!(result, Ok(()));
@@ -3065,6 +3073,7 @@ fn test_push_updates_no_such_remote() {
             expected_current_target: Some(setup.main_commit.id().clone()),
             new_target: Some(setup.child_of_main_commit.id().clone()),
         }],
+        &[],
         git::RemoteCallbacks::default(),
     );
     assert!(matches!(result, Err(GitPushError::NoSuchRemote(_))));
@@ -3084,6 +3093,7 @@ fn test_push_updates_invalid_remote() {
             expected_current_target: Some(setup.main_commit.id().clone()),
             new_target: Some(setup.child_of_main_commit.id().clone()),
         }],
+        &[],
         git::RemoteCallbacks::default(),
     );
     assert!(matches!(result, Err(GitPushError::NoSuchRemote(_))));

@@ -1041,6 +1041,7 @@ Before the command actually moves, creates, or deletes a remote branch, it makes
 * `-r`, `--revisions <REVISIONS>` — Push branches pointing to these commits (can be repeated)
 * `-c`, `--change <CHANGE>` — Push this commit by creating a branch based on its change ID (can be repeated)
 * `--dry-run` — Only display what will change on the remote
+* `-o`, `--option <OPTION>` — Git push options
 
 
 

@@ -119,6 +119,9 @@ pub struct GitPushArgs {
     /// Only display what will change on the remote
     #[arg(long)]
     dry_run: bool,
+    /// Git push options
+    #[arg(long, short)]
+    option: Vec<String>,
 }
 
 fn make_branch_term(branch_names: &[impl fmt::Display]) -> String {
@@ -335,7 +338,14 @@ pub fn cmd_git_push(
         _ = writer.write(ui, progress_message);
     };
     with_remote_git_callbacks(ui, Some(&mut sideband_progress_callback), |cb| {
-        git::push_branches(tx.mut_repo(), &git_repo, &remote, &targets, cb)
+        git::push_branches(
+            tx.mut_repo(),
+            &git_repo,
+            &remote,
+            &targets,
+            &args.option.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
+            cb,
+        )
     })
     .map_err(|err| match err {
         GitPushError::InternalGitError(err) => map_git_error(err),

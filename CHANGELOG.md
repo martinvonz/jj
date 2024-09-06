@@ -39,6 +39,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### New features
 
+* Add support for push options in `jj git push` with the `--option` flag.
+  This allows users to pass options to the remote server when pushing commits.
+  The short alias `-o` is also supported.
+
 * Add new boolean config knob, `ui.movement.edit` for controlling the behaviour
   of `prev/next`. The flag turns `edit` mode `on` and `off` permanently when set
   respectively to `true` or `false`.
@@ -53,7 +57,7 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 * A tilde (`~`) at the start of the path will now be expanded to the user's home
   directory when configuring a `signing.key` for SSH commit signing.
-  
+
 * When reconfiguring the author, warn that the working copy won't be updated
 
 ### Fixed bugs
@@ -153,7 +157,7 @@ Thanks to the people who made this release happen!
 
 * `jj backout` can now back out multiple commits at once.
 
-* `jj git clone some/nested/path` now creates the full directory tree for 
+* `jj git clone some/nested/path` now creates the full directory tree for
    nested destination paths if they don't exist.
 
 * String patterns now support case‐insensitive matching by suffixing any

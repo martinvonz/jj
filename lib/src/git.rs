@@ -1356,6 +1356,7 @@ pub fn push_branches(
     git_repo: &git2::Repository,
     remote_name: &str,
     targets: &GitBranchPushTargets,
+    remote_push_options: &[&str],
     callbacks: RemoteCallbacks<'_>,
 ) -> Result<(), GitPushError> {
     let ref_updates = targets
@@ -1367,7 +1368,14 @@ pub fn push_branches(
             new_target: update.new_target.clone(),
         })
         .collect_vec();
-    push_updates(mut_repo, git_repo, remote_name, &ref_updates, callbacks)?;
+    push_updates(
+        mut_repo,
+        git_repo,
+        remote_name,
+        &ref_updates,
+        remote_push_options,
+        callbacks,
+    )?;
 
     // TODO: add support for partially pushed refs? we could update the view
     // excluding rejected refs, but the transaction would be aborted anyway
@@ -1391,6 +1399,7 @@ pub fn push_updates(
     git_repo: &git2::Repository,
     remote_name: &str,
     updates: &[GitRefUpdate],
+    remote_push_options: &[&str],
     callbacks: RemoteCallbacks<'_>,
 ) -> Result<(), GitPushError> {
     let mut qualified_remote_refs_expected_locations = HashMap::new();
@@ -1420,6 +1429,7 @@ pub fn push_updates(
         remote_name,
         &qualified_remote_refs_expected_locations,
         &refspecs,
+        remote_push_options,
         callbacks,
     )
 }
@@ -1430,6 +1440,7 @@ fn push_refs(
     remote_name: &str,
     qualified_remote_refs_expected_locations: &HashMap<&str, Option<&CommitId>>,
     refspecs: &[String],
+    remote_push_options: &[&str],
     callbacks: RemoteCallbacks<'_>,
 ) -> Result<(), GitPushError> {
     if remote_name == REMOTE_NAME_FOR_LOCAL_GIT_REPO {
@@ -1449,6 +1460,7 @@ fn push_refs(
     let mut failed_push_negotiations = vec![];
     let push_result = {
         let mut push_options = git2::PushOptions::new();
+        push_options.remote_push_options(remote_push_options);
         let mut proxy_options = git2::ProxyOptions::new();
         proxy_options.auto();
         push_options.proxy_options(proxy_options);
