@@ -473,7 +473,8 @@
                 "backend": {
                     "type": "string",
                     "enum": ["gpg", "ssh"],
-                    "description": "The backend to use for signing commits"
+                    "description": "The backend to use for signing commits. The string `none` disables signing.",
+                    "default": "none"
                 },
                 "key": {
                     "type": "string",

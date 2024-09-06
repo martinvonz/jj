@@ -776,6 +776,8 @@ GnuPG or SSH signing keys.
 
 To do this you need to configure a signing backend.
 
+Setting the backend to `"none"` disables signing.
+
 ### GnuPG Signing
 
 ```toml
