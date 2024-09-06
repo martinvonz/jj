@@ -7506,7 +7506,7 @@ compinit
 </ul>
 <h2 id="jj-workspace-add"><code>jj workspace add</code><a class="headerlink" href="#jj-workspace-add" title="Permanent link">&para;</a></h2>
 <p>Add a workspace</p>
-<p>Sparse patterns will be copied over from the current workspace.</p>
+<p>By default, the new workspace inherits the sparse patterns of the current workspace. You can override this with the <code>--sparse-patterns</code> option.</p>
 <p><strong>Usage:</strong> <code>jj workspace add [OPTIONS] &lt;DESTINATION&gt;</code></p>
 <h6 id="arguments_49"><strong>Arguments:</strong><a class="headerlink" href="#arguments_49" title="Permanent link">&para;</a></h6>
 <ul>
@@ -7522,6 +7522,19 @@ compinit
 <p><code>-r</code>, <code>--revision &lt;REVISION&gt;</code> — A list of parent revisions for the working-copy commit of the newly created workspace. You may specify nothing, or any number of parents.</p>
 <p>If no revisions are specified, the new workspace will be created, and its working-copy commit will exist on top of the parent(s) of the working-copy commit in the current workspace, i.e. they will share the same parent(s).</p>
 <p>If any revisions are specified, the new workspace will be created, and the new working-copy commit will be created with all these revisions as parents, i.e. the working-copy commit will exist as if you had run <code>jj new r1 r2 r3 ...</code>.</p>
+</li>
+<li>
+<p><code>--sparse-patterns &lt;SPARSE_PATTERNS&gt;</code> — How to handle sparse patterns when creating a new workspace</p>
+<p>Default value: <code>copy</code></p>
+<p>Possible values:</p>
+<ul>
+<li><code>copy</code>:
+  Copy all sparse patterns from the current workspace</li>
+<li><code>full</code>:
+  Include all files in the new workspace</li>
+<li><code>empty</code>:
+  Clear all files from the workspace (it will be empty)</li>
+</ul>
 </li>
 </ul>
 <h2 id="jj-workspace-forget"><code>jj workspace forget</code><a class="headerlink" href="#jj-workspace-forget" title="Permanent link">&para;</a></h2>
