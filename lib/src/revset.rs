@@ -112,6 +112,7 @@ pub enum RevsetModifier {
 pub enum RevsetCommitRef {
     WorkingCopy(WorkspaceId),
     WorkingCopies,
+    OtherWorkingCopies(WorkspaceId),
     Symbol(String),
     RemoteSymbol {
         name: String,
@@ -229,6 +230,12 @@ impl RevsetExpression {
 
     pub fn working_copies() -> Rc<RevsetExpression> {
         Rc::new(RevsetExpression::CommitRef(RevsetCommitRef::WorkingCopies))
+    }
+
+    pub fn other_working_copies(workspace_id: WorkspaceId) -> Rc<RevsetExpression> {
+        Rc::new(RevsetExpression::CommitRef(
+            RevsetCommitRef::OtherWorkingCopies(workspace_id),
+        ))
     }
 
     pub fn symbol(value: String) -> Rc<RevsetExpression> {
@@ -625,6 +632,18 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
     map.insert("working_copies", |function, _context| {
         function.expect_no_arguments()?;
         Ok(RevsetExpression::working_copies())
+    });
+    map.insert("other_working_copies", |function, context| {
+        function.expect_no_arguments()?;
+        let ctx = context.workspace.as_ref().ok_or_else(|| {
+            RevsetParseError::with_span(
+                RevsetParseErrorKind::WorkingCopyWithoutWorkspace,
+                function.name_span,
+            )
+        })?;
+        Ok(RevsetExpression::other_working_copies(
+            ctx.workspace_id.clone(),
+        ))
     });
     map.insert("heads", |function, context| {
         let [arg] = function.expect_exact_arguments()?;
@@ -1686,6 +1705,17 @@ fn resolve_commit_ref(
         }
         RevsetCommitRef::WorkingCopies => {
             let wc_commits = repo.view().wc_commit_ids().values().cloned().collect_vec();
+            Ok(wc_commits)
+        }
+        RevsetCommitRef::OtherWorkingCopies(target_workspace_id) => {
+            let wc_commits = repo
+                .view()
+                .wc_commit_ids()
+                .iter()
+                .filter_map(|(ws_id, commit_id)| {
+                    (ws_id != target_workspace_id).then_some(commit_id.clone())
+                })
+                .collect_vec();
             Ok(wc_commits)
         }
         RevsetCommitRef::VisibleHeads => Ok(repo.view().heads().iter().cloned().collect_vec()),
