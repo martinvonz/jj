@@ -138,9 +138,6 @@ fn test_git_private_commits_are_not_checked_if_immutable() {
     insta::assert_snapshot!(stderr, @r###"
     Branch changes to push to origin:
       Move forward branch main from 7eb97bf230ad to aa3058ff8663
-    Warning: The working-copy commit in workspace 'default' became immutable, so a new commit has been created on top of it.
-    Working copy now at: yostqsxw dce4a15c (empty) (no description set)
-    Parent commit      : yqosqzyt aa3058ff main | (empty) private 1
     "###);
 }
 
