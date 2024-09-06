@@ -245,7 +245,8 @@ impl UserSettings {
     // separate from sign_settings as those two are needed in pretty different
     // places
     pub fn signing_backend(&self) -> Option<String> {
-        self.config.get_string("signing.backend").ok()
+        let backend = self.config.get_string("signing.backend").ok()?;
+        (backend.as_str() != "none").then_some(backend)
     }
 
     pub fn sign_settings(&self) -> SignSettings {
