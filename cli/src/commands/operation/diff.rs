@@ -40,7 +40,6 @@ use crate::cli_util::short_change_hash;
 use crate::cli_util::short_operation_hash;
 use crate::cli_util::CommandHelper;
 use crate::cli_util::LogContentFormat;
-use crate::command_error::user_error;
 use crate::command_error::CommandError;
 use crate::diff_util::DiffFormatArgs;
 use crate::diff_util::DiffRenderer;
@@ -93,9 +92,6 @@ pub fn cmd_op_diff(
     } else {
         to_op = workspace_command.resolve_single_op(args.operation.as_deref().unwrap_or("@"))?;
         let to_op_parents: Vec<_> = to_op.parents().try_collect()?;
-        if to_op_parents.is_empty() {
-            return Err(user_error("Cannot diff operation with no parents"));
-        }
         from_op = repo_loader.merge_operations(command.settings(), to_op_parents, None)?;
     }
     let graph_style = GraphStyle::from_settings(command.settings())?;

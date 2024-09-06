@@ -1211,9 +1211,9 @@ fn test_op_show() {
     "###);
 
     // The root operation is empty.
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["op", "show", "0000000"]);
-    insta::assert_snapshot!(&stderr, @r###"
-    Error: Cannot show the root operation
+    let stdout = test_env.jj_cmd_success(&repo_path, &["op", "show", "0000000"]);
+    insta::assert_snapshot!(&stdout, @r###"
+    000000000000 root()
     "###);
 
     // Showing the latest operation.

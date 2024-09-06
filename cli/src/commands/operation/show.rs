@@ -17,7 +17,6 @@ use itertools::Itertools;
 use super::diff::show_op_diff;
 use crate::cli_util::CommandHelper;
 use crate::cli_util::LogContentFormat;
-use crate::command_error::user_error;
 use crate::command_error::CommandError;
 use crate::diff_util::DiffFormatArgs;
 use crate::graphlog::GraphStyle;
@@ -55,9 +54,6 @@ pub fn cmd_op_show(
     let repo_loader = &repo.loader();
     let op = workspace_command.resolve_single_op(&args.operation)?;
     let parents: Vec<_> = op.parents().try_collect()?;
-    if parents.is_empty() {
-        return Err(user_error("Cannot show the root operation"));
-    }
     let parent_op = repo_loader.merge_operations(command.settings(), parents, None)?;
     let parent_repo = repo_loader.load_at(&parent_op)?;
     let repo = repo_loader.load_at(&op)?;

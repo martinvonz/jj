@@ -753,8 +753,8 @@ impl RepoLoader {
         Arc::new(repo)
     }
 
-    /// Merges the given `operations` into a single operation.
-    /// Assumes that there is at least one operation.
+    /// Merges the given `operations` into a single operation. Returns the root
+    /// operation if the `operations` is empty.
     pub fn merge_operations(
         &self,
         settings: &UserSettings,
@@ -763,7 +763,11 @@ impl RepoLoader {
     ) -> Result<Operation, RepoLoaderError> {
         let num_operations = operations.len();
         let mut operations = operations.into_iter();
-        let base_op = operations.next().unwrap();
+        let Some(base_op) = operations.next() else {
+            let id = self.op_store.root_operation_id();
+            let data = self.op_store.read_operation(id)?;
+            return Ok(Operation::new(self.op_store.clone(), id.clone(), data));
+        };
         let final_op = if num_operations > 1 {
             let base_repo = self.load_at(&base_op)?;
             let mut tx = base_repo.start_transaction(settings);
@@ -789,6 +793,7 @@ impl RepoLoader {
         op_heads: Vec<Operation>,
         user_settings: &UserSettings,
     ) -> Result<Operation, RepoLoaderError> {
+        assert!(!op_heads.is_empty());
         self.merge_operations(
             user_settings,
             op_heads,
