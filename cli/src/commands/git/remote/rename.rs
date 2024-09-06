@@ -39,7 +39,7 @@ pub fn cmd_git_remote_rename(
     let git_repo = get_git_repo(repo.store())?;
     let mut tx = workspace_command.start_transaction();
     git::rename_remote(tx.mut_repo(), &git_repo, &args.old, &args.new)?;
-    if tx.mut_repo().has_changes() {
+    if tx.repo().has_changes() {
         tx.finish(
             ui,
             format!("rename git remote {} to {}", &args.old, &args.new),

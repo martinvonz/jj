@@ -65,7 +65,7 @@ pub(crate) fn cmd_backout(
             to_back_out.len() - 1
         )
     };
-    let mut new_base_tree = merge_commit_trees(tx.mut_repo(), &parents)?;
+    let mut new_base_tree = merge_commit_trees(tx.repo(), &parents)?;
     for commit_to_back_out in to_back_out {
         let commit_to_back_out_subject = commit_to_back_out
             .description()
@@ -77,7 +77,7 @@ pub(crate) fn cmd_backout(
             commit_to_back_out_subject,
             &commit_to_back_out.id().hex()
         );
-        let old_base_tree = commit_to_back_out.parent_tree(tx.mut_repo())?;
+        let old_base_tree = commit_to_back_out.parent_tree(tx.repo())?;
         let old_tree = commit_to_back_out.tree()?;
         let new_tree = new_base_tree.merge(&old_tree, &old_base_tree)?;
         let new_parent_ids = parents.iter().map(|commit| commit.id().clone()).collect();

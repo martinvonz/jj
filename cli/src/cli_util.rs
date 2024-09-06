@@ -698,7 +698,7 @@ impl WorkspaceCommandHelper {
         let command = self.command.clone();
         let mut tx = self.start_transaction();
         git::import_head(tx.mut_repo())?;
-        if !tx.mut_repo().has_changes() {
+        if !tx.repo().has_changes() {
             return Ok(());
         }
 
@@ -714,10 +714,10 @@ impl WorkspaceCommandHelper {
 
         let mut tx = tx.into_inner();
         let old_git_head = self.repo().view().git_head().clone();
-        let new_git_head = tx.mut_repo().view().git_head().clone();
+        let new_git_head = tx.repo().view().git_head().clone();
         if let Some(new_git_head_id) = new_git_head.as_normal() {
             let workspace_id = self.workspace_id().to_owned();
-            let new_git_head_commit = tx.mut_repo().store().get_commit(new_git_head_id)?;
+            let new_git_head_commit = tx.repo().store().get_commit(new_git_head_id)?;
             tx.mut_repo()
                 .check_out(workspace_id, command.settings(), &new_git_head_commit)?;
             let mut locked_ws = self.workspace.start_working_copy_mutation()?;
@@ -759,7 +759,7 @@ impl WorkspaceCommandHelper {
         let stats = git::import_some_refs(tx.mut_repo(), &git_settings, |ref_name| {
             !git::is_reserved_git_remote_ref(ref_name)
         })?;
-        if !tx.mut_repo().has_changes() {
+        if !tx.repo().has_changes() {
             return Ok(());
         }
 
@@ -1463,7 +1463,7 @@ See https://martinvonz.github.io/jj/latest/working-copy/#stale-working-copy \
         mut tx: Transaction,
         description: impl Into<String>,
     ) -> Result<(), CommandError> {
-        if !tx.mut_repo().has_changes() {
+        if !tx.repo().has_changes() {
             writeln!(ui.status(), "Nothing changed.")?;
             return Ok(());
         }
@@ -1472,8 +1472,7 @@ See https://martinvonz.github.io/jj/latest/working-copy/#stale-working-copy \
             writeln!(ui.status(), "Rebased {num_rebased} descendant commits")?;
         }
 
-        for (workspace_id, wc_commit_id) in
-            tx.mut_repo().view().wc_commit_ids().clone().iter().sorted()
+        for (workspace_id, wc_commit_id) in tx.repo().view().wc_commit_ids().clone().iter().sorted()
         //sorting otherwise non deterministic order (bad for tests)
         {
             if self

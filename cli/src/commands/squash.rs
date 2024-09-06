@@ -292,7 +292,7 @@ from the source will be moved into the destination.
         // changes will disappear.
         let rebase_map = tx.mut_repo().rebase_descendants_return_map(settings)?;
         let rebased_destination_id = rebase_map.get(destination.id()).unwrap().clone();
-        rewritten_destination = tx.mut_repo().store().get_commit(&rebased_destination_id)?;
+        rewritten_destination = tx.repo().store().get_commit(&rebased_destination_id)?;
     }
     // Apply the selected changes onto the destination
     let mut destination_tree = rewritten_destination.tree()?;
