@@ -808,12 +808,12 @@ impl TreeState {
             matcher: fsmonitor_matcher,
             watchman_clock,
         } = self.make_fsmonitor_matcher(fsmonitor_settings)?;
-        let fsmonitor_matcher = match fsmonitor_matcher.as_ref() {
+        let chosen_matcher = match fsmonitor_matcher.as_ref() {
             None => &EverythingMatcher,
             Some(fsmonitor_matcher) => fsmonitor_matcher.as_ref(),
         };
 
-        let matcher = IntersectionMatcher::new(sparse_matcher.as_ref(), fsmonitor_matcher);
+        let matcher = IntersectionMatcher::new(sparse_matcher.as_ref(), chosen_matcher);
         if matcher.visit(RepoPath::root()).is_nothing() {
             // No need to iterate file states to build empty deleted_files.
             self.watchman_clock = watchman_clock;
@@ -853,7 +853,7 @@ impl TreeState {
                 file_states
                     .iter()
                     .filter(|(path, state)| {
-                        fsmonitor_matcher.matches(path) && state.file_type != FileType::GitSubmodule
+                        chosen_matcher.matches(path) && state.file_type != FileType::GitSubmodule
                     })
                     .map(|(path, _state)| path.to_owned())
                     .collect()
@@ -962,6 +962,17 @@ impl TreeState {
                 }
 
                 if file_type.is_dir() {
+                    // fast path: if a valid CACHEDIR.TAG exists in the
+                    // directory, we can skip it and everything inside of it.
+                    if let Ok(mut file) = File::open(entry.path().join("CACHEDIR.TAG")) {
+                        let sig = "Signature: 8a477f597d28d172789f06886806bc55";
+                        let mut buf: [u8; 43] = [0; 43]; // "... the first 43 octets of this file MUST consist of..."
+
+                        if file.read_exact(&mut buf).is_ok() && buf == sig.as_bytes() {
+                            return Ok(());
+                        }
+                    }
+
                     let file_states = file_states.prefixed(&path);
                     if git_ignore.matches(&path.to_internal_dir_string()) {
                         // If the whole directory is ignored, visit only paths we're already

@@ -20,6 +20,12 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### New features
 
+* Assuming that a directory contains a valid `CACHEDIR.TAG` file that follows
+  the [Cache Directory Tagging Specification](https://bford.info/cachedir/),
+  `jj` will now ignore the contents of the directory when building snapshots.
+  This means that many build tools such as `cargo` will automatically have their
+  build directories ignored with no need to use `.gitignore` files.
+
 ### Fixed bugs
 
  * Fixed panic when parsing invalid conflict markers of a particular form.
