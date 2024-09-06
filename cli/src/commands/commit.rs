@@ -120,10 +120,7 @@ new working-copy commit.
     commit_builder.set_description(description);
     let new_commit = commit_builder.write(tx.mut_repo())?;
 
-    let workspace_ids = tx
-        .mut_repo()
-        .view()
-        .workspaces_for_wc_commit_id(commit.id());
+    let workspace_ids = tx.repo().view().workspaces_for_wc_commit_id(commit.id());
     if !workspace_ids.is_empty() {
         let new_wc_commit = tx
             .mut_repo()

@@ -175,11 +175,11 @@ pub fn do_init(
             if !workspace_command.working_copy_shared_with_git() {
                 let mut tx = workspace_command.start_transaction();
                 jj_lib::git::import_head(tx.mut_repo())?;
-                if let Some(git_head_id) = tx.mut_repo().view().git_head().as_normal().cloned() {
-                    let git_head_commit = tx.mut_repo().store().get_commit(&git_head_id)?;
+                if let Some(git_head_id) = tx.repo().view().git_head().as_normal().cloned() {
+                    let git_head_commit = tx.repo().store().get_commit(&git_head_id)?;
                     tx.check_out(&git_head_commit)?;
                 }
-                if tx.mut_repo().has_changes() {
+                if tx.repo().has_changes() {
                     tx.finish(ui, "import git head")?;
                 }
             }
@@ -213,7 +213,7 @@ fn init_git_refs(
         // Initial import shouldn't fail because of reserved remote name.
         |ref_name| !git::is_reserved_git_remote_ref(ref_name),
     )?;
-    if !tx.mut_repo().has_changes() {
+    if !tx.repo().has_changes() {
         return Ok(repo);
     }
     print_git_import_stats(ui, tx.repo(), &stats, false)?;
