@@ -96,7 +96,7 @@ fn test_checkout_file_transitions(backend: TestRepoBackend) {
     let mut test_workspace = TestWorkspace::init_with_backend(&settings, backend);
     let repo = &test_workspace.repo;
     let store = repo.store().clone();
-    let workspace_root = test_workspace.workspace.workspace_root().clone();
+    let workspace_root = test_workspace.workspace.workspace_root().to_owned();
 
     #[derive(Debug, PartialEq, Eq, Clone, Copy)]
     enum Kind {
@@ -414,7 +414,7 @@ fn test_tree_builder_file_directory_transition() {
     let repo = &test_workspace.repo;
     let store = repo.store();
     let mut ws = test_workspace.workspace;
-    let workspace_root = ws.workspace_root().clone();
+    let workspace_root = ws.workspace_root().to_owned();
     let mut check_out_tree = |tree_id: &TreeId| {
         let tree = repo.store().get_tree(RepoPath::root(), tree_id).unwrap();
         let commit = commit_with_tree(repo.store(), MergedTreeId::Legacy(tree.id().clone()));
@@ -457,7 +457,7 @@ fn test_conflicting_changes_on_disk() {
     let test_workspace = TestWorkspace::init(&settings);
     let repo = &test_workspace.repo;
     let mut ws = test_workspace.workspace;
-    let workspace_root = ws.workspace_root().clone();
+    let workspace_root = ws.workspace_root().to_owned();
 
     // file on disk conflicts with file in target commit
     let file_file_path = RepoPath::from_internal_string("file-file");
@@ -526,7 +526,7 @@ fn test_reset() {
     let mut test_workspace = TestWorkspace::init(&settings);
     let repo = &test_workspace.repo;
     let op_id = repo.op_id().clone();
-    let workspace_root = test_workspace.workspace.workspace_root().clone();
+    let workspace_root = test_workspace.workspace.workspace_root().to_owned();
 
     let ignored_path = RepoPath::from_internal_string("ignored");
     let gitignore_path = RepoPath::from_internal_string(".gitignore");
@@ -581,7 +581,7 @@ fn test_checkout_discard() {
     let settings = testutils::user_settings();
     let mut test_workspace = TestWorkspace::init(&settings);
     let repo = test_workspace.repo.clone();
-    let workspace_root = test_workspace.workspace.workspace_root().clone();
+    let workspace_root = test_workspace.workspace.workspace_root().to_owned();
 
     let file1_path = RepoPath::from_internal_string("file1");
     let file2_path = RepoPath::from_internal_string("file2");
@@ -631,7 +631,7 @@ fn test_materialize_snapshot_conflicted_files() {
     let mut test_workspace = TestWorkspace::init(&settings);
     let repo = &test_workspace.repo.clone();
     let ws = &mut test_workspace.workspace;
-    let workspace_root = ws.workspace_root().clone();
+    let workspace_root = ws.workspace_root().to_owned();
 
     // Create tree with 3-sided conflict, with file1 and file2 having different
     // conflicts:
@@ -744,7 +744,7 @@ fn test_snapshot_racy_timestamps() {
     let settings = testutils::user_settings();
     let mut test_workspace = TestWorkspace::init(&settings);
     let repo = &test_workspace.repo;
-    let workspace_root = test_workspace.workspace.workspace_root().clone();
+    let workspace_root = test_workspace.workspace.workspace_root().to_owned();
 
     let file_path = workspace_root.join("file");
     let mut previous_tree_id = repo.store().empty_merged_tree_id();
@@ -770,7 +770,7 @@ fn test_snapshot_special_file() {
     // disk.
     let settings = testutils::user_settings();
     let mut test_workspace = TestWorkspace::init(&settings);
-    let workspace_root = test_workspace.workspace.workspace_root().clone();
+    let workspace_root = test_workspace.workspace.workspace_root().to_owned();
     let store = test_workspace.repo.store();
     let ws = &mut test_workspace.workspace;
 
@@ -828,7 +828,7 @@ fn test_gitignores() {
 
     let settings = testutils::user_settings();
     let mut test_workspace = TestWorkspace::init(&settings);
-    let workspace_root = test_workspace.workspace.workspace_root().clone();
+    let workspace_root = test_workspace.workspace.workspace_root().to_owned();
 
     let gitignore_path = RepoPath::from_internal_string(".gitignore");
     let added_path = RepoPath::from_internal_string("added");
@@ -889,7 +889,7 @@ fn test_gitignores_in_ignored_dir() {
     let settings = testutils::user_settings();
     let mut test_workspace = TestWorkspace::init(&settings);
     let op_id = test_workspace.repo.op_id().clone();
-    let workspace_root = test_workspace.workspace.workspace_root().clone();
+    let workspace_root = test_workspace.workspace.workspace_root().to_owned();
 
     let gitignore_path = RepoPath::from_internal_string(".gitignore");
     let nested_gitignore_path = RepoPath::from_internal_string("ignored/.gitignore");
@@ -934,7 +934,7 @@ fn test_gitignores_checkout_never_overwrites_ignored() {
     let settings = testutils::user_settings();
     let mut test_workspace = TestWorkspace::init(&settings);
     let repo = &test_workspace.repo;
-    let workspace_root = test_workspace.workspace.workspace_root().clone();
+    let workspace_root = test_workspace.workspace.workspace_root().to_owned();
 
     // Write an ignored file called "modified" to disk
     let gitignore_path = RepoPath::from_internal_string(".gitignore");
@@ -965,7 +965,7 @@ fn test_gitignores_ignored_directory_already_tracked() {
 
     let settings = testutils::user_settings();
     let mut test_workspace = TestWorkspace::init(&settings);
-    let workspace_root = test_workspace.workspace.workspace_root().clone();
+    let workspace_root = test_workspace.workspace.workspace_root().to_owned();
     let repo = test_workspace.repo.clone();
 
     #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -1062,7 +1062,7 @@ fn test_dotgit_ignored() {
     let settings = testutils::user_settings();
     let mut test_workspace = TestWorkspace::init(&settings);
     let store = test_workspace.repo.store().clone();
-    let workspace_root = test_workspace.workspace.workspace_root().clone();
+    let workspace_root = test_workspace.workspace.workspace_root().to_owned();
 
     // Test with a .git/ directory (with a file in, since we don't write empty
     // trees)
@@ -1096,7 +1096,7 @@ fn test_gitsubmodule() {
     let mut test_workspace = TestWorkspace::init_with_backend(&settings, TestRepoBackend::Git);
     let repo = &test_workspace.repo;
     let store = repo.store().clone();
-    let workspace_root = test_workspace.workspace.workspace_root().clone();
+    let workspace_root = test_workspace.workspace.workspace_root().to_owned();
 
     let mut tree_builder = store.tree_builder(store.empty_tree_id().clone());
 
@@ -1153,7 +1153,7 @@ fn test_existing_directory_symlink() {
     let settings = testutils::user_settings();
     let mut test_workspace = TestWorkspace::init(&settings);
     let repo = &test_workspace.repo;
-    let workspace_root = test_workspace.workspace.workspace_root().clone();
+    let workspace_root = test_workspace.workspace.workspace_root().to_owned();
 
     // Creates a symlink in working directory, and a tree that will add a file under
     // the symlinked directory.
@@ -1180,7 +1180,7 @@ fn test_fsmonitor() {
     let settings = testutils::user_settings();
     let mut test_workspace = TestWorkspace::init(&settings);
     let repo = &test_workspace.repo;
-    let workspace_root = test_workspace.workspace.workspace_root().clone();
+    let workspace_root = test_workspace.workspace.workspace_root().to_owned();
 
     let ws = &mut test_workspace.workspace;
     assert_eq!(
@@ -1273,7 +1273,7 @@ fn test_fsmonitor() {
 fn test_snapshot_max_new_file_size() {
     let settings = testutils::user_settings();
     let mut test_workspace = TestWorkspace::init(&settings);
-    let workspace_root = test_workspace.workspace.workspace_root().clone();
+    let workspace_root = test_workspace.workspace.workspace_root().to_owned();
     let small_path = RepoPath::from_internal_string("small");
     let large_path = RepoPath::from_internal_string("large");
     let limit: usize = 1024;

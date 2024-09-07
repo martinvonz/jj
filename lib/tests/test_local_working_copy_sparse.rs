@@ -35,7 +35,7 @@ fn test_sparse_checkout() {
     let settings = testutils::user_settings();
     let mut test_workspace = TestWorkspace::init(&settings);
     let repo = &test_workspace.repo;
-    let working_copy_path = test_workspace.workspace.workspace_root().clone();
+    let working_copy_path = test_workspace.workspace.workspace_root().to_owned();
 
     let root_file1_path = RepoPath::from_internal_string("file1");
     let root_file2_path = RepoPath::from_internal_string("file2");
@@ -155,7 +155,7 @@ fn test_sparse_commit() {
     let mut test_workspace = TestWorkspace::init(&settings);
     let repo = &test_workspace.repo;
     let op_id = repo.op_id().clone();
-    let working_copy_path = test_workspace.workspace.workspace_root().clone();
+    let working_copy_path = test_workspace.workspace.workspace_root().to_owned();
 
     let root_file1_path = RepoPath::from_internal_string("file1");
     let dir1_path = RepoPath::from_internal_string("dir1");
@@ -237,7 +237,7 @@ fn test_sparse_commit_gitignore() {
     let settings = testutils::user_settings();
     let mut test_workspace = TestWorkspace::init(&settings);
     let repo = &test_workspace.repo;
-    let working_copy_path = test_workspace.workspace.workspace_root().clone();
+    let working_copy_path = test_workspace.workspace.workspace_root().to_owned();
 
     let dir1_path = RepoPath::from_internal_string("dir1");
     let dir1_file1_path = RepoPath::from_internal_string("dir1/file1");

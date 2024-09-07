@@ -95,7 +95,7 @@ fn test_init_additional_workspace() {
 fn test_sendable() {
     let settings = testutils::user_settings();
     let test_workspace = TestWorkspace::init(&settings);
-    let root = test_workspace.workspace.workspace_root().clone();
+    let root = test_workspace.workspace.workspace_root().to_owned();
 
     thread::spawn(move || {
         let shared_workspace = test_workspace.workspace;

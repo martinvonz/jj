@@ -36,7 +36,7 @@ fn test_concurrent_checkout() {
     let settings = testutils::user_settings();
     let mut test_workspace1 = TestWorkspace::init(&settings);
     let repo = test_workspace1.repo.clone();
-    let workspace1_root = test_workspace1.workspace.workspace_root().clone();
+    let workspace1_root = test_workspace1.workspace.workspace_root().to_owned();
 
     let tree_id1 = testutils::create_random_tree(&repo);
     let tree_id2 = testutils::create_random_tree(&repo);
@@ -89,7 +89,7 @@ fn test_checkout_parallel() {
     let settings = testutils::user_settings();
     let mut test_workspace = TestWorkspace::init(&settings);
     let repo = &test_workspace.repo;
-    let workspace_root = test_workspace.workspace.workspace_root().clone();
+    let workspace_root = test_workspace.workspace.workspace_root().to_owned();
 
     let num_threads = max(num_cpus::get(), 4);
     let mut tree_ids = vec![];
@@ -152,7 +152,7 @@ fn test_racy_checkout() {
     let mut test_workspace = TestWorkspace::init(&settings);
     let repo = &test_workspace.repo;
     let op_id = repo.op_id().clone();
-    let workspace_root = test_workspace.workspace.workspace_root().clone();
+    let workspace_root = test_workspace.workspace.workspace_root().to_owned();
 
     let path = RepoPath::from_internal_string("file");
     let tree = create_tree(repo, &[(path, "1")]);
