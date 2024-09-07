@@ -40,6 +40,7 @@ use crate::cli_util::short_operation_hash;
 use crate::cli_util::CommandHelper;
 use crate::cli_util::LogContentFormat;
 use crate::command_error::CommandError;
+use crate::commit_templater::CommitTemplateLanguage;
 use crate::diff_util::diff_formats_for_log;
 use crate::diff_util::DiffFormatArgs;
 use crate::diff_util::DiffRenderer;
@@ -82,6 +83,7 @@ pub fn cmd_op_diff(
     args: &OperationDiffArgs,
 ) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
+    let workspace_env = workspace_command.env();
     let repo = workspace_command.repo();
     let repo_loader = &repo.loader();
     let from_op;
@@ -101,19 +103,26 @@ pub fn cmd_op_diff(
     let to_repo = repo_loader.load_at(&to_op)?;
 
     // Create a new transaction starting from `to_repo`.
-    let mut workspace_command =
-        command.for_temporary_repo(ui, command.load_workspace()?, to_repo.clone())?;
-    let mut tx = workspace_command.start_transaction();
+    let mut tx = to_repo.start_transaction(command.settings());
     // Merge index from `from_repo` to `to_repo`, so commits in `from_repo` are
     // accessible.
     tx.repo_mut().merge_index(&from_repo);
+    let merged_repo = tx.repo();
+
     let diff_renderer = {
-        // diff_renderer_for_log(), but captures the merged MutableRepo.
         let formats = diff_formats_for_log(command.settings(), &args.diff_format, args.patch)?;
-        let path_converter = tx.base_workspace_helper().path_converter();
-        (!formats.is_empty()).then(|| DiffRenderer::new(tx.repo(), path_converter, formats))
+        let path_converter = workspace_env.path_converter();
+        (!formats.is_empty()).then(|| DiffRenderer::new(merged_repo, path_converter, formats))
     };
-    let commit_summary_template = tx.commit_summary_template();
+    let id_prefix_context = workspace_env.new_id_prefix_context();
+    let commit_summary_template = {
+        let language = workspace_env.commit_template_language(merged_repo, &id_prefix_context);
+        let text = command
+            .settings()
+            .config()
+            .get_string("templates.commit_summary")?;
+        workspace_env.parse_template(&language, &text, CommitTemplateLanguage::wrap_commit)?
+    };
 
     ui.request_pager();
     let mut formatter = ui.stdout_formatter();
@@ -157,7 +166,7 @@ pub fn cmd_op_diff(
     show_op_diff(
         ui,
         formatter.as_mut(),
-        tx.repo(),
+        merged_repo,
         &from_repo,
         &to_repo,
         &commit_summary_template,
