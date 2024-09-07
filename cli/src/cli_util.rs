@@ -622,7 +622,7 @@ impl WorkspaceCommandHelper {
         let working_copy_shared_with_git = is_colocated_git_workspace(&workspace, &repo);
         let path_converter = RepoPathUiConverter::Fs {
             cwd: command.cwd().to_owned(),
-            base: workspace.workspace_root().clone(),
+            base: workspace.workspace_root().to_owned(),
         };
         let helper = Self {
             command: command.clone(),
@@ -818,7 +818,7 @@ impl WorkspaceCommandHelper {
         Ok((locked_ws, wc_commit))
     }
 
-    pub fn workspace_root(&self) -> &PathBuf {
+    pub fn workspace_root(&self) -> &Path {
         self.workspace.workspace_root()
     }
 

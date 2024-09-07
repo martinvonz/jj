@@ -387,7 +387,7 @@ impl Workspace {
         Ok(workspace)
     }
 
-    pub fn workspace_root(&self) -> &PathBuf {
+    pub fn workspace_root(&self) -> &Path {
         &self.workspace_root
     }
 
@@ -395,7 +395,7 @@ impl Workspace {
         self.working_copy.workspace_id()
     }
 
-    pub fn repo_path(&self) -> &PathBuf {
+    pub fn repo_path(&self) -> &Path {
         &self.repo_path
     }
 
