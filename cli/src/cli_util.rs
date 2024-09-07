@@ -346,10 +346,6 @@ impl CommandHelper {
         )?)
     }
 
-    pub fn operation_template_extensions(&self) -> &[Arc<dyn OperationTemplateLanguageExtension>] {
-        &self.data.operation_template_extensions
-    }
-
     pub fn workspace_loader(&self) -> Result<&dyn WorkspaceLoader, CommandError> {
         self.data
             .maybe_workspace_loader
@@ -492,20 +488,6 @@ impl CommandHelper {
     ) -> Result<WorkspaceCommandHelper, CommandError> {
         let env = self.workspace_environment(ui, &workspace)?;
         let loaded_at_head = true;
-        WorkspaceCommandHelper::new(workspace, repo, env, loaded_at_head)
-    }
-
-    /// Creates helper for the repo whose view might be out of sync with
-    /// the working copy. Therefore, the working copy should not be updated.
-    #[instrument(skip_all)]
-    pub fn for_temporary_repo(
-        &self,
-        ui: &Ui,
-        workspace: Workspace,
-        repo: Arc<ReadonlyRepo>,
-    ) -> Result<WorkspaceCommandHelper, CommandError> {
-        let env = self.workspace_environment(ui, &workspace)?;
-        let loaded_at_head = false;
         WorkspaceCommandHelper::new(workspace, repo, env, loaded_at_head)
     }
 }
@@ -668,7 +650,7 @@ impl WorkspaceCommandEnvironment {
 
     /// Creates fresh new context which manages cache of short commit/change ID
     /// prefixes. New context should be created per repo view (or operation.)
-    fn new_id_prefix_context(&self) -> IdPrefixContext {
+    pub fn new_id_prefix_context(&self) -> IdPrefixContext {
         let context = IdPrefixContext::new(self.command.revset_extensions().clone());
         match &self.short_prefixes_expression {
             None => context,
@@ -726,7 +708,7 @@ impl WorkspaceCommandEnvironment {
     }
 
     pub fn operation_template_extensions(&self) -> &[Arc<dyn OperationTemplateLanguageExtension>] {
-        self.command.operation_template_extensions()
+        &self.command.data.operation_template_extensions
     }
 }
 

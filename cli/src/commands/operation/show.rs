@@ -18,7 +18,10 @@ use super::diff::show_op_diff;
 use crate::cli_util::CommandHelper;
 use crate::cli_util::LogContentFormat;
 use crate::command_error::CommandError;
+use crate::commit_templater::CommitTemplateLanguage;
+use crate::diff_util::diff_formats_for_log;
 use crate::diff_util::DiffFormatArgs;
+use crate::diff_util::DiffRenderer;
 use crate::graphlog::GraphStyle;
 use crate::operation_templater::OperationTemplateLanguage;
 use crate::ui::Ui;
@@ -49,6 +52,7 @@ pub fn cmd_op_show(
     args: &OperationShowArgs,
 ) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
+    let workspace_env = workspace_command.env();
     let repo = workspace_command.repo();
     let current_op_id = repo.operation().id();
     let repo_loader = &repo.loader();
@@ -58,13 +62,23 @@ pub fn cmd_op_show(
     let parent_repo = repo_loader.load_at(&parent_op)?;
     let repo = repo_loader.load_at(&op)?;
 
-    let workspace_command =
-        command.for_temporary_repo(ui, command.load_workspace()?, repo.clone())?;
-    let commit_summary_template = workspace_command.commit_summary_template();
+    let id_prefix_context = workspace_env.new_id_prefix_context();
+    let commit_summary_template = {
+        let language = workspace_env.commit_template_language(repo.as_ref(), &id_prefix_context);
+        let text = command
+            .settings()
+            .config()
+            .get_string("templates.commit_summary")?;
+        workspace_env.parse_template(&language, &text, CommitTemplateLanguage::wrap_commit)?
+    };
 
     let graph_style = GraphStyle::from_settings(command.settings())?;
     let with_content_format = LogContentFormat::new(ui, command.settings())?;
-    let diff_renderer = workspace_command.diff_renderer_for_log(&args.diff_format, args.patch)?;
+    let diff_renderer = {
+        let formats = diff_formats_for_log(command.settings(), &args.diff_format, args.patch)?;
+        let path_converter = workspace_env.path_converter();
+        (!formats.is_empty()).then(|| DiffRenderer::new(repo.as_ref(), path_converter, formats))
+    };
 
     // TODO: Should we make this customizable via clap arg?
     let template;
@@ -72,7 +86,7 @@ pub fn cmd_op_show(
         let language = OperationTemplateLanguage::new(
             repo_loader.op_store().root_operation_id(),
             Some(current_op_id),
-            command.operation_template_extensions(),
+            workspace_env.operation_template_extensions(),
         );
         let text = command.settings().config().get_string("templates.op_log")?;
         template = workspace_command
