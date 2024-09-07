@@ -15,12 +15,14 @@
 use std::slice;
 
 use jj_lib::op_walk;
+use jj_lib::operation::Operation;
 use jj_lib::settings::ConfigResultExt as _;
 use jj_lib::settings::UserSettings;
 
 use crate::cli_util::format_template;
 use crate::cli_util::CommandHelper;
 use crate::cli_util::LogContentFormat;
+use crate::cli_util::WorkspaceCommandEnvironment;
 use crate::command_error::CommandError;
 use crate::graphlog::get_graphlog;
 use crate::graphlog::Edge;
@@ -61,20 +63,32 @@ pub fn cmd_op_log(
     command: &CommandHelper,
     args: &OperationLogArgs,
 ) -> Result<(), CommandError> {
-    let current_op = if command.is_working_copy_writable() {
+    if command.is_working_copy_writable() {
         let workspace_command = command.workspace_helper(ui)?;
-        workspace_command.repo().operation().clone()
+        let current_op = workspace_command.repo().operation();
+        do_op_log(ui, workspace_command.env(), current_op, args)
     } else {
         // Don't load the repo so that the operation history can be inspected
         // even with a corrupted repo state. For example, you can find the first
         // bad operation id to be abandoned.
         let workspace = command.load_workspace()?;
-        command.resolve_operation(ui, workspace.repo_loader())?
-    };
+        let workspace_env = command.workspace_environment(ui, &workspace)?;
+        let current_op = command.resolve_operation(ui, workspace.repo_loader())?;
+        do_op_log(ui, &workspace_env, &current_op, args)
+    }
+}
+
+fn do_op_log(
+    ui: &mut Ui,
+    workspace_env: &WorkspaceCommandEnvironment,
+    current_op: &Operation,
+    args: &OperationLogArgs,
+) -> Result<(), CommandError> {
+    let settings = workspace_env.settings();
     let op_store = current_op.op_store();
 
-    let graph_style = GraphStyle::from_settings(command.settings())?;
-    let with_content_format = LogContentFormat::new(ui, command.settings())?;
+    let graph_style = GraphStyle::from_settings(settings)?;
+    let with_content_format = LogContentFormat::new(ui, settings)?;
 
     let template;
     let op_node_template;
@@ -82,25 +96,19 @@ pub fn cmd_op_log(
         let language = OperationTemplateLanguage::new(
             op_store.root_operation_id(),
             Some(current_op.id()),
-            command.operation_template_extensions(),
+            workspace_env.operation_template_extensions(),
         );
         let text = match &args.template {
             Some(value) => value.to_owned(),
-            None => command.settings().config().get_string("templates.op_log")?,
+            None => settings.config().get_string("templates.op_log")?,
         };
-        template = command
-            .parse_template(
-                ui,
-                &language,
-                &text,
-                OperationTemplateLanguage::wrap_operation,
-            )?
+        template = workspace_env
+            .parse_template(&language, &text, OperationTemplateLanguage::wrap_operation)?
             .labeled("op_log");
-        op_node_template = command
+        op_node_template = workspace_env
             .parse_template(
-                ui,
                 &language,
-                &get_node_template(graph_style, command.settings())?,
+                &get_node_template(graph_style, settings)?,
                 OperationTemplateLanguage::wrap_operation,
             )?
             .labeled("node");
@@ -116,7 +124,7 @@ pub fn cmd_op_log(
         )?;
     }
     let limit = args.limit.or(args.deprecated_limit).unwrap_or(usize::MAX);
-    let iter = op_walk::walk_ancestors(slice::from_ref(&current_op)).take(limit);
+    let iter = op_walk::walk_ancestors(slice::from_ref(current_op)).take(limit);
     if !args.no_graph {
         let mut graph = get_graphlog(graph_style, formatter.raw());
         for op in iter {

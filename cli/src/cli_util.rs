@@ -407,7 +407,7 @@ impl CommandHelper {
     }
 
     /// Loads command environment for the given `workspace`.
-    fn workspace_environment(
+    pub fn workspace_environment(
         &self,
         ui: &Ui,
         workspace: &Workspace,
@@ -724,6 +724,10 @@ impl WorkspaceCommandEnvironment {
             &self.command.data.commit_template_extensions,
         )
     }
+
+    pub fn operation_template_extensions(&self) -> &[Arc<dyn OperationTemplateLanguageExtension>] {
+        self.command.operation_template_extensions()
+    }
 }
 
 /// Provides utilities for writing a command that works on a [`Workspace`]
@@ -916,6 +920,10 @@ impl WorkspaceCommandHelper {
 
     pub fn working_copy(&self) -> &dyn WorkingCopy {
         self.workspace.working_copy()
+    }
+
+    pub fn env(&self) -> &WorkspaceCommandEnvironment {
+        &self.env
     }
 
     pub fn unchecked_start_working_copy_mutation(
