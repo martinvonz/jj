@@ -177,7 +177,7 @@ pub fn cmd_git_clone(
             let mut checkout_tx = workspace_command.start_transaction();
             // For convenience, create local branch as Git would do.
             checkout_tx
-                .mut_repo()
+                .repo_mut()
                 .track_remote_branch(default_branch, remote_name);
             if let Ok(commit) = checkout_tx.repo().store().get_commit(&commit_id) {
                 checkout_tx.check_out(&commit)?;
@@ -214,7 +214,7 @@ fn do_git_clone(
 
     let stats = with_remote_git_callbacks(ui, None, |cb| {
         git::fetch(
-            fetch_tx.mut_repo(),
+            fetch_tx.repo_mut(),
             &git_repo,
             remote_name,
             &[StringPattern::everything()],

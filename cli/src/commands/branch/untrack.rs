@@ -64,7 +64,7 @@ pub fn cmd_branch_untrack(
     }
     let mut tx = workspace_command.start_transaction();
     for name in &names {
-        tx.mut_repo()
+        tx.repo_mut()
             .untrack_remote_branch(&name.branch, &name.remote);
     }
     if !names.is_empty() {

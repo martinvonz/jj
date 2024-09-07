@@ -50,10 +50,10 @@ pub fn cmd_branch_forget(
     let matched_branches = find_forgettable_branches(repo.view(), &args.names)?;
     let mut tx = workspace_command.start_transaction();
     for (name, branch_target) in &matched_branches {
-        tx.mut_repo()
+        tx.repo_mut()
             .set_local_branch_target(name, RefTarget::absent());
         for (remote_name, _) in &branch_target.remote_refs {
-            tx.mut_repo()
+            tx.repo_mut()
                 .set_remote_branch(name, remote_name, RemoteRef::absent());
         }
     }

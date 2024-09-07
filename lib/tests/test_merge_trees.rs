@@ -558,7 +558,7 @@ fn test_simplify_conflict_after_resolving_parent() {
     let mut tx = repo.start_transaction(&settings);
     let tree_a = create_tree(repo, &[(path, "abc\ndef\nghi\n")]);
     let commit_a = tx
-        .mut_repo()
+        .repo_mut()
         .new_commit(
             &settings,
             vec![repo.store().root_commit_id().clone()],
@@ -568,33 +568,33 @@ fn test_simplify_conflict_after_resolving_parent() {
         .unwrap();
     let tree_b = create_tree(repo, &[(path, "Abc\ndef\nghi\n")]);
     let commit_b = tx
-        .mut_repo()
+        .repo_mut()
         .new_commit(&settings, vec![commit_a.id().clone()], tree_b.id())
         .write()
         .unwrap();
     let tree_c = create_tree(repo, &[(path, "Abc\ndef\nGhi\n")]);
     let commit_c = tx
-        .mut_repo()
+        .repo_mut()
         .new_commit(&settings, vec![commit_b.id().clone()], tree_c.id())
         .write()
         .unwrap();
     let tree_d = create_tree(repo, &[(path, "abC\ndef\nghi\n")]);
     let commit_d = tx
-        .mut_repo()
+        .repo_mut()
         .new_commit(&settings, vec![commit_a.id().clone()], tree_d.id())
         .write()
         .unwrap();
 
     let commit_b2 = rebase_commit(
         &settings,
-        tx.mut_repo(),
+        tx.repo_mut(),
         commit_b,
         vec![commit_d.id().clone()],
     )
     .unwrap();
     let commit_c2 = rebase_commit(
         &settings,
-        tx.mut_repo(),
+        tx.repo_mut(),
         commit_c,
         vec![commit_b2.id().clone()],
     )
@@ -609,19 +609,19 @@ fn test_simplify_conflict_after_resolving_parent() {
     // Create the resolved B and rebase C on top.
     let tree_b3 = create_tree(repo, &[(path, "AbC\ndef\nghi\n")]);
     let commit_b3 = tx
-        .mut_repo()
+        .repo_mut()
         .rewrite_commit(&settings, &commit_b2)
         .set_tree_id(tree_b3.id())
         .write()
         .unwrap();
     let commit_c3 = rebase_commit(
         &settings,
-        tx.mut_repo(),
+        tx.repo_mut(),
         commit_c2,
         vec![commit_b3.id().clone()],
     )
     .unwrap();
-    tx.mut_repo().rebase_descendants(&settings).unwrap();
+    tx.repo_mut().rebase_descendants(&settings).unwrap();
     let repo = tx.commit("test");
 
     // The conflict should now be resolved.

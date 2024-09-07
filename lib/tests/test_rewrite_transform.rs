@@ -37,7 +37,7 @@ fn test_transform_descendants_sync() {
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings);
-    let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
+    let mut graph_builder = CommitGraphBuilder::new(&settings, tx.repo_mut());
     let commit_a = graph_builder.initial_commit();
     let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
     let commit_c = graph_builder.commit_with_parents(&[&commit_b]);
@@ -47,7 +47,7 @@ fn test_transform_descendants_sync() {
     let commit_g = graph_builder.commit_with_parents(&[&commit_a]);
 
     let mut rebased = HashMap::new();
-    tx.mut_repo()
+    tx.repo_mut()
         .transform_descendants(&settings, vec![commit_b.id().clone()], |mut rewriter| {
             rewriter.replace_parent(commit_a.id(), [commit_g.id()]);
             if *rewriter.old_commit() == commit_c {
@@ -67,7 +67,7 @@ fn test_transform_descendants_sync() {
     let new_commit_f = rebased.get(commit_f.id()).unwrap();
 
     assert_eq!(
-        *tx.mut_repo().view().heads(),
+        *tx.repo_mut().view().heads(),
         hashset! {
             new_commit_e.id().clone(),
             new_commit_f.id().clone(),
@@ -95,13 +95,13 @@ fn test_transform_descendants_sync_linearize_merge() {
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings);
-    let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
+    let mut graph_builder = CommitGraphBuilder::new(&settings, tx.repo_mut());
     let commit_a = graph_builder.initial_commit();
     let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
     let commit_c = graph_builder.commit_with_parents(&[&commit_a, &commit_b]);
 
     let mut rebased = HashMap::new();
-    tx.mut_repo()
+    tx.repo_mut()
         .transform_descendants(&settings, vec![commit_c.id().clone()], |mut rewriter| {
             rewriter.replace_parent(commit_a.id(), [commit_b.id()]);
             let old_commit_id = rewriter.old_commit().id().clone();
@@ -114,7 +114,7 @@ fn test_transform_descendants_sync_linearize_merge() {
     let new_commit_c = rebased.get(commit_c.id()).unwrap();
 
     assert_eq!(
-        *tx.mut_repo().view().heads(),
+        *tx.repo_mut().view().heads(),
         hashset! {
             new_commit_c.id().clone(),
         }

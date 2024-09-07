@@ -51,9 +51,9 @@ pub fn cmd_branch_rename(
     }
 
     let mut tx = workspace_command.start_transaction();
-    tx.mut_repo()
+    tx.repo_mut()
         .set_local_branch_target(new_branch, ref_target);
-    tx.mut_repo()
+    tx.repo_mut()
         .set_local_branch_target(old_branch, RefTarget::absent());
     tx.finish(ui, format!("rename branch {old_branch} to {new_branch}"))?;
 

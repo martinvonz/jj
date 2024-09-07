@@ -82,7 +82,7 @@ pub(crate) fn cmd_backout(
         let new_tree = new_base_tree.merge(&old_tree, &old_base_tree)?;
         let new_parent_ids = parents.iter().map(|commit| commit.id().clone()).collect();
         let new_commit = tx
-            .mut_repo()
+            .repo_mut()
             .new_commit(command.settings(), new_parent_ids, new_tree.id())
             .set_description(new_commit_description)
             .write()?;

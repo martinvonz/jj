@@ -61,13 +61,13 @@ pub fn cmd_op_undo(
     let repo_loader = tx.base_repo().loader();
     let bad_repo = repo_loader.load_at(&bad_op)?;
     let parent_repo = repo_loader.load_at(&parent_op)?;
-    tx.mut_repo().merge(&bad_repo, &parent_repo);
+    tx.repo_mut().merge(&bad_repo, &parent_repo);
     let new_view = view_with_desired_portions_restored(
         tx.repo().view().store_view(),
         tx.base_repo().view().store_view(),
         &args.what,
     );
-    tx.mut_repo().set_view(new_view);
+    tx.repo_mut().set_view(new_view);
     tx.finish(ui, format!("undo operation {}", bad_op.id().hex()))?;
 
     Ok(())

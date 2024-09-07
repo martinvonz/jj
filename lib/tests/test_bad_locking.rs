@@ -111,7 +111,7 @@ fn test_bad_locking_children(backend: TestRepoBackend) {
     let workspace_root = test_workspace.workspace.workspace_root();
 
     let mut tx = repo.start_transaction(&settings);
-    let initial = create_random_commit(tx.mut_repo(), &settings)
+    let initial = create_random_commit(tx.repo_mut(), &settings)
         .set_parents(vec![repo.store().root_commit_id().clone()])
         .write()
         .unwrap();
@@ -132,7 +132,7 @@ fn test_bad_locking_children(backend: TestRepoBackend) {
         .load_at_head(&settings)
         .unwrap();
     let mut machine1_tx = machine1_repo.start_transaction(&settings);
-    let child1 = create_random_commit(machine1_tx.mut_repo(), &settings)
+    let child1 = create_random_commit(machine1_tx.repo_mut(), &settings)
         .set_parents(vec![initial.id().clone()])
         .write()
         .unwrap();
@@ -153,7 +153,7 @@ fn test_bad_locking_children(backend: TestRepoBackend) {
         .load_at_head(&settings)
         .unwrap();
     let mut machine2_tx = machine2_repo.start_transaction(&settings);
-    let child2 = create_random_commit(machine2_tx.mut_repo(), &settings)
+    let child2 = create_random_commit(machine2_tx.repo_mut(), &settings)
         .set_parents(vec![initial.id().clone()])
         .write()
         .unwrap();
@@ -192,7 +192,7 @@ fn test_bad_locking_interrupted(backend: TestRepoBackend) {
     let repo = &test_workspace.repo;
 
     let mut tx = repo.start_transaction(&settings);
-    let initial = create_random_commit(tx.mut_repo(), &settings)
+    let initial = create_random_commit(tx.repo_mut(), &settings)
         .set_parents(vec![repo.store().root_commit_id().clone()])
         .write()
         .unwrap();
@@ -206,7 +206,7 @@ fn test_bad_locking_interrupted(backend: TestRepoBackend) {
     let backup_path = test_workspace.root_dir().join("backup");
     copy_directory(&op_heads_dir, &backup_path);
     let mut tx = repo.start_transaction(&settings);
-    create_random_commit(tx.mut_repo(), &settings)
+    create_random_commit(tx.repo_mut(), &settings)
         .set_parents(vec![initial.id().clone()])
         .write()
         .unwrap();

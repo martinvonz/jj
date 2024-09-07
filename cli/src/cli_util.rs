@@ -450,7 +450,7 @@ impl CommandHelper {
                     );
                     for other_op_head in op_heads.into_iter().skip(1) {
                         tx.merge_operation(other_op_head)?;
-                        let num_rebased = tx.mut_repo().rebase_descendants(&self.data.settings)?;
+                        let num_rebased = tx.repo_mut().rebase_descendants(&self.data.settings)?;
                         if num_rebased > 0 {
                             writeln!(
                                 ui.status(),
@@ -697,7 +697,7 @@ impl WorkspaceCommandHelper {
         assert!(self.may_update_working_copy);
         let command = self.command.clone();
         let mut tx = self.start_transaction();
-        git::import_head(tx.mut_repo())?;
+        git::import_head(tx.repo_mut())?;
         if !tx.repo().has_changes() {
             return Ok(());
         }
@@ -718,14 +718,14 @@ impl WorkspaceCommandHelper {
         if let Some(new_git_head_id) = new_git_head.as_normal() {
             let workspace_id = self.workspace_id().to_owned();
             let new_git_head_commit = tx.repo().store().get_commit(new_git_head_id)?;
-            tx.mut_repo()
+            tx.repo_mut()
                 .check_out(workspace_id, command.settings(), &new_git_head_commit)?;
             let mut locked_ws = self.workspace.start_working_copy_mutation()?;
             // The working copy was presumably updated by the git command that updated
             // HEAD, so we just need to reset our working copy
             // state to it without updating working copy files.
             locked_ws.locked_wc().reset(&new_git_head_commit)?;
-            tx.mut_repo().rebase_descendants(command.settings())?;
+            tx.repo_mut().rebase_descendants(command.settings())?;
             self.user_repo = ReadonlyUserRepo::new(tx.commit("import git head"));
             locked_ws.finish(self.user_repo.repo.op_id().clone())?;
             if old_git_head.is_present() {
@@ -756,7 +756,7 @@ impl WorkspaceCommandHelper {
         let git_settings = self.settings().git_settings();
         let mut tx = self.start_transaction();
         // Automated import shouldn't fail because of reserved remote name.
-        let stats = git::import_some_refs(tx.mut_repo(), &git_settings, |ref_name| {
+        let stats = git::import_some_refs(tx.repo_mut(), &git_settings, |ref_name| {
             !git::is_reserved_git_remote_ref(ref_name)
         })?;
         if !tx.repo().has_changes() {
@@ -766,7 +766,7 @@ impl WorkspaceCommandHelper {
         print_git_import_stats(ui, tx.repo(), &stats, false)?;
         let mut tx = tx.into_inner();
         // Rebase here to show slightly different status message.
-        let num_rebased = tx.mut_repo().rebase_descendants(self.settings())?;
+        let num_rebased = tx.repo_mut().rebase_descendants(self.settings())?;
         if num_rebased > 0 {
             writeln!(
                 ui.status(),
@@ -1377,7 +1377,7 @@ See https://martinvonz.github.io/jj/latest/working-copy/#stale-working-copy \
                 command.string_args(),
             );
             tx.set_is_snapshot(true);
-            let mut_repo = tx.mut_repo();
+            let mut_repo = tx.repo_mut();
             let commit = mut_repo
                 .rewrite_commit(command.settings(), &wc_commit)
                 .set_tree_id(new_tree_id)
@@ -1467,7 +1467,7 @@ See https://martinvonz.github.io/jj/latest/working-copy/#stale-working-copy \
             writeln!(ui.status(), "Nothing changed.")?;
             return Ok(());
         }
-        let num_rebased = tx.mut_repo().rebase_descendants(self.settings())?;
+        let num_rebased = tx.repo_mut().rebase_descendants(self.settings())?;
         if num_rebased > 0 {
             writeln!(ui.status(), "Rebased {num_rebased} descendant commits")?;
         }
@@ -1480,7 +1480,7 @@ See https://martinvonz.github.io/jj/latest/working-copy/#stale-working-copy \
                 .is_err()
             {
                 let wc_commit = tx.repo().store().get_commit(wc_commit_id)?;
-                tx.mut_repo()
+                tx.repo_mut()
                     .check_out(workspace_id.clone(), self.settings(), &wc_commit)?;
                 writeln!(
                     ui.warning_default(),
@@ -1508,9 +1508,9 @@ See https://martinvonz.github.io/jj/latest/working-copy/#stale-working-copy \
         if self.working_copy_shared_with_git {
             let git_repo = self.git_backend().unwrap().open_git_repo()?;
             if let Some(wc_commit) = &maybe_new_wc_commit {
-                git::reset_head(tx.mut_repo(), &git_repo, wc_commit)?;
+                git::reset_head(tx.repo_mut(), &git_repo, wc_commit)?;
             }
-            let failed_branches = git::export_refs(tx.mut_repo())?;
+            let failed_branches = git::export_refs(tx.repo_mut())?;
             print_failed_git_export(ui, &failed_branches)?;
         }
 
@@ -1766,22 +1766,22 @@ impl WorkspaceCommandTransaction<'_> {
         self.tx.repo()
     }
 
-    pub fn mut_repo(&mut self) -> &mut MutableRepo {
+    pub fn repo_mut(&mut self) -> &mut MutableRepo {
         self.id_prefix_context.take(); // invalidate
-        self.tx.mut_repo()
+        self.tx.repo_mut()
     }
 
     pub fn check_out(&mut self, commit: &Commit) -> Result<Commit, CheckOutCommitError> {
         let workspace_id = self.helper.workspace_id().to_owned();
         let settings = self.helper.settings();
         self.id_prefix_context.take(); // invalidate
-        self.tx.mut_repo().check_out(workspace_id, settings, commit)
+        self.tx.repo_mut().check_out(workspace_id, settings, commit)
     }
 
     pub fn edit(&mut self, commit: &Commit) -> Result<(), EditCommitError> {
         let workspace_id = self.helper.workspace_id().to_owned();
         self.id_prefix_context.take(); // invalidate
-        self.tx.mut_repo().edit(workspace_id, commit)
+        self.tx.repo_mut().edit(workspace_id, commit)
     }
 
     pub fn format_commit_summary(&self, commit: &Commit) -> String {
@@ -1857,7 +1857,7 @@ impl WorkspaceCommandTransaction<'_> {
         for branch in branches {
             // This removes the old commit ID from the branch's RefTarget and
             // replaces it with the `move_to` ID.
-            self.mut_repo().merge_local_branch(
+            self.repo_mut().merge_local_branch(
                 &branch.name,
                 &RefTarget::normal(branch.old_commit_id),
                 &RefTarget::normal(move_to.clone()),

@@ -35,8 +35,8 @@ pub fn cmd_git_import(
     let mut tx = workspace_command.start_transaction();
     // In non-colocated repo, HEAD@git will never be moved internally by jj.
     // That's why cmd_git_export() doesn't export the HEAD ref.
-    git::import_head(tx.mut_repo())?;
-    let stats = git::import_refs(tx.mut_repo(), &command.settings().git_settings())?;
+    git::import_head(tx.repo_mut())?;
+    let stats = git::import_refs(tx.repo_mut(), &command.settings().git_settings())?;
     print_git_import_stats(ui, tx.repo(), &stats, true)?;
     tx.finish(ui, "import git refs")?;
     Ok(())

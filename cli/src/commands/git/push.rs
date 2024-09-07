@@ -335,7 +335,7 @@ pub fn cmd_git_push(
         _ = writer.write(ui, progress_message);
     };
     with_remote_git_callbacks(ui, Some(&mut sideband_progress_callback), |cb| {
-        git::push_branches(tx.mut_repo(), &git_repo, &remote, &targets, cb)
+        git::push_branches(tx.repo_mut(), &git_repo, &remote, &targets, cb)
     })
     .map_err(|err| match err {
         GitPushError::InternalGitError(err) => map_git_error(err),
@@ -543,7 +543,7 @@ fn update_change_branches(
                 "Creating branch {branch_name} for revision {short_change_id}",
             )?;
         }
-        tx.mut_repo()
+        tx.repo_mut()
             .set_local_branch_target(&branch_name, RefTarget::normal(commit.id().clone()));
         branch_names.push(branch_name);
     }

@@ -71,7 +71,7 @@ pub fn cmd_git_fetch(
     for remote in &remotes {
         let stats = with_remote_git_callbacks(ui, None, |cb| {
             git::fetch(
-                tx.mut_repo(),
+                tx.repo_mut(),
                 &git_repo,
                 remote,
                 &args.branch,

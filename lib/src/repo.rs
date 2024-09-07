@@ -252,7 +252,7 @@ impl ReadonlyRepo {
             submodule_store,
         });
         let mut tx = repo.start_transaction(user_settings);
-        tx.mut_repo()
+        tx.repo_mut()
             .add_head(&repo.store().root_commit())
             .expect("failed to add root commit as head");
         Ok(tx.commit("initialize repo"))
@@ -773,7 +773,7 @@ impl RepoLoader {
             let mut tx = base_repo.start_transaction(settings);
             for other_op in operations {
                 tx.merge_operation(other_op)?;
-                tx.mut_repo().rebase_descendants(settings)?;
+                tx.repo_mut().rebase_descendants(settings)?;
             }
             let tx_description = tx_description.map_or_else(
                 || format!("merge {} operations", num_operations),

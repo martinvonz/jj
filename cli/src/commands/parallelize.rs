@@ -106,7 +106,7 @@ pub(crate) fn cmd_parallelize(
         new_child_parents.insert(commit.id().clone(), new_parents);
     }
 
-    tx.mut_repo().transform_descendants(
+    tx.repo_mut().transform_descendants(
         command.settings(),
         target_commits.iter().ids().cloned().collect_vec(),
         |mut rewriter| {

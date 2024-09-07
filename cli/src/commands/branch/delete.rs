@@ -44,7 +44,7 @@ pub fn cmd_branch_delete(
     let matched_branches = find_local_branches(repo.view(), &args.names)?;
     let mut tx = workspace_command.start_transaction();
     for (name, _) in &matched_branches {
-        tx.mut_repo()
+        tx.repo_mut()
             .set_local_branch_target(name, RefTarget::absent());
     }
     writeln!(ui.status(), "Deleted {} branches.", matched_branches.len())?;

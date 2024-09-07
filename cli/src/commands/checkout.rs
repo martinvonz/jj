@@ -56,7 +56,7 @@ pub(crate) fn cmd_checkout(
     let target = workspace_command.resolve_single_rev(&args.revision)?;
     let mut tx = workspace_command.start_transaction();
     let commit_builder = tx
-        .mut_repo()
+        .repo_mut()
         .new_commit(
             command.settings(),
             vec![target.id().clone()],

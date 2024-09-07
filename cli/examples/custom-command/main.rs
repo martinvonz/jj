@@ -44,7 +44,7 @@ fn run_custom_command(
             let commit = workspace_command.resolve_single_rev(&args.revision)?;
             let mut tx = workspace_command.start_transaction();
             let new_commit = tx
-                .mut_repo()
+                .repo_mut()
                 .rewrite_commit(command_helper.settings(), &commit)
                 .set_description("Frobnicated!")
                 .write()?;

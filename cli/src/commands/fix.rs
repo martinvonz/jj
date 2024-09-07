@@ -243,7 +243,7 @@ pub(crate) fn cmd_fix(
     // other parts of the commit like the description.
     let mut num_checked_commits = 0;
     let mut num_fixed_commits = 0;
-    tx.mut_repo().transform_descendants(
+    tx.repo_mut().transform_descendants(
         command.settings(),
         root_commits.iter().cloned().collect_vec(),
         |mut rewriter| {

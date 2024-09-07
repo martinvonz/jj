@@ -183,7 +183,7 @@ pub fn cmd_workspace_add(
     let tree = merge_commit_trees(tx.repo(), &parents)?;
     let parent_ids = parents.iter().ids().cloned().collect_vec();
     let new_wc_commit = tx
-        .mut_repo()
+        .repo_mut()
         .new_commit(command.settings(), parent_ids, tree.id())
         .write()?;
 

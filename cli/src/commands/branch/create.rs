@@ -68,7 +68,7 @@ pub fn cmd_branch_create(
 
     let mut tx = workspace_command.start_transaction();
     for branch_name in branch_names {
-        tx.mut_repo()
+        tx.repo_mut()
             .set_local_branch_target(branch_name, RefTarget::normal(target_commit.id().clone()));
     }
 
