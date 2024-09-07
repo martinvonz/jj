@@ -114,7 +114,7 @@ pub fn cmd_branch_list(
     };
 
     let template = {
-        let language = workspace_command.commit_template_language()?;
+        let language = workspace_command.commit_template_language();
         let text = match &args.template {
             Some(value) => value.to_owned(),
             None => command.settings().config().get("templates.branch_list")?,

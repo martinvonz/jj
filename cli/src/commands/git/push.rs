@@ -394,7 +394,7 @@ fn validate_commits_ready_to_push(
     };
 
     for commit in workspace_helper
-        .attach_revset_evaluator(commits_to_push)?
+        .attach_revset_evaluator(commits_to_push)
         .evaluate_to_commits()?
     {
         let commit = commit?;
