@@ -122,7 +122,7 @@ pub(crate) fn cmd_status(
                         .minus(&revset_util::parse_immutable_expression(
                             &workspace_command.revset_parse_context(),
                         )?),
-                )?
+                )
                 .evaluate_to_commit_ids()?
                 .collect();
 

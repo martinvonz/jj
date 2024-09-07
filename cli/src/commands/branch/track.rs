@@ -81,7 +81,7 @@ pub fn cmd_branch_track(
 
     if let Some(mut formatter) = ui.status_formatter() {
         let template = {
-            let language = workspace_command.commit_template_language()?;
+            let language = workspace_command.commit_template_language();
             let text = command
                 .settings()
                 .config()

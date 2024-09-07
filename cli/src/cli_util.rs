@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use std::borrow::Cow;
+use std::cell::OnceCell;
 use std::collections::BTreeMap;
 use std::collections::HashSet;
 use std::env;
@@ -121,7 +122,6 @@ use jj_lib::workspace::Workspace;
 use jj_lib::workspace::WorkspaceLoadError;
 use jj_lib::workspace::WorkspaceLoader;
 use jj_lib::workspace::WorkspaceLoaderFactory;
-use once_cell::unsync::OnceCell;
 use tracing::instrument;
 use tracing_chrome::ChromeLayerBuilder;
 use tracing_subscriber::prelude::*;
@@ -607,6 +607,7 @@ pub struct WorkspaceCommandEnvironment {
     template_aliases_map: TemplateAliasesMap,
     path_converter: RepoPathUiConverter,
     workspace_id: WorkspaceId,
+    short_prefixes_expression: Option<Rc<RevsetExpression>>,
 }
 
 impl WorkspaceCommandEnvironment {
@@ -619,13 +620,16 @@ impl WorkspaceCommandEnvironment {
             cwd: command.cwd().to_owned(),
             base: workspace.workspace_root().to_owned(),
         };
-        Ok(Self {
+        let mut env = Self {
             command: command.clone(),
             revset_aliases_map,
             template_aliases_map,
             path_converter,
             workspace_id: workspace.workspace_id().to_owned(),
-        })
+            short_prefixes_expression: None,
+        };
+        env.short_prefixes_expression = env.load_short_prefixes_expression()?;
+        Ok(env)
     }
 
     pub fn settings(&self) -> &UserSettings {
@@ -663,23 +667,30 @@ impl WorkspaceCommandEnvironment {
 
     /// Creates fresh new context which manages cache of short commit/change ID
     /// prefixes. New context should be created per repo view (or operation.)
-    fn new_id_prefix_context(&self) -> Result<IdPrefixContext, CommandError> {
-        let mut context: IdPrefixContext =
-            IdPrefixContext::new(self.command.revset_extensions().clone());
-        let revset_string: String = self
+    fn new_id_prefix_context(&self) -> IdPrefixContext {
+        let context = IdPrefixContext::new(self.command.revset_extensions().clone());
+        match &self.short_prefixes_expression {
+            None => context,
+            Some(expression) => context.disambiguate_within(expression.clone()),
+        }
+    }
+
+    fn load_short_prefixes_expression(&self) -> Result<Option<Rc<RevsetExpression>>, CommandError> {
+        let revset_string = self
             .settings()
             .config()
             .get_string("revsets.short-prefixes")
             .unwrap_or_else(|_| self.settings().default_revset());
-        if !revset_string.is_empty() {
+        if revset_string.is_empty() {
+            Ok(None)
+        } else {
             let (expression, modifier) =
                 revset::parse_with_modifier(&revset_string, &self.revset_parse_context()).map_err(
                     |err| config_error_with_message("Invalid `revsets.short-prefixes`", err),
                 )?;
             let (None | Some(RevsetModifier::All)) = modifier;
-            context = context.disambiguate_within(revset::optimize(expression));
+            Ok(Some(revset::optimize(expression)))
         }
-        Ok(context)
     }
 }
 
@@ -717,8 +728,8 @@ impl WorkspaceCommandHelper {
             may_update_working_copy,
             working_copy_shared_with_git,
         };
-        // Parse commit_summary template (and short-prefixes revset) early to
-        // report error before starting mutable operation.
+        // Parse commit_summary template early to report error before starting
+        // mutable operation.
         helper.parse_commit_template(&helper.commit_summary_template_text)?;
         Ok(helper)
     }
@@ -1175,7 +1186,7 @@ impl WorkspaceCommandHelper {
     ) -> Result<(RevsetExpressionEvaluator<'_>, Option<RevsetModifier>), CommandError> {
         let context = self.revset_parse_context();
         let (expression, modifier) = revset::parse_with_modifier(revision_arg.as_ref(), &context)?;
-        Ok((self.attach_revset_evaluator(expression)?, modifier))
+        Ok((self.attach_revset_evaluator(expression), modifier))
     }
 
     /// Parses the given revset expressions and concatenates them all.
@@ -1190,29 +1201,29 @@ impl WorkspaceCommandHelper {
             .map_ok(|(expression, None | Some(RevsetModifier::All))| expression)
             .try_collect()?;
         let expression = RevsetExpression::union_all(&expressions);
-        self.attach_revset_evaluator(expression)
+        Ok(self.attach_revset_evaluator(expression))
     }
 
     pub fn attach_revset_evaluator(
         &self,
         expression: Rc<RevsetExpression>,
-    ) -> Result<RevsetExpressionEvaluator<'_>, CommandError> {
-        Ok(RevsetExpressionEvaluator::new(
+    ) -> RevsetExpressionEvaluator<'_> {
+        RevsetExpressionEvaluator::new(
             self.repo().as_ref(),
             self.env.command.revset_extensions().clone(),
-            self.id_prefix_context()?,
+            self.id_prefix_context(),
             expression,
-        ))
+        )
     }
 
     pub(crate) fn revset_parse_context(&self) -> RevsetParseContext {
         self.env.revset_parse_context()
     }
 
-    pub fn id_prefix_context(&self) -> Result<&IdPrefixContext, CommandError> {
+    pub fn id_prefix_context(&self) -> &IdPrefixContext {
         self.user_repo
             .id_prefix_context
-            .get_or_try_init(|| self.env.new_id_prefix_context())
+            .get_or_init(|| self.env.new_id_prefix_context())
     }
 
     pub fn template_aliases_map(&self) -> &TemplateAliasesMap {
@@ -1243,7 +1254,7 @@ impl WorkspaceCommandHelper {
         &self,
         template_text: &str,
     ) -> Result<TemplateRenderer<'_, Commit>, CommandError> {
-        let language = self.commit_template_language()?;
+        let language = self.commit_template_language();
         self.parse_template(
             &language,
             template_text,
@@ -1252,15 +1263,15 @@ impl WorkspaceCommandHelper {
     }
 
     /// Creates commit template language environment for this workspace.
-    pub fn commit_template_language(&self) -> Result<CommitTemplateLanguage<'_>, CommandError> {
-        Ok(CommitTemplateLanguage::new(
+    pub fn commit_template_language(&self) -> CommitTemplateLanguage<'_> {
+        CommitTemplateLanguage::new(
             self.repo().as_ref(),
             self.path_converter(),
             self.workspace_id(),
             self.revset_parse_context(),
-            self.id_prefix_context()?,
+            self.id_prefix_context(),
             &self.env.command.data.commit_template_extensions,
-        ))
+        )
     }
 
     /// Template for one-line summary of a commit.
@@ -1876,8 +1887,7 @@ impl WorkspaceCommandTransaction<'_> {
     pub fn commit_template_language(&self) -> CommitTemplateLanguage<'_> {
         let id_prefix_context = self
             .id_prefix_context
-            .get_or_try_init(|| self.helper.env.new_id_prefix_context())
-            .expect("parse error should be confined by WorkspaceCommandHelper::new()");
+            .get_or_init(|| self.helper.env.new_id_prefix_context());
         CommitTemplateLanguage::new(
             self.tx.repo(),
             self.helper.path_converter(),
