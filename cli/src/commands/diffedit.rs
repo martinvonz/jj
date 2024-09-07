@@ -108,8 +108,8 @@ don't make any changes, then the operation will be aborted.",
     if tree_id == *target_commit.tree_id() {
         writeln!(ui.status(), "Nothing changed.")?;
     } else {
-        let mut_repo = tx.mut_repo();
-        let new_commit = mut_repo
+        let new_commit = tx
+            .mut_repo()
             .rewrite_commit(command.settings(), &target_commit)
             .set_tree_id(tree_id)
             .write()?;

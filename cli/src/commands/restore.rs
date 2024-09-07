@@ -109,8 +109,8 @@ pub(crate) fn cmd_restore(
         writeln!(ui.status(), "Nothing changed.")?;
     } else {
         let mut tx = workspace_command.start_transaction();
-        let mut_repo = tx.mut_repo();
-        let new_commit = mut_repo
+        let new_commit = tx
+            .mut_repo()
             .rewrite_commit(command.settings(), &to_commit)
             .set_tree_id(new_tree_id)
             .write()?;
