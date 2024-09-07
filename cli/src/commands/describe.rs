@@ -130,7 +130,7 @@ pub(crate) fn cmd_describe(
             .rev()
             .map(|commit| -> Result<_, CommandError> {
                 let mut commit_builder = tx
-                    .mut_repo()
+                    .repo_mut()
                     .rewrite_commit(command.settings(), commit)
                     .detach();
                 if commit_builder.description().is_empty() {
@@ -210,7 +210,7 @@ pub(crate) fn cmd_describe(
     // being rewritten, using `MutRepo::transform_descendants` prevents us from
     // rewriting the same commit multiple times, and adding additional entries
     // in the predecessor chain.
-    tx.mut_repo().transform_descendants(
+    tx.repo_mut().transform_descendants(
         command.settings(),
         commit_descriptions
             .keys()

@@ -115,7 +115,7 @@ pub fn cmd_branch_move(
 
     let mut tx = workspace_command.start_transaction();
     for (name, _) in &matched_branches {
-        tx.mut_repo()
+        tx.repo_mut()
             .set_local_branch_target(name, RefTarget::normal(target_commit.id().clone()));
     }
 

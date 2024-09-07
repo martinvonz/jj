@@ -64,7 +64,7 @@ pub fn cmd_workspace_forget(
     // undo correctly restores all of them at once.
     let mut tx = workspace_command.start_transaction();
     wss.iter()
-        .try_for_each(|ws| tx.mut_repo().remove_wc_commit(ws))?;
+        .try_for_each(|ws| tx.repo_mut().remove_wc_commit(ws))?;
     let description = if let [ws] = wss.as_slice() {
         format!("forget workspace {}", ws.as_str())
     } else {

@@ -99,7 +99,7 @@ new working-copy commit.
     }
 
     let mut commit_builder = tx
-        .mut_repo()
+        .repo_mut()
         .rewrite_commit(command.settings(), &commit)
         .detach();
     commit_builder.set_tree_id(tree_id);
@@ -118,12 +118,12 @@ new working-copy commit.
         edit_description(tx.base_repo(), &template, command.settings())?
     };
     commit_builder.set_description(description);
-    let new_commit = commit_builder.write(tx.mut_repo())?;
+    let new_commit = commit_builder.write(tx.repo_mut())?;
 
     let workspace_ids = tx.repo().view().workspaces_for_wc_commit_id(commit.id());
     if !workspace_ids.is_empty() {
         let new_wc_commit = tx
-            .mut_repo()
+            .repo_mut()
             .new_commit(
                 command.settings(),
                 vec![new_commit.id().clone()],
@@ -135,7 +135,7 @@ new working-copy commit.
         tx.advance_branches(advanceable_branches, new_commit.id());
 
         for workspace_id in workspace_ids {
-            tx.mut_repo().edit(workspace_id, &new_wc_commit).unwrap();
+            tx.repo_mut().edit(workspace_id, &new_wc_commit).unwrap();
         }
     }
     tx.finish(ui, format!("commit {}", commit.id().hex()))?;

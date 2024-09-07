@@ -109,13 +109,13 @@ don't make any changes, then the operation will be aborted.",
         writeln!(ui.status(), "Nothing changed.")?;
     } else {
         let new_commit = tx
-            .mut_repo()
+            .repo_mut()
             .rewrite_commit(command.settings(), &target_commit)
             .set_tree_id(tree_id)
             .write()?;
         // rebase_descendants early; otherwise `new_commit` would always have
         // a conflicted change id at this point.
-        let num_rebased = tx.mut_repo().rebase_descendants(command.settings())?;
+        let num_rebased = tx.repo_mut().rebase_descendants(command.settings())?;
         if let Some(mut formatter) = ui.status_formatter() {
             write!(formatter, "Created ")?;
             tx.write_commit_summary(formatter.as_mut(), &new_commit)?;

@@ -82,7 +82,7 @@ fn make_commit(
     content: &[(&RepoPath, &str)],
 ) -> Commit {
     let tree = create_tree(tx.base_repo(), content);
-    tx.mut_repo()
+    tx.repo_mut()
         .new_commit(settings, parents, tree.id())
         .write()
         .unwrap()
@@ -115,7 +115,7 @@ fn test_gc() {
     // B
     // A
     let mut tx = repo.start_transaction(&settings);
-    let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
+    let mut graph_builder = CommitGraphBuilder::new(&settings, tx.repo_mut());
     let commit_a = graph_builder.initial_commit();
     let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
     let commit_c = graph_builder.commit_with_parents(&[&commit_b]);
@@ -123,7 +123,7 @@ fn test_gc() {
     let commit_e = graph_builder.commit_with_parents(&[&commit_b]);
     let commit_f = graph_builder.commit_with_parents(&[&commit_b]);
     let commit_g = graph_builder.commit_with_parents(&[&commit_e, &commit_f]);
-    let commit_h = create_random_commit(tx.mut_repo(), &settings)
+    let commit_h = create_random_commit(tx.repo_mut(), &settings)
         .set_parents(vec![commit_f.id().clone()])
         .set_predecessors(vec![commit_d.id().clone()])
         .write()

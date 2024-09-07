@@ -115,7 +115,7 @@ fn test_resolve_symbol_commit_id() {
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings);
-    let mut_repo = tx.mut_repo();
+    let mut_repo = tx.repo_mut();
     let signature = Signature {
         name: "test".to_string(),
         email: "test".to_string(),
@@ -267,7 +267,7 @@ fn test_resolve_symbol_change_id(readonly: bool) {
     }
 
     let mut tx = repo.start_transaction(&settings);
-    git::import_refs(tx.mut_repo(), &git_settings).unwrap();
+    git::import_refs(tx.repo_mut(), &git_settings).unwrap();
 
     // Test the test setup
     assert_eq!(
@@ -296,7 +296,7 @@ fn test_resolve_symbol_change_id(readonly: bool) {
         _readonly_repo = tx.commit("test");
         _readonly_repo.as_ref()
     } else {
-        tx.mut_repo()
+        tx.repo_mut()
     };
 
     // Test lookup by full change id
@@ -373,7 +373,7 @@ fn test_resolve_working_copy() {
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings);
-    let mut_repo = tx.mut_repo();
+    let mut_repo = tx.repo_mut();
 
     let commit1 = write_random_commit(mut_repo, &settings);
     let commit2 = write_random_commit(mut_repo, &settings);
@@ -416,7 +416,7 @@ fn test_resolve_working_copies() {
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings);
-    let mut_repo = tx.mut_repo();
+    let mut_repo = tx.repo_mut();
 
     let commit1 = write_random_commit(mut_repo, &settings);
     let commit2 = write_random_commit(mut_repo, &settings);
@@ -461,7 +461,7 @@ fn test_resolve_symbol_branches() {
         |id: &CommitId| tracking_remote_ref(RefTarget::normal(id.clone()));
 
     let mut tx = repo.start_transaction(&settings);
-    let mut_repo = tx.mut_repo();
+    let mut_repo = tx.repo_mut();
 
     let commit1 = write_random_commit(mut_repo, &settings);
     let commit2 = write_random_commit(mut_repo, &settings);
@@ -684,7 +684,7 @@ fn test_resolve_symbol_tags() {
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings);
-    let mut_repo = tx.mut_repo();
+    let mut_repo = tx.repo_mut();
 
     let commit1 = write_random_commit(mut_repo, &settings);
     let commit2 = write_random_commit(mut_repo, &settings);
@@ -732,7 +732,7 @@ fn test_resolve_symbol_git_head() {
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings);
-    let mut_repo = tx.mut_repo();
+    let mut_repo = tx.repo_mut();
 
     let commit1 = write_random_commit(mut_repo, &settings);
 
@@ -776,7 +776,7 @@ fn test_resolve_symbol_git_refs() {
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings);
-    let mut_repo = tx.mut_repo();
+    let mut_repo = tx.repo_mut();
 
     // Create some commits and refs to work with and so the repo is not empty
     let commit1 = write_random_commit(mut_repo, &settings);
@@ -919,7 +919,7 @@ fn test_evaluate_expression_root_and_checkout() {
     let repo = &test_workspace.repo;
 
     let mut tx = repo.start_transaction(&settings);
-    let mut_repo = tx.mut_repo();
+    let mut_repo = tx.repo_mut();
 
     let root_commit = repo.store().root_commit();
     let commit1 = write_random_commit(mut_repo, &settings);
@@ -948,7 +948,7 @@ fn test_evaluate_expression_heads() {
 
     let root_commit = repo.store().root_commit();
     let mut tx = repo.start_transaction(&settings);
-    let mut_repo = tx.mut_repo();
+    let mut_repo = tx.repo_mut();
     let mut graph_builder = CommitGraphBuilder::new(&settings, mut_repo);
     let commit1 = graph_builder.initial_commit();
     let commit2 = graph_builder.commit_with_parents(&[&commit1]);
@@ -1013,7 +1013,7 @@ fn test_evaluate_expression_roots() {
 
     let root_commit = repo.store().root_commit();
     let mut tx = repo.start_transaction(&settings);
-    let mut_repo = tx.mut_repo();
+    let mut_repo = tx.repo_mut();
     let mut graph_builder = CommitGraphBuilder::new(&settings, mut_repo);
     let commit1 = graph_builder.initial_commit();
     let commit2 = graph_builder.commit_with_parents(&[&commit1]);
@@ -1068,7 +1068,7 @@ fn test_evaluate_expression_parents() {
 
     let root_commit = repo.store().root_commit();
     let mut tx = repo.start_transaction(&settings);
-    let mut_repo = tx.mut_repo();
+    let mut_repo = tx.repo_mut();
     let mut graph_builder = CommitGraphBuilder::new(&settings, mut_repo);
     let commit1 = graph_builder.initial_commit();
     let commit2 = graph_builder.commit_with_parents(&[&commit1]);
@@ -1149,7 +1149,7 @@ fn test_evaluate_expression_children() {
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings);
-    let mut_repo = tx.mut_repo();
+    let mut_repo = tx.repo_mut();
 
     let commit1 = write_random_commit(mut_repo, &settings);
     let commit2 = create_random_commit(mut_repo, &settings)
@@ -1236,7 +1236,7 @@ fn test_evaluate_expression_ancestors() {
 
     let root_commit = repo.store().root_commit();
     let mut tx = repo.start_transaction(&settings);
-    let mut_repo = tx.mut_repo();
+    let mut_repo = tx.repo_mut();
     let mut graph_builder = CommitGraphBuilder::new(&settings, mut_repo);
     let commit1 = graph_builder.initial_commit();
     let commit2 = graph_builder.commit_with_parents(&[&commit1]);
@@ -1322,7 +1322,7 @@ fn test_evaluate_expression_range() {
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings);
-    let mut_repo = tx.mut_repo();
+    let mut_repo = tx.repo_mut();
     let mut graph_builder = CommitGraphBuilder::new(&settings, mut_repo);
     let commit1 = graph_builder.initial_commit();
     let commit2 = graph_builder.commit_with_parents(&[&commit1]);
@@ -1413,7 +1413,7 @@ fn test_evaluate_expression_dag_range() {
 
     let root_commit_id = repo.store().root_commit_id().clone();
     let mut tx = repo.start_transaction(&settings);
-    let mut_repo = tx.mut_repo();
+    let mut_repo = tx.repo_mut();
     let mut graph_builder = CommitGraphBuilder::new(&settings, mut_repo);
     let commit1 = graph_builder.initial_commit();
     let commit2 = graph_builder.commit_with_parents(&[&commit1]);
@@ -1523,7 +1523,7 @@ fn test_evaluate_expression_connected() {
 
     let root_commit_id = repo.store().root_commit_id().clone();
     let mut tx = repo.start_transaction(&settings);
-    let mut_repo = tx.mut_repo();
+    let mut_repo = tx.repo_mut();
     let mut graph_builder = CommitGraphBuilder::new(&settings, mut_repo);
     let commit1 = graph_builder.initial_commit();
     let commit2 = graph_builder.commit_with_parents(&[&commit1]);
@@ -1598,7 +1598,7 @@ fn test_evaluate_expression_reachable() {
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings);
-    let mut_repo = tx.mut_repo();
+    let mut_repo = tx.repo_mut();
 
     // Construct 3 separate subgraphs off the root commit.
     // 1 is a chain, 2 is a merge, 3 is a pyramidal monstrosity
@@ -1756,7 +1756,7 @@ fn test_evaluate_expression_descendants() {
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings);
-    let mut_repo = tx.mut_repo();
+    let mut_repo = tx.repo_mut();
 
     let root_commit_id = repo.store().root_commit_id().clone();
     let commit1 = write_random_commit(mut_repo, &settings);
@@ -1884,7 +1884,7 @@ fn test_evaluate_expression_all() {
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings);
-    let mut_repo = tx.mut_repo();
+    let mut_repo = tx.repo_mut();
     let root_commit_id = repo.store().root_commit_id().clone();
     let mut graph_builder = CommitGraphBuilder::new(&settings, mut_repo);
     let commit1 = graph_builder.initial_commit();
@@ -1911,7 +1911,7 @@ fn test_evaluate_expression_visible_heads() {
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings);
-    let mut_repo = tx.mut_repo();
+    let mut_repo = tx.repo_mut();
     let mut graph_builder = CommitGraphBuilder::new(&settings, mut_repo);
     let commit1 = graph_builder.initial_commit();
     let commit2 = graph_builder.commit_with_parents(&[&commit1]);
@@ -1930,7 +1930,7 @@ fn test_evaluate_expression_git_refs() {
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings);
-    let mut_repo = tx.mut_repo();
+    let mut_repo = tx.repo_mut();
 
     let commit1 = write_random_commit(mut_repo, &settings);
     let commit2 = write_random_commit(mut_repo, &settings);
@@ -1989,7 +1989,7 @@ fn test_evaluate_expression_git_head() {
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings);
-    let mut_repo = tx.mut_repo();
+    let mut_repo = tx.repo_mut();
 
     let commit1 = write_random_commit(mut_repo, &settings);
 
@@ -2009,7 +2009,7 @@ fn test_evaluate_expression_branches() {
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings);
-    let mut_repo = tx.mut_repo();
+    let mut_repo = tx.repo_mut();
 
     let commit1 = write_random_commit(mut_repo, &settings);
     let commit2 = write_random_commit(mut_repo, &settings);
@@ -2106,7 +2106,7 @@ fn test_evaluate_expression_remote_branches() {
         |id: &CommitId| tracking_remote_ref(RefTarget::normal(id.clone()));
 
     let mut tx = repo.start_transaction(&settings);
-    let mut_repo = tx.mut_repo();
+    let mut_repo = tx.repo_mut();
 
     let commit1 = write_random_commit(mut_repo, &settings);
     let commit2 = write_random_commit(mut_repo, &settings);
@@ -2279,7 +2279,7 @@ fn test_evaluate_expression_latest() {
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings);
-    let mut_repo = tx.mut_repo();
+    let mut_repo = tx.repo_mut();
 
     let mut write_commit_with_committer_timestamp = |sec: i64| {
         let builder = create_random_commit(mut_repo, &settings);
@@ -2362,7 +2362,7 @@ fn test_evaluate_expression_merges() {
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings);
-    let mut_repo = tx.mut_repo();
+    let mut_repo = tx.repo_mut();
     let mut graph_builder = CommitGraphBuilder::new(&settings, mut_repo);
     let commit1 = graph_builder.initial_commit();
     let commit2 = graph_builder.initial_commit();
@@ -2389,7 +2389,7 @@ fn test_evaluate_expression_description() {
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings);
-    let mut_repo = tx.mut_repo();
+    let mut_repo = tx.repo_mut();
 
     let commit1 = create_random_commit(mut_repo, &settings)
         .set_description("commit 1")
@@ -2434,7 +2434,7 @@ fn test_evaluate_expression_author() {
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings);
-    let mut_repo = tx.mut_repo();
+    let mut_repo = tx.repo_mut();
 
     let timestamp = Timestamp {
         timestamp: MillisSinceEpoch(0),
@@ -2520,7 +2520,7 @@ fn test_evaluate_expression_author_date() {
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings);
-    let mut_repo = tx.mut_repo();
+    let mut_repo = tx.repo_mut();
 
     let timestamp1 = parse_timestamp("2023-03-25T11:30:00Z");
     let timestamp2 = parse_timestamp("2023-03-25T12:30:00Z");
@@ -2587,7 +2587,7 @@ fn test_evaluate_expression_committer_date() {
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings);
-    let mut_repo = tx.mut_repo();
+    let mut_repo = tx.repo_mut();
 
     let timestamp1 = parse_timestamp("2023-03-25T11:30:00Z");
     let timestamp2 = parse_timestamp("2023-03-25T12:30:00Z");
@@ -2654,7 +2654,7 @@ fn test_evaluate_expression_mine() {
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings);
-    let mut_repo = tx.mut_repo();
+    let mut_repo = tx.repo_mut();
 
     let timestamp = Timestamp {
         timestamp: MillisSinceEpoch(0),
@@ -2723,7 +2723,7 @@ fn test_evaluate_expression_committer() {
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings);
-    let mut_repo = tx.mut_repo();
+    let mut_repo = tx.repo_mut();
 
     let timestamp = Timestamp {
         timestamp: MillisSinceEpoch(0),
@@ -2798,7 +2798,7 @@ fn test_evaluate_expression_union() {
 
     let root_commit = repo.store().root_commit();
     let mut tx = repo.start_transaction(&settings);
-    let mut_repo = tx.mut_repo();
+    let mut_repo = tx.repo_mut();
     let mut graph_builder = CommitGraphBuilder::new(&settings, mut_repo);
     let commit1 = graph_builder.initial_commit();
     let commit2 = graph_builder.commit_with_parents(&[&commit1]);
@@ -2869,7 +2869,7 @@ fn test_evaluate_expression_machine_generated_union() {
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings);
-    let mut_repo = tx.mut_repo();
+    let mut_repo = tx.repo_mut();
     let mut graph_builder = CommitGraphBuilder::new(&settings, mut_repo);
     let commit1 = graph_builder.initial_commit();
     let commit2 = graph_builder.commit_with_parents(&[&commit1]);
@@ -2893,7 +2893,7 @@ fn test_evaluate_expression_intersection() {
 
     let root_commit = repo.store().root_commit();
     let mut tx = repo.start_transaction(&settings);
-    let mut_repo = tx.mut_repo();
+    let mut_repo = tx.repo_mut();
     let mut graph_builder = CommitGraphBuilder::new(&settings, mut_repo);
     let commit1 = graph_builder.initial_commit();
     let commit2 = graph_builder.commit_with_parents(&[&commit1]);
@@ -2932,7 +2932,7 @@ fn test_evaluate_expression_difference() {
 
     let root_commit = repo.store().root_commit();
     let mut tx = repo.start_transaction(&settings);
-    let mut_repo = tx.mut_repo();
+    let mut_repo = tx.repo_mut();
     let mut graph_builder = CommitGraphBuilder::new(&settings, mut_repo);
     let commit1 = graph_builder.initial_commit();
     let commit2 = graph_builder.commit_with_parents(&[&commit1]);
@@ -3017,7 +3017,7 @@ fn test_evaluate_expression_filter_combinator() {
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings);
-    let mut_repo = tx.mut_repo();
+    let mut_repo = tx.repo_mut();
 
     let root_commit_id = repo.store().root_commit_id();
     let commit1 = create_random_commit(mut_repo, &settings)
@@ -3080,7 +3080,7 @@ fn test_evaluate_expression_file() {
     let repo = &test_workspace.repo;
 
     let mut tx = repo.start_transaction(&settings);
-    let mut_repo = tx.mut_repo();
+    let mut_repo = tx.repo_mut();
 
     let added_clean_clean = RepoPath::from_internal_string("added_clean_clean");
     let added_modified_clean = RepoPath::from_internal_string("added_modified_clean");
@@ -3196,7 +3196,7 @@ fn test_evaluate_expression_diff_contains() {
     let repo = &test_workspace.repo;
 
     let mut tx = repo.start_transaction(&settings);
-    let mut_repo = tx.mut_repo();
+    let mut_repo = tx.repo_mut();
 
     let empty_clean_inserted_deleted =
         RepoPath::from_internal_string("empty_clean_inserted_deleted");
@@ -3342,7 +3342,7 @@ fn test_evaluate_expression_file_merged_parents() {
     let repo = &test_workspace.repo;
 
     let mut tx = repo.start_transaction(&settings);
-    let mut_repo = tx.mut_repo();
+    let mut_repo = tx.repo_mut();
 
     // file2 can be merged automatically, file1 can't.
     let file_path1 = RepoPath::from_internal_string("file1");
@@ -3416,7 +3416,7 @@ fn test_evaluate_expression_conflict() {
     let repo = &test_workspace.repo;
 
     let mut tx = repo.start_transaction(&settings);
-    let mut_repo = tx.mut_repo();
+    let mut_repo = tx.repo_mut();
 
     // Create a few trees, including one with a conflict in `file1`
     let file_path1 = RepoPath::from_internal_string("file1");
@@ -3467,7 +3467,7 @@ fn test_reverse_graph_iterator() {
     //  |
     // root
     let mut tx = repo.start_transaction(&settings);
-    let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
+    let mut graph_builder = CommitGraphBuilder::new(&settings, tx.repo_mut());
     let commit_a = graph_builder.initial_commit();
     let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
     let commit_c = graph_builder.commit_with_parents(&[&commit_b]);
@@ -3510,7 +3510,7 @@ fn test_no_such_revision_suggestion() {
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings);
-    let mut_repo = tx.mut_repo();
+    let mut_repo = tx.repo_mut();
     let commit = write_random_commit(mut_repo, &settings);
 
     for branch_name in ["foo", "bar", "baz"] {
@@ -3532,7 +3532,7 @@ fn test_revset_containing_fn() {
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings);
-    let mut_repo = tx.mut_repo();
+    let mut_repo = tx.repo_mut();
     let commit_a = write_random_commit(mut_repo, &settings);
     let commit_b = write_random_commit(mut_repo, &settings);
     let commit_c = write_random_commit(mut_repo, &settings);

@@ -106,24 +106,24 @@ aborted.
     // Abandon the parent if it is now empty (always the case in the non-interactive
     // case).
     if new_parent_tree_id == parent_base_tree.id() {
-        tx.mut_repo().record_abandoned_commit(parent.id().clone());
+        tx.repo_mut().record_abandoned_commit(parent.id().clone());
         let description =
             combine_messages(tx.base_repo(), &[&parent], &commit, command.settings())?;
         // Commit the new child on top of the parent's parents.
-        tx.mut_repo()
+        tx.repo_mut()
             .rewrite_commit(command.settings(), &commit)
             .set_parents(parent.parent_ids().to_vec())
             .set_description(description)
             .write()?;
     } else {
         let new_parent = tx
-            .mut_repo()
+            .repo_mut()
             .rewrite_commit(command.settings(), &parent)
             .set_tree_id(new_parent_tree_id)
             .set_predecessors(vec![parent.id().clone(), commit.id().clone()])
             .write()?;
         // Commit the new child on top of the new parent.
-        tx.mut_repo()
+        tx.repo_mut()
             .rewrite_commit(command.settings(), &commit)
             .set_parents(vec![new_parent.id().clone()])
             .write()?;

@@ -376,7 +376,7 @@ fn rebase_descendants(
 ) -> Result<usize, CommandError> {
     for old_commit in old_commits.iter() {
         let rewriter = CommitRewriter::new(
-            tx.mut_repo(),
+            tx.repo_mut(),
             old_commit.borrow().clone(),
             new_parents
                 .iter()
@@ -386,7 +386,7 @@ fn rebase_descendants(
         rebase_commit_with_options(settings, rewriter, &rebase_options)?;
     }
     let num_rebased = old_commits.len()
-        + tx.mut_repo()
+        + tx.repo_mut()
             .rebase_descendants_with_options(settings, rebase_options)?;
     Ok(num_rebased)
 }
@@ -604,7 +604,7 @@ fn move_commits_transaction(
         num_skipped_rebases,
     } = move_commits(
         settings,
-        tx.mut_repo(),
+        tx.repo_mut(),
         new_parent_ids,
         new_children,
         target_commits,

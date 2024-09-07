@@ -127,7 +127,7 @@ the operation will be aborted.
     let selected_tree = tx.repo().store().get_root_tree(&selected_tree_id)?;
     let first_commit = {
         let mut commit_builder = tx
-            .mut_repo()
+            .repo_mut()
             .rewrite_commit(command.settings(), &commit)
             .detach();
         commit_builder.set_tree_id(selected_tree_id);
@@ -142,7 +142,7 @@ the operation will be aborted.
         )?;
         let description = edit_description(tx.base_repo(), &template, command.settings())?;
         commit_builder.set_description(description);
-        commit_builder.write(tx.mut_repo())?
+        commit_builder.write(tx.repo_mut())?
     };
 
     // Create the second commit, which includes everything the user didn't
@@ -162,7 +162,7 @@ the operation will be aborted.
             vec![first_commit.id().clone()]
         };
         let mut commit_builder = tx
-            .mut_repo()
+            .repo_mut()
             .rewrite_commit(command.settings(), &commit)
             .detach();
         commit_builder
@@ -185,7 +185,7 @@ the operation will be aborted.
             edit_description(tx.base_repo(), &template, command.settings())?
         };
         commit_builder.set_description(description);
-        commit_builder.write(tx.mut_repo())?
+        commit_builder.write(tx.repo_mut())?
     };
 
     // Mark the commit being split as rewritten to the second commit. As a
@@ -193,10 +193,10 @@ the operation will be aborted.
     // second commit after the command finishes. This also means that any
     // branches pointing to the commit being split are moved to the second
     // commit.
-    tx.mut_repo()
+    tx.repo_mut()
         .set_rewritten_commit(commit.id().clone(), second_commit.id().clone());
     let mut num_rebased = 0;
-    tx.mut_repo().transform_descendants(
+    tx.repo_mut().transform_descendants(
         command.settings(),
         vec![commit.id().clone()],
         |mut rewriter| {

@@ -61,7 +61,7 @@ pub(crate) fn cmd_duplicate(
     let mut tx = workspace_command.start_transaction();
     let base_repo = tx.base_repo().clone();
     let store = base_repo.store();
-    let mut_repo = tx.mut_repo();
+    let mut_repo = tx.repo_mut();
 
     for original_commit_id in to_duplicate.iter().rev() {
         // Topological order ensures that any parents of `original_commit` are

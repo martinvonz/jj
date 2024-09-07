@@ -54,7 +54,7 @@ pub fn cmd_op_restore(
         tx.base_repo().view().store_view(),
         &args.what,
     );
-    tx.mut_repo().set_view(new_view);
+    tx.repo_mut().set_view(new_view);
     tx.finish(ui, format!("restore to operation {}", target_op.id().hex()))?;
 
     Ok(())

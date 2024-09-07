@@ -47,7 +47,7 @@ fn test_id_prefix() {
                 tz_offset: 0,
             },
         };
-        tx.mut_repo()
+        tx.repo_mut()
             .new_commit(
                 &settings,
                 vec![parent_id.clone()],
@@ -280,7 +280,7 @@ fn test_id_prefix_divergent() {
                     tz_offset: 0,
                 },
             };
-            tx.mut_repo()
+            tx.repo_mut()
                 .new_commit(
                     &settings,
                     vec![parent_id.clone()],

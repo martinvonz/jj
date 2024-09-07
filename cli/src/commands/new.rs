@@ -182,7 +182,7 @@ pub(crate) fn cmd_new(
     let mut tx = workspace_command.start_transaction();
     let merged_tree = merge_commit_trees(tx.repo(), &parent_commits)?;
     let new_commit = tx
-        .mut_repo()
+        .repo_mut()
         .new_commit(command.settings(), parent_commit_ids, merged_tree.id())
         .set_description(join_message_paragraphs(&args.message_paragraphs))
         .write()?;
@@ -198,13 +198,13 @@ pub(crate) fn cmd_new(
             .collect_vec();
         rebase_commit(
             command.settings(),
-            tx.mut_repo(),
+            tx.repo_mut(),
             child_commit,
             new_parent_ids,
         )?;
         num_rebased += 1;
     }
-    num_rebased += tx.mut_repo().rebase_descendants(command.settings())?;
+    num_rebased += tx.repo_mut().rebase_descendants(command.settings())?;
 
     if args.no_edit {
         if let Some(mut formatter) = ui.status_formatter() {

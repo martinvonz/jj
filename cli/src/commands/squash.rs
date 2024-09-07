@@ -268,13 +268,13 @@ from the source will be moved into the destination.
 
     for source in &source_commits {
         if source.abandon {
-            tx.mut_repo()
+            tx.repo_mut()
                 .record_abandoned_commit(source.commit.id().clone());
         } else {
             let source_tree = source.commit.tree()?;
             // Apply the reverse of the selected changes onto the source
             let new_source_tree = source_tree.merge(&source.selected_tree, &source.parent_tree)?;
-            tx.mut_repo()
+            tx.repo_mut()
                 .rewrite_commit(settings, source.commit)
                 .set_tree_id(new_source_tree.id().clone())
                 .write()?;
@@ -290,7 +290,7 @@ from the source will be moved into the destination.
         // rewritten sources. Otherwise it will likely already have the content
         // changes we're moving, so applying them will have no effect and the
         // changes will disappear.
-        let rebase_map = tx.mut_repo().rebase_descendants_return_map(settings)?;
+        let rebase_map = tx.repo_mut().rebase_descendants_return_map(settings)?;
         let rebased_destination_id = rebase_map.get(destination.id()).unwrap().clone();
         rewritten_destination = tx.repo().store().get_commit(&rebased_destination_id)?;
     }
@@ -316,7 +316,7 @@ from the source will be moved into the destination.
             .iter()
             .map(|source| source.commit.id().clone()),
     );
-    tx.mut_repo()
+    tx.repo_mut()
         .rewrite_commit(settings, &rewritten_destination)
         .set_tree_id(destination_tree.id().clone())
         .set_predecessors(predecessors)

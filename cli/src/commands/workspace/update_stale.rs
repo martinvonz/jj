@@ -119,7 +119,7 @@ fn create_and_check_out_recovery_commit(
         workspace_command.unchecked_start_working_copy_mutation()?;
     let commit_id = commit.id();
 
-    let mut_repo = tx.mut_repo();
+    let mut_repo = tx.repo_mut();
     let new_commit = mut_repo
         .new_commit(
             command.settings(),
