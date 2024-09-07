@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::fmt::Display;
 use std::fs;
 
 use itertools::Itertools;
@@ -41,16 +40,6 @@ enum SparseInheritance {
     Full,
     /// Clear all files from the workspace (it will be empty).
     Empty,
-}
-
-impl Display for SparseInheritance {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            SparseInheritance::Copy => write!(f, "copy"),
-            SparseInheritance::Full => write!(f, "full"),
-            SparseInheritance::Empty => write!(f, "empty"),
-        }
-    }
 }
 
 /// Add a workspace
@@ -82,7 +71,7 @@ pub struct WorkspaceAddArgs {
     #[arg(long, short)]
     revision: Vec<RevisionArg>,
     /// How to handle sparse patterns when creating a new workspace.
-    #[arg(long, default_value_t=SparseInheritance::Copy)]
+    #[arg(long, value_enum, default_value_t = SparseInheritance::Copy)]
     sparse_patterns: SparseInheritance,
 }
 
