@@ -211,7 +211,6 @@ pub struct TestWorkspace {
     temp_dir: TempDir,
     pub workspace: Workspace,
     pub repo: Arc<ReadonlyRepo>,
-    repo_path: PathBuf,
 }
 
 impl TestWorkspace {
@@ -244,13 +243,11 @@ impl TestWorkspace {
             signer,
         )
         .unwrap();
-        let repo_path = workspace.repo_path().to_owned();
 
         Self {
             temp_dir,
             workspace,
             repo,
-            repo_path,
         }
     }
 
@@ -259,7 +256,7 @@ impl TestWorkspace {
     }
 
     pub fn repo_path(&self) -> &Path {
-        &self.repo_path
+        self.workspace.repo_path()
     }
 
     /// Snapshots the working copy and returns the tree. Updates the working
