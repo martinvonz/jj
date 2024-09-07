@@ -756,7 +756,7 @@ fn test_snapshot_racy_timestamps() {
             .unwrap();
         let new_tree_id = locked_ws
             .locked_wc()
-            .snapshot(SnapshotOptions::empty_for_test())
+            .snapshot(&SnapshotOptions::empty_for_test())
             .unwrap();
         assert_ne!(new_tree_id, previous_tree_id);
         previous_tree_id = new_tree_id;
@@ -790,7 +790,7 @@ fn test_snapshot_special_file() {
     let mut locked_ws = ws.start_working_copy_mutation().unwrap();
     let tree_id = locked_ws
         .locked_wc()
-        .snapshot(SnapshotOptions::empty_for_test())
+        .snapshot(&SnapshotOptions::empty_for_test())
         .unwrap();
     locked_ws.finish(OperationId::from_hex("abc123")).unwrap();
     let tree = store.get_root_tree(&tree_id).unwrap();
@@ -1204,7 +1204,7 @@ fn test_fsmonitor() {
         let fs_paths = paths.iter().map(|p| p.to_fs_path(Path::new(""))).collect();
         locked_ws
             .locked_wc()
-            .snapshot(SnapshotOptions {
+            .snapshot(&SnapshotOptions {
                 fsmonitor_settings: FsmonitorSettings::Test {
                     changed_files: fs_paths,
                 },
@@ -1283,16 +1283,16 @@ fn test_snapshot_max_new_file_size() {
         ..SnapshotOptions::empty_for_test()
     };
     test_workspace
-        .snapshot_with_options(options.clone())
+        .snapshot_with_options(&options)
         .expect("files exactly matching the size limit should succeed");
     std::fs::write(small_path.to_fs_path(&workspace_root), vec![0; limit + 1]).unwrap();
     test_workspace
-        .snapshot_with_options(options.clone())
+        .snapshot_with_options(&options)
         .expect("existing files may grow beyond the size limit");
     // A new file of 1KiB + 1 bytes should fail
     std::fs::write(large_path.to_fs_path(&workspace_root), vec![0; limit + 1]).unwrap();
     let err = test_workspace
-        .snapshot_with_options(options.clone())
+        .snapshot_with_options(&options)
         .expect_err("new files beyond the size limit should fail");
     assert!(
         matches!(err, SnapshotError::NewFileTooLarge { .. }),

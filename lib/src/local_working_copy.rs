@@ -792,7 +792,7 @@ impl TreeState {
     /// Look for changes to the working copy. If there are any changes, create
     /// a new tree from it and return it, and also update the dirstate on disk.
     #[instrument(skip_all)]
-    pub fn snapshot(&mut self, options: SnapshotOptions) -> Result<bool, SnapshotError> {
+    pub fn snapshot(&mut self, options: &SnapshotOptions) -> Result<bool, SnapshotError> {
         let SnapshotOptions {
             base_ignores,
             fsmonitor_settings,
@@ -802,7 +802,7 @@ impl TreeState {
 
         let sparse_matcher = self.sparse_matcher();
 
-        let fsmonitor_clock_needs_save = fsmonitor_settings != FsmonitorSettings::None;
+        let fsmonitor_clock_needs_save = *fsmonitor_settings != FsmonitorSettings::None;
         let mut is_dirty = fsmonitor_clock_needs_save;
         let FsmonitorMatcher {
             matcher: fsmonitor_matcher,
@@ -829,7 +829,7 @@ impl TreeState {
             let directory_to_visit = DirectoryToVisit {
                 dir: RepoPathBuf::root(),
                 disk_dir: self.working_copy_path.clone(),
-                git_ignore: base_ignores,
+                git_ignore: base_ignores.clone(),
                 file_states: self.file_states.all(),
             };
             self.visit_directory(
@@ -839,8 +839,8 @@ impl TreeState {
                 file_states_tx,
                 present_files_tx,
                 directory_to_visit,
-                progress,
-                max_new_file_size,
+                *progress,
+                *max_new_file_size,
             )
         })?;
 
@@ -1075,13 +1075,13 @@ impl TreeState {
     #[instrument(skip_all)]
     fn make_fsmonitor_matcher(
         &self,
-        fsmonitor_settings: FsmonitorSettings,
+        fsmonitor_settings: &FsmonitorSettings,
     ) -> Result<FsmonitorMatcher, SnapshotError> {
         let (watchman_clock, changed_files) = match fsmonitor_settings {
             FsmonitorSettings::None => (None, None),
-            FsmonitorSettings::Test { changed_files } => (None, Some(changed_files)),
+            FsmonitorSettings::Test { changed_files } => (None, Some(changed_files.clone())),
             #[cfg(feature = "watchman")]
-            FsmonitorSettings::Watchman(config) => match self.query_watchman(&config) {
+            FsmonitorSettings::Watchman(config) => match self.query_watchman(config) {
                 Ok((watchman_clock, changed_files)) => (Some(watchman_clock.into()), changed_files),
                 Err(err) => {
                     tracing::warn!(?err, "Failed to query filesystem monitor");
@@ -1830,7 +1830,7 @@ impl LockedWorkingCopy for LockedLocalWorkingCopy {
         &self.old_tree_id
     }
 
-    fn snapshot(&mut self, options: SnapshotOptions) -> Result<MergedTreeId, SnapshotError> {
+    fn snapshot(&mut self, options: &SnapshotOptions) -> Result<MergedTreeId, SnapshotError> {
         let tree_state = self
             .wc
             .tree_state_mut()

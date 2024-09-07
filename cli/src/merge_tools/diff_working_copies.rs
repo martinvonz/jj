@@ -282,7 +282,7 @@ diff editing in mind and be a little inaccurate.
         let mut output_tree_state = diff_wc
             .output_tree_state
             .unwrap_or(diff_wc.right_tree_state);
-        output_tree_state.snapshot(SnapshotOptions {
+        output_tree_state.snapshot(&SnapshotOptions {
             base_ignores,
             fsmonitor_settings: FsmonitorSettings::None,
             progress: None,

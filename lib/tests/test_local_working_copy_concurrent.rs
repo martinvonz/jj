@@ -138,7 +138,7 @@ fn test_checkout_parallel() {
                 let mut locked_ws = workspace.start_working_copy_mutation().unwrap();
                 let new_tree_id = locked_ws
                     .locked_wc()
-                    .snapshot(SnapshotOptions::empty_for_test())
+                    .snapshot(&SnapshotOptions::empty_for_test())
                     .unwrap();
                 assert!(tree_ids.contains(&new_tree_id));
             });
