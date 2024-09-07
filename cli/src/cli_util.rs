@@ -162,6 +162,7 @@ use crate::revset_util::RevsetExpressionEvaluator;
 use crate::template_builder;
 use crate::template_builder::TemplateLanguage;
 use crate::template_parser::TemplateAliasesMap;
+use crate::template_parser::TemplateParseResult;
 use crate::templater::PropertyPlaceholder;
 use crate::templater::TemplateRenderer;
 use crate::text_util;
@@ -691,6 +692,37 @@ impl WorkspaceCommandEnvironment {
             let (None | Some(RevsetModifier::All)) = modifier;
             Ok(Some(revset::optimize(expression)))
         }
+    }
+
+    /// Parses template of the given language into evaluation tree.
+    ///
+    /// `wrap_self` specifies the type of the top-level property, which should
+    /// be one of the `L::wrap_*()` functions.
+    pub fn parse_template<'a, C: Clone + 'a, L: TemplateLanguage<'a> + ?Sized>(
+        &self,
+        language: &L,
+        template_text: &str,
+        wrap_self: impl Fn(PropertyPlaceholder<C>) -> L::Property,
+    ) -> TemplateParseResult<TemplateRenderer<'a, C>> {
+        let aliases = &self.template_aliases_map;
+        template_builder::parse(language, template_text, aliases, wrap_self)
+    }
+
+    /// Creates commit template language environment for this workspace and the
+    /// given `repo`.
+    pub fn commit_template_language<'a>(
+        &'a self,
+        repo: &'a dyn Repo,
+        id_prefix_context: &'a IdPrefixContext,
+    ) -> CommitTemplateLanguage<'a> {
+        CommitTemplateLanguage::new(
+            repo,
+            &self.path_converter,
+            &self.workspace_id,
+            self.revset_parse_context(),
+            id_prefix_context,
+            &self.command.data.commit_template_extensions,
+        )
     }
 }
 
@@ -1239,21 +1271,15 @@ impl WorkspaceCommandHelper {
         language: &L,
         template_text: &str,
         wrap_self: impl Fn(PropertyPlaceholder<C>) -> L::Property,
-    ) -> Result<TemplateRenderer<'a, C>, CommandError> {
-        let aliases = self.template_aliases_map();
-        Ok(template_builder::parse(
-            language,
-            template_text,
-            aliases,
-            wrap_self,
-        )?)
+    ) -> TemplateParseResult<TemplateRenderer<'a, C>> {
+        self.env.parse_template(language, template_text, wrap_self)
     }
 
     /// Parses commit template into evaluation tree.
     pub fn parse_commit_template(
         &self,
         template_text: &str,
-    ) -> Result<TemplateRenderer<'_, Commit>, CommandError> {
+    ) -> TemplateParseResult<TemplateRenderer<'_, Commit>> {
         let language = self.commit_template_language();
         self.parse_template(
             &language,
@@ -1264,14 +1290,8 @@ impl WorkspaceCommandHelper {
 
     /// Creates commit template language environment for this workspace.
     pub fn commit_template_language(&self) -> CommitTemplateLanguage<'_> {
-        CommitTemplateLanguage::new(
-            self.repo().as_ref(),
-            self.path_converter(),
-            self.workspace_id(),
-            self.revset_parse_context(),
-            self.id_prefix_context(),
-            &self.env.command.data.commit_template_extensions,
-        )
+        self.env
+            .commit_template_language(self.repo().as_ref(), self.id_prefix_context())
     }
 
     /// Template for one-line summary of a commit.
@@ -1888,23 +1908,18 @@ impl WorkspaceCommandTransaction<'_> {
         let id_prefix_context = self
             .id_prefix_context
             .get_or_init(|| self.helper.env.new_id_prefix_context());
-        CommitTemplateLanguage::new(
-            self.tx.repo(),
-            self.helper.path_converter(),
-            self.helper.workspace_id(),
-            self.helper.revset_parse_context(),
-            id_prefix_context,
-            &self.helper.env.command.data.commit_template_extensions,
-        )
+        self.helper
+            .env
+            .commit_template_language(self.tx.repo(), id_prefix_context)
     }
 
     /// Parses commit template with the current transaction state.
     pub fn parse_commit_template(
         &self,
         template_text: &str,
-    ) -> Result<TemplateRenderer<'_, Commit>, CommandError> {
+    ) -> TemplateParseResult<TemplateRenderer<'_, Commit>> {
         let language = self.commit_template_language();
-        self.helper.parse_template(
+        self.helper.env.parse_template(
             &language,
             template_text,
             CommitTemplateLanguage::wrap_commit,
