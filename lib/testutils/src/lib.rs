@@ -267,7 +267,7 @@ impl TestWorkspace {
     /// new operation).
     pub fn snapshot_with_options(
         &mut self,
-        options: SnapshotOptions,
+        options: &SnapshotOptions,
     ) -> Result<MergedTree, SnapshotError> {
         let mut locked_ws = self.workspace.start_working_copy_mutation().unwrap();
         let tree_id = locked_ws.locked_wc().snapshot(options)?;
@@ -278,7 +278,7 @@ impl TestWorkspace {
 
     /// Like `snapshot_with_option()` but with default options
     pub fn snapshot(&mut self) -> Result<MergedTree, SnapshotError> {
-        self.snapshot_with_options(SnapshotOptions::empty_for_test())
+        self.snapshot_with_options(&SnapshotOptions::empty_for_test())
     }
 }
 

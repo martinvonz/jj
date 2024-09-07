@@ -1367,7 +1367,7 @@ See https://martinvonz.github.io/jj/latest/working-copy/#stale-working-copy \
             };
         self.user_repo = ReadonlyUserRepo::new(repo);
         let progress = crate::progress::snapshot_progress(ui);
-        let new_tree_id = locked_ws.locked_wc().snapshot(SnapshotOptions {
+        let new_tree_id = locked_ws.locked_wc().snapshot(&SnapshotOptions {
             base_ignores,
             fsmonitor_settings,
             progress: progress.as_ref().map(|x| x as _),

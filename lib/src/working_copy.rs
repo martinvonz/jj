@@ -100,7 +100,7 @@ pub trait LockedWorkingCopy {
     fn old_tree_id(&self) -> &MergedTreeId;
 
     /// Snapshot the working copy and return the tree id.
-    fn snapshot(&mut self, options: SnapshotOptions) -> Result<MergedTreeId, SnapshotError>;
+    fn snapshot(&mut self, options: &SnapshotOptions) -> Result<MergedTreeId, SnapshotError>;
 
     /// Check out the specified commit in the working copy.
     fn check_out(&mut self, commit: &Commit) -> Result<CheckoutStats, CheckoutError>;
