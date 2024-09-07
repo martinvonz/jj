@@ -606,6 +606,7 @@ pub struct WorkspaceCommandEnvironment {
     revset_aliases_map: RevsetAliasesMap,
     template_aliases_map: TemplateAliasesMap,
     path_converter: RepoPathUiConverter,
+    workspace_id: WorkspaceId,
 }
 
 impl WorkspaceCommandEnvironment {
@@ -623,6 +624,7 @@ impl WorkspaceCommandEnvironment {
             revset_aliases_map,
             template_aliases_map,
             path_converter,
+            workspace_id: workspace.workspace_id().to_owned(),
         })
     }
 
@@ -632,6 +634,52 @@ impl WorkspaceCommandEnvironment {
 
     pub(crate) fn path_converter(&self) -> &RepoPathUiConverter {
         &self.path_converter
+    }
+
+    pub fn workspace_id(&self) -> &WorkspaceId {
+        &self.workspace_id
+    }
+
+    pub(crate) fn revset_parse_context(&self) -> RevsetParseContext {
+        let workspace_context = RevsetWorkspaceContext {
+            path_converter: &self.path_converter,
+            workspace_id: &self.workspace_id,
+        };
+        let now = if let Some(timestamp) = self.settings().commit_timestamp() {
+            chrono::Local
+                .timestamp_millis_opt(timestamp.timestamp.0)
+                .unwrap()
+        } else {
+            chrono::Local::now()
+        };
+        RevsetParseContext::new(
+            &self.revset_aliases_map,
+            self.settings().user_email(),
+            now.into(),
+            self.command.revset_extensions(),
+            Some(workspace_context),
+        )
+    }
+
+    /// Creates fresh new context which manages cache of short commit/change ID
+    /// prefixes. New context should be created per repo view (or operation.)
+    fn new_id_prefix_context(&self) -> Result<IdPrefixContext, CommandError> {
+        let mut context: IdPrefixContext =
+            IdPrefixContext::new(self.command.revset_extensions().clone());
+        let revset_string: String = self
+            .settings()
+            .config()
+            .get_string("revsets.short-prefixes")
+            .unwrap_or_else(|_| self.settings().default_revset());
+        if !revset_string.is_empty() {
+            let (expression, modifier) =
+                revset::parse_with_modifier(&revset_string, &self.revset_parse_context()).map_err(
+                    |err| config_error_with_message("Invalid `revsets.short-prefixes`", err),
+                )?;
+            let (None | Some(RevsetModifier::All)) = modifier;
+            context = context.disambiguate_within(revset::optimize(expression));
+        }
+        Ok(context)
     }
 }
 
@@ -1158,49 +1206,13 @@ impl WorkspaceCommandHelper {
     }
 
     pub(crate) fn revset_parse_context(&self) -> RevsetParseContext {
-        let workspace_context = RevsetWorkspaceContext {
-            path_converter: self.path_converter(),
-            workspace_id: self.workspace_id(),
-        };
-        let now = if let Some(timestamp) = self.settings().commit_timestamp() {
-            chrono::Local
-                .timestamp_millis_opt(timestamp.timestamp.0)
-                .unwrap()
-        } else {
-            chrono::Local::now()
-        };
-        RevsetParseContext::new(
-            &self.env.revset_aliases_map,
-            self.settings().user_email(),
-            now.into(),
-            self.env.command.revset_extensions(),
-            Some(workspace_context),
-        )
-    }
-
-    fn new_id_prefix_context(&self) -> Result<IdPrefixContext, CommandError> {
-        let mut context: IdPrefixContext =
-            IdPrefixContext::new(self.env.command.revset_extensions().clone());
-        let revset_string: String = self
-            .settings()
-            .config()
-            .get_string("revsets.short-prefixes")
-            .unwrap_or_else(|_| self.settings().default_revset());
-        if !revset_string.is_empty() {
-            let (expression, modifier) =
-                revset::parse_with_modifier(&revset_string, &self.revset_parse_context()).map_err(
-                    |err| config_error_with_message("Invalid `revsets.short-prefixes`", err),
-                )?;
-            let (None | Some(RevsetModifier::All)) = modifier;
-            context = context.disambiguate_within(revset::optimize(expression));
-        }
-        Ok(context)
+        self.env.revset_parse_context()
     }
 
     pub fn id_prefix_context(&self) -> Result<&IdPrefixContext, CommandError> {
         self.user_repo
             .id_prefix_context
-            .get_or_try_init(|| self.new_id_prefix_context())
+            .get_or_try_init(|| self.env.new_id_prefix_context())
     }
 
     pub fn template_aliases_map(&self) -> &TemplateAliasesMap {
@@ -1864,7 +1876,7 @@ impl WorkspaceCommandTransaction<'_> {
     pub fn commit_template_language(&self) -> CommitTemplateLanguage<'_> {
         let id_prefix_context = self
             .id_prefix_context
-            .get_or_try_init(|| self.helper.new_id_prefix_context())
+            .get_or_try_init(|| self.helper.env.new_id_prefix_context())
             .expect("parse error should be confined by WorkspaceCommandHelper::new()");
         CommitTemplateLanguage::new(
             self.tx.repo(),
