@@ -374,7 +374,8 @@ impl CommandHelper {
         let workspace = self.load_workspace()?;
         let op_head = self.resolve_operation(ui, workspace.repo_loader())?;
         let repo = workspace.repo_loader().load_at(&op_head)?;
-        WorkspaceCommandHelper::new(ui, self, workspace, repo, self.is_at_head_operation())
+        let env = self.workspace_environment(ui, &workspace)?;
+        WorkspaceCommandHelper::new(workspace, repo, env, self.is_at_head_operation())
     }
 
     pub fn get_working_copy_factory(&self) -> Result<&dyn WorkingCopyFactory, CommandError> {
@@ -402,6 +403,15 @@ impl CommandHelper {
             .map_err(|err| {
                 map_workspace_load_error(err, self.data.global_args.repository.as_deref())
             })
+    }
+
+    /// Loads command environment for the given `workspace`.
+    fn workspace_environment(
+        &self,
+        ui: &Ui,
+        workspace: &Workspace,
+    ) -> Result<WorkspaceCommandEnvironment, CommandError> {
+        WorkspaceCommandEnvironment::new(ui, self, workspace)
     }
 
     /// Returns true if the working copy to be loaded is writable, and therefore
@@ -479,8 +489,9 @@ impl CommandHelper {
         workspace: Workspace,
         repo: Arc<ReadonlyRepo>,
     ) -> Result<WorkspaceCommandHelper, CommandError> {
+        let env = self.workspace_environment(ui, &workspace)?;
         let loaded_at_head = true;
-        WorkspaceCommandHelper::new(ui, self, workspace, repo, loaded_at_head)
+        WorkspaceCommandHelper::new(workspace, repo, env, loaded_at_head)
     }
 
     /// Creates helper for the repo whose view might be out of sync with
@@ -492,8 +503,9 @@ impl CommandHelper {
         workspace: Workspace,
         repo: Arc<ReadonlyRepo>,
     ) -> Result<WorkspaceCommandHelper, CommandError> {
+        let env = self.workspace_environment(ui, &workspace)?;
         let loaded_at_head = false;
-        WorkspaceCommandHelper::new(ui, self, workspace, repo, loaded_at_head)
+        WorkspaceCommandHelper::new(workspace, repo, env, loaded_at_head)
     }
 }
 
@@ -588,52 +600,74 @@ impl AdvanceBranchesSettings {
     }
 }
 
+/// Metadata and configuration loaded for a specific workspace.
+pub struct WorkspaceCommandEnvironment {
+    command: CommandHelper,
+    revset_aliases_map: RevsetAliasesMap,
+    template_aliases_map: TemplateAliasesMap,
+    path_converter: RepoPathUiConverter,
+}
+
+impl WorkspaceCommandEnvironment {
+    #[instrument(skip_all)]
+    fn new(ui: &Ui, command: &CommandHelper, workspace: &Workspace) -> Result<Self, CommandError> {
+        let revset_aliases_map =
+            revset_util::load_revset_aliases(ui, &command.data.layered_configs)?;
+        let template_aliases_map = command.load_template_aliases(ui)?;
+        let path_converter = RepoPathUiConverter::Fs {
+            cwd: command.cwd().to_owned(),
+            base: workspace.workspace_root().to_owned(),
+        };
+        Ok(Self {
+            command: command.clone(),
+            revset_aliases_map,
+            template_aliases_map,
+            path_converter,
+        })
+    }
+
+    pub fn settings(&self) -> &UserSettings {
+        self.command.settings()
+    }
+
+    pub(crate) fn path_converter(&self) -> &RepoPathUiConverter {
+        &self.path_converter
+    }
+}
+
 /// Provides utilities for writing a command that works on a [`Workspace`]
 /// (which most commands do).
 pub struct WorkspaceCommandHelper {
-    command: CommandHelper,
     workspace: Workspace,
     user_repo: ReadonlyUserRepo,
+    env: WorkspaceCommandEnvironment,
     // TODO: Parsed template can be cached if it doesn't capture 'repo lifetime
     commit_summary_template_text: String,
-    revset_aliases_map: RevsetAliasesMap,
-    template_aliases_map: TemplateAliasesMap,
     may_update_working_copy: bool,
     working_copy_shared_with_git: bool,
-    path_converter: RepoPathUiConverter,
 }
 
 impl WorkspaceCommandHelper {
     #[instrument(skip_all)]
     fn new(
-        ui: &Ui,
-        command: &CommandHelper,
         workspace: Workspace,
         repo: Arc<ReadonlyRepo>,
+        env: WorkspaceCommandEnvironment,
         loaded_at_head: bool,
     ) -> Result<Self, CommandError> {
-        let settings = command.settings();
+        let settings = env.settings();
         let commit_summary_template_text =
             settings.config().get_string("templates.commit_summary")?;
-        let revset_aliases_map =
-            revset_util::load_revset_aliases(ui, &command.data.layered_configs)?;
-        let template_aliases_map = command.load_template_aliases(ui)?;
-        let may_update_working_copy = loaded_at_head && !command.global_args().ignore_working_copy;
+        let may_update_working_copy =
+            loaded_at_head && !env.command.global_args().ignore_working_copy;
         let working_copy_shared_with_git = is_colocated_git_workspace(&workspace, &repo);
-        let path_converter = RepoPathUiConverter::Fs {
-            cwd: command.cwd().to_owned(),
-            base: workspace.workspace_root().to_owned(),
-        };
         let helper = Self {
-            command: command.clone(),
             workspace,
             user_repo: ReadonlyUserRepo::new(repo),
+            env,
             commit_summary_template_text,
-            revset_aliases_map,
-            template_aliases_map,
             may_update_working_copy,
             working_copy_shared_with_git,
-            path_converter,
         };
         // Parse commit_summary template (and short-prefixes revset) early to
         // report error before starting mutable operation.
@@ -642,7 +676,7 @@ impl WorkspaceCommandHelper {
     }
 
     pub fn settings(&self) -> &UserSettings {
-        self.command.settings()
+        self.env.settings()
     }
 
     pub fn git_backend(&self) -> Option<&GitBackend> {
@@ -653,7 +687,7 @@ impl WorkspaceCommandHelper {
         if self.may_update_working_copy {
             Ok(())
         } else {
-            let hint = if self.command.global_args().ignore_working_copy {
+            let hint = if self.env.command.global_args().ignore_working_copy {
                 "Don't use --ignore-working-copy."
             } else {
                 "Don't use --at-op."
@@ -695,7 +729,7 @@ impl WorkspaceCommandHelper {
     #[instrument(skip_all)]
     fn import_git_head(&mut self, ui: &Ui) -> Result<(), CommandError> {
         assert!(self.may_update_working_copy);
-        let command = self.command.clone();
+        let command = self.env.command.clone();
         let mut tx = self.start_transaction();
         git::import_head(tx.repo_mut())?;
         if !tx.repo().has_changes() {
@@ -835,13 +869,13 @@ impl WorkspaceCommandHelper {
     }
 
     pub fn format_file_path(&self, file: &RepoPath) -> String {
-        self.path_converter.format_file_path(file)
+        self.path_converter().format_file_path(file)
     }
 
     /// Parses a path relative to cwd into a RepoPath, which is relative to the
     /// workspace root.
     pub fn parse_file_path(&self, input: &str) -> Result<RepoPathBuf, UiPathParseError> {
-        self.path_converter.parse_file_path(input)
+        self.path_converter().parse_file_path(input)
     }
 
     /// Parses the given strings as file patterns.
@@ -873,7 +907,7 @@ impl WorkspaceCommandHelper {
     ) -> Result<FilesetExpression, CommandError> {
         let expressions: Vec<_> = file_args
             .iter()
-            .map(|arg| fileset::parse_maybe_bare(arg, &self.path_converter))
+            .map(|arg| fileset::parse_maybe_bare(arg, self.path_converter()))
             .try_collect()?;
         Ok(FilesetExpression::union_all(expressions))
     }
@@ -891,7 +925,7 @@ impl WorkspaceCommandHelper {
     }
 
     pub(crate) fn path_converter(&self) -> &RepoPathUiConverter {
-        &self.path_converter
+        self.env.path_converter()
     }
 
     #[instrument(skip_all)]
@@ -938,7 +972,7 @@ impl WorkspaceCommandHelper {
 
     /// Creates textual diff renderer of the specified `formats`.
     pub fn diff_renderer(&self, formats: Vec<DiffFormat>) -> DiffRenderer<'_> {
-        DiffRenderer::new(self.repo().as_ref(), &self.path_converter, formats)
+        DiffRenderer::new(self.repo().as_ref(), self.path_converter(), formats)
     }
 
     /// Loads textual diff renderer from the settings and command arguments.
@@ -1117,7 +1151,7 @@ impl WorkspaceCommandHelper {
     ) -> Result<RevsetExpressionEvaluator<'_>, CommandError> {
         Ok(RevsetExpressionEvaluator::new(
             self.repo().as_ref(),
-            self.command.revset_extensions().clone(),
+            self.env.command.revset_extensions().clone(),
             self.id_prefix_context()?,
             expression,
         ))
@@ -1125,7 +1159,7 @@ impl WorkspaceCommandHelper {
 
     pub(crate) fn revset_parse_context(&self) -> RevsetParseContext {
         let workspace_context = RevsetWorkspaceContext {
-            path_converter: &self.path_converter,
+            path_converter: self.path_converter(),
             workspace_id: self.workspace_id(),
         };
         let now = if let Some(timestamp) = self.settings().commit_timestamp() {
@@ -1136,17 +1170,17 @@ impl WorkspaceCommandHelper {
             chrono::Local::now()
         };
         RevsetParseContext::new(
-            &self.revset_aliases_map,
+            &self.env.revset_aliases_map,
             self.settings().user_email(),
             now.into(),
-            self.command.revset_extensions(),
+            self.env.command.revset_extensions(),
             Some(workspace_context),
         )
     }
 
     fn new_id_prefix_context(&self) -> Result<IdPrefixContext, CommandError> {
         let mut context: IdPrefixContext =
-            IdPrefixContext::new(self.command.revset_extensions().clone());
+            IdPrefixContext::new(self.env.command.revset_extensions().clone());
         let revset_string: String = self
             .settings()
             .config()
@@ -1170,7 +1204,7 @@ impl WorkspaceCommandHelper {
     }
 
     pub fn template_aliases_map(&self) -> &TemplateAliasesMap {
-        &self.template_aliases_map
+        &self.env.template_aliases_map
     }
 
     /// Parses template of the given language into evaluation tree.
@@ -1183,7 +1217,7 @@ impl WorkspaceCommandHelper {
         template_text: &str,
         wrap_self: impl Fn(PropertyPlaceholder<C>) -> L::Property,
     ) -> Result<TemplateRenderer<'a, C>, CommandError> {
-        let aliases = &self.template_aliases_map;
+        let aliases = self.template_aliases_map();
         Ok(template_builder::parse(
             language,
             template_text,
@@ -1209,11 +1243,11 @@ impl WorkspaceCommandHelper {
     pub fn commit_template_language(&self) -> Result<CommitTemplateLanguage<'_>, CommandError> {
         Ok(CommitTemplateLanguage::new(
             self.repo().as_ref(),
-            &self.path_converter,
+            self.path_converter(),
             self.workspace_id(),
             self.revset_parse_context(),
             self.id_prefix_context()?,
-            &self.command.data.commit_template_extensions,
+            &self.env.command.data.commit_template_extensions,
         ))
     }
 
@@ -1252,7 +1286,7 @@ impl WorkspaceCommandHelper {
         repo: &dyn Repo,
         commits: impl IntoIterator<Item = &'a CommitId>,
     ) -> Result<(), CommandError> {
-        if self.command.global_args().ignore_immutable {
+        if self.env.command.global_args().ignore_immutable {
             let root_id = self.repo().store().root_commit_id();
             return if commits.into_iter().contains(root_id) {
                 Err(user_error(format!(
@@ -1267,7 +1301,7 @@ impl WorkspaceCommandHelper {
         // Not using self.id_prefix_context() because the disambiguation data
         // must not be calculated and cached against arbitrary repo. It's also
         // unlikely that the immutable expression contains short hashes.
-        let id_prefix_context = IdPrefixContext::new(self.command.revset_extensions().clone());
+        let id_prefix_context = IdPrefixContext::new(self.env.command.revset_extensions().clone());
         let to_rewrite_revset =
             RevsetExpression::commits(commits.into_iter().cloned().collect_vec());
         let immutable = revset_util::parse_immutable_expression(&self.revset_parse_context())
@@ -1276,7 +1310,7 @@ impl WorkspaceCommandHelper {
             })?;
         let mut expression = RevsetExpressionEvaluator::new(
             repo,
-            self.command.revset_extensions().clone(),
+            self.env.command.revset_extensions().clone(),
             &id_prefix_context,
             immutable,
         );
@@ -1333,7 +1367,7 @@ impl WorkspaceCommandHelper {
         // Compare working-copy tree and operation with repo's, and reload as needed.
         let fsmonitor_settings = self.settings().fsmonitor_settings()?;
         let max_new_file_size = self.settings().max_new_file_size()?;
-        let command = self.command.clone();
+        let command = self.env.command.clone();
         let mut locked_ws = self.workspace.start_working_copy_mutation()?;
         let old_op_id = locked_ws.locked_wc().old_operation_id().clone();
         let (repo, wc_commit) =
@@ -1466,7 +1500,8 @@ See https://martinvonz.github.io/jj/latest/working-copy/#stale-working-copy \
     }
 
     pub fn start_transaction(&mut self) -> WorkspaceCommandTransaction {
-        let tx = start_repo_transaction(self.repo(), self.settings(), self.command.string_args());
+        let tx =
+            start_repo_transaction(self.repo(), self.settings(), self.env.command.string_args());
         let id_prefix_context = mem::take(&mut self.user_repo.id_prefix_context);
         WorkspaceCommandTransaction {
             helper: self,
@@ -1833,11 +1868,11 @@ impl WorkspaceCommandTransaction<'_> {
             .expect("parse error should be confined by WorkspaceCommandHelper::new()");
         CommitTemplateLanguage::new(
             self.tx.repo(),
-            &self.helper.path_converter,
+            self.helper.path_converter(),
             self.helper.workspace_id(),
             self.helper.revset_parse_context(),
             id_prefix_context,
-            &self.helper.command.data.commit_template_extensions,
+            &self.helper.env.command.data.commit_template_extensions,
         )
     }
 
