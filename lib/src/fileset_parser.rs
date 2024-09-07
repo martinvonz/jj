@@ -30,6 +30,12 @@ use crate::dsl_util;
 use crate::dsl_util::InvalidArguments;
 use crate::dsl_util::StringLiteralParser;
 
+#[cfg(buck_build)]
+#[derive(Parser)]
+#[grammar = "lib/src/fileset.pest"]
+struct FilesetParser;
+
+#[cfg(not(buck_build))]
 #[derive(Parser)]
 #[grammar = "fileset.pest"]
 struct FilesetParser;

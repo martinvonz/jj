@@ -45,6 +45,12 @@ use crate::dsl_util::InvalidArguments;
 use crate::dsl_util::KeywordArgument;
 use crate::dsl_util::StringLiteralParser;
 
+#[cfg(buck_build)]
+#[derive(Parser)]
+#[grammar = "lib/src/revset.pest"]
+struct RevsetParser;
+
+#[cfg(not(buck_build))]
 #[derive(Parser)]
 #[grammar = "revset.pest"]
 struct RevsetParser;

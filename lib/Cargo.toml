@@ -21,6 +21,8 @@ include = [
     "!*.snap*",
 ]
 
+[lints]
+workspace = true
 
 [[test]]
 name = "runner"
