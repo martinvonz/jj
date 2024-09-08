@@ -134,11 +134,10 @@ fn do_op_log(
                 edges.push(Edge::Direct(id.clone()));
             }
             let mut buffer = vec![];
-            with_content_format.write_graph_text(
-                ui.new_formatter(&mut buffer).as_mut(),
-                |formatter| template.format(&op, formatter),
-                || graph.width(op.id(), &edges),
-            )?;
+            let within_graph = with_content_format.sub_width(graph.width(op.id(), &edges));
+            within_graph.write(ui.new_formatter(&mut buffer).as_mut(), |formatter| {
+                template.format(&op, formatter)
+            })?;
             if !buffer.ends_with(b"\n") {
                 buffer.push(b'\n');
             }

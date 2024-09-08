@@ -244,33 +244,28 @@ pub fn show_op_diff(
                     .iter()
                     .map(|edge| Edge::Direct(edge.target.clone()))
                     .collect_vec();
-                let graph_width = || graph.width(&change_id, &edges);
 
                 let mut buffer = vec![];
-                with_content_format.write_graph_text(
-                    ui.new_formatter(&mut buffer).as_mut(),
-                    |formatter| {
-                        write_modified_change_summary(
-                            formatter,
-                            commit_summary_template,
-                            &change_id,
-                            modified_change,
-                        )
-                    },
-                    graph_width,
-                )?;
+                let within_graph = with_content_format.sub_width(graph.width(&change_id, &edges));
+                within_graph.write(ui.new_formatter(&mut buffer).as_mut(), |formatter| {
+                    write_modified_change_summary(
+                        formatter,
+                        commit_summary_template,
+                        &change_id,
+                        modified_change,
+                    )
+                })?;
                 if !buffer.ends_with(b"\n") {
                     buffer.push(b'\n');
                 }
                 if let Some(diff_renderer) = &diff_renderer {
                     let mut formatter = ui.new_formatter(&mut buffer);
-                    let width = usize::saturating_sub(ui.term_width(), graph_width());
                     show_change_diff(
                         ui,
                         formatter.as_mut(),
                         diff_renderer,
                         modified_change,
-                        width,
+                        within_graph.width(),
                     )?;
                 }
 

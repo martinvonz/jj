@@ -2330,47 +2330,46 @@ fn load_template_aliases(
 
 /// Helper to reformat content of log-like commands.
 #[derive(Clone, Debug)]
-pub enum LogContentFormat {
-    NoWrap,
-    Wrap { term_width: usize },
+pub struct LogContentFormat {
+    width: usize,
+    word_wrap: bool,
 }
 
 impl LogContentFormat {
+    /// Creates new formatting helper for the terminal.
     pub fn new(ui: &Ui, settings: &UserSettings) -> Result<Self, config::ConfigError> {
-        if settings.config().get_bool("ui.log-word-wrap")? {
-            let term_width = ui.term_width();
-            Ok(LogContentFormat::Wrap { term_width })
-        } else {
-            Ok(LogContentFormat::NoWrap)
+        Ok(LogContentFormat {
+            width: ui.term_width(),
+            word_wrap: settings.config().get_bool("ui.log-word-wrap")?,
+        })
+    }
+
+    /// Subtracts the given `width` and returns new formatting helper.
+    #[must_use]
+    pub fn sub_width(&self, width: usize) -> Self {
+        LogContentFormat {
+            width: self.width.saturating_sub(width),
+            word_wrap: self.word_wrap,
         }
     }
 
+    /// Current width available to content.
+    pub fn width(&self) -> usize {
+        self.width
+    }
+
+    /// Writes content which will optionally be wrapped at the current width.
     pub fn write(
         &self,
         formatter: &mut dyn Formatter,
         content_fn: impl FnOnce(&mut dyn Formatter) -> std::io::Result<()>,
     ) -> std::io::Result<()> {
-        self.write_graph_text(formatter, content_fn, || 0)
-    }
-
-    pub fn write_graph_text(
-        &self,
-        formatter: &mut dyn Formatter,
-        content_fn: impl FnOnce(&mut dyn Formatter) -> std::io::Result<()>,
-        graph_width_fn: impl FnOnce() -> usize,
-    ) -> std::io::Result<()> {
-        match self {
-            LogContentFormat::NoWrap => content_fn(formatter),
-            LogContentFormat::Wrap { term_width } => {
-                let mut recorder = FormatRecorder::new();
-                content_fn(&mut recorder)?;
-                text_util::write_wrapped(
-                    formatter,
-                    &recorder,
-                    term_width.saturating_sub(graph_width_fn()),
-                )?;
-                Ok(())
-            }
+        if self.word_wrap {
+            let mut recorder = FormatRecorder::new();
+            content_fn(&mut recorder)?;
+            text_util::write_wrapped(formatter, &recorder, self.width)
+        } else {
+            content_fn(formatter)
         }
     }
 }
