@@ -147,27 +147,24 @@ pub(crate) fn cmd_evolog(
                 .iter()
                 .map(|id| Edge::Direct(id.clone()))
                 .collect_vec();
-            let graph_width = || graph.width(commit.id(), &edges);
             let mut buffer = vec![];
-            with_content_format.write_graph_text(
-                ui.new_formatter(&mut buffer).as_mut(),
-                |formatter| template.format(&commit, formatter),
-                graph_width,
-            )?;
+            let within_graph = with_content_format.sub_width(graph.width(commit.id(), &edges));
+            within_graph.write(ui.new_formatter(&mut buffer).as_mut(), |formatter| {
+                template.format(&commit, formatter)
+            })?;
             if !buffer.ends_with(b"\n") {
                 buffer.push(b'\n');
             }
             if let Some(renderer) = &diff_renderer {
                 let predecessors: Vec<_> = commit.predecessors().try_collect()?;
                 let mut formatter = ui.new_formatter(&mut buffer);
-                let width = usize::saturating_sub(ui.term_width(), graph_width());
                 renderer.show_inter_diff(
                     ui,
                     formatter.as_mut(),
                     &predecessors,
                     &commit,
                     &EverythingMatcher,
-                    width,
+                    within_graph.width(),
                 )?;
             }
             let node_symbol = format_template(ui, &Some(commit.clone()), &node_template);

@@ -205,24 +205,22 @@ pub(crate) fn cmd_log(
                 let mut buffer = vec![];
                 let key = (commit_id, false);
                 let commit = store.get_commit(&key.0)?;
-                let graph_width = || graph.width(&key, &graphlog_edges);
-                with_content_format.write_graph_text(
-                    ui.new_formatter(&mut buffer).as_mut(),
-                    |formatter| template.format(&commit, formatter),
-                    graph_width,
-                )?;
+                let within_graph =
+                    with_content_format.sub_width(graph.width(&key, &graphlog_edges));
+                within_graph.write(ui.new_formatter(&mut buffer).as_mut(), |formatter| {
+                    template.format(&commit, formatter)
+                })?;
                 if !buffer.ends_with(b"\n") {
                     buffer.push(b'\n');
                 }
                 if let Some(renderer) = &diff_renderer {
                     let mut formatter = ui.new_formatter(&mut buffer);
-                    let width = usize::saturating_sub(ui.term_width(), graph_width());
                     renderer.show_patch(
                         ui,
                         formatter.as_mut(),
                         &commit,
                         matcher.as_ref(),
-                        width,
+                        within_graph.width(),
                     )?;
                 }
 
@@ -238,11 +236,11 @@ pub(crate) fn cmd_log(
                     let real_key = (elided_key.0.clone(), false);
                     let edges = [Edge::Direct(real_key)];
                     let mut buffer = vec![];
-                    with_content_format.write_graph_text(
-                        ui.new_formatter(&mut buffer).as_mut(),
-                        |formatter| writeln!(formatter.labeled("elided"), "(elided revisions)"),
-                        || graph.width(&elided_key, &edges),
-                    )?;
+                    let within_graph =
+                        with_content_format.sub_width(graph.width(&elided_key, &edges));
+                    within_graph.write(ui.new_formatter(&mut buffer).as_mut(), |formatter| {
+                        writeln!(formatter.labeled("elided"), "(elided revisions)")
+                    })?;
                     let node_symbol = format_template(ui, &None, &node_template);
                     graph.add_node(
                         &elided_key,
