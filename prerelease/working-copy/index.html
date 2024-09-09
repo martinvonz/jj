@@ -1475,12 +1475,17 @@ new commits (though there are many other ways of creating new commits).</p>
 working-copy contents when they have changed. Most <code>jj</code> commands you run will
 commit the working-copy changes if they have changed. The resulting revision
 will replace the previous working-copy revision.</p>
-<p>Also unlike most other VCSs, added files are implicitly tracked. That means that
-if you add a new file to the working copy, it will be automatically committed
-once you run e.g. <code>jj st</code>. Similarly, if you remove a file from the working
-copy, it will implicitly be untracked. To untrack a file while keeping it in
-the working copy, first make sure it's <a href="#ignored-files">ignored</a> and then run
-<code>jj file untrack &lt;path&gt;</code>.</p>
+<p>Also unlike most other VCSs, added files are implicitly tracked by default. That
+means that if you add a new file to the working copy, it will be automatically
+committed once you run e.g. <code>jj st</code>. Similarly, if you remove a file from the
+working copy, it will implicitly be untracked.</p>
+<p>The <code>snapshot.auto-track</code> config option controls which paths get automatically
+tracked when they're added to the working copy. See the
+<a href="../filesets/">fileset documentation</a> for the syntax. Files with paths matching
+<a href="#ignored-files">ignore files</a> are never tracked automatically</p>
+<p>You can use <code>jj file untrack</code> to untrack a file while keeping it in the working
+copy. However, first <a href="#ignored-files">ignore</a> them or remove them from the
+<code>snapshot.auto-track</code> patterns; otherwise they will be immediately tracked again.</p>
 <h2 id="conflicts">Conflicts<a class="headerlink" href="#conflicts" title="Permanent link">&para;</a></h2>
 <p>When you check out a commit with conflicts, those conflicts need to be
 represented in the working copy somehow. However, the file system doesn't
@@ -1513,6 +1518,13 @@ control. You can tell Jujutsu to not automatically track certain files by using
 See https://git-scm.com/docs/gitignore for details about the format.
 <code>.gitignore</code> files are supported in any directory in the working copy, as well
 as in <code>$HOME/.gitignore</code> and <code>$GIT_DIR/info/exclude</code>.</p>
+<p>Ignored files are never tracked automatically (regardless of the value of
+<code>snapshot.auto-track</code>), but they can still end up being tracked for a few reasons:</p>
+<ul>
+<li>if they were tracked in the parent commit</li>
+<li>because of an explicit <code>jj file track</code> command</li>
+</ul>
+<p>You can untrack such files with the jj file untrack command.</p>
 <h2 id="workspaces">Workspaces<a class="headerlink" href="#workspaces" title="Permanent link">&para;</a></h2>
 <p>You can have multiple working copies backed by a single repo. Use 
 <code>jj workspace add</code> to create a new working copy. The working copy will have a
