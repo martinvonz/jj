@@ -37,6 +37,32 @@ See [revsets] and [templates] for further guidance.
 
 Use `jj log -r ..`. The `..` [operator] lists all visible commits in the repo, excluding the root (which is never interesting and is shared by all repos).
 
+### Should I co-locate my repository?
+
+Co-locating a Jujutsu repository allows you to use both Jujutsu and Git in the
+same working copy. The benefits of doing so are:
+
+- You can use Git commands when you're not sure how to do something with
+  Jujutsu, Jujutsu hasn't yet implemented a feature (e.g., bisection), or you
+  simply prefer Git in some situations.
+
+- Tooling that expects a Git repository still works (IDEs, build tooling, etc.)
+
+The [co-location documentation describes the
+drawbacks](git-compatibility.md#co-located-jujutsugit-repos) but the most
+important ones are:
+
+- Interleaving `git` and `jj` commands may create confusing branch conflicts or
+  divergent changes.
+
+- Jujutsu commands may be a little slower in very large repositories due to
+  importing and exporting changes to Git. Most repositories are not noticeably
+  affected by this. 
+
+If you primarily use Jujutsu to modify the repository, the drawbacks are
+unlikely to affect you. Try co-locating while you learn Jujutsu, then switch if
+you find a specific reason not to co-locate.
+
 ### `jj` is said to record the working copy after `jj log` and every other command. Where can I see these automatic "saves"?  
 
 Indeed, every `jj` command updates the current "working-copy" revision, marked 
