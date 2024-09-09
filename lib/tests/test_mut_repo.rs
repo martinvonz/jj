@@ -319,6 +319,28 @@ fn test_edit_initial() {
 }
 
 #[test]
+fn test_edit_hidden_commit() {
+    // Test that MutableRepo::edit() edits a hidden commit and updates
+    // the view head ids.
+    let settings = testutils::user_settings();
+    let test_repo = TestRepo::init();
+    let repo = &test_repo.repo;
+
+    let mut tx = repo.start_transaction(&settings);
+    let wc_commit = write_random_commit(tx.repo_mut(), &settings);
+
+    // Intentionally not doing tx.commit, so the commit id is not tracked
+    // in the view head ids.
+
+    let mut tx = repo.start_transaction(&settings);
+    let ws_id = WorkspaceId::default();
+    tx.repo_mut().edit(ws_id.clone(), &wc_commit).unwrap();
+    let repo = tx.commit("test");
+    assert_eq!(repo.view().get_wc_commit_id(&ws_id), Some(wc_commit.id()));
+    assert_eq!(*repo.view().heads(), hashset! {wc_commit.id().clone()});
+}
+
+#[test]
 fn test_add_head_success() {
     // Test that MutableRepo::add_head() adds the head, and that it's still there
     // after commit. It should also be indexed.
