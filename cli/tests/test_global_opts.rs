@@ -568,9 +568,8 @@ fn test_no_user_configured() {
     insta::assert_snapshot!(get_stderr_string(&assert), @r###"
     Working copy now at: qpvuntsm 7a7d6016 (empty) without name
     Parent commit      : zzzzzzzz 00000000 (empty) (no description set)
-    Warning: Name and email not configured. Until configured, your commits will be created with the empty identity, and can't be pushed to remotes. To configure, run:
+    Warning: Name not configured. Until configured, your commits will be created with the empty identity, and can't be pushed to remotes. To configure, run:
       jj config set --user user.name "Some One"
-      jj config set --user user.email "someone@example.com"
     "###);
     let assert = test_env
         .jj_cmd(&repo_path, &["describe", "-m", "without email"])
@@ -579,6 +578,18 @@ fn test_no_user_configured() {
         .success();
     insta::assert_snapshot!(get_stderr_string(&assert), @r###"
     Working copy now at: qpvuntsm 906f8b89 (empty) without email
+    Parent commit      : zzzzzzzz 00000000 (empty) (no description set)
+    Warning: Email not configured. Until configured, your commits will be created with the empty identity, and can't be pushed to remotes. To configure, run:
+      jj config set --user user.email "someone@example.com"
+    "###);
+    let assert = test_env
+        .jj_cmd(&repo_path, &["describe", "-m", "without name and email"])
+        .env_remove("JJ_USER")
+        .env_remove("JJ_EMAIL")
+        .assert()
+        .success();
+    insta::assert_snapshot!(get_stderr_string(&assert), @r###"
+    Working copy now at: qpvuntsm 57d3a489 (empty) without name and email
     Parent commit      : zzzzzzzz 00000000 (empty) (no description set)
     Warning: Name and email not configured. Until configured, your commits will be created with the empty identity, and can't be pushed to remotes. To configure, run:
       jj config set --user user.name "Some One"
