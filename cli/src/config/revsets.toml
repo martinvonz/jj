@@ -22,3 +22,6 @@ latest(
 'immutable_heads()' = 'builtin_immutable_heads()'
 'immutable()' = '::(immutable_heads() | root())'
 'mutable()' = '~immutable()'
+
+# NOTE: for Windows users, who don't want to type `@ all the time
+'at' = '@'

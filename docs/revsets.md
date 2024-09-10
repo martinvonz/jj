@@ -19,6 +19,10 @@ ID or a Git ref pointing to them).
 ## Symbols
 
 The `@` expression refers to the working copy commit in the current workspace.
+In places where the `@` symbol needs to be escaped, such as inside a Windows
+terminal, you may use the name `at` instead, which is identical to `@` and
+requires no quoting.
+
 Use `<workspace name>@` to refer to the working-copy commit in another
 workspace. Use `<name>@<remote>` to refer to a remote-tracking branch.
 

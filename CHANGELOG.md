@@ -36,6 +36,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   (inherit from parent; default), `full` (full working copy), or `empty` (the
   empty working copy).
 
+* A revset alias named `at` is now provided, which functions identically to the
+  working-copy symbol `@`. This symbol cannot conflict with any Change or Commit
+  ID, and may be used in places where `@` may require escaping, like the Windows
+  terminal.
+
 ### Fixed bugs
 
  * Fixed panic when parsing invalid conflict markers of a particular form.
