@@ -1771,13 +1771,31 @@ See https://martinvonz.github.io/jj/latest/working-copy/#stale-working-copy \
         self.report_repo_changes(ui, &old_repo)?;
 
         let settings = self.settings();
-        if settings.user_name().is_empty() || settings.user_email().is_empty() {
+        let missing_user_name = settings.user_name().is_empty();
+        let missing_user_mail = settings.user_email().is_empty();
+        if missing_user_name || missing_user_mail {
+            let mut writer = ui.warning_default();
+            let not_configured_msg = match (missing_user_name, missing_user_mail) {
+                (true, true) => "Name and email not configured.",
+                (true, false) => "Name not configured.",
+                (false, true) => "Email not configured.",
+                _ => unreachable!(),
+            };
+            write!(writer, "{not_configured_msg} ")?;
             writeln!(
-                ui.warning_default(),
-                r#"Name and email not configured. Until configured, your commits will be created with the empty identity, and can't be pushed to remotes. To configure, run:
-  jj config set --user user.name "Some One"
-  jj config set --user user.email "someone@example.com""#
+                writer,
+                "Until configured, your commits will be created with the empty identity, and \
+                 can't be pushed to remotes. To configure, run:",
             )?;
+            if missing_user_name {
+                writeln!(writer, r#"  jj config set --user user.name "Some One""#)?;
+            }
+            if missing_user_mail {
+                writeln!(
+                    writer,
+                    r#"  jj config set --user user.email "someone@example.com""#
+                )?;
+            }
         }
         Ok(())
     }
