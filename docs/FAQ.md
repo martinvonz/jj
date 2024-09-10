@@ -55,6 +55,15 @@ important ones are:
 - Interleaving `git` and `jj` commands may create confusing bookmark conflicts
   or divergent changes.
 
+- If the working copy commit or its parent contain any conflicted files, tools
+  expecting a Git repo may interpret the commit contents or its diff in a wrong
+  and confusing way. You should avoid doing mutating operations with Git tools
+  and ignore the confusing information such tools present for conflicted commits
+  (unless you are curious about [the details of how `jj` stores
+  conflicts](technical/conflicts.md)). See
+  [\#3979](https://github.com/martinvonz/jj/issues/3979) for plans to improve
+  this situation.
+
 - Jujutsu commands may be a little slower in very large repositories due to
   importing and exporting changes to Git. Most repositories are not noticeably
   affected by this. 
