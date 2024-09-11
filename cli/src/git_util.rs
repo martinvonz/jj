@@ -73,22 +73,12 @@ pub fn get_git_repo(store: &Store) -> Result<git2::Repository, CommandError> {
     }
 }
 
-pub fn is_colocated_git_workspace(workspace: &Workspace, repo: &ReadonlyRepo) -> bool {
+pub fn is_colocated_git_workspace(_workspace: &Workspace, repo: &ReadonlyRepo) -> bool {
     let Some(git_backend) = repo.store().backend_impl().downcast_ref::<GitBackend>() else {
         return false;
     };
-    let Some(git_workdir) = git_backend.git_workdir() else {
-        return false; // Bare repository
-    };
-    if git_workdir == workspace.workspace_root() {
-        return true;
-    }
-    // Colocated workspace should have ".git" directory, file, or symlink. Compare
-    // its parent as the git_workdir might be resolved from the real ".git" path.
-    let Ok(dot_git_path) = workspace.workspace_root().join(".git").canonicalize() else {
-        return false;
-    };
-    git_workdir.canonicalize().ok().as_deref() == dot_git_path.parent()
+
+    git_backend.is_colocated()
 }
 
 fn terminal_get_username(ui: &Ui, url: &str) -> Option<String> {

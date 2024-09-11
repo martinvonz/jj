@@ -283,6 +283,7 @@ impl Workspace {
                 settings,
                 store_path,
                 &store_relative_git_repo_path,
+                Some(workspace_root),
             )?;
             Ok(Box::new(backend))
         };
