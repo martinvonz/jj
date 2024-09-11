@@ -29,38 +29,8 @@ use crate::backend::CommitId;
 use crate::graph::GraphEdge;
 use crate::graph::GraphEdgeType;
 
-/// Like `RevsetGraphEdge`, but stores `IndexPosition` instead.
-///
-/// This can be cheaply allocated and hashed compared to `CommitId`-based type.
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-struct IndexGraphEdge {
-    target: IndexPosition,
-    edge_type: GraphEdgeType,
-}
-
-impl IndexGraphEdge {
-    fn missing(target: IndexPosition) -> Self {
-        let edge_type = GraphEdgeType::Missing;
-        IndexGraphEdge { target, edge_type }
-    }
-
-    fn direct(target: IndexPosition) -> Self {
-        let edge_type = GraphEdgeType::Direct;
-        IndexGraphEdge { target, edge_type }
-    }
-
-    fn indirect(target: IndexPosition) -> Self {
-        let edge_type = GraphEdgeType::Indirect;
-        IndexGraphEdge { target, edge_type }
-    }
-
-    fn to_revset_edge(self, index: &CompositeIndex) -> GraphEdge<CommitId> {
-        GraphEdge {
-            target: index.entry_by_pos(self.target).commit_id(),
-            edge_type: self.edge_type,
-        }
-    }
-}
+// This can be cheaply allocated and hashed compared to `CommitId`-based type.
+type IndexGraphEdge = GraphEdge<IndexPosition>;
 
 /// Given a `RevWalk` over some set of revisions, yields the same revisions with
 /// associated edge types.
@@ -349,7 +319,7 @@ impl RevWalk<CompositeIndex> for RevsetGraphWalk<'_> {
         }
         let edges = edges
             .iter()
-            .map(|edge| edge.to_revset_edge(index))
+            .map(|edge| edge.map(|pos| index.entry_by_pos(pos).commit_id()))
             .collect();
         Some((entry.commit_id(), edges))
     }

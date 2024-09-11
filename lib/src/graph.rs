@@ -19,7 +19,7 @@ use std::collections::HashSet;
 use std::collections::VecDeque;
 use std::hash::Hash;
 
-#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub struct GraphEdge<N> {
     pub target: N,
     pub edge_type: GraphEdgeType,
@@ -44,6 +44,13 @@ impl<N> GraphEdge<N> {
         Self {
             target,
             edge_type: GraphEdgeType::Indirect,
+        }
+    }
+
+    pub fn map<M>(self, f: impl FnOnce(N) -> M) -> GraphEdge<M> {
+        GraphEdge {
+            target: f(self.target),
+            edge_type: self.edge_type,
         }
     }
 }
