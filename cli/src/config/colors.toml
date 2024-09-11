@@ -29,7 +29,7 @@
 "bookmarks" = "magenta"
 "local_bookmarks" = "magenta"
 "remote_bookmarks" = "magenta"
-#  TODO: Remove in jj 0.28+
+#  TODO: Remove *branch* in jj 0.28+
 "branch" = "magenta"
 "branches" = "magenta"
 "local_branches" = "magenta"
@@ -57,6 +57,11 @@
 "working_copy email" = "yellow"
 "working_copy timestamp" = "bright cyan"
 "working_copy working_copies" = "bright green"
+"working_copy bookmark" = "bright magenta"
+"working_copy bookmarks" = "bright magenta"
+"working_copy local_bookmarks" = "bright magenta"
+"working_copy remote_bookmarks" = "bright magenta"
+#  TODO: Remove *branch* in jj 0.28+
 "working_copy branch" = "bright magenta"
 "working_copy branches" = "bright magenta"
 "working_copy local_branches" = "bright magenta"
