@@ -1,5 +1,7 @@
 # Frequently asked questions
 
+## General Technical Questions
+
 ### Why does my branch not move to the new commit after `jj new/commit`?
 
 If you're familiar with Git, you might expect the current branch to move forward
@@ -289,6 +291,57 @@ will make the underlying git repo directly accessible from the working
 directory.
 
 We hope to integrate with Gerrit natively in the future.
+
+## Other Questions
+
+### What's does the name _Jujutsu_ mean, and where does it come from?
+
+When Martin von Zweigbergk originally started the project, it was named
+"[Jujube](https://en.wikipedia.org/wiki/Jujube)" after a type of fruit. This
+name is what actually gave rise to the lovable and short name `jj` for the
+command line tool. Later on, the the project was renamed to _Jujutsu_ &mdash; in
+part because it meant we could keep the command name `jj`.
+
+Jujutsu is a Japanese word that has two distinct interpretations in English,
+each with their own kanji and romanized form:
+
+- 柔術 _Jūjutsu_ &mdash; a family of Japanese martial arts, commonly spelled as
+  "**jujitsu**" or "**jiu-jitsu**" in the West. Thankfully, we checked the
+  spelling first.
+
+- 呪術 _Jujutsu_ &mdash; roughly meaning "magic" or "sorcery".
+
+However, the basic english word "jujutsu" on its own is somewhat ambiguous to
+native Japanese speakers, because most English words don't use the long vowel
+form "ū", making it unclear what the intended meaning might be when an English
+speaker writes it.
+
+For some time, we left the interpretation ambiguous.
+
+However, we have officially chosen **second** interpretation as the official
+name of the tool, 呪術 _Jujutsu_ as in "sorcery". Many of our users have said
+that as a version control system, Jujutsu simply feels like magic to them, so we
+think this is a fitting interpretation.
+
+The name "Jujutsu" is also known by many of our users through the popular manga
+and anime series _Jujutsu Kaisen_ (呪術廻戦). We didn't choose the name because
+of the series, but we're happy so many people enjoy the connection.
+
+### What's the proper way to refer to the project and tool?
+
+If you are writing a technical document, blog, article, forum post, social media
+endorsement, then the proper name of the project is Jujutsu (呪術 _Jujutsu_) and
+should be referred to as such in the text. Use it like any other proper noun.
+You don't _need_ to specify the kanji and romanized form, though it would be
+courteous to your Japanese-native readers to do so for the reasons explained
+above.
+
+In contrast, the name `jj` only refers to the command line interface of the
+tool, or generally the codebase of the tool itself. When writing about the
+command line interface, please refer to it as `jj` with the proper typographic
+code formatting, etc. (Occasionally though, the developers and contributors
+themselves may refer to the project as `jj` in casual conversations around the
+watercooler.)
 
 [branches_conflicts]: branches.md#conflicts
 
