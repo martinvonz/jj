@@ -22,7 +22,7 @@ use itertools::Itertools;
 
 use crate::backend::CommitId;
 use crate::op_store;
-use crate::op_store::BranchTarget;
+use crate::op_store::BookmarkTarget;
 use crate::op_store::RefTarget;
 use crate::op_store::RefTargetOptionExt as _;
 use crate::op_store::RemoteRef;
@@ -71,7 +71,7 @@ impl View {
     }
 
     /// Iterates pair of local and remote bookmarks by bookmark name.
-    pub fn bookmarks(&self) -> impl Iterator<Item = (&str, BranchTarget<'_>)> {
+    pub fn bookmarks(&self) -> impl Iterator<Item = (&str, BookmarkTarget<'_>)> {
         op_store::merge_join_bookmark_views(&self.data.local_bookmarks, &self.data.remote_views)
     }
 

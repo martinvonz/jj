@@ -276,7 +276,7 @@ Juggling conflicts:
 
 Whenever you modify a commit, any descendants of the old commit will be rebased
 onto the new commit. Thanks to the conflict design described above, that can be
-done even if there are conflicts. Branches pointing to rebased commits will be
+done even if there are conflicts. Bookmarks pointing to rebased commits will be
 updated. So will the working copy if it points to a rebased commit.
 
 ### Comprehensive support for rewriting history

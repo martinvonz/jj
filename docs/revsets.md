@@ -20,7 +20,7 @@ ID or a Git ref pointing to them).
 
 The `@` expression refers to the working copy commit in the current workspace.
 Use `<workspace name>@` to refer to the working-copy commit in another
-workspace. Use `<name>@<remote>` to refer to a remote-tracking branch.
+workspace. Use `<name>@<remote>` to refer to a remote-tracking bookmark.
 
 A full commit ID refers to a single commit. A unique prefix of the full commit
 ID can also be used. It is an error to use a non-unique prefix.
@@ -41,7 +41,7 @@ something like `jj log -r '"x-"'`.
 Jujutsu attempts to resolve a symbol in the following order:
 
 1. Tag name
-2. Branch name
+2. Bookmark name
 3. Git ref
 4. Commit ID or change ID
 
@@ -196,34 +196,34 @@ revsets (expressions) as arguments.
 * `none()`: No commits. This function is rarely useful; it is provided for
   completeness.
 
-* `branches([pattern])`: All local branch targets. If `pattern` is specified,
-  this selects the branches whose name match the given [string
-  pattern](#string-patterns). For example, `branches(push)` would match the
-  branches `push-123` and `repushed` but not the branch `main`. If a branch is
+* `bookmarks([pattern])`: All local bookmark targets. If `pattern` is specified,
+  this selects the bookmarks whose name match the given [string
+  pattern](#string-patterns). For example, `bookmarks(push)` would match the
+  bookmarks `push-123` and `repushed` but not the bookmark `main`. If a bookmark is
   in a conflicted state, all its possible targets are included.
 
-* `remote_branches([branch_pattern[, [remote=]remote_pattern]])`: All remote
-  branch targets across all remotes. If just the `branch_pattern` is
-  specified, the branches whose names match the given [string
+* `remote_bookmarks([bookmark_pattern[, [remote=]remote_pattern]])`: All remote
+  bookmarks targets across all remotes. If just the `bookmark_pattern` is
+  specified, the bookmarks whose names match the given [string
   pattern](#string-patterns) across all remotes are selected. If both
-  `branch_pattern` and `remote_pattern` are specified, the selection is
+  `bookmark_pattern` and `remote_pattern` are specified, the selection is
   further restricted to just the remotes whose names match `remote_pattern`.
 
-  For example, `remote_branches(push, ri)` would match the branches
+  For example, `remote_bookmarks(push, ri)` would match the bookmarks
   `push-123@origin` and `repushed@private` but not `push-123@upstream` or
-  `main@origin` or `main@upstream`. If a branch is in a conflicted state, all
+  `main@origin` or `main@upstream`. If a bookmark is in a conflicted state, all
   its possible targets are included.
 
-  While Git-tracking branches can be selected by `<name>@git`, these branches
-  aren't included in `remote_branches()`.
+  While Git-tracking bookmarks can be selected by `<name>@git`, these bookmarks
+  aren't included in `remote_bookmarks()`.
 
-* `tracked_remote_branches([branch_pattern[, [remote=]remote_pattern]])`: All
-  targets of tracked remote branches. Supports the same optional arguments as
-  `remote_branches()`.
+* `tracked_remote_bookmarks([bookmark_pattern[, [remote=]remote_pattern]])`: All
+  targets of tracked remote bookmarks. Supports the same optional arguments as
+  `remote_bookmarks()`.
 
-* `untracked_remote_branches([branch_pattern[, [remote=]remote_pattern]])`:
-  All targets of untracked remote branches. Supports the same optional arguments
-  as `remote_branches()`.
+* `untracked_remote_bookmarks([bookmark_pattern[, [remote=]remote_pattern]])`:
+  All targets of untracked remote bookmarks. Supports the same optional arguments
+  as `remote_bookmarks()`.
 
 * `tags()`: All tag targets. If a tag is in a conflicted state, all its
   possible targets are included.
@@ -299,7 +299,7 @@ given [string pattern](#string-patterns).
 * `conflict()`: Commits with conflicts.
 
 * `present(x)`: Same as `x`, but evaluated to `none()` if any of the commits
-  in `x` doesn't exist (e.g. is an unknown branch name.)
+  in `x` doesn't exist (e.g. is an unknown bookmark name.)
 
 * `working_copies()`: The working copy commits across all the workspaces.
 
@@ -409,31 +409,32 @@ are defined as aliases in order to allow you to overwrite them as needed.
 See [revsets.toml](https://github.com/martinvonz/jj/blob/main/cli/src/config/revsets.toml)
 for a comprehensive list.
 
-* `trunk()`: Resolves to the head commit for the trunk branch of the remote
-  named `origin` or `upstream`. The branches `main`, `master`, and `trunk` are
+* `trunk()`: Resolves to the head commit for the trunk bookmark of the remote
+  named `origin` or `upstream`. The bookmarks `main`, `master`, and `trunk` are
   tried. If more than one potential trunk commit exists, the newest one is
-  chosen. If none of the branches exist, the revset evaluates to `root()`.
+  chosen. If none of the bookmarks exist, the revset evaluates to `root()`.
 
   When working with an existing Git repository (via `jj git clone` or
   `jj git init`), `trunk()` will be overridden at the repository level
-  to the default branch of the remote `origin`.
+  to the default bookmark of the remote `origin`.
 
   You can [override](./config.md) this as appropriate. If you do, make sure it
   always resolves to exactly one commit. For example:
 
   ```toml
   [revset-aliases]
-  'trunk()' = 'your-branch@your-remote'
+  'trunk()' = 'your-bookmark@your-remote'
   ```
 
-* `builtin_immutable_heads()`: Resolves to `trunk() | tags() | untracked_remote_branches()`.
+* `builtin_immutable_heads()`: Resolves to `trunk() | tags() | untracked_remote_bookmarks()`.
    It is used as the default definition for `immutable_heads()` below. it is not
-   recommended to redefined this alias. Prefer to redefine `immutable_heads()` instead.
+   recommended to redefined this alias. Prefer to redefine `immutable_heads()`
+   instead.
 
-* `immutable_heads()`: Resolves to `trunk() | tags() |
-  untracked_remote_branches()` by default. It is actually defined as `builtin_immutable_heads()`,
-  and can be overridden as required.
-  See [here](config.md#set-of-immutable-commits) for details.
+* `immutable_heads()`: Resolves to `trunk() | tags() | untracked_remote_bookmarks()`
+  by default. It is actually defined as `builtin_immutable_heads()`, and can be
+  overridden as required. See [here](config.md#set-of-immutable-commits) for
+  details.
 
 * `immutable()`: The set of commits that `jj` treats as immutable. This is
   equivalent to `::(immutable_heads() | root())`. It is not recommended to redefine
@@ -493,16 +494,16 @@ Show all ancestors of the working copy (like plain `git log`)
 jj log -r ::@
 ```
 
-Show commits not on any remote branch:
+Show commits not on any remote bookmark:
 
 ```
-jj log -r 'remote_branches()..'
+jj log -r 'remote_bookmarks()..'
 ```
 
 Show commits not on `origin` (if you have other remotes like `fork`):
 
 ```
-jj log -r 'remote_branches(remote=origin)..'
+jj log -r 'remote_bookmarks(remote=origin)..'
 ```
 
 Show the initial commits in the repo (the ones Git calls "root commits"):
@@ -514,7 +515,7 @@ jj log -r 'root()+'
 Show some important commits (like `git --simplify-by-decoration`):
 
 ```
-jj log -r 'tags() | branches()'
+jj log -r 'tags() | bookmarks()'
 ```
 
 Show local commits leading up to the working copy, as well as descendants of
@@ -522,7 +523,7 @@ those commits:
 
 
 ```
-jj log -r '(remote_branches()..@)::'
+jj log -r '(remote_bookmarks()..@)::'
 ```
 
 Show commits authored by "martinvonz" and containing the word "reset" in the

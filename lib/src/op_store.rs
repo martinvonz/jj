@@ -255,7 +255,7 @@ impl<'a> RefTargetOptionExt for Option<&'a RemoteRef> {
 
 /// Local and remote bookmarks of the same bookmark name.
 #[derive(PartialEq, Eq, Clone, Debug)]
-pub struct BranchTarget<'a> {
+pub struct BookmarkTarget<'a> {
     /// The commit the bookmark points to locally.
     pub local_target: &'a RefTarget,
     /// `(remote_name, remote_ref)` pairs in lexicographical order.
@@ -297,7 +297,7 @@ pub struct RemoteView {
 pub(crate) fn merge_join_bookmark_views<'a>(
     local_bookmarks: &'a BTreeMap<String, RefTarget>,
     remote_views: &'a BTreeMap<String, RemoteView>,
-) -> impl Iterator<Item = (&'a str, BranchTarget<'a>)> {
+) -> impl Iterator<Item = (&'a str, BookmarkTarget<'a>)> {
     let mut local_bookmarks_iter = local_bookmarks
         .iter()
         .map(|(bookmark_name, target)| (bookmark_name.as_str(), target))
@@ -321,7 +321,7 @@ pub(crate) fn merge_join_bookmark_views<'a>(
             })
             .map(|((_, remote_name), remote_ref)| (remote_name, remote_ref))
             .collect();
-        let bookmark_target = BranchTarget {
+        let bookmark_target = BookmarkTarget {
             local_target,
             remote_refs,
         };
@@ -508,7 +508,7 @@ mod tests {
             vec![
                 (
                     "bookmark1",
-                    BranchTarget {
+                    BookmarkTarget {
                         local_target: &local_bookmark1_target,
                         remote_refs: vec![
                             ("git", &git_bookmark1_remote_ref),
@@ -518,7 +518,7 @@ mod tests {
                 ),
                 (
                     "bookmark2",
-                    BranchTarget {
+                    BookmarkTarget {
                         local_target: &local_bookmark2_target.clone(),
                         remote_refs: vec![
                             ("git", &git_bookmark2_remote_ref),
@@ -538,7 +538,7 @@ mod tests {
             merge_join_bookmark_views(&local_bookmarks, &remote_views).collect_vec(),
             vec![(
                 "bookmark1",
-                BranchTarget {
+                BookmarkTarget {
                     local_target: &local_bookmark1_target,
                     remote_refs: vec![],
                 },
@@ -558,7 +558,7 @@ mod tests {
             merge_join_bookmark_views(&local_bookmarks, &remote_views).collect_vec(),
             vec![(
                 "bookmark1",
-                BranchTarget {
+                BookmarkTarget {
                     local_target: RefTarget::absent_ref(),
                     remote_refs: vec![("remote1", &remote1_bookmark1_remote_ref)],
                 },

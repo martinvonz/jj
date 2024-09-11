@@ -404,7 +404,7 @@ fn test_git_colocated_bookmark_at_root() {
         test_env.jj_cmd_ok(&repo_path, &["bookmark", "create", "foo", "-r=root()"]);
     insta::assert_snapshot!(stderr, @r###"
     Created 1 bookmarks pointing to zzzzzzzz 00000000 foo | (empty) (no description set)
-    Warning: Failed to export some branches:
+    Warning: Failed to export some bookmarks:
       foo: Ref cannot point to the root commit in Git
     "###);
 
@@ -425,7 +425,7 @@ fn test_git_colocated_bookmark_at_root() {
     );
     insta::assert_snapshot!(stderr, @r###"
     Moved 1 bookmarks to zzzzzzzz 00000000 foo* | (empty) (no description set)
-    Warning: Failed to export some branches:
+    Warning: Failed to export some bookmarks:
       foo: Ref cannot point to the root commit in Git
     "###);
 }
@@ -442,11 +442,11 @@ fn test_git_colocated_conflicting_git_refs() {
     insta::with_settings!({filters => vec![("Failed to set: .*", "Failed to set: ...")]}, {
         insta::assert_snapshot!(stderr, @r###"
         Created 1 bookmarks pointing to qpvuntsm 230dd059 main main/sub | (empty) (no description set)
-        Warning: Failed to export some branches:
+        Warning: Failed to export some bookmarks:
           main/sub: Failed to set: ...
         Hint: Git doesn't allow a branch name that looks like a parent directory of
-        another (e.g. `foo` and `foo/bar`). Try to rename the branches that failed to
-        export or their "parent" branches.
+        another (e.g. `foo` and `foo/bar`). Try to rename the bookmarks that failed to
+        export or their "parent" bookmarks.
         "###);
     });
 }
@@ -547,8 +547,8 @@ fn test_git_colocated_fetch_deleted_or_moved_bookmark() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&clone_path, &["git", "fetch"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    branch: B_to_delete@origin [deleted] untracked
-    branch: C_to_move@origin   [updated] tracked
+    bookmark: B_to_delete@origin [deleted] untracked
+    bookmark: C_to_move@origin   [updated] tracked
     Abandoned 2 commits that are no longer reachable.
     "###);
     // "original C" and "B_to_delete" are abandoned, as the corresponding bookmarks
@@ -595,7 +595,7 @@ fn test_git_colocated_rebase_dirty_working_copy() {
       Use `jj bookmark list` to see details. Use `jj bookmark set <name> -r <rev>` to resolve.
     "###);
     insta::assert_snapshot!(stderr, @r###"
-    Warning: Failed to export some branches:
+    Warning: Failed to export some bookmarks:
       feature: Modified ref had been deleted in Git
     Done importing changes from the underlying Git repo.
     "###);

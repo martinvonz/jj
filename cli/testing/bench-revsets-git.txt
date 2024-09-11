@@ -16,11 +16,11 @@ v2.39.0::v2.40.0
 # Mostly recent history
 v2.40.0-..
 ~(::v2.40.0)
-# Tags and branches
+# Tags and bookmarks
 tags()
-branches()
+bookmarks()
 # Local changes
-(tags() | remote_branches())..
+(tags() | remote_bookmarks())..
 # Intersection of range with a small subset
 tags() & ::v2.40.0
 v2.39.0 & ::v2.40.0

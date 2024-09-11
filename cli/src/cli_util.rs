@@ -1796,7 +1796,7 @@ Then run `jj squash` to move the resolution into the conflicted commit."#,
     /// commits and that are eligible to advance. The `from` commits are
     /// typically the parents of the target commit of `jj commit` or `jj new`.
     ///
-    /// Branches are not moved until
+    /// Bookmarks are not moved until
     /// `WorkspaceCommandTransaction::advance_bookmarks()` is called with the
     /// `AdvanceableBookmark`s returned by this function.
     ///

@@ -6,7 +6,7 @@
 Jujutsu records each operation that modifies the repo in the "operation log".
 You can see the log with `jj op log`. Each operation object contains a snapshot
 of how the repo looked at the end of the operation. We call this snapshot a
-"view" object. The view contains information about where each branch, tag, and
+"view" object. The view contains information about where each bookmark, tag, and
 Git ref (in Git-backed repos) pointed, as well as the set of heads in the repo,
 and the current working-copy commit in each workspace. The operation object also
 (in addition to the view) contains pointers to the operation(s) immediately

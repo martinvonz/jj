@@ -344,10 +344,10 @@ fn test_index_commits_hidden_but_referenced() {
     let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
-    // Remote branches are usually visible at a certain point in operation
+    // Remote bookmarks are usually visible at a certain point in operation
     // history, but that's not guaranteed if old operations have been discarded.
-    // This can also happen if imported remote branches get immediately
-    // abandoned because the other branch has moved.
+    // This can also happen if imported remote bookmarks get immediately
+    // abandoned because the other bookmark has moved.
     let mut tx = repo.start_transaction(&settings);
     let commit_a = write_random_commit(tx.repo_mut(), &settings);
     let commit_b = write_random_commit(tx.repo_mut(), &settings);
@@ -356,7 +356,7 @@ fn test_index_commits_hidden_but_referenced() {
     tx.repo_mut().remove_head(commit_b.id());
     tx.repo_mut().remove_head(commit_c.id());
     tx.repo_mut().set_remote_bookmark(
-        "branch",
+        "bookmark",
         "origin",
         RemoteRef {
             target: RefTarget::from_legacy_form(

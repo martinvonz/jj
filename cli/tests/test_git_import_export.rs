@@ -67,11 +67,11 @@ fn test_git_export_conflicting_git_refs() {
     insta::assert_snapshot!(stdout, @"");
     insta::with_settings!({filters => vec![("Failed to set: .*", "Failed to set: ...")]}, {
         insta::assert_snapshot!(stderr, @r###"
-        Warning: Failed to export some branches:
+        Warning: Failed to export some bookmarks:
           main/sub: Failed to set: ...
         Hint: Git doesn't allow a branch name that looks like a parent directory of
-        another (e.g. `foo` and `foo/bar`). Try to rename the branches that failed to
-        export or their "parent" branches.
+        another (e.g. `foo` and `foo/bar`). Try to rename the bookmarks that failed to
+        export or their "parent" bookmarks.
         "###);
     });
 }
@@ -149,7 +149,7 @@ fn test_git_import_undo() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["git", "import"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    branch: a [new] tracked
+    bookmark: a [new] tracked
     "###);
     insta::assert_snapshot!(get_bookmark_output(&test_env, &repo_path), @r###"
     a: qpvuntsm 230dd059 (empty) (no description set)
@@ -165,7 +165,7 @@ fn test_git_import_undo() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["git", "import"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    branch: a [new] tracked
+    bookmark: a [new] tracked
     "###);
     insta::assert_snapshot!(get_bookmark_output(&test_env, &repo_path), @r###"
     a: qpvuntsm 230dd059 (empty) (no description set)
@@ -196,7 +196,7 @@ fn test_git_import_move_export_with_default_undo() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["git", "import"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    branch: a [new] tracked
+    bookmark: a [new] tracked
     "###);
     insta::assert_snapshot!(get_bookmark_output(&test_env, &repo_path), @r###"
     a: qpvuntsm 230dd059 (empty) (no description set)
@@ -244,7 +244,7 @@ fn test_git_import_move_export_with_default_undo() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["git", "import"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    branch: a [new] tracked
+    bookmark: a [new] tracked
     "###);
     insta::assert_snapshot!(get_bookmark_output(&test_env, &repo_path), @r###"
     a: yqosqzyt 096dc80d (empty) (no description set)

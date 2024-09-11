@@ -42,7 +42,7 @@ use crate::ui::Ui;
 ///
 /// Note that you can create a merge commit by specifying multiple revisions as
 /// argument. For example, `jj new main @` will create a new commit with the
-/// `main` branch and the working copy as parents.
+/// `main` bookmark and the working copy as parents.
 ///
 /// For more information, see
 /// https://martinvonz.github.io/jj/latest/working-copy/.
@@ -92,8 +92,8 @@ pub(crate) fn cmd_new(
     let parent_commits;
     let parent_commit_ids: Vec<CommitId>;
     let children_commits;
-    let mut advance_branches_target = None;
-    let mut advanceable_branches = vec![];
+    let mut advance_bookmarks_target = None;
+    let mut advanceable_bookmarks = vec![];
 
     if !args.insert_before.is_empty() && !args.insert_after.is_empty() {
         parent_commits = workspace_command
@@ -168,10 +168,10 @@ pub(crate) fn cmd_new(
         parent_commit_ids = parent_commits.iter().ids().cloned().collect();
         children_commits = vec![];
 
-        let should_advance_branches = parent_commits.len() == 1;
-        if should_advance_branches {
-            advance_branches_target = Some(parent_commit_ids[0].clone());
-            advanceable_branches =
+        let should_advance_bookmarks = parent_commits.len() == 1;
+        if should_advance_bookmarks {
+            advance_bookmarks_target = Some(parent_commit_ids[0].clone());
+            advanceable_bookmarks =
                 workspace_command.get_advanceable_bookmarks(parent_commits[0].parent_ids())?;
         }
     };
@@ -220,9 +220,9 @@ pub(crate) fn cmd_new(
         writeln!(ui.status(), "Rebased {num_rebased} descendant commits")?;
     }
 
-    // Does nothing if there's no branches to advance.
-    if let Some(target) = advance_branches_target {
-        tx.advance_bookmarks(advanceable_branches, &target);
+    // Does nothing if there's no bookmarks to advance.
+    if let Some(target) = advance_bookmarks_target {
+        tx.advance_bookmarks(advanceable_bookmarks, &target);
     }
 
     tx.finish(ui, "new empty commit")?;

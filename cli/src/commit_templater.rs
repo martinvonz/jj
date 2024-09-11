@@ -814,7 +814,7 @@ fn evaluate_user_revset<'repo>(
     evaluate_revset_expression(language, span, expression)
 }
 
-/// Branch or tag name with metadata.
+/// Bookmark or tag name with metadata.
 #[derive(Debug)]
 pub struct RefName {
     /// Local name.

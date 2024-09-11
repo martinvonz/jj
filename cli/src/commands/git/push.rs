@@ -27,8 +27,8 @@ use jj_lib::git::GitPushError;
 use jj_lib::object_id::ObjectId;
 use jj_lib::op_store::RefTarget;
 use jj_lib::refs::classify_bookmark_push_action;
-use jj_lib::refs::BranchPushAction;
-use jj_lib::refs::BranchPushUpdate;
+use jj_lib::refs::BookmarkPushAction;
+use jj_lib::refs::BookmarkPushUpdate;
 use jj_lib::refs::LocalAndRemoteRef;
 use jj_lib::repo::Repo;
 use jj_lib::revset::RevsetExpression;
@@ -132,7 +132,7 @@ fn make_bookmark_term(bookmark_names: &[impl fmt::Display]) -> String {
 const DEFAULT_REMOTE: &str = "origin";
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum BranchMoveDirection {
+enum BookmarkMoveDirection {
     Forward,
     Backward,
     Sideways,
@@ -155,11 +155,11 @@ pub fn cmd_git_push(
     let repo = workspace_command.repo().clone();
     let mut tx = workspace_command.start_transaction();
     let tx_description;
-    let mut branch_updates = vec![];
+    let mut bookmark_updates = vec![];
     if args.all {
         for (bookmark_name, targets) in repo.view().local_remote_bookmarks(&remote) {
             match classify_bookmark_update(bookmark_name, &remote, targets) {
-                Ok(Some(update)) => branch_updates.push((bookmark_name.to_owned(), update)),
+                Ok(Some(update)) => bookmark_updates.push((bookmark_name.to_owned(), update)),
                 Ok(None) => {}
                 Err(reason) => reason.print(ui)?,
             }
@@ -171,7 +171,7 @@ pub fn cmd_git_push(
                 continue;
             }
             match classify_bookmark_update(bookmark_name, &remote, targets) {
-                Ok(Some(update)) => branch_updates.push((bookmark_name.to_owned(), update)),
+                Ok(Some(update)) => bookmark_updates.push((bookmark_name.to_owned(), update)),
                 Ok(None) => {}
                 Err(reason) => reason.print(ui)?,
             }
@@ -183,7 +183,7 @@ pub fn cmd_git_push(
                 continue;
             }
             match classify_bookmark_update(bookmark_name, &remote, targets) {
-                Ok(Some(update)) => branch_updates.push((bookmark_name.to_owned(), update)),
+                Ok(Some(update)) => bookmark_updates.push((bookmark_name.to_owned(), update)),
                 Ok(None) => {}
                 Err(reason) => reason.print(ui)?,
             }
@@ -212,10 +212,10 @@ pub fn cmd_git_push(
                 continue;
             }
             match classify_bookmark_update(bookmark_name, &remote, targets) {
-                Ok(Some(update)) => branch_updates.push((bookmark_name.to_owned(), update)),
+                Ok(Some(update)) => bookmark_updates.push((bookmark_name.to_owned(), update)),
                 Ok(None) => writeln!(
                     ui.status(),
-                    "Branch {bookmark_name}@{remote} already matches {bookmark_name}",
+                    "Bookmark {bookmark_name}@{remote} already matches {bookmark_name}",
                 )?,
                 Err(reason) => return Err(reason.into()),
             }
@@ -235,7 +235,7 @@ pub fn cmd_git_push(
                 continue;
             }
             match classify_bookmark_update(bookmark_name, &remote, targets) {
-                Ok(Some(update)) => branch_updates.push((bookmark_name.to_owned(), update)),
+                Ok(Some(update)) => bookmark_updates.push((bookmark_name.to_owned(), update)),
                 Ok(None) => {}
                 Err(reason) => reason.print(ui)?,
             }
@@ -244,7 +244,7 @@ pub fn cmd_git_push(
         tx_description = format!(
             "push {} to git remote {}",
             make_bookmark_term(
-                &branch_updates
+                &bookmark_updates
                     .iter()
                     .map(|(bookmark, _)| bookmark.as_str())
                     .collect_vec()
@@ -252,14 +252,14 @@ pub fn cmd_git_push(
             &remote
         );
     }
-    if branch_updates.is_empty() {
+    if bookmark_updates.is_empty() {
         writeln!(ui.status(), "Nothing changed.")?;
         return Ok(());
     }
 
     let mut bookmark_push_direction = HashMap::new();
-    for (bookmark_name, update) in &branch_updates {
-        let BranchPushUpdate {
+    for (bookmark_name, update) in &bookmark_updates {
+        let BookmarkPushUpdate {
             old_target: Some(old_target),
             new_target: Some(new_target),
         } = update
@@ -270,19 +270,19 @@ pub fn cmd_git_push(
         bookmark_push_direction.insert(
             bookmark_name.to_string(),
             if repo.index().is_ancestor(old_target, new_target) {
-                BranchMoveDirection::Forward
+                BookmarkMoveDirection::Forward
             } else if repo.index().is_ancestor(new_target, old_target) {
-                BranchMoveDirection::Backward
+                BookmarkMoveDirection::Backward
             } else {
-                BranchMoveDirection::Sideways
+                BookmarkMoveDirection::Sideways
             },
         );
     }
 
-    validate_commits_ready_to_push(&branch_updates, &remote, &tx, command, args)?;
+    validate_commits_ready_to_push(&bookmark_updates, &remote, &tx, command, args)?;
 
-    writeln!(ui.status(), "Branch changes to push to {}:", &remote)?;
-    for (bookmark_name, update) in &branch_updates {
+    writeln!(ui.status(), "Bookmark changes to push to {}:", &remote)?;
+    for (bookmark_name, update) in &bookmark_updates {
         match (&update.old_target, &update.new_target) {
             (Some(old_target), Some(new_target)) => {
                 let old = short_commit_hash(old_target);
@@ -294,13 +294,13 @@ pub fn cmd_git_push(
                 // suggest "Move bookmark ... forward by n commits",
                 // possibly "Move bookmark ... sideways (X forward, Y back)".
                 let msg = match bookmark_push_direction.get(bookmark_name).unwrap() {
-                    BranchMoveDirection::Forward => {
+                    BookmarkMoveDirection::Forward => {
                         format!("Move forward bookmark {bookmark_name} from {old} to {new}")
                     }
-                    BranchMoveDirection::Backward => {
+                    BookmarkMoveDirection::Backward => {
                         format!("Move backward bookmark {bookmark_name} from {old} to {new}")
                     }
-                    BranchMoveDirection::Sideways => {
+                    BookmarkMoveDirection::Sideways => {
                         format!("Move sideways bookmark {bookmark_name} from {old} to {new}")
                     }
                 };
@@ -331,7 +331,9 @@ pub fn cmd_git_push(
         return Ok(());
     }
 
-    let targets = GitBranchPushTargets { branch_updates };
+    let targets = GitBranchPushTargets {
+        branch_updates: bookmark_updates,
+    };
     let mut writer = GitSidebandProgressMessageWriter::new(ui);
     let mut sideband_progress_callback = |progress_message: &[u8]| {
         _ = writer.write(ui, progress_message);
@@ -360,7 +362,7 @@ pub fn cmd_git_push(
 /// Validates that the commits that will be pushed are ready (have authorship
 /// information, are not conflicted, etc.)
 fn validate_commits_ready_to_push(
-    bookmark_updates: &[(String, BranchPushUpdate)],
+    bookmark_updates: &[(String, BookmarkPushUpdate)],
     remote: &str,
     tx: &WorkspaceCommandTransaction,
     command: &CommandHelper,
@@ -454,12 +456,12 @@ fn get_default_push_remote(
 }
 
 #[derive(Clone, Debug)]
-struct RejectedBranchUpdateReason {
+struct RejectedBookmarkUpdateReason {
     message: String,
     hint: Option<String>,
 }
 
-impl RejectedBranchUpdateReason {
+impl RejectedBookmarkUpdateReason {
     fn print(&self, ui: &Ui) -> io::Result<()> {
         writeln!(ui.warning_default(), "{}", self.message)?;
         if let Some(hint) = &self.hint {
@@ -469,9 +471,9 @@ impl RejectedBranchUpdateReason {
     }
 }
 
-impl From<RejectedBranchUpdateReason> for CommandError {
-    fn from(reason: RejectedBranchUpdateReason) -> Self {
-        let RejectedBranchUpdateReason { message, hint } = reason;
+impl From<RejectedBookmarkUpdateReason> for CommandError {
+    fn from(reason: RejectedBookmarkUpdateReason) -> Self {
+        let RejectedBookmarkUpdateReason { message, hint } = reason;
         let mut cmd_err = user_error(message);
         cmd_err.extend_hints(hint);
         cmd_err
@@ -482,29 +484,29 @@ fn classify_bookmark_update(
     bookmark_name: &str,
     remote_name: &str,
     targets: LocalAndRemoteRef,
-) -> Result<Option<BranchPushUpdate>, RejectedBranchUpdateReason> {
+) -> Result<Option<BookmarkPushUpdate>, RejectedBookmarkUpdateReason> {
     let push_action = classify_bookmark_push_action(targets);
     match push_action {
-        BranchPushAction::AlreadyMatches => Ok(None),
-        BranchPushAction::LocalConflicted => Err(RejectedBranchUpdateReason {
-            message: format!("Branch {bookmark_name} is conflicted"),
+        BookmarkPushAction::AlreadyMatches => Ok(None),
+        BookmarkPushAction::LocalConflicted => Err(RejectedBookmarkUpdateReason {
+            message: format!("Bookmark {bookmark_name} is conflicted"),
             hint: Some(
                 "Run `jj bookmark list` to inspect, and use `jj bookmark set` to fix it up."
                     .to_owned(),
             ),
         }),
-        BranchPushAction::RemoteConflicted => Err(RejectedBranchUpdateReason {
-            message: format!("Branch {bookmark_name}@{remote_name} is conflicted"),
+        BookmarkPushAction::RemoteConflicted => Err(RejectedBookmarkUpdateReason {
+            message: format!("Bookmark {bookmark_name}@{remote_name} is conflicted"),
             hint: Some("Run `jj git fetch` to update the conflicted remote bookmark.".to_owned()),
         }),
-        BranchPushAction::RemoteUntracked => Err(RejectedBranchUpdateReason {
+        BookmarkPushAction::RemoteUntracked => Err(RejectedBookmarkUpdateReason {
             message: format!("Non-tracking remote bookmark {bookmark_name}@{remote_name} exists"),
             hint: Some(format!(
                 "Run `jj bookmark track {bookmark_name}@{remote_name}` to import the remote \
                  bookmark."
             )),
         }),
-        BranchPushAction::Update(update) => Ok(Some(update)),
+        BookmarkPushAction::Update(update) => Ok(Some(update)),
     }
 }
 

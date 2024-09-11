@@ -394,11 +394,11 @@ Start tracking given remote bookmarks
 
 A tracking remote bookmark will be imported as a local bookmark of the same name. Changes to it will propagate to the existing local bookmark on future pulls.
 
-**Usage:** `jj bookmark track <BRANCH@REMOTE>...`
+**Usage:** `jj bookmark track <BOOKMARK@REMOTE>...`
 
 ###### **Arguments:**
 
-* `<BRANCH@REMOTE>` — Remote bookmarks to track
+* `<BOOKMARK@REMOTE>` — Remote bookmarks to track
 
    By default, the specified name matches exactly. Use `glob:` prefix to select bookmarks by wildcard pattern. For details, see https://martinvonz.github.io/jj/latest/revsets/#string-patterns.
 
@@ -412,11 +412,11 @@ Stop tracking given remote bookmarks
 
 A non-tracking remote bookmark is just a pointer to the last-fetched remote bookmark. It won't be imported as a local bookmark on future pulls.
 
-**Usage:** `jj bookmark untrack <BRANCH@REMOTE>...`
+**Usage:** `jj bookmark untrack <BOOKMARK@REMOTE>...`
 
 ###### **Arguments:**
 
-* `<BRANCH@REMOTE>` — Remote bookmarks to untrack
+* `<BOOKMARK@REMOTE>` — Remote bookmarks to untrack
 
    By default, the specified name matches exactly. Use `glob:` prefix to select bookmarks by wildcard pattern. For details, see https://martinvonz.github.io/jj/latest/revsets/#string-patterns.
 
@@ -608,7 +608,7 @@ Compare file contents between two revisions
 
 With the `-r` option, which is the default, shows the changes compared to the parent revision. If there are several parent revisions (i.e., the given revision is a merge), then they will be merged and the changes from the result to the given revision will be shown.
 
-With the `--from` and/or `--to` options, shows the difference from/to the given revisions. If either is left out, it defaults to the working-copy commit. For example, `jj diff --from main` shows the changes from "main" (perhaps a branch name) to the working-copy commit.
+With the `--from` and/or `--to` options, shows the difference from/to the given revisions. If either is left out, it defaults to the working-copy commit. For example, `jj diff --from main` shows the changes from "main" (perhaps a bookmark name) to the working-copy commit.
 
 **Usage:** `jj diff [OPTIONS] [PATHS]...`
 
@@ -1075,7 +1075,7 @@ The Git repo will be a bare git repo stored inside the `.jj/` directory.
 
 * `add` — Add a Git remote
 * `list` — List Git remotes
-* `remove` — Remove a Git remote and forget its branches
+* `remove` — Remove a Git remote and forget its bookmarks
 * `rename` — Rename a Git remote
 * `set-url` — Set the URL of a Git remote
 
@@ -1104,7 +1104,7 @@ List Git remotes
 
 ## `jj git remote remove`
 
-Remove a Git remote and forget its branches
+Remove a Git remote and forget its bookmarks
 
 **Usage:** `jj git remote remove <REMOTE>`
 
@@ -1234,7 +1234,7 @@ Create a new, empty change and (by default) edit it in the working copy
 
 By default, `jj` will edit the new change, making the working copy represent the new commit. This can be avoided with `--no-edit`.
 
-Note that you can create a merge commit by specifying multiple revisions as argument. For example, `jj new main @` will create a new commit with the `main` branch and the working copy as parents.
+Note that you can create a merge commit by specifying multiple revisions as argument. For example, `jj new main @` will create a new commit with the `main` bookmark and the working copy as parents.
 
 For more information, see https://martinvonz.github.io/jj/latest/working-copy/.
 
@@ -1433,9 +1433,9 @@ This restores the repo to the state at the specified operation, effectively undo
 
   Possible values:
   - `repo`:
-    The jj repo state and local branches
+    The jj repo state and local bookmarks
   - `remote-tracking`:
-    The remote-tracking branches. Do not restore these if you'd like to push after the undo
+    The remote-tracking bookmarks. Do not restore these if you'd like to push after the undo
 
 
 
@@ -1499,9 +1499,9 @@ This undoes an individual operation by applying the inverse of the operation.
 
   Possible values:
   - `repo`:
-    The jj repo state and local branches
+    The jj repo state and local bookmarks
   - `remote-tracking`:
-    The remote-tracking branches. Do not restore these if you'd like to push after the undo
+    The remote-tracking bookmarks. Do not restore these if you'd like to push after the undo
 
 
 
@@ -2087,9 +2087,9 @@ Undo an operation (shortcut for `jj op undo`)
 
   Possible values:
   - `repo`:
-    The jj repo state and local branches
+    The jj repo state and local bookmarks
   - `remote-tracking`:
-    The remote-tracking branches. Do not restore these if you'd like to push after the undo
+    The remote-tracking bookmarks. Do not restore these if you'd like to push after the undo
 
 
 

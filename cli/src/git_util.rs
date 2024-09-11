@@ -375,13 +375,13 @@ impl RefStatus {
         let padded_ref_name = format!("{}{:>pad_width$}", self.ref_name, "", pad_width = pad_width);
 
         let ref_kind = match self.ref_kind {
-            RefKind::Branch => "branch: ",
+            RefKind::Branch => "bookmark: ",
             RefKind::Tag if !has_both_ref_kinds => "tag: ",
             RefKind::Tag => "tag:    ",
         };
 
         write!(out, "{ref_kind}")?;
-        write!(out.labeled("branch"), "{padded_ref_name}")?;
+        write!(out.labeled("bookmark"), "{padded_ref_name}")?;
         writeln!(out, " [{import_status}] {tracking_status}")
     }
 }
@@ -405,29 +405,29 @@ enum ImportStatus {
 
 pub fn print_failed_git_export(
     ui: &Ui,
-    failed_branches: &[FailedRefExport],
+    failed_refs: &[FailedRefExport],
 ) -> Result<(), std::io::Error> {
-    if !failed_branches.is_empty() {
-        writeln!(ui.warning_default(), "Failed to export some branches:")?;
+    if !failed_refs.is_empty() {
+        writeln!(ui.warning_default(), "Failed to export some bookmarks:")?;
         let mut formatter = ui.stderr_formatter();
-        for FailedRefExport { name, reason } in failed_branches {
+        for FailedRefExport { name, reason } in failed_refs {
             write!(formatter, "  ")?;
-            write!(formatter.labeled("branch"), "{name}")?;
+            write!(formatter.labeled("bookmark"), "{name}")?;
             for err in iter::successors(Some(reason as &dyn error::Error), |err| err.source()) {
                 write!(formatter, ": {err}")?;
             }
             writeln!(formatter)?;
         }
         drop(formatter);
-        if failed_branches
+        if failed_refs
             .iter()
             .any(|failed| matches!(failed.reason, FailedRefExportReason::FailedToSet(_)))
         {
             writeln!(
                 ui.hint_default(),
                 r#"Git doesn't allow a branch name that looks like a parent directory of
-another (e.g. `foo` and `foo/bar`). Try to rename the branches that failed to
-export or their "parent" branches."#,
+another (e.g. `foo` and `foo/bar`). Try to rename the bookmarks that failed to
+export or their "parent" bookmarks."#,
             )?;
         }
     }

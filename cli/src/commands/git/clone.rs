@@ -175,7 +175,7 @@ pub fn cmd_git_clone(
             .get_remote_bookmark(default_branch, remote_name);
         if let Some(commit_id) = default_branch_remote_ref.target.as_normal().cloned() {
             let mut checkout_tx = workspace_command.start_transaction();
-            // For convenience, create local branch as Git would do.
+            // For convenience, create local bookmark as Git would do.
             checkout_tx
                 .repo_mut()
                 .track_remote_bookmark(default_branch, remote_name);

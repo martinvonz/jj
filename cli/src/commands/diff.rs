@@ -36,7 +36,7 @@ use crate::ui::Ui;
 /// With the `--from` and/or `--to` options, shows the difference from/to the
 /// given revisions. If either is left out, it defaults to the working-copy
 /// commit. For example, `jj diff --from main` shows the changes from "main"
-/// (perhaps a branch name) to the working-copy commit.
+/// (perhaps a bookmark name) to the working-copy commit.
 #[derive(clap::Args, Clone, Debug)]
 pub(crate) struct DiffArgs {
     /// Show changes in this revision, compared to its parent(s)

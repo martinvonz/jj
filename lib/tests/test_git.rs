@@ -45,11 +45,11 @@ use jj_lib::git::RefName;
 use jj_lib::git::SubmoduleConfig;
 use jj_lib::git_backend::GitBackend;
 use jj_lib::object_id::ObjectId;
-use jj_lib::op_store::BranchTarget;
+use jj_lib::op_store::BookmarkTarget;
 use jj_lib::op_store::RefTarget;
 use jj_lib::op_store::RemoteRef;
 use jj_lib::op_store::RemoteRefState;
-use jj_lib::refs::BranchPushUpdate;
+use jj_lib::refs::BookmarkPushUpdate;
 use jj_lib::repo::MutableRepo;
 use jj_lib::repo::ReadonlyRepo;
 use jj_lib::repo::Repo;
@@ -1072,7 +1072,7 @@ fn test_import_refs_reimport_conflicted_remote_bookmark() {
     let mut tx2 = repo.start_transaction(&settings);
     git::import_refs(tx2.repo_mut(), &git_settings).unwrap();
 
-    // Remote branch can diverge by divergent operations (like `jj git fetch`)
+    // Remote bookmark can diverge by divergent operations (like `jj git fetch`)
     let repo = commit_transactions(&settings, vec![tx1, tx2]);
     assert_eq!(
         repo.view().get_git_ref("refs/remotes/origin/main"),
@@ -2318,7 +2318,7 @@ fn test_fetch_initial_commit() {
     assert_eq!(
         view.bookmarks().collect::<BTreeMap<_, _>>(),
         btreemap! {
-            "main" => BranchTarget {
+            "main" => BookmarkTarget {
                 local_target: &initial_commit_target,
                 remote_refs: vec![
                     ("origin", &initial_commit_remote_ref),
@@ -2392,7 +2392,7 @@ fn test_fetch_success() {
     assert_eq!(
         view.bookmarks().collect::<BTreeMap<_, _>>(),
         btreemap! {
-            "main" => BranchTarget {
+            "main" => BookmarkTarget {
                 local_target: &new_commit_target,
                 remote_refs: vec![
                     ("origin", &new_commit_remote_ref),
@@ -2653,7 +2653,7 @@ fn test_push_bookmarks_success() {
     let targets = GitBranchPushTargets {
         branch_updates: vec![(
             "main".to_owned(),
-            BranchPushUpdate {
+            BookmarkPushUpdate {
                 old_target: Some(setup.main_commit.id().clone()),
                 new_target: Some(setup.child_of_main_commit.id().clone()),
             },
@@ -2722,7 +2722,7 @@ fn test_push_bookmarks_deletion() {
     let targets = GitBranchPushTargets {
         branch_updates: vec![(
             "main".to_owned(),
-            BranchPushUpdate {
+            BookmarkPushUpdate {
                 old_target: Some(setup.main_commit.id().clone()),
                 new_target: None,
             },
@@ -2771,14 +2771,14 @@ fn test_push_bookmarks_mixed_deletion_and_addition() {
         branch_updates: vec![
             (
                 "main".to_owned(),
-                BranchPushUpdate {
+                BookmarkPushUpdate {
                     old_target: Some(setup.main_commit.id().clone()),
                     new_target: None,
                 },
             ),
             (
                 "topic".to_owned(),
-                BranchPushUpdate {
+                BookmarkPushUpdate {
                     old_target: None,
                     new_target: Some(setup.child_of_main_commit.id().clone()),
                 },
@@ -2838,7 +2838,7 @@ fn test_push_bookmarks_not_fast_forward() {
     let targets = GitBranchPushTargets {
         branch_updates: vec![(
             "main".to_owned(),
-            BranchPushUpdate {
+            BookmarkPushUpdate {
                 old_target: Some(setup.main_commit.id().clone()),
                 new_target: Some(setup.sideways_commit.id().clone()),
             },

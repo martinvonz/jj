@@ -643,11 +643,11 @@ fn test_new_conflicting_bookmarks() {
     let stderr = test_env.jj_cmd_failure(&repo_path, &["new", "foo"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: Revset "foo" resolved to more than one revision
-    Hint: Branch foo resolved to multiple revisions because it's conflicted.
+    Hint: Bookmark foo resolved to multiple revisions because it's conflicted.
     It resolved to these revisions:
       kkmpptxz 66c6502d foo?? | (empty) two
       qpvuntsm 876f4b7e foo?? | (empty) one
-    Hint: Set which revision the branch points to with `jj branch set foo -r <REVISION>`.
+    Hint: Set which revision the bookmark points to with `jj bookmark set foo -r <REVISION>`.
     "###);
 }
 

@@ -1,12 +1,12 @@
 # Glossary
 
-## Anonymous bookmark
+## Anonymous branch
 
-An anonymous bookmark is a chain of commits that doesn't have any
+An anonymous branch is a chain of commits that doesn't have any
 [named bookmarks](#bookmark) pointing to it or to any of its descendants. Unlike
-Git, Jujutsu keeps commits on anonymous bookmarks around until they are
-explicitly abandoned. Visible anonymous bookmarks are tracked by the
-[view](#view), which stores a list of [heads](#head) of such bookmarks.
+Git, Jujutsu keeps commits on anonymous branches around until they are
+explicitly abandoned. Visible anonymous branches are tracked by the
+[view](#view), which stores a list of [heads](#head) of such branches.
 
 ## Backend
 
@@ -23,12 +23,11 @@ such as the "operation store backend" for storing
 ## Bookmark
 
 A bookmark is a named pointer to a [commit](#commit). They automatically follow
-the commit if it gets [rewritten](#rewrite). Branches are sometimes called
-"named bookmarks" to distinguish them from
-[anonymous bookmarks](#anonymous-bookmark), but note that they are more similar
-to Git's bookmarks than to
-[Mercurial's named bookmarks](https://www.mercurial-scm.org/wiki/Branch#Named_bookmarks).
-See [here](bookmarks.md) for details.
+the commit if it gets [rewritten](#rewrite). Bookmarks are sometimes called
+"named branches" to distinguish them from [anonymous branches](#anonymous-branch).
+They are similar to Git's branches and even more similar to 
+[Mercurial's bookmarks](https://wiki.mercurial-scm.org/Bookmarks). See
+[here](bookmarks.md) for details.
 
 ## Change
 

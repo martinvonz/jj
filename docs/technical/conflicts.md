@@ -4,7 +4,7 @@
 
 Conflicts can happen when two changes are applied to some state. This document
 is about conflicts between changes to files (not about [conflicts between
-changes to branch targets](concurrency.md), for example).
+changes to bookmark targets](concurrency.md), for example).
 
 For example, if you merge two branches in a repo, there may be conflicting
 changes between the two branches. Most DVCSs require you to resolve those

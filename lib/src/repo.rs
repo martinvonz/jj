@@ -836,7 +836,7 @@ pub struct MutableRepo {
     index: Box<dyn MutableIndex>,
     view: DirtyCell<View>,
     // The commit identified by the key has been replaced by all the ones in the value.
-    // * Branches pointing to the old commit should be updated to the new commit, resulting in a
+    // * Bookmarks pointing to the old commit should be updated to the new commit, resulting in a
     //   conflict if there multiple new commits.
     // * Children of the old commit should be rebased onto the new commits. However, if the type is
     //   `Divergent`, they should be left in place.
@@ -1066,12 +1066,12 @@ impl MutableRepo {
 
     fn update_all_references(&mut self, settings: &UserSettings) -> BackendResult<()> {
         let rewrite_mapping = self.resolve_rewrite_mapping_with(|_| true);
-        self.update_local_branches(&rewrite_mapping);
+        self.update_local_bookmarks(&rewrite_mapping);
         self.update_wc_commits(settings, &rewrite_mapping)?;
         Ok(())
     }
 
-    fn update_local_branches(&mut self, rewrite_mapping: &HashMap<CommitId, Vec<CommitId>>) {
+    fn update_local_bookmarks(&mut self, rewrite_mapping: &HashMap<CommitId, Vec<CommitId>>) {
         let changed_branches = self
             .view()
             .local_bookmarks()

@@ -98,7 +98,7 @@ fn test_bookmark_at_root() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Nothing changed.
-    Warning: Failed to export some branches:
+    Warning: Failed to export some bookmarks:
       fred: Ref cannot point to the root commit in Git
     "###);
 }
@@ -773,7 +773,7 @@ fn test_bookmark_forget_fetched_bookmark() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["git", "fetch", "--remote=origin"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    branch: feature1@origin [new] tracked
+    bookmark: feature1@origin [new] tracked
     "###);
     insta::assert_snapshot!(get_bookmark_output(&test_env, &repo_path), @r###"
     feature1: mzyxwzks 9f01a0e0 message
@@ -787,7 +787,7 @@ fn test_bookmark_forget_fetched_bookmark() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["git", "fetch", "--remote=origin"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    branch: feature1@origin [new] tracked
+    bookmark: feature1@origin [new] tracked
     "###);
     insta::assert_snapshot!(get_bookmark_output(&test_env, &repo_path), @r###"
     feature1: mzyxwzks 9f01a0e0 message
@@ -817,7 +817,7 @@ fn test_bookmark_forget_fetched_bookmark() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["git", "fetch", "--remote=origin"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    branch: feature1@origin [new] tracked
+    bookmark: feature1@origin [new] tracked
     "###);
     insta::assert_snapshot!(get_bookmark_output(&test_env, &repo_path), @r###"
     feature1: ooosovrs 38aefb17 (empty) another message
@@ -931,9 +931,9 @@ fn test_bookmark_track_untrack() {
     test_env.add_config("git.auto-local-branch = false");
     let (_stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["git", "fetch"]);
     insta::assert_snapshot!(stderr, @r###"
-    branch: feature1@origin [new] untracked
-    branch: feature2@origin [new] untracked
-    branch: main@origin     [new] untracked
+    bookmark: feature1@origin [new] untracked
+    bookmark: feature2@origin [new] untracked
+    bookmark: main@origin     [new] untracked
     "###);
     insta::assert_snapshot!(get_bookmark_output(&test_env, &repo_path), @r###"
     feature1@origin: sptzoqmo 7b33f629 commit 1
@@ -974,7 +974,7 @@ fn test_bookmark_track_untrack() {
       @origin: sptzoqmo 7b33f629 commit 1
     "###);
 
-    // Untrack existing and locally-deleted bookmarks. Branch targets should be
+    // Untrack existing and locally-deleted bookmarks. Bookmark targets should be
     // unchanged
     test_env.jj_cmd_ok(&repo_path, &["bookmark", "delete", "feature2"]);
     test_env.jj_cmd_ok(
@@ -1007,9 +1007,9 @@ fn test_bookmark_track_untrack() {
     );
     let (_stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["git", "fetch"]);
     insta::assert_snapshot!(stderr, @r###"
-    branch: feature1@origin [updated] untracked
-    branch: feature2@origin [updated] untracked
-    branch: main@origin     [updated] tracked
+    bookmark: feature1@origin [updated] untracked
+    bookmark: feature2@origin [updated] untracked
+    bookmark: main@origin     [updated] tracked
     "###);
     insta::assert_snapshot!(get_bookmark_output(&test_env, &repo_path), @r###"
     feature1: sptzoqmo 7b33f629 commit 1
@@ -1042,10 +1042,10 @@ fn test_bookmark_track_untrack() {
     test_env.add_config("git.auto-local-branch = true");
     let (_stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["git", "fetch"]);
     insta::assert_snapshot!(stderr, @r###"
-    branch: feature1@origin [updated] untracked
-    branch: feature2@origin [updated] untracked
-    branch: feature3@origin [new] tracked
-    branch: main@origin     [updated] tracked
+    bookmark: feature1@origin [updated] untracked
+    bookmark: feature2@origin [updated] untracked
+    bookmark: feature3@origin [new] tracked
+    bookmark: main@origin     [updated] tracked
     Abandoned 1 commits that are no longer reachable.
     "###);
     insta::assert_snapshot!(get_bookmark_output(&test_env, &repo_path), @r###"
@@ -1133,15 +1133,15 @@ fn test_bookmark_track_untrack_patterns() {
     test_env.add_config("git.auto-local-branch = false");
     let (_stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["git", "fetch"]);
     insta::assert_snapshot!(stderr, @r###"
-    branch: feature1@origin [new] untracked
-    branch: feature2@origin [new] untracked
+    bookmark: feature1@origin [new] untracked
+    bookmark: feature2@origin [new] untracked
     "###);
 
     // Track local bookmark
     test_env.jj_cmd_ok(&repo_path, &["bookmark", "create", "main"]);
     insta::assert_snapshot!(
         test_env.jj_cmd_cli_error(&repo_path, &["bookmark", "track", "main"]), @r###"
-    error: invalid value 'main' for '<BRANCH@REMOTE>...': remote bookmark must be specified in bookmark@remote form
+    error: invalid value 'main' for '<BOOKMARK@REMOTE>...': remote bookmark must be specified in bookmark@remote form
 
     For more information, try '--help'.
     "###);

@@ -229,7 +229,7 @@
                         "committer",
                         "working_copies",
                         "current_working_copy",
-                        "branches",
+                        "bookmarks",
                         "tags",
                         "git_refs",
                         "is_git_head",
@@ -299,7 +299,7 @@
             "properties": {
                 "auto-local-branch": {
                     "type": "boolean",
-                    "description": "Whether jj creates a local branch with the same name when it imports a remote-tracking branch from git. See https://martinvonz.github.io/jj/latest/config/#automatic-local-branch-creation",
+                    "description": "Whether jj creates a local bookmark with the same name when it imports a remote-tracking branch from git. See https://martinvonz.github.io/jj/latest/config/#automatic-local-bookmark-creation",
                     "default": false
                 },
                 "abandon-unreachable-commits": {
@@ -448,18 +448,18 @@
         },
         "experimental-advance-branches": {
             "type": "object",
-            "description": "Settings controlling the 'advance-branches' feature which moves branches forward when new commits are created.",
+            "description": "Settings controlling the 'advance-branches' feature which moves bookmarks forward when new commits are created.",
             "properties": {
                 "enabled-branches": {
                     "type": "array",
-                    "description": "Patterns used to identify branches which may be advanced.",
+                    "description": "Patterns used to identify bookmarks which may be advanced.",
                     "items": {
                         "type": "string"
                     }
                 },
                 "disabled-branches": {
                     "type": "array",
-                    "description": "Patterns used to identify branches which are not advanced. Takes precedence over 'enabled-branches'.",
+                    "description": "Patterns used to identify bookmarks which are not advanced. Takes precedence over 'enabled-branches'.",
                     "items": {
                         "type": "string"
                     }

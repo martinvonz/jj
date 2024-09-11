@@ -219,10 +219,10 @@ fn init_git_refs(
     }
     print_git_import_stats(ui, tx.repo(), &stats, false)?;
     if colocated {
-        // If git.auto-local-branch = true, local branches could be created for
+        // If git.auto-local-branch = true, local bookmarks could be created for
         // the imported remote branches.
-        let failed_branches = git::export_refs(tx.repo_mut())?;
-        print_failed_git_export(ui, &failed_branches)?;
+        let failed_refs = git::export_refs(tx.repo_mut())?;
+        print_failed_git_export(ui, &failed_refs)?;
     }
     let repo = tx.commit("import git refs");
     writeln!(
