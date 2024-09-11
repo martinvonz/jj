@@ -898,7 +898,7 @@ impl WorkspaceCommandHelper {
     }
 
     /// Snapshot the working copy if allowed, and import Git refs if the working
-    /// copy is collocated with Git.
+    /// copy is colocated with Git.
     #[instrument(skip_all)]
     pub fn maybe_snapshot(&mut self, ui: &Ui) -> Result<(), CommandError> {
         if self.may_update_working_copy {
