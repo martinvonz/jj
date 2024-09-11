@@ -74,6 +74,20 @@ fn get_log_output(test_env: &TestEnvironment, workspace_root: &Path) -> String {
     test_env.jj_cmd_success(workspace_root, &["log", "-T", template, "-r=all()"])
 }
 
+fn get_log_output_with_stderr(
+    test_env: &TestEnvironment,
+    workspace_root: &Path,
+) -> (String, String) {
+    let template = r#"
+    separate(" ",
+      commit_id.short(),
+      bookmarks,
+      if(git_head, "git_head()"),
+      description,
+    )"#;
+    test_env.jj_cmd_ok(workspace_root, &["log", "-T", template, "-r=all()"])
+}
+
 fn read_git_target(workspace_root: &Path) -> String {
     let mut path = workspace_root.to_path_buf();
     path.extend([".jj", "repo", "store", "git_target"]);
@@ -689,22 +703,31 @@ fn test_git_init_external_but_git_dir_exists() {
         &["git", "init", "--git-repo", git_repo_path.to_str().unwrap()],
     );
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
+    insta::assert_snapshot!(stderr, @r#"
+    Warning: Workspace has a .git directory that is not managed by JJ
     Initialized repo in "."
-    "###);
+    "#);
 
     // The local ".git" repository is unrelated, so no commits should be imported
-    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
+    let (stdout, stderr) = get_log_output_with_stderr(&test_env, &workspace_root);
+    insta::assert_snapshot!(stdout, @r###"
     @  230dd059e1b0
     ◆  000000000000
+    "###);
+    insta::assert_snapshot!(stderr, @r###"
+    Warning: Workspace has a .git directory that is not managed by JJ
     "###);
 
     // Check that Git HEAD is not set because this isn't a colocated repo
     test_env.jj_cmd_ok(&workspace_root, &["new"]);
-    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
+    let (stdout, stderr) = get_log_output_with_stderr(&test_env, &workspace_root);
+    insta::assert_snapshot!(stdout, @r###"
     @  4db490c88528
     ○  230dd059e1b0
     ◆  000000000000
+    "###);
+    insta::assert_snapshot!(stderr, @r###"
+    Warning: Workspace has a .git directory that is not managed by JJ
     "###);
 }
 

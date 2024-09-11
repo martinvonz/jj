@@ -73,12 +73,72 @@ pub fn get_git_repo(store: &Store) -> Result<git2::Repository, CommandError> {
     }
 }
 
-pub fn is_colocated_git_workspace(_workspace: &Workspace, repo: &ReadonlyRepo) -> bool {
+pub fn is_colocated_git_workspace(
+    ui: Option<&Ui>,
+    workspace: &Workspace,
+    repo: &ReadonlyRepo,
+) -> bool {
     let Some(git_backend) = repo.store().backend_impl().downcast_ref::<GitBackend>() else {
         return false;
     };
 
-    git_backend.is_colocated()
+    if git_backend.is_colocated() {
+        return true;
+    }
+
+    if let Some(ui) = ui {
+        let workspace_dot_git = workspace.workspace_root().join(".git");
+        let Ok(meta) = workspace_dot_git.symlink_metadata() else {
+            return git_backend.is_colocated();
+        };
+        // Check symlink first as is_dir follows symlinks
+        if meta.is_symlink() {
+            let target = std::fs::read_link(&workspace_dot_git)
+                .unwrap_or_else(|_| Path::new("<could not read link>").to_path_buf());
+            writeln!(
+                ui.warning_default(),
+                "Workspace has a .git symlink (pointing to {}), that isn't pointing to JJ's git \
+                 repo",
+                target.display()
+            )
+            .ok();
+        } else if meta.is_dir() {
+            writeln!(
+                ui.warning_default(),
+                "Workspace has a .git directory that is not managed by JJ"
+            )
+            .ok();
+        } else if let Ok(_worktree_repo) = gix::open(workspace.workspace_root()) {
+            writeln!(
+                ui.warning_default(),
+                "Workspace is also a Git worktree that is not managed by JJ",
+            )
+            .ok();
+        } else {
+            let gitfile_contents = std::fs::read_to_string(&workspace_dot_git)
+                .unwrap_or_else(|_| "<could not read .git file>".to_string());
+            let gitdir = gitfile_contents
+                .strip_prefix("gitdir: ")
+                .unwrap_or(&gitfile_contents)
+                .trim();
+            writeln!(ui.warning_default(), "Workspace is a broken Git worktree").ok();
+            writeln!(ui.warning_no_heading(), "The .git file points at: {gitdir}").ok();
+            // work_dir may return Some even if colocated = false, because we may be in some
+            // secondary workspace, and we may have just opened the colocated primary
+            // workspace with a .git directory.
+            let git_repo = git_backend.git_repo();
+            let repair_dir = git_repo.work_dir().unwrap_or(git_repo.common_dir());
+            writeln!(
+                ui.hint_default(),
+                "If this is meant to be a colocated JJ workspace, you may like to try `git -C {} \
+                 worktree repair`",
+                repair_dir.display()
+            )
+            .ok();
+        }
+    }
+
+    false
 }
 
 fn terminal_get_username(ui: &Ui, url: &str) -> Option<String> {
