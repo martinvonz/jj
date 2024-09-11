@@ -44,7 +44,16 @@ use crate::formatter::Formatter;
 use crate::progress::Progress;
 use crate::ui::Ui;
 
-pub fn get_git_repo(store: &Store) -> Result<git2::Repository, CommandError> {
+/// This opens a [git2::Repository] for the underlying [GitBackend], assuming
+/// this store is git-backed.
+///
+/// If the JJ repo is colocated with the git repo, then this will often not be
+/// what you want, because its HEAD will always be for the default workspace.
+/// Most JJ commands that access the HEAD need the one for the current
+/// workspace.
+///
+/// However, sometimes you don't care. For example, when you run `jj git fetch`.
+pub fn get_git_backend_repo(store: &Store) -> Result<git2::Repository, CommandError> {
     match store.backend_impl().downcast_ref::<GitBackend>() {
         None => Err(user_error("The repo is not backed by a git repo")),
         Some(git_backend) => Ok(git_backend.open_git_repo()?),

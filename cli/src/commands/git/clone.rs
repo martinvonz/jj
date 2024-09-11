@@ -35,7 +35,7 @@ use crate::commands::git::map_git_error;
 use crate::commands::git::maybe_add_gitignore;
 use crate::config::write_config_value_to_file;
 use crate::config::ConfigNamePathBuf;
-use crate::git_util::get_git_repo;
+use crate::git_util::get_git_backend_repo;
 use crate::git_util::print_git_import_stats;
 use crate::git_util::with_remote_git_callbacks;
 use crate::ui::Ui;
@@ -204,7 +204,7 @@ fn do_git_clone(
     } else {
         Workspace::init_internal_git(command.settings(), wc_path)?
     };
-    let git_repo = get_git_repo(repo.store())?;
+    let git_repo = get_git_backend_repo(repo.store())?;
     writeln!(
         ui.status(),
         r#"Fetching into new repo in "{}""#,
