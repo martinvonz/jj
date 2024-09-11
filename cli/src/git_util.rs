@@ -51,22 +51,148 @@ pub fn get_git_repo(store: &Store) -> Result<git2::Repository, CommandError> {
     }
 }
 
-pub fn is_colocated_git_workspace(workspace: &Workspace, repo: &ReadonlyRepo) -> bool {
+pub fn is_colocated_git_workspace(
+    ui: Option<&Ui>,
+    workspace: &Workspace,
+    repo: &ReadonlyRepo,
+) -> bool {
     let Some(git_backend) = repo.store().backend_impl().downcast_ref::<GitBackend>() else {
         return false;
     };
-    let Some(git_workdir) = git_backend.git_workdir() else {
-        return false; // Bare repository
-    };
-    if git_workdir == workspace.workspace_root() {
+
+    // The git backend may be a bare repository if we created it without --colocate
+    // but then created a workspace using `jj workspace add --colocate ../second`
+    let git_backend_workdir = git_backend.git_workdir();
+
+    // 1. Check if we are in a colocated workspace, specifically the one that has
+    //    both .git and .jj/repo.
+    // --------------------------------------------------------------------------
+
+    // Fast path -- the paths are the same, without looking through symlinks.
+    if git_backend_workdir == Some(workspace.workspace_root()) {
+        // We are in a colocated workspace that's home to the real .git directory.
+        // e.g. /repo with /repo/.git
         return true;
     }
+
+    // Otherwise, canonicalize both the git backend workdir and the workspace
+    let git_backend_workdir_canonical = git_backend_workdir.and_then(|p| p.canonicalize().ok());
+
     // Colocated workspace should have ".git" directory, file, or symlink. Compare
     // its parent as the git_workdir might be resolved from the real ".git" path.
-    let Ok(dot_git_path) = workspace.workspace_root().join(".git").canonicalize() else {
+    let workspace_dot_git = workspace.workspace_root().join(".git");
+    let Ok(workspace_dot_git_canonical) = workspace_dot_git.canonicalize() else {
+        if let Some(ui) = ui {
+            if workspace_dot_git.is_symlink() {
+                let readlink = std::fs::read_link(&workspace_dot_git)
+                    .unwrap_or_else(|_| Path::new("<could not read link>").to_path_buf());
+                writeln!(
+                    ui.warning_default(),
+                    "Broken .git symlink, pointing to {}",
+                    readlink.display()
+                )
+                .ok();
+            }
+        }
         return false;
     };
-    git_workdir.canonicalize().ok().as_deref() == dot_git_path.parent()
+
+    // i.e. (/symlink_to_repo -> /repo).canonicalize() == (/repo/.git).parent()
+    if let Some(gbw) = git_backend_workdir_canonical.as_deref() {
+        if workspace_dot_git_canonical.parent() == Some(gbw) {
+            // This is the default workspace of a colocated repo
+            return true;
+        }
+    }
+
+    // 2. Check if we are in a secondary colocated workspace, specifically one using
+    //    a git worktree.
+    // -------------------------------------------------------------------
+
+    // Get the git directory for the git worktree associated with this workspace
+    // In the case of the default workspace in a colocated repo, this will just be
+    //     /repo/.git
+    // But for a JJ workspace of a colocated repo, this will be
+    //     /repo/.git/worktrees/second
+    // ... or, if the JJ repo was not originally colocated:
+    //     /repo/.jj/repo/store/git/worktrees/second
+    //
+    // ... and the regular file /second/.git will direct git to that location.
+    //
+    // So try to open the workspace root (/second) as a git repository.
+    let worktree_repo = match gix::open(workspace.workspace_root()) {
+        Ok(worktree_repo) => worktree_repo,
+        Err(e) => {
+            if let Some(ui) = ui {
+                let dotgit_filetype = workspace_dot_git
+                    .symlink_metadata()
+                    .expect("we already established .git exists")
+                    .file_type();
+
+                if dotgit_filetype.is_file() {
+                    writeln!(ui.warning_default(), "Broken colocated git worktree.").ok();
+                    writeln!(
+                        ui.hint_default(),
+                        "You may wish to try `git worktree repair` if you have moved the repo or \
+                         worktree around."
+                    )
+                    .ok();
+                } else {
+                    writeln!(ui.warning_default(), "Broken colocated git repository: {e}").ok();
+                };
+            }
+            return false;
+        }
+    };
+
+    // common_dir will be /repo/.git (or /repo/.jj/repo/store/git)
+    let Ok(worktree_common_dir) = worktree_repo.common_dir().canonicalize() else {
+        return false;
+    };
+    let Ok(backend_repo_path) = git_backend.git_repo_path().canonicalize() else {
+        return false;
+    };
+
+    // /repo/.git/worktrees/second should have the git backend's .git directory as a
+    // prefix. Check -- the .git file could somehow be pointing elsewhere, or be
+    // its own .git directory
+    if worktree_common_dir != backend_repo_path {
+        if let Some(ui) = ui {
+            let dotgit_filetype = workspace_dot_git
+                .symlink_metadata()
+                .expect("we already established .git exists")
+                .file_type();
+
+            let mut output = ui.warning_default();
+            write!(
+                output,
+                "This workspace has {} that isn't managed by JJ",
+                if dotgit_filetype.is_dir() {
+                    "a .git directory"
+                } else if dotgit_filetype.is_file() {
+                    "a Git worktree"
+                } else if dotgit_filetype.is_symlink() {
+                    "a .git symlink"
+                } else {
+                    // (Most likely unreachable)
+                    "an unrecognized .git file type"
+                },
+            )
+            .ok();
+            if !dotgit_filetype.is_dir() {
+                writeln!(
+                    output,
+                    "; it points to a Git repo at {}.",
+                    worktree_common_dir.display(),
+                )
+                .ok();
+            } else {
+                writeln!(output, ".").ok();
+            }
+        }
+        return false;
+    }
+    true
 }
 
 fn terminal_get_username(ui: &Ui, url: &str) -> Option<String> {

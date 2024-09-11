@@ -788,7 +788,7 @@ fn get_log_output_divergence(test_env: &TestEnvironment, repo_path: &Path) -> St
 }
 
 fn get_log_output(test_env: &TestEnvironment, workspace_root: &Path) -> String {
-    let template = r#"separate(" ", commit_id, bookmarks, git_head, description)"#;
+    let template = r#"separate(" ", commit_id, bookmarks, git_head, working_copies, description)"#;
     test_env.jj_cmd_success(workspace_root, &["log", "-T", template, "-r=all()"])
 }
 
@@ -796,7 +796,7 @@ fn get_log_output_with_stderr(
     test_env: &TestEnvironment,
     workspace_root: &Path,
 ) -> (String, String) {
-    let template = r#"separate(" ", commit_id, bookmarks, git_head, description)"#;
+    let template = r#"separate(" ", commit_id, bookmarks, git_head, working_copies, description)"#;
     test_env.jj_cmd_ok(workspace_root, &["log", "-T", template, "-r=all()"])
 }
 
@@ -927,4 +927,177 @@ fn stopgap_workspace_colocate(
         .current_dir(&dst_path)
         .assert()
         .success();
+}
+
+#[test]
+fn test_colocated_workspace_in_bare_repo() {
+    // TODO: Remove when this stops requiring git (stopgap_workspace_colocate)
+    if Command::new("git").arg("--version").status().is_err() {
+        eprintln!("Skipping because git command might fail to run");
+        return;
+    }
+
+    let test_env = TestEnvironment::default();
+    let repo_path = test_env.env_root().join("repo");
+    let second_path = test_env.env_root().join("second");
+    //
+    // git init without --colocate creates a bare repo
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    std::fs::write(repo_path.join("file"), "contents").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "initial commit"]);
+    let (initial_commit, _) = test_env.jj_cmd_ok(
+        &repo_path,
+        &["log", "--no-graph", "-T", "commit_id", "-r", "@-"],
+    );
+    // TODO: replace with workspace add, when it can create worktrees
+    stopgap_workspace_colocate(&test_env, &repo_path, false, "../second", &initial_commit);
+
+    // FIXME: this workspace should have its own HEAD, but for now, there is no HEAD
+    // as we are only reading the backing repo, which is bare.
+    insta::assert_snapshot!(get_log_output(&test_env, &second_path), @r#"
+    @  05530a3e0f9d581260343e273d66c381e76957df second@
+    │ ○  45c9d8477181a2b9c077ff1b724694fe0969b301 default@
+    ├─╯
+    ○  046d74c8ab0a4730e58488508a5398b7a91e54a2 initial commit
+    ◆  0000000000000000000000000000000000000000
+    "#);
+
+    let stdout = test_env.jj_cmd_success(
+        &second_path,
+        &["op", "log", "-Tself.description().first_line()"],
+    );
+    insta::assert_snapshot!(stdout, @r#"
+    @  create initial working-copy commit in workspace second
+    ○  add workspace 'second'
+    ○  commit 4e8f9d2be039994f589b4e57ac5e9488703e604d
+    ○  snapshot working copy
+    ○  add workspace 'default'
+    ○
+    "#);
+}
+
+#[test]
+fn test_colocated_workspace_moved_original_on_disk() {
+    if Command::new("git").arg("--version").status().is_err() {
+        eprintln!("Skipping because git command might fail to run");
+        return;
+    }
+
+    let test_env = TestEnvironment::default();
+    let repo_path = test_env.env_root().join("repo");
+    let second_path = test_env.env_root().join("second");
+    let new_repo_path = test_env.env_root().join("repo-moved");
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "--colocate", "repo"]);
+    std::fs::write(repo_path.join("file"), "contents").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "initial commit"]);
+    let (initial_commit, _) = test_env.jj_cmd_ok(
+        &repo_path,
+        &["log", "--no-graph", "-T", "commit_id", "-r", "@-"],
+    );
+    // TODO: replace with workspace add, when it can create worktrees
+    stopgap_workspace_colocate(&test_env, &repo_path, true, "../second", &initial_commit);
+
+    // Break our worktree by moving the original repo on disk
+    std::fs::rename(&repo_path, &new_repo_path).unwrap();
+    // imagine JJ were able to do this
+    std::fs::write(
+        second_path.join(".jj/repo"),
+        new_repo_path
+            .join(".jj/repo")
+            .as_os_str()
+            .as_encoded_bytes(),
+    )
+    .unwrap();
+
+    let (_, stderr) = test_env.jj_cmd_ok(&second_path, &["status"]);
+    insta::assert_snapshot!(stderr, @r#"
+    Warning: Broken colocated git worktree.
+    Hint: You may wish to try `git worktree repair` if you have moved the repo or worktree around.
+    "#);
+
+    Command::new("git")
+        .args(["worktree", "repair"])
+        .current_dir(&new_repo_path)
+        .assert()
+        .success();
+    insta::assert_snapshot!(get_log_output(&test_env, &second_path), @r#"
+    @  05530a3e0f9d581260343e273d66c381e76957df second@
+    │ ○  45c9d8477181a2b9c077ff1b724694fe0969b301 default@
+    ├─╯
+    ○  046d74c8ab0a4730e58488508a5398b7a91e54a2 HEAD@git initial commit
+    ◆  0000000000000000000000000000000000000000
+    "#);
+}
+
+#[test]
+fn test_colocated_workspace_wrong_gitdir() {
+    // TODO: Remove when this stops requiring git (stopgap_workspace_colocate)
+    if Command::new("git").arg("--version").status().is_err() {
+        eprintln!("Skipping because git command might fail to run");
+        return;
+    }
+
+    let test_env = TestEnvironment::default();
+    let repo_path = test_env.env_root().join("repo");
+    let second_path = test_env.env_root().join("second");
+    let other_path = test_env.env_root().join("other");
+    let other_second_path = test_env.env_root().join("other_second");
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "--colocate", "repo"]);
+    std::fs::write(repo_path.join("file"), "contents").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "initial commit"]);
+    let (initial_commit, _) = test_env.jj_cmd_ok(
+        &repo_path,
+        &["log", "--no-graph", "-T", "commit_id", "-r", "@-"],
+    );
+    // TODO: replace with workspace add, when it can create worktrees
+    stopgap_workspace_colocate(&test_env, &repo_path, true, "../second", &initial_commit);
+
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "--colocate", "other"]);
+    std::fs::write(other_path.join("file"), "contents2").unwrap();
+    test_env.jj_cmd_ok(&other_path, &["commit", "-m", "initial commit"]);
+    let (ic_other, _) = test_env.jj_cmd_ok(
+        &other_path,
+        &["log", "--no-graph", "-T", "commit_id", "-r", "@-"],
+    );
+    // TODO: replace with workspace add, when it can create worktrees
+    stopgap_workspace_colocate(&test_env, &other_path, true, "../other_second", &ic_other);
+
+    // Break one of our worktrees
+    std::fs::copy(other_second_path.join(".git"), second_path.join(".git")).unwrap();
+
+    let (_, stderr) = test_env.jj_cmd_ok(&second_path, &["status"]);
+    insta::assert_snapshot!(stderr, @r#"
+    Warning: This workspace has a Git worktree that isn't managed by JJ; it points to a Git repo at $TEST_ENV/other/.git.
+    "#);
+}
+
+#[test]
+fn test_colocated_workspace_invalid_gitdir() {
+    // TODO: Remove when this stops requiring git (stopgap_workspace_colocate)
+    if Command::new("git").arg("--version").status().is_err() {
+        eprintln!("Skipping because git command might fail to run");
+        return;
+    }
+
+    let test_env = TestEnvironment::default();
+    let repo_path = test_env.env_root().join("repo");
+    let second_path = test_env.env_root().join("second");
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "--colocate", "repo"]);
+    std::fs::write(repo_path.join("file"), "contents").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "initial commit"]);
+    let (initial_commit, _) = test_env.jj_cmd_ok(
+        &repo_path,
+        &["log", "--no-graph", "-T", "commit_id", "-r", "@-"],
+    );
+    // TODO: replace with workspace add, when it can create worktrees
+    stopgap_workspace_colocate(&test_env, &repo_path, true, "../second", &initial_commit);
+
+    // Break one of our worktrees
+    std::fs::write(second_path.join(".git"), "invalid").unwrap();
+
+    let (_, stderr) = test_env.jj_cmd_ok(&second_path, &["status"]);
+    insta::assert_snapshot!(stderr, @r#"
+    Warning: Broken colocated git worktree.
+    Hint: You may wish to try `git worktree repair` if you have moved the repo or worktree around.
+    "#);
 }

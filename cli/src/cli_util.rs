@@ -855,7 +855,7 @@ impl WorkspaceCommandHelper {
         let op_summary_template_text = settings.config().get_string("templates.op_summary")?;
         let may_update_working_copy =
             loaded_at_head && !env.command.global_args().ignore_working_copy;
-        let working_copy_shared_with_git = is_colocated_git_workspace(&workspace, &repo);
+        let working_copy_shared_with_git = is_colocated_git_workspace(Some(ui), &workspace, &repo);
         let helper = Self {
             workspace,
             user_repo: ReadonlyUserRepo::new(repo),
@@ -898,7 +898,7 @@ impl WorkspaceCommandHelper {
     }
 
     /// Snapshot the working copy if allowed, and import Git refs if the working
-    /// copy is collocated with Git.
+    /// copy is colocated with Git.
     #[instrument(skip_all)]
     pub fn maybe_snapshot(&mut self, ui: &Ui) -> Result<(), CommandError> {
         if self.may_update_working_copy {
