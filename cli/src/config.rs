@@ -1270,6 +1270,38 @@ mod tests {
         Ok(())
     }
 
+    #[test]
+    fn ban_default_symbol_aliases() -> anyhow::Result<()> {
+        // NOTE(aseipp): symbol aliases override all branches and tags, so we
+        // must ban them from being introduced in the default `revset-aliases`
+        //
+        // relevant issue: https://github.com/martinvonz/jj/pull/4432
+        for (alias, _) in default_config().get_table("revset-aliases")?.iter() {
+            // an alias could be something like:
+            //
+            //     'foo()' = ...
+            //     'foo(x,y)' = ...
+            //
+            // but can never be something like:
+            //
+            //     'foo)' = ...
+            //     '(foo)' = ...
+            //
+            // and so testing for the presence of a closing parenthesis is
+            // sufficient to ensure we're not introducing a symbol.
+            if !alias.ends_with(")") {
+                anyhow::bail!(
+                    "symbol alias `{}` is not allowed in the default configuration; alias must be \
+                     a nullary function i.e. '{}()'",
+                    alias,
+                    alias
+                );
+            }
+        }
+
+        Ok(())
+    }
+
     fn setup_config_fs(files: &Vec<&'static str>) -> anyhow::Result<tempfile::TempDir> {
         let tmp = testutils::new_temp_dir();
         for file in files {
