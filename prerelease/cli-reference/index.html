@@ -6985,6 +6985,31 @@ implied.</p>
 <p><code>-T</code>, <code>--template &lt;TEMPLATE&gt;</code> — Render each operation using the given template</p>
 <p>For the syntax, see https://martinvonz.github.io/jj/latest/templates/</p>
 </li>
+<li>
+<p><code>--op-diff</code> — Show changes to the repository at each operation</p>
+</li>
+<li>
+<p><code>-p</code>, <code>--patch</code> — Show patch of modifications to changes (implies --op-diff)</p>
+<p>If the previous version has different parents, it will be temporarily rebased to the parents of the new version, so the diff is not contaminated by unrelated changes.</p>
+</li>
+<li>
+<p><code>-s</code>, <code>--summary</code> — For each path, show only whether it was modified, added, or deleted</p>
+</li>
+<li><code>--stat</code> — Show a histogram of the changes</li>
+<li>
+<p><code>--types</code> — For each path, show only its type before and after</p>
+<p>The diff is shown as two letters. The first letter indicates the type before and the second letter indicates the type after. '-' indicates that the path was not present, 'F' represents a regular file, `L' represents a symlink, 'C' represents a conflict, and 'G' represents a Git submodule.</p>
+</li>
+<li>
+<p><code>--name-only</code> — For each path, show only its path</p>
+<p>Typically useful for shell commands like: <code>jj diff -r @- --name_only | xargs perl -pi -e's/OLD/NEW/g</code></p>
+</li>
+<li>
+<p><code>--git</code> — Show a Git-format diff</p>
+</li>
+<li><code>--color-words</code> — Show a word-level diff with changes indicated only by color</li>
+<li><code>--tool &lt;TOOL&gt;</code> — Generate diff by external command</li>
+<li><code>--context &lt;CONTEXT&gt;</code> — Number of lines of context to show</li>
 </ul>
 <h2 id="jj-operation-restore"><code>jj operation restore</code><a class="headerlink" href="#jj-operation-restore" title="Permanent link">&para;</a></h2>
 <p>Create a new operation that restores the repo to an earlier state</p>
