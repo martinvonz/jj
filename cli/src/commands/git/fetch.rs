@@ -27,7 +27,7 @@ use crate::command_error::user_error_with_hint;
 use crate::command_error::CommandError;
 use crate::commands::git::get_single_remote;
 use crate::commands::git::map_git_error;
-use crate::git_util::get_git_repo;
+use crate::git_util::get_git_backend_repo;
 use crate::git_util::print_git_import_stats;
 use crate::git_util::with_remote_git_callbacks;
 use crate::ui::Ui;
@@ -60,7 +60,7 @@ pub fn cmd_git_fetch(
     args: &GitFetchArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let git_repo = get_git_repo(workspace_command.repo().store())?;
+    let git_repo = get_git_backend_repo(workspace_command.repo().store())?;
     let remotes = if args.all_remotes {
         get_all_remotes(&git_repo)?
     } else if args.remotes.is_empty() {

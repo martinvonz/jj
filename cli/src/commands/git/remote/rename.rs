@@ -17,7 +17,7 @@ use jj_lib::repo::Repo;
 
 use crate::cli_util::CommandHelper;
 use crate::command_error::CommandError;
-use crate::git_util::get_git_repo;
+use crate::git_util::get_git_backend_repo;
 use crate::ui::Ui;
 
 /// Rename a Git remote
@@ -36,7 +36,7 @@ pub fn cmd_git_remote_rename(
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
     let repo = workspace_command.repo();
-    let git_repo = get_git_repo(repo.store())?;
+    let git_repo = get_git_backend_repo(repo.store())?;
     let mut tx = workspace_command.start_transaction();
     git::rename_remote(tx.repo_mut(), &git_repo, &args.old, &args.new)?;
     if tx.repo().has_changes() {
