@@ -527,11 +527,11 @@
   
   
     <li class="md-nav__item">
-      <a href="../branches/" class="md-nav__link">
+      <a href="../bookmarks/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
-    Branches
+    Bookmarks
   </span>
   
 
@@ -636,9 +636,9 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#anonymous-branch" class="md-nav__link">
+  <a href="#anonymous-bookmark" class="md-nav__link">
     <span class="md-ellipsis">
-      Anonymous branch
+      Anonymous bookmark
     </span>
   </a>
   
@@ -654,9 +654,9 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#branch" class="md-nav__link">
+  <a href="#bookmark" class="md-nav__link">
     <span class="md-ellipsis">
-      Branch
+      Bookmark
     </span>
   </a>
   
@@ -825,9 +825,9 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#tracked-branches-and-tracking-branches" class="md-nav__link">
+  <a href="#tracked-bookmarks-and-tracking-bookmarks" class="md-nav__link">
     <span class="md-ellipsis">
-      Tracked branches and tracking branches
+      Tracked bookmarks and tracking bookmarks
     </span>
   </a>
   
@@ -1593,9 +1593,9 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#anonymous-branch" class="md-nav__link">
+  <a href="#anonymous-bookmark" class="md-nav__link">
     <span class="md-ellipsis">
-      Anonymous branch
+      Anonymous bookmark
     </span>
   </a>
   
@@ -1611,9 +1611,9 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#branch" class="md-nav__link">
+  <a href="#bookmark" class="md-nav__link">
     <span class="md-ellipsis">
-      Branch
+      Bookmark
     </span>
   </a>
   
@@ -1782,9 +1782,9 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#tracked-branches-and-tracking-branches" class="md-nav__link">
+  <a href="#tracked-bookmarks-and-tracking-bookmarks" class="md-nav__link">
     <span class="md-ellipsis">
-      Tracked branches and tracking branches
+      Tracked bookmarks and tracking bookmarks
     </span>
   </a>
   
@@ -1851,12 +1851,12 @@
 
 
 <h1 id="glossary">Glossary<a class="headerlink" href="#glossary" title="Permanent link">&para;</a></h1>
-<h2 id="anonymous-branch">Anonymous branch<a class="headerlink" href="#anonymous-branch" title="Permanent link">&para;</a></h2>
-<p>An anonymous branch is a chain of commits that doesn't have any
-<a href="#branch">named branches</a> pointing to it or to any of its descendants. Unlike
-Git, Jujutsu keeps commits on anonymous branches around until they are
-explicitly abandoned. Visible anonymous branches are tracked by the
-<a href="#view">view</a>, which stores a list of <a href="#head">heads</a> of such branches.</p>
+<h2 id="anonymous-bookmark">Anonymous bookmark<a class="headerlink" href="#anonymous-bookmark" title="Permanent link">&para;</a></h2>
+<p>An anonymous bookmark is a chain of commits that doesn't have any
+<a href="#bookmark">named bookmarks</a> pointing to it or to any of its descendants. Unlike
+Git, Jujutsu keeps commits on anonymous bookmarks around until they are
+explicitly abandoned. Visible anonymous bookmarks are tracked by the
+<a href="#view">view</a>, which stores a list of <a href="#head">heads</a> of such bookmarks.</p>
 <h2 id="backend">Backend<a class="headerlink" href="#backend" title="Permanent link">&para;</a></h2>
 <p>A backend is an implementation of the storage layer. There are currently two
 builtin commit backends: the Git backend and the native backend. The Git backend
@@ -1866,14 +1866,14 @@ wanted to use jj with a humongous monorepo (as Google does).</p>
 <p>There are also pluggable backends for storing other information than commits,
 such as the "operation store backend" for storing
 <a href="#operation-log">the operation log</a>.</p>
-<h2 id="branch">Branch<a class="headerlink" href="#branch" title="Permanent link">&para;</a></h2>
-<p>A branch is a named pointer to a <a href="#commit">commit</a>. They automatically follow
+<h2 id="bookmark">Bookmark<a class="headerlink" href="#bookmark" title="Permanent link">&para;</a></h2>
+<p>A bookmark is a named pointer to a <a href="#commit">commit</a>. They automatically follow
 the commit if it gets <a href="#rewrite">rewritten</a>. Branches are sometimes called
-"named branches" to distinguish them from
-<a href="#anonymous-branch">anonymous branches</a>, but note that they are more similar
-to Git's branches than to
-<a href="https://www.mercurial-scm.org/wiki/Branch#Named_branches">Mercurial's named branches</a>.
-See <a href="../branches/">here</a> for details.</p>
+"named bookmarks" to distinguish them from
+<a href="#anonymous-bookmark">anonymous bookmarks</a>, but note that they are more similar
+to Git's bookmarks than to
+<a href="https://www.mercurial-scm.org/wiki/Branch#Named_bookmarks">Mercurial's named bookmarks</a>.
+See <a href="../bookmarks/">here</a> for details.</p>
 <h2 id="change">Change<a class="headerlink" href="#change" title="Permanent link">&para;</a></h2>
 <p>A change is a commit as it <a href="#rewrite">evolves over time</a>.</p>
 <h2 id="change-id">Change ID<a class="headerlink" href="#change-id" title="Permanent link">&para;</a></h2>
@@ -1913,11 +1913,11 @@ commands can be used interchangeably.</p>
 Those are the conflicts that users coming from other VCSs are usually familiar
 with. You can see them in <code>jj status</code> and in <code>jj log</code> (the red "conflict"
 label at the end of the line). See <a href="../conflicts/">here</a> for details.</p>
-<p>Conflicts can also occur in <a href="#branch">branches</a>. For example, if you moved a
-branch locally, and it was also moved on the remote, then the branch will be
+<p>Conflicts can also occur in <a href="#bookmark">bookmarks</a>. For example, if you moved a
+bookmark locally, and it was also moved on the remote, then the bookmark will be
 in a conflicted state after you pull from the remote.
-See <a href="../branches/#conflicts">here</a> for details.</p>
-<p>Similar to a branch conflict, when a <a href="#change">change</a> is rewritten locally
+See <a href="../bookmarks/#conflicts">here</a> for details.</p>
+<p>Similar to a bookmark conflict, when a <a href="#change">change</a> is rewritten locally
 and remotely, for example, then the change will be in a conflicted state. We
 call that a <a href="#divergent-change">divergent change</a>.</p>
 <h2 id="divergent-change">Divergent change<a class="headerlink" href="#divergent-change" title="Permanent link">&para;</a></h2>
@@ -1928,13 +1928,13 @@ call that a <a href="#divergent-change">divergent change</a>.</p>
 descendants varies. For example, the <code>heads(X)</code>
 <a href="../revsets/#functions">revset function</a> returns commits that have no descendants
 within the set <code>X</code> itself. The <a href="#view">view</a> records which
-anonymous heads (heads without a branch pointing to them) are visible at a
+anonymous heads (heads without a bookmark pointing to them) are visible at a
 given <a href="#operation">operation</a>. Note that this is quite different from Git's
 <a href="https://git-scm.com/book/en/v2/Git-Internals-Git-References#ref_the_ref">HEAD</a>.</p>
 <h2 id="hidden-commits-abandoned-commits">Hidden commits, abandoned commits<a class="headerlink" href="#hidden-commits-abandoned-commits" title="Permanent link">&para;</a></h2>
 <p>See <a href="#visible-commits">visible commits</a>.</p>
 <h2 id="operation">Operation<a class="headerlink" href="#operation" title="Permanent link">&para;</a></h2>
-<p>A snapshot of the <a href="#visible-commits">visible commits</a> and <a href="#branch">branches</a>
+<p>A snapshot of the <a href="#visible-commits">visible commits</a> and <a href="#bookmark">bookmarks</a>
 at a given point in time (technically a <a href="#view">view object</a>), together with
 some metadata. The metadata includes the username, hostname, timestamps, and
 pointers to the operation's parents.</p>
@@ -1975,10 +1975,10 @@ commits <code>jj log -r 'root()+'</code> will show.</p>
 <p>A tree object represents a snapshot of a directory in the repository. Tree
 objects are defined recursively; each tree object only has the files and
 directories contained directly in the directory it represents.</p>
-<h2 id="tracked-branches-and-tracking-branches">Tracked branches and tracking branches<a class="headerlink" href="#tracked-branches-and-tracking-branches" title="Permanent link">&para;</a></h2>
-<p>A remote branch can be made "tracked" with the <code>jj branch track</code> command. This
-results in a "tracking" local branch that tracks the remote branch.</p>
-<p>See <a href="../branches/#terminology-summary">the branches documentation</a> for a more
+<h2 id="tracked-bookmarks-and-tracking-bookmarks">Tracked bookmarks and tracking bookmarks<a class="headerlink" href="#tracked-bookmarks-and-tracking-bookmarks" title="Permanent link">&para;</a></h2>
+<p>A remote bookmark can be made "tracked" with the <code>jj bookmark track</code> command. This
+results in a "tracking" local bookmark that tracks the remote bookmark.</p>
+<p>See <a href="../bookmarks/#terminology-summary">the bookmarks documentation</a> for a more
 detailed definition of these terms.</p>
 <h2 id="visible-commits">Visible commits<a class="headerlink" href="#visible-commits" title="Permanent link">&para;</a></h2>
 <p>Visible commits are the commits you see in <code>jj log -r 'all()'</code>. They are the
@@ -1990,7 +1990,7 @@ given <a href="#change-id">change id</a>. A commit that's abandoned or
 commits are no longer accessible using a change id, but they are still
 accessible by their <a href="#commit-id">commit id</a>.</p>
 <h2 id="view">View<a class="headerlink" href="#view" title="Permanent link">&para;</a></h2>
-<p>A view is a snapshot of branches and their targets, anonymous heads,
+<p>A view is a snapshot of bookmarks and their targets, anonymous heads,
 and working-copy commits. The anonymous heads define which commits
 are <a href="#visible-commits">visible</a>.</p>
 <p>A view object is similar to a <a href="#tree">tree</a> object in that it represents a

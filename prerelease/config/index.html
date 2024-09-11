@@ -525,11 +525,11 @@
   
   
     <li class="md-nav__item">
-      <a href="../branches/" class="md-nav__link">
+      <a href="../bookmarks/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
-    Branches
+    Bookmarks
   </span>
   
 
@@ -1138,9 +1138,9 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#automatic-local-branch-creation" class="md-nav__link">
+  <a href="#automatic-local-bookmark-creation" class="md-nav__link">
     <span class="md-ellipsis">
-      Automatic local branch creation
+      Automatic local bookmark creation
     </span>
   </a>
   
@@ -1156,9 +1156,9 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#prefix-for-generated-branches-on-push" class="md-nav__link">
+  <a href="#prefix-for-generated-bookmarks-on-push" class="md-nav__link">
     <span class="md-ellipsis">
-      Prefix for generated branches on push
+      Prefix for generated bookmarks on push
     </span>
   </a>
   
@@ -2350,9 +2350,9 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#automatic-local-branch-creation" class="md-nav__link">
+  <a href="#automatic-local-bookmark-creation" class="md-nav__link">
     <span class="md-ellipsis">
-      Automatic local branch creation
+      Automatic local bookmark creation
     </span>
   </a>
   
@@ -2368,9 +2368,9 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#prefix-for-generated-branches-on-push" class="md-nav__link">
+  <a href="#prefix-for-generated-bookmarks-on-push" class="md-nav__link">
     <span class="md-ellipsis">
-      Prefix for generated branches on push
+      Prefix for generated bookmarks on push
     </span>
   </a>
   
@@ -2683,7 +2683,7 @@ invocations as follows:</p>
 <h3 id="set-of-immutable-commits">Set of immutable commits<a class="headerlink" href="#set-of-immutable-commits" title="Permanent link">&para;</a></h3>
 <p>You can configure the set of immutable commits via
 <code>revset-aliases."immutable_heads()"</code>. The default set of immutable heads is
-<code>trunk() | tags() | untracked_remote_branches()</code>. For example, to prevent
+<code>trunk() | tags() | untracked_remote_bookmarks()</code>. For example, to prevent
 rewriting commits on <code>main@origin</code> and commits authored by other users:</p>
 <div class="highlight"><pre><span></span><code><span class="c1"># The `main.. &amp;` bit is an optimization to scan for non-`mine()` commits only</span>
 <span class="c1"># among commits that are not in `main`.</span>
@@ -2745,7 +2745,7 @@ the terminal width.</p>
 <span class="s1">&#39;format_short_change_id(id)&#39;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;format_short_id(id).upper()&#39;</span>
 </code></pre></div>
 <p>To get shorter prefixes for certain revisions, set <code>revsets.short-prefixes</code>:</p>
-<div class="highlight"><pre><span></span><code><span class="c1"># Prioritize the current branch</span>
+<div class="highlight"><pre><span></span><code><span class="c1"># Prioritize the current bookmark</span>
 <span class="n">revsets</span><span class="p">.</span><span class="n">short-prefixes</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;(main..@)::&quot;</span>
 </code></pre></div>
 <h3 id="relative-timestamps">Relative timestamps<a class="headerlink" href="#relative-timestamps" title="Permanent link">&para;</a></h3>
@@ -2824,8 +2824,8 @@ diff as the default with the <code>ui.diff</code> setting. For example:</p>
 </code></pre></div>
 <h2 id="aliases">Aliases<a class="headerlink" href="#aliases" title="Permanent link">&para;</a></h2>
 <p>You can define aliases for commands, including their arguments. For example:</p>
-<div class="highlight"><pre><span></span><code><span class="c1"># `jj l` shows commits on the working-copy commit&#39;s (anonymous) branch</span>
-<span class="c1"># compared to the `main` branch</span>
+<div class="highlight"><pre><span></span><code><span class="c1"># `jj l` shows commits on the working-copy commit&#39;s (anonymous) bookmark</span>
+<span class="c1"># compared to the `main` bookmark</span>
 <span class="n">aliases</span><span class="p">.</span><span class="n">l</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;log&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;-r&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;(main..@):: | (main..@)-&quot;</span><span class="p">]</span>
 </code></pre></div>
 <h2 id="editor">Editor<a class="headerlink" href="#editor" title="Permanent link">&para;</a></h2>
@@ -3107,26 +3107,26 @@ push to a different remote:</p>
 <p>Note that unlike <code>git.fetch</code>, <code>git.push</code> can currently only be a single remote.
 This is not a hard limitation, and could be changed in the future if there is
 demand.</p>
-<h3 id="automatic-local-branch-creation">Automatic local branch creation<a class="headerlink" href="#automatic-local-branch-creation" title="Permanent link">&para;</a></h3>
-<p>When <code>jj</code> imports a new remote-tracking branch from Git, it can also create a
-local branch with the same name. This feature is disabled by default because it
+<h3 id="automatic-local-bookmark-creation">Automatic local bookmark creation<a class="headerlink" href="#automatic-local-bookmark-creation" title="Permanent link">&para;</a></h3>
+<p>When <code>jj</code> imports a new remote-tracking bookmark from Git, it can also create a
+local bookmark with the same name. This feature is disabled by default because it
 may be undesirable in some repositories, e.g.:</p>
 <ul>
-<li>There is a remote with a lot of historical branches that you don't
+<li>There is a remote with a lot of historical bookmarks that you don't
   want to be exported to the co-located Git repo.</li>
-<li>There are multiple remotes with conflicting views of that branch,
+<li>There are multiple remotes with conflicting views of that bookmark,
   resulting in an unhelpful conflicted state.</li>
 </ul>
-<p>You can enable this behavior by setting <code>git.auto-local-branch</code> like so,</p>
-<div class="highlight"><pre><span></span><code><span class="n">git</span><span class="p">.</span><span class="n">auto-local-branch</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+<p>You can enable this behavior by setting <code>git.auto-local-bookmark</code> like so,</p>
+<div class="highlight"><pre><span></span><code><span class="n">git</span><span class="p">.</span><span class="n">auto-local-bookmark</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
 </code></pre></div>
-<p>This setting is applied only to new remote branches. Existing remote branches
-can be tracked individually by using <code>jj branch track</code>/<code>untrack</code> commands.</p>
-<div class="highlight"><pre><span></span><code><span class="c1"># import feature1 branch and start tracking it</span>
-jj<span class="w"> </span>branch<span class="w"> </span>track<span class="w"> </span>feature1@origin
-<span class="c1"># delete local gh-pages branch and stop tracking it</span>
-jj<span class="w"> </span>branch<span class="w"> </span>delete<span class="w"> </span>gh-pages
-jj<span class="w"> </span>branch<span class="w"> </span>untrack<span class="w"> </span>gh-pages@upstream
+<p>This setting is applied only to new remote bookmarks. Existing remote bookmarks
+can be tracked individually by using <code>jj bookmark track</code>/<code>untrack</code> commands.</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># import feature1 bookmark and start tracking it</span>
+jj<span class="w"> </span>bookmark<span class="w"> </span>track<span class="w"> </span>feature1@origin
+<span class="c1"># delete local gh-pages bookmark and stop tracking it</span>
+jj<span class="w"> </span>bookmark<span class="w"> </span>delete<span class="w"> </span>gh-pages
+jj<span class="w"> </span>bookmark<span class="w"> </span>untrack<span class="w"> </span>gh-pages@upstream
 </code></pre></div>
 <h3 id="abandon-commits-that-became-unreachable-in-git">Abandon commits that became unreachable in Git<a class="headerlink" href="#abandon-commits-that-became-unreachable-in-git" title="Permanent link">&para;</a></h3>
 <p>By default, when <code>jj</code> imports refs from Git, it will look for commits that used
@@ -3136,11 +3136,11 @@ usual when commits are abandoned). You can disable this behavior and instead
 leave the Git-unreachable commits in your repo by setting:</p>
 <div class="highlight"><pre><span></span><code><span class="n">git</span><span class="p">.</span><span class="n">abandon-unreachable-commits</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span>
 </code></pre></div>
-<h3 id="prefix-for-generated-branches-on-push">Prefix for generated branches on push<a class="headerlink" href="#prefix-for-generated-branches-on-push" title="Permanent link">&para;</a></h3>
-<p><code>jj git push --change</code> generates branch names with a prefix of "push-" by
-default. You can pick a different prefix by setting <code>git.push-branch-prefix</code>. For
+<h3 id="prefix-for-generated-bookmarks-on-push">Prefix for generated bookmarks on push<a class="headerlink" href="#prefix-for-generated-bookmarks-on-push" title="Permanent link">&para;</a></h3>
+<p><code>jj git push --change</code> generates bookmark names with a prefix of "push-" by
+default. You can pick a different prefix by setting <code>git.push-bookmark-prefix</code>. For
 example:</p>
-<div class="codehilite"><pre><span></span><code>git.push-branch-prefix = &quot;martinvonz/push-&quot;
+<div class="codehilite"><pre><span></span><code>git.push-bookmark-prefix = &quot;martinvonz/push-&quot;
 </code></pre></div>
 
 <h3 id="set-of-private-commits">Set of private commits<a class="headerlink" href="#set-of-private-commits" title="Permanent link">&para;</a></h3>

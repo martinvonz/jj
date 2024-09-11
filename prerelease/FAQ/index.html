@@ -435,9 +435,9 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#why-does-my-branch-not-move-to-the-new-commit-after-jj-newcommit" class="md-nav__link">
+  <a href="#why-does-my-bookmark-not-move-to-the-new-commit-after-jj-newcommit" class="md-nav__link">
     <span class="md-ellipsis">
-      Why does my branch not move to the new commit after jj new/commit?
+      Why does my bookmark not move to the new commit after jj new/commit?
     </span>
   </a>
   
@@ -561,9 +561,9 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#how-do-i-deal-with-conflicted-branches-after-branch-name" class="md-nav__link">
+  <a href="#how-do-i-deal-with-conflicted-bookmarks-after-bookmark-name" class="md-nav__link">
     <span class="md-ellipsis">
-      How do I deal with conflicted branches ('??' after branch name)?
+      How do I deal with conflicted bookmarks ('??' after bookmark name)?
     </span>
   </a>
   
@@ -709,11 +709,11 @@
   
   
     <li class="md-nav__item">
-      <a href="../branches/" class="md-nav__link">
+      <a href="../bookmarks/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
-    Branches
+    Bookmarks
   </span>
   
 
@@ -1492,9 +1492,9 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#why-does-my-branch-not-move-to-the-new-commit-after-jj-newcommit" class="md-nav__link">
+  <a href="#why-does-my-bookmark-not-move-to-the-new-commit-after-jj-newcommit" class="md-nav__link">
     <span class="md-ellipsis">
-      Why does my branch not move to the new commit after jj new/commit?
+      Why does my bookmark not move to the new commit after jj new/commit?
     </span>
   </a>
   
@@ -1618,9 +1618,9 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#how-do-i-deal-with-conflicted-branches-after-branch-name" class="md-nav__link">
+  <a href="#how-do-i-deal-with-conflicted-bookmarks-after-bookmark-name" class="md-nav__link">
     <span class="md-ellipsis">
-      How do I deal with conflicted branches ('??' after branch name)?
+      How do I deal with conflicted bookmarks ('??' after bookmark name)?
     </span>
   </a>
   
@@ -1651,16 +1651,16 @@
 
 
 <h1 id="frequently-asked-questions">Frequently asked questions<a class="headerlink" href="#frequently-asked-questions" title="Permanent link">&para;</a></h1>
-<h3 id="why-does-my-branch-not-move-to-the-new-commit-after-jj-newcommit">Why does my branch not move to the new commit after <code>jj new/commit</code>?<a class="headerlink" href="#why-does-my-branch-not-move-to-the-new-commit-after-jj-newcommit" title="Permanent link">&para;</a></h3>
-<p>If you're familiar with Git, you might expect the current branch to move forward
-when you commit. However, Jujutsu does not have a concept of a "current branch".</p>
-<p>To move branches, use <code>jj branch set</code>.</p>
+<h3 id="why-does-my-bookmark-not-move-to-the-new-commit-after-jj-newcommit">Why does my bookmark not move to the new commit after <code>jj new/commit</code>?<a class="headerlink" href="#why-does-my-bookmark-not-move-to-the-new-commit-after-jj-newcommit" title="Permanent link">&para;</a></h3>
+<p>If you're familiar with Git, you might expect the current bookmark to move forward
+when you commit. However, Jujutsu does not have a concept of a "current bookmark".</p>
+<p>To move bookmarks, use <code>jj bookmark set</code>.</p>
 <h3 id="i-made-a-commit-and-jj-git-push-all-says-nothing-changed-instead-of-pushing-it-what-do-i-do">I made a commit and <code>jj git push --all</code> says "Nothing changed" instead of pushing it. What do I do?<a class="headerlink" href="#i-made-a-commit-and-jj-git-push-all-says-nothing-changed-instead-of-pushing-it-what-do-i-do" title="Permanent link">&para;</a></h3>
-<p><code>jj git push --all</code> pushes all <em>branches</em>, not all revisions. You have two
+<p><code>jj git push --all</code> pushes all <em>bookmarks</em>, not all revisions. You have two
 options:</p>
 <ul>
-<li>Using <code>jj git push --change</code> will automatically create a branch and push it.</li>
-<li>Using <code>jj branch</code> commands to create or move a branch to either the commit
+<li>Using <code>jj git push --change</code> will automatically create a bookmark and push it.</li>
+<li>Using <code>jj bookmark</code> commands to create or move a bookmark to either the commit
   you want to push or a descendant on it. Unlike Git, Jujutsu doesn't do this
   automatically (see previous question).</li>
 </ul>
@@ -1857,13 +1857,13 @@ use their <a href="../glossary/#commit-id">commit ID</a>. Most commonly, the way
 this is to abandon the unneeded commits (using <code>jj abandon &lt;commit ID&gt;</code>). If you
 would like to keep both commits with this change ID, you can <code>jj duplicate</code> one
 of them before abandoning it.</p>
-<h3 id="how-do-i-deal-with-conflicted-branches-after-branch-name">How do I deal with conflicted branches ('??' after branch name)?<a class="headerlink" href="#how-do-i-deal-with-conflicted-branches-after-branch-name" title="Permanent link">&para;</a></h3>
-<p>A <a href="../branches/#conflicts">conflicted branch</a> is a branch that refers to multiple
+<h3 id="how-do-i-deal-with-conflicted-bookmarks-after-bookmark-name">How do I deal with conflicted bookmarks ('??' after bookmark name)?<a class="headerlink" href="#how-do-i-deal-with-conflicted-bookmarks-after-bookmark-name" title="Permanent link">&para;</a></h3>
+<p>A <a href="../bookmarks/#conflicts">conflicted bookmark</a> is a bookmark that refers to multiple
 different commits because jj couldn't fully resolve its desired position.
-Resolving conflicted branches is usually done by setting the branch to the
-correct commit using <code>jj branch set &lt;commit ID&gt;</code>.</p>
-<p>Usually, the different commits associated with the conflicted branch should all
-appear in the log, but if they don't you can use <code>jj branch list</code>to show all the
+Resolving conflicted bookmarks is usually done by setting the bookmark to the
+correct commit using <code>jj bookmark set &lt;commit ID&gt;</code>.</p>
+<p>Usually, the different commits associated with the conflicted bookmark should all
+appear in the log, but if they don't you can use <code>jj bookmark list</code>to show all the
 commits associated with it.</p>
 <h3 id="how-do-i-integrate-jujutsu-with-gerrit">How do I integrate Jujutsu with Gerrit?<a class="headerlink" href="#how-do-i-integrate-jujutsu-with-gerrit" title="Permanent link">&para;</a></h3>
 <p>At the moment you'll need a script, which adds the required fields for Gerrit
@@ -1872,8 +1872,8 @@ in an aliased command. Here's an <a href="https://gist.github.com/thoughtpolice/
 contributor (look for the <code>jj signoff</code> alias).</p>
 <p>After you have attached the <code>Change-Id:</code> footer to the commit series, you'll
 have to manually invoke <code>git push</code> of <code>HEAD</code> on the underlying git repository
-into the remote Gerrit branch <code>refs/for/$BRANCH</code>, where <code>$BRANCH</code> is the base
-branch you want your changes to go to (e.g., <code>git push origin
+into the remote Gerrit bookmark <code>refs/for/$BRANCH</code>, where <code>$BRANCH</code> is the base
+bookmark you want your changes to go to (e.g., <code>git push origin
 HEAD:refs/for/main</code>). Using a <a href="../glossary/#co-located-repos">co-located</a> repo
 will make the underlying git repo directly accessible from the working
 directory.</p>

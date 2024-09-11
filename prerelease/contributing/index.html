@@ -525,11 +525,11 @@
   
   
     <li class="md-nav__item">
-      <a href="../branches/" class="md-nav__link">
+      <a href="../bookmarks/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
-    Branches
+    Bookmarks
   </span>
   
 
@@ -1772,7 +1772,7 @@ is typical on GitHub). Instead, please make the changes in the appropriate
 commit. You can do that by creating a new commit on top of the initial commit 
  (<code>jj new &lt;commit&gt;</code>) and then squash in the changes when you're done (<code>jj squash</code>). 
 <code>jj git push</code>
-will automatically force-push the branch.</p>
+will automatically force-push the bookmark.</p>
 <p>When your first PR has been approved, we typically give you contributor access,
 so you can address any remaining minor comments and then merge the PR yourself
 when you're ready. If you realize that some comments require non-trivial
@@ -1964,12 +1964,12 @@ cloned from your fork of <code>jj</code> (e.g. <code>jjfan.github.com/jj</code>)
 pure Git repo if you prefer.</p>
 </li>
 <li>
-<p>Make sure <code>jjfan.github.com/jj</code> includes the <code>gh-pages</code> branch of the jj repo
+<p>Make sure <code>jjfan.github.com/jj</code> includes the <code>gh-pages</code> bookmark of the jj repo
 and run <code>git fetch origin gh-pages</code>.</p>
 </li>
 <li>
 <p>Go to the GitHub repository settings, enable GitHub Pages, and configure them
-to use the <code>gh-pages</code> branch (this is usually the default).</p>
+to use the <code>gh-pages</code> bookmark (this is usually the default).</p>
 </li>
 <li>
 <p>Run the same <code>sh</code> script that is used in GitHub CI (details below):</p>
@@ -1977,8 +1977,8 @@ to use the <code>gh-pages</code> branch (this is usually the default).</p>
 <span class="w">    </span>prerelease<span class="w"> </span>main<span class="w"> </span>--push
 </code></pre></div>
 <p>This should build the version of the docs from the current commit,
-  deploy it as a new commit to the <code>gh-pages</code> branch,
-  and push the <code>gh-pages</code> branch to the origin.</p>
+  deploy it as a new commit to the <code>gh-pages</code> bookmark,
+  and push the <code>gh-pages</code> bookmark to the origin.</p>
 </li>
 <li>
 <p>Now, you should be able to see the full website, including your latest changes
@@ -1995,15 +1995,15 @@ back and forth, you can also rebuild the docs for the latest release as follows.
 </code></pre></div>
 </li>
 <li>
-<p>(Optional) When you are done, you may want to reset the <code>gh-branches</code> to the
+<p>(Optional) When you are done, you may want to reset the <code>gh-bookmarks</code> to the
 same spot as it is in the upstream. If you configured the <code>upstream</code> remote,
 this can be done with:</p>
 <div class="highlight"><pre><span></span><code><span class="c1"># This will LOSE any changes you made to `gh-pages`</span>
 jj<span class="w"> </span>git<span class="w"> </span>fetch<span class="w"> </span>--remote<span class="w"> </span>upstream
-jj<span class="w"> </span>branch<span class="w"> </span><span class="nb">set</span><span class="w"> </span>gh-pages<span class="w"> </span>-r<span class="w"> </span>gh-pages@upstream
-jj<span class="w"> </span>git<span class="w"> </span>push<span class="w"> </span>--remote<span class="w"> </span>origin<span class="w"> </span>--branch<span class="w"> </span>gh-pages
+jj<span class="w"> </span>bookmark<span class="w"> </span><span class="nb">set</span><span class="w"> </span>gh-pages<span class="w"> </span>-r<span class="w"> </span>gh-pages@upstream
+jj<span class="w"> </span>git<span class="w"> </span>push<span class="w"> </span>--remote<span class="w"> </span>origin<span class="w"> </span>--bookmark<span class="w"> </span>gh-pages
 </code></pre></div>
-<p>If you want to preserve some of the changes you made, you can do <code>jj branch
+<p>If you want to preserve some of the changes you made, you can do <code>jj bookmark
   set my-changes -r gh-pages</code> BEFORE running the above commands.</p>
 </li>
 </ol>
@@ -2016,10 +2016,10 @@ version switching widget) will have reduced functionality.</p>
 deploy</code>, which does the rest of the job. Run <code>poetry run -- mike help deploy</code> to
 find out what the arguments do.</p>
 <p>If you need to do something more complicated, you can use <code>poetry run -- mike
-...</code> commands. You can also edit the <code>gh-pages</code> branch directly, but take care
+...</code> commands. You can also edit the <code>gh-pages</code> bookmark directly, but take care
 to avoid files that will be overwritten by future invocations of <code>mike</code>. Then,
-you can submit a PR based on the <code>gh-pages</code> branch of
-<a href="https://martinvonz.github.com/jj">https://martinvonz.github.com/jj</a> (instead of the usual <code>main</code> branch).</p>
+you can submit a PR based on the <code>gh-pages</code> bookmark of
+<a href="https://martinvonz.github.com/jj">https://martinvonz.github.com/jj</a> (instead of the usual <code>main</code> bookmark).</p>
 <h2 id="modifying-protobuffers-this-is-not-common">Modifying protobuffers (this is not common)<a class="headerlink" href="#modifying-protobuffers-this-is-not-common" title="Permanent link">&para;</a></h2>
 <p>Occasionally, you may need to change the <code>.proto</code> files that define jj's data
  storage format. In this case, you will need to add a few steps to the above

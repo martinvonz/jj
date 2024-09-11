@@ -407,18 +407,18 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#using-a-generated-branch-name" class="md-nav__link">
+  <a href="#using-a-generated-bookmark-name" class="md-nav__link">
     <span class="md-ellipsis">
-      Using a generated branch name
+      Using a generated bookmark name
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#using-a-named-branch" class="md-nav__link">
+  <a href="#using-a-named-bookmark" class="md-nav__link">
     <span class="md-ellipsis">
-      Using a named branch
+      Using a named bookmark
     </span>
   </a>
   
@@ -490,9 +490,9 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#working-with-other-peoples-branches" class="md-nav__link">
+  <a href="#working-with-other-peoples-bookmarks" class="md-nav__link">
     <span class="md-ellipsis">
-      Working with other people's branches
+      Working with other people's bookmarks
     </span>
   </a>
   
@@ -714,11 +714,11 @@
   
   
     <li class="md-nav__item">
-      <a href="../branches/" class="md-nav__link">
+      <a href="../bookmarks/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
-    Branches
+    Bookmarks
   </span>
   
 
@@ -1516,18 +1516,18 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#using-a-generated-branch-name" class="md-nav__link">
+  <a href="#using-a-generated-bookmark-name" class="md-nav__link">
     <span class="md-ellipsis">
-      Using a generated branch name
+      Using a generated bookmark name
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#using-a-named-branch" class="md-nav__link">
+  <a href="#using-a-named-bookmark" class="md-nav__link">
     <span class="md-ellipsis">
-      Using a named branch
+      Using a named bookmark
     </span>
   </a>
   
@@ -1599,9 +1599,9 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#working-with-other-peoples-branches" class="md-nav__link">
+  <a href="#working-with-other-peoples-bookmarks" class="md-nav__link">
     <span class="md-ellipsis">
-      Working with other people's branches
+      Working with other people's bookmarks
     </span>
   </a>
   
@@ -1667,84 +1667,84 @@ future, see <a href="https://github.com/martinvonz/jj/issues/469">issue #469</a>
 authenticated HTTP.</p>
 <h2 id="basic-workflow">Basic workflow<a class="headerlink" href="#basic-workflow" title="Permanent link">&para;</a></h2>
 <p>The simplest way to start with Jujutsu is to create a stack of commits first.
-You will only need to create a branch when you need to push the stack to a
-remote. There are two primary workflows: using a generated branch name or
-naming a branch.</p>
-<h3 id="using-a-generated-branch-name">Using a generated branch name<a class="headerlink" href="#using-a-generated-branch-name" title="Permanent link">&para;</a></h3>
-<p>In this example we're letting Jujutsu auto-create a branch.</p>
-<div class="highlight"><pre><span></span><code><span class="c1"># Start a new commit off of the default branch.</span>
+You will only need to create a bookmark when you need to push the stack to a
+remote. There are two primary workflows: using a generated bookmark name or
+naming a bookmark.</p>
+<h3 id="using-a-generated-bookmark-name">Using a generated bookmark name<a class="headerlink" href="#using-a-generated-bookmark-name" title="Permanent link">&para;</a></h3>
+<p>In this example we're letting Jujutsu auto-create a bookmark.</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># Start a new commit off of the default bookmark.</span>
 $<span class="w"> </span>jj<span class="w"> </span>new<span class="w"> </span>main
 <span class="c1"># Refactor some files, then add a description and start a new commit</span>
 $<span class="w"> </span>jj<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s1">&#39;refactor(foo): restructure foo()&#39;</span>
 <span class="c1"># Add a feature, then add a description and start a new commit</span>
 $<span class="w"> </span>jj<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s1">&#39;feat(bar): add support for bar&#39;</span>
-<span class="c1"># Let Jujutsu generate a branch name and push that to GitHub. Note that we</span>
+<span class="c1"># Let Jujutsu generate a bookmark name and push that to GitHub. Note that we</span>
 <span class="c1"># push the working-copy commit&#39;s *parent* because the working-copy commit</span>
 <span class="c1"># itself is empty.</span>
 $<span class="w"> </span>jj<span class="w"> </span>git<span class="w"> </span>push<span class="w"> </span>-c<span class="w"> </span>@-
 </code></pre></div>
-<h3 id="using-a-named-branch">Using a named branch<a class="headerlink" href="#using-a-named-branch" title="Permanent link">&para;</a></h3>
-<p>In this example, we create a branch named <code>bar</code> and then push it to the remote.</p>
-<div class="highlight"><pre><span></span><code><span class="c1"># Start a new commit off of the default branch.</span>
+<h3 id="using-a-named-bookmark">Using a named bookmark<a class="headerlink" href="#using-a-named-bookmark" title="Permanent link">&para;</a></h3>
+<p>In this example, we create a bookmark named <code>bar</code> and then push it to the remote.</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># Start a new commit off of the default bookmark.</span>
 $<span class="w"> </span>jj<span class="w"> </span>new<span class="w"> </span>main
 <span class="c1"># Refactor some files, then add a description and start a new commit</span>
 $<span class="w"> </span>jj<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s1">&#39;refactor(foo): restructure foo()&#39;</span>
 <span class="c1"># Add a feature, then add a description and start a new commit</span>
 $<span class="w"> </span>jj<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s1">&#39;feat(bar): add support for bar&#39;</span>
-<span class="c1"># Create a branch so we can push it to GitHub. Note that we created the branch</span>
+<span class="c1"># Create a bookmark so we can push it to GitHub. Note that we created the bookmark</span>
 <span class="c1"># on the working-copy commit&#39;s *parent* because the working copy itself is empty.</span>
-$<span class="w"> </span>jj<span class="w"> </span>branch<span class="w"> </span>create<span class="w"> </span>bar<span class="w"> </span>-r<span class="w"> </span>@-<span class="w"> </span><span class="c1"># `bar` now contains the previous two commits.</span>
-<span class="c1"># Push the branch to GitHub (pushes only `bar`)</span>
+$<span class="w"> </span>jj<span class="w"> </span>bookmark<span class="w"> </span>create<span class="w"> </span>bar<span class="w"> </span>-r<span class="w"> </span>@-<span class="w"> </span><span class="c1"># `bar` now contains the previous two commits.</span>
+<span class="c1"># Push the bookmark to GitHub (pushes only `bar`)</span>
 $<span class="w"> </span>jj<span class="w"> </span>git<span class="w"> </span>push
 </code></pre></div>
-<p>While it's possible to create a branch in advance and commit on top of it in a
-Git-like manner, you will then need to move the branch manually when you create
+<p>While it's possible to create a bookmark in advance and commit on top of it in a
+Git-like manner, you will then need to move the bookmark manually when you create
 a new commits. Unlike Git, Jujutsu will not do it automatically.</p>
 <h2 id="updating-the-repository">Updating the repository<a class="headerlink" href="#updating-the-repository" title="Permanent link">&para;</a></h2>
 <p>As of October 2023, Jujutsu has no equivalent to a <code>git pull</code> command (see
 <a href="https://github.com/martinvonz/jj/issues/1039">issue #1039</a>). Until such a command is added, you need to use
-<code>jj git fetch</code> followed by a <code>jj rebase -d $main_branch</code> to update your
+<code>jj git fetch</code> followed by a <code>jj rebase -d $main_bookmark</code> to update your
 changes.</p>
 <h2 id="working-in-a-git-co-located-repository">Working in a Git co-located repository<a class="headerlink" href="#working-in-a-git-co-located-repository" title="Permanent link">&para;</a></h2>
 <p>After doing <code>jj git init --colocate</code>, Git will be in a <a href="https://git-scm.com/docs/git-checkout#_detached_head">detached HEAD
-state</a>, which is unusual, as Git mainly works with branches. In a
+state</a>, which is unusual, as Git mainly works with bookmarks. In a
 co-located repository, every <code>jj</code> command will automatically synchronize
 Jujutsu's view of the repo with Git's view. For example, <code>jj commit</code> updates the
 HEAD of the Git repository, enabling an incremental migration.</p>
 <div class="highlight"><pre><span></span><code>$<span class="w"> </span>nvim<span class="w"> </span>docs/tutorial.md
 $<span class="w"> </span><span class="c1"># Do some more work.</span>
 $<span class="w"> </span>jj<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;Update tutorial&quot;</span>
-<span class="c1"># Create a branch on the working-copy commit&#39;s parent</span>
-$<span class="w"> </span>jj<span class="w"> </span>branch<span class="w"> </span>create<span class="w"> </span>doc-update<span class="w"> </span>-r<span class="w"> </span>@-
+<span class="c1"># Create a bookmark on the working-copy commit&#39;s parent</span>
+$<span class="w"> </span>jj<span class="w"> </span>bookmark<span class="w"> </span>create<span class="w"> </span>doc-update<span class="w"> </span>-r<span class="w"> </span>@-
 $<span class="w"> </span>jj<span class="w"> </span>git<span class="w"> </span>push
 </code></pre></div>
 <h2 id="working-in-a-jujutsu-repository">Working in a Jujutsu repository<a class="headerlink" href="#working-in-a-jujutsu-repository" title="Permanent link">&para;</a></h2>
 <p>In a Jujutsu repository, the workflow is simplified. If there's no need for
-explicitly named branches, you can just generate one for a change. As Jujutsu is
-able to create a branch for a revision.</p>
+explicitly named bookmarks, you can just generate one for a change. As Jujutsu is
+able to create a bookmark for a revision.</p>
 <div class="highlight"><pre><span></span><code>$<span class="w"> </span><span class="c1"># Do your work</span>
 $<span class="w"> </span>jj<span class="w"> </span>commit
-$<span class="w"> </span><span class="c1"># Push change &quot;mw&quot;, letting Jujutsu automatically create a branch called</span>
+$<span class="w"> </span><span class="c1"># Push change &quot;mw&quot;, letting Jujutsu automatically create a bookmark called</span>
 $<span class="w"> </span><span class="c1"># &quot;push-mwmpwkwknuz&quot;</span>
 $<span class="w"> </span>jj<span class="w"> </span>git<span class="w"> </span>push<span class="w"> </span>--change<span class="w"> </span>mw
 </code></pre></div>
 <h2 id="addressing-review-comments">Addressing review comments<a class="headerlink" href="#addressing-review-comments" title="Permanent link">&para;</a></h2>
 <p>There are two workflows for addressing review comments, depending on your
 project's preference. Many projects prefer that you address comments by adding
-commits to your branch<sup id="fnref:1"><a class="footnote-ref" href="#fn:1">1</a></sup>. Some projects (such as Jujutsu and LLVM) instead
+commits to your bookmark<sup id="fnref:1"><a class="footnote-ref" href="#fn:1">1</a></sup>. Some projects (such as Jujutsu and LLVM) instead
 prefer that you keep your commits clean by rewriting them and then
 force-pushing<sup id="fnref:2"><a class="footnote-ref" href="#fn:2">2</a></sup>.</p>
 <h3 id="adding-new-commits">Adding new commits<a class="headerlink" href="#adding-new-commits" title="Permanent link">&para;</a></h3>
 <p>If your project prefers that you address review comments by adding commits on
 top, you can do that by doing something like this:</p>
-<div class="highlight"><pre><span></span><code>$<span class="w"> </span><span class="c1"># Create a new commit on top of the `your-feature` branch from above.</span>
+<div class="highlight"><pre><span></span><code>$<span class="w"> </span><span class="c1"># Create a new commit on top of the `your-feature` bookmark from above.</span>
 $<span class="w"> </span>jj<span class="w"> </span>new<span class="w"> </span>your-feature
 $<span class="w"> </span><span class="c1"># Address the comments by updating the code. Then review the changes.</span>
 $<span class="w"> </span>jj<span class="w"> </span>diff
 $<span class="w"> </span><span class="c1"># Give the fix a description and create a new working-copy on top.</span>
 $<span class="w"> </span>jj<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s1">&#39;address pr comments&#39;</span>
-$<span class="w"> </span><span class="c1"># Update the branch to point to the new commit.</span>
-$<span class="w"> </span>jj<span class="w"> </span>branch<span class="w"> </span><span class="nb">set</span><span class="w"> </span>your-feature<span class="w"> </span>-r<span class="w"> </span>@-
+$<span class="w"> </span><span class="c1"># Update the bookmark to point to the new commit.</span>
+$<span class="w"> </span>jj<span class="w"> </span>bookmark<span class="w"> </span><span class="nb">set</span><span class="w"> </span>your-feature<span class="w"> </span>-r<span class="w"> </span>@-
 $<span class="w"> </span><span class="c1"># Push it to your remote</span>
 $<span class="w"> </span>jj<span class="w"> </span>git<span class="w"> </span>push
 </code></pre></div>
@@ -1755,14 +1755,14 @@ achieved without creating a new commit.</p>
 We strongly suggest to <code>jj new</code> after the example below, as all further edits
 still get amended to the previous commit.</p>
 </blockquote>
-<div class="highlight"><pre><span></span><code>$<span class="w"> </span><span class="c1"># Create a new commit on top of the `your-feature` branch from above.</span>
+<div class="highlight"><pre><span></span><code>$<span class="w"> </span><span class="c1"># Create a new commit on top of the `your-feature` bookmark from above.</span>
 $<span class="w"> </span>jj<span class="w"> </span>new<span class="w"> </span>your-feature
 $<span class="w"> </span><span class="c1"># Address the comments by updating the code. Then review the changes.</span>
 $<span class="w"> </span>jj<span class="w"> </span>diff
 $<span class="w"> </span><span class="c1"># Give the fix a description.</span>
 $<span class="w"> </span>jj<span class="w"> </span>describe<span class="w"> </span>-m<span class="w"> </span><span class="s1">&#39;address pr comments&#39;</span>
-$<span class="w"> </span><span class="c1"># Update the branch to point to the current commit.</span>
-$<span class="w"> </span>jj<span class="w"> </span>branch<span class="w"> </span><span class="nb">set</span><span class="w"> </span>your-feature<span class="w"> </span>-r<span class="w"> </span>@
+$<span class="w"> </span><span class="c1"># Update the bookmark to point to the current commit.</span>
+$<span class="w"> </span>jj<span class="w"> </span>bookmark<span class="w"> </span><span class="nb">set</span><span class="w"> </span>your-feature<span class="w"> </span>-r<span class="w"> </span>@
 $<span class="w"> </span><span class="c1"># Push it to your remote</span>
 $<span class="w"> </span>jj<span class="w"> </span>git<span class="w"> </span>push
 </code></pre></div>
@@ -1776,21 +1776,21 @@ $<span class="w"> </span><span class="c1"># Address the comments by updating the
 $<span class="w"> </span>jj<span class="w"> </span>diff
 $<span class="w"> </span><span class="c1"># Squash the changes into the parent commit</span>
 $<span class="w"> </span>jj<span class="w"> </span>squash
-$<span class="w"> </span><span class="c1"># Push the updated branch to the remote. Jujutsu automatically makes it a</span>
+$<span class="w"> </span><span class="c1"># Push the updated bookmark to the remote. Jujutsu automatically makes it a</span>
 $<span class="w"> </span><span class="c1"># force push</span>
-$<span class="w"> </span>jj<span class="w"> </span>git<span class="w"> </span>push<span class="w"> </span>--branch<span class="w"> </span>your-feature
+$<span class="w"> </span>jj<span class="w"> </span>git<span class="w"> </span>push<span class="w"> </span>--bookmark<span class="w"> </span>your-feature
 </code></pre></div>
 <p>The hyphen after <code>your-feature</code> comes from the
 <a href="https://github.com/martinvonz/jj/blob/main/docs/revsets.md">revset</a> syntax.</p>
-<h2 id="working-with-other-peoples-branches">Working with other people's branches<a class="headerlink" href="#working-with-other-peoples-branches" title="Permanent link">&para;</a></h2>
-<p>By default, <code>jj git clone</code> imports the default remote branch (which is usually
-<code>main</code> or <code>master</code>), but <code>jj git fetch</code> doesn't import new remote branches to
-local branches. This means that if you want to iterate or test another
-contributor's branch, you'll need to do <code>jj new &lt;branch&gt;@&lt;remote&gt;</code> onto it.</p>
-<p>If you want to import all remote branches including inactive ones, set
-<code>git.auto-local-branch = true</code> in the config file. Then you can specify a
-contributor's branch as <code>jj new &lt;branch&gt;</code> instead of <code>jj new &lt;branch&gt;@&lt;remote&gt;</code>.</p>
-<p>You can find more information on that setting <a href="../config/#automatic-local-branch-creation">here</a>.</p>
+<h2 id="working-with-other-peoples-bookmarks">Working with other people's bookmarks<a class="headerlink" href="#working-with-other-peoples-bookmarks" title="Permanent link">&para;</a></h2>
+<p>By default, <code>jj git clone</code> imports the default remote bookmark (which is usually
+<code>main</code> or <code>master</code>), but <code>jj git fetch</code> doesn't import new remote bookmarks to
+local bookmarks. This means that if you want to iterate or test another
+contributor's bookmark, you'll need to do <code>jj new &lt;bookmark&gt;@&lt;remote&gt;</code> onto it.</p>
+<p>If you want to import all remote bookmarks including inactive ones, set
+<code>git.auto-local-bookmark = true</code> in the config file. Then you can specify a
+contributor's bookmark as <code>jj new &lt;bookmark&gt;</code> instead of <code>jj new &lt;bookmark&gt;@&lt;remote&gt;</code>.</p>
+<p>You can find more information on that setting <a href="../config/#automatic-local-bookmark-creation">here</a>.</p>
 <h2 id="using-github-cli">Using GitHub CLI<a class="headerlink" href="#using-github-cli" title="Permanent link">&para;</a></h2>
 <p>GitHub CLI will have trouble finding the proper Git repository path in jj repos
 that aren't <a href="../git-compatibility/#co-located-jujutsugit-repos">co-located</a>
@@ -1807,19 +1807,19 @@ Just add this line into <code>.envrc</code>:</p>
 work automatically even in repos that aren't co-located so you can execute
 commands like <code>gh issue list</code> normally.</p>
 <h2 id="useful-revsets">Useful Revsets<a class="headerlink" href="#useful-revsets" title="Permanent link">&para;</a></h2>
-<p>Log all revisions across all local branches that aren't on the main branch nor
+<p>Log all revisions across all local bookmarks that aren't on the main bookmark nor
 on any remote:</p>
-<div class="highlight"><pre><span></span><code>$<span class="w"> </span>jj<span class="w"> </span>log<span class="w"> </span>-r<span class="w"> </span><span class="s1">&#39;branches() &amp; ~(main | remote_branches())&#39;</span>
+<div class="highlight"><pre><span></span><code>$<span class="w"> </span>jj<span class="w"> </span>log<span class="w"> </span>-r<span class="w"> </span><span class="s1">&#39;bookmarks() &amp; ~(main | remote_bookmarks())&#39;</span>
 </code></pre></div>
-<p>Log all revisions that you authored, across all branches that aren't on any
+<p>Log all revisions that you authored, across all bookmarks that aren't on any
 remote:</p>
-<div class="highlight"><pre><span></span><code>$<span class="w"> </span>jj<span class="w"> </span>log<span class="w"> </span>-r<span class="w"> </span><span class="s1">&#39;mine() &amp; branches() &amp; ~remote_branches()&#39;</span>
+<div class="highlight"><pre><span></span><code>$<span class="w"> </span>jj<span class="w"> </span>log<span class="w"> </span>-r<span class="w"> </span><span class="s1">&#39;mine() &amp; bookmarks() &amp; ~remote_bookmarks()&#39;</span>
 </code></pre></div>
-<p>Log all remote branches that you authored or committed to:</p>
-<div class="highlight"><pre><span></span><code>$<span class="w"> </span>jj<span class="w"> </span>log<span class="w"> </span>-r<span class="w"> </span><span class="s1">&#39;remote_branches() &amp; (mine() | committer(your@email.com))&#39;</span>
+<p>Log all remote bookmarks that you authored or committed to:</p>
+<div class="highlight"><pre><span></span><code>$<span class="w"> </span>jj<span class="w"> </span>log<span class="w"> </span>-r<span class="w"> </span><span class="s1">&#39;remote_bookmarks() &amp; (mine() | committer(your@email.com))&#39;</span>
 </code></pre></div>
 <p>Log all descendants of the current working copy that aren't on any remote:</p>
-<div class="highlight"><pre><span></span><code>$<span class="w"> </span>jj<span class="w"> </span>log<span class="w"> </span>-r<span class="w"> </span><span class="s1">&#39;::@ &amp; ~remote_branches()&#39;</span>
+<div class="highlight"><pre><span></span><code>$<span class="w"> </span>jj<span class="w"> </span>log<span class="w"> </span>-r<span class="w"> </span><span class="s1">&#39;::@ &amp; ~remote_bookmarks()&#39;</span>
 </code></pre></div>
 <h2 id="merge-conflicts">Merge conflicts<a class="headerlink" href="#merge-conflicts" title="Permanent link">&para;</a></h2>
 <p>For a detailed overview, how Jujutsu handles conflicts, revisit
@@ -1842,7 +1842,7 @@ configuration file (for example <code>.jj/repo/config.toml</code>):</p>
 <ol>
 <li id="fn:1">
 <p>This is a GitHub-style review, as GitHub currently only is able to compare
-branches.&#160;<a class="footnote-backref" href="#fnref:1" title="Jump back to footnote 1 in the text">&#8617;</a></p>
+bookmarks.&#160;<a class="footnote-backref" href="#fnref:1" title="Jump back to footnote 1 in the text">&#8617;</a></p>
 </li>
 <li id="fn:2">
 <p>If you're wondering why we prefer clean commits in this project, see
