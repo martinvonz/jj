@@ -1561,9 +1561,15 @@ See https://martinvonz.github.io/jj/latest/working-copy/#stale-working-copy \
         for (workspace_id, wc_commit_id) in tx.repo().view().wc_commit_ids().clone().iter().sorted()
         //sorting otherwise non deterministic order (bad for tests)
         {
+            // Create a new working-copy commit in the workspace if the working copy became
+            // immutable (but not if it already was)
             if self
                 .check_repo_rewritable(tx.repo(), [wc_commit_id])
                 .is_err()
+                && tx.base_repo().index().has_id(wc_commit_id)
+                && !self
+                    .check_repo_rewritable(tx.base_repo().as_ref(), [wc_commit_id])
+                    .is_err()
             {
                 let wc_commit = tx.repo().store().get_commit(wc_commit_id)?;
                 tx.repo_mut()

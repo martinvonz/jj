@@ -125,11 +125,11 @@ fn test_immutable_heads_set_to_working_copy() {
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init"]);
     test_env.jj_cmd_ok(test_env.env_root(), &["branch", "create", "main"]);
     test_env.add_config(r#"revset-aliases."immutable_heads()" = "@""#);
+    // No new commit since it was already immutable
     let (_, stderr) = test_env.jj_cmd_ok(test_env.env_root(), &["new", "-m=a"]);
     insta::assert_snapshot!(stderr, @r###"
-    Warning: The working-copy commit in workspace 'default' became immutable, so a new commit has been created on top of it.
-    Working copy now at: pmmvwywv 7278b2d8 (empty) (no description set)
-    Parent commit      : kkmpptxz a713ef56 (empty) a
+    Working copy now at: kkmpptxz a713ef56 (empty) a
+    Parent commit      : qpvuntsm e0360db1 main | (no description set)
     "###);
 }
 

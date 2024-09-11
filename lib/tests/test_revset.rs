@@ -445,6 +445,48 @@ fn test_resolve_working_copies() {
 }
 
 #[test]
+fn test_resolve_other_working_copies() {
+    let settings = testutils::user_settings();
+    let test_repo = TestRepo::init();
+    let repo = &test_repo.repo;
+
+    let mut tx = repo.start_transaction(&settings);
+    let mut_repo = tx.mut_repo();
+
+    let commit1 = write_random_commit(mut_repo, &settings);
+    let commit2 = write_random_commit(mut_repo, &settings);
+
+    // Add some workspaces
+    let ws1 = WorkspaceId::new("ws1".to_string());
+    let ws2 = WorkspaceId::new("ws2".to_string());
+    let ws3 = WorkspaceId::new("ws3".to_string());
+
+    // ws1 points to commit1. Both ws2 and ws3 point to commit2.
+    mut_repo
+        .set_wc_commit(ws1.clone(), commit1.id().clone())
+        .unwrap();
+    mut_repo
+        .set_wc_commit(ws2.clone(), commit2.id().clone())
+        .unwrap();
+    mut_repo
+        .set_wc_commit(ws3.clone(), commit2.id().clone())
+        .unwrap();
+
+    let resolve = |ws| -> Vec<CommitId> {
+        RevsetExpression::other_working_copies(ws)
+            .evaluate_programmatic(mut_repo)
+            .unwrap()
+            .iter()
+            .collect()
+    };
+    assert_eq!(resolve(ws1), vec![commit2.id().clone()]);
+    assert_eq!(
+        resolve(ws2),
+        vec![commit2.id().clone(), commit1.id().clone()]
+    );
+}
+
+#[test]
 fn test_resolve_symbol_branches() {
     let settings = testutils::user_settings();
     let test_repo = TestRepo::init();

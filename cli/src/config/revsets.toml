@@ -3,7 +3,7 @@
 
 [revsets]
 fix = "reachable(@, mutable())"
-log = "@ | ancestors(immutable_heads().., 2) | trunk()"
+log = "working_copies() | ancestors(immutable_heads().., 2) | trunk()"
 
 [revset-aliases]
 'trunk()' = '''
@@ -18,7 +18,7 @@ latest(
 )
 '''
 
-'builtin_immutable_heads()' = 'trunk() | tags() | untracked_remote_branches()'
+'builtin_immutable_heads()' = 'trunk() | tags() | untracked_remote_branches() | other_working_copies()'
 'immutable_heads()' = 'builtin_immutable_heads()'
 'immutable()' = '::(immutable_heads() | root())'
 'mutable()' = '~immutable()'

@@ -36,6 +36,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   (inherit from parent; default), `full` (full working copy), or `empty` (the
   empty working copy).
 
+* New revset function `other_working_copies()` selects working-copy commits
+  in all but the current workspace.
+
 ### Fixed bugs
 
  * Fixed panic when parsing invalid conflict markers of a particular form.

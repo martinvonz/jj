@@ -301,7 +301,12 @@ given [string pattern](#string-patterns).
 * `present(x)`: Same as `x`, but evaluated to `none()` if any of the commits
   in `x` doesn't exist (e.g. is an unknown branch name.)
 
-* `working_copies()`: The working copy commits across all the workspaces.
+* `working_copies()`: The working-copy commits across all the workspaces.
+
+* `other_working_copies()`: The working copy-commits across all the workspaces,
+  except for the current workspace. This is similar to `working_copies() ~ @`
+  but includes the current working-copy commit even if it is also being edited
+  in another workspace.
 
 ??? examples
 
