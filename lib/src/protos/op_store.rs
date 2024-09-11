@@ -49,7 +49,7 @@ pub mod ref_target {
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct RemoteBranch {
+pub struct RemoteBookmark {
     #[prost(string, tag = "1")]
     pub remote_name: ::prost::alloc::string::String,
     #[prost(message, optional, tag = "2")]
@@ -60,10 +60,10 @@ pub struct RemoteBranch {
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct Branch {
+pub struct Bookmark {
     #[prost(string, tag = "1")]
     pub name: ::prost::alloc::string::String,
-    /// Unset if the branch has been deleted locally.
+    /// Unset if the bookmark has been deleted locally.
     #[prost(message, optional, tag = "2")]
     pub local_target: ::core::option::Option<RefTarget>,
     /// TODO: How would we support renaming remotes while having undo work? If
@@ -71,7 +71,7 @@ pub struct Branch {
     /// remote is renamed but the configs are left unchanged. Should each remote
     /// be identified (here and in configs) by a UUID?
     #[prost(message, repeated, tag = "3")]
-    pub remote_branches: ::prost::alloc::vec::Vec<RemoteBranch>,
+    pub remote_bookmarks: ::prost::alloc::vec::Vec<RemoteBookmark>,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -108,7 +108,7 @@ pub struct View {
         ::prost::alloc::vec::Vec<u8>,
     >,
     #[prost(message, repeated, tag = "5")]
-    pub branches: ::prost::alloc::vec::Vec<Branch>,
+    pub bookmarks: ::prost::alloc::vec::Vec<Bookmark>,
     #[prost(message, repeated, tag = "6")]
     pub tags: ::prost::alloc::vec::Vec<Tag>,
     /// Only a subset of the refs. For example, does not include refs/notes/.
@@ -122,7 +122,7 @@ pub struct View {
     pub git_head_legacy: ::prost::alloc::vec::Vec<u8>,
     #[prost(message, optional, tag = "9")]
     pub git_head: ::core::option::Option<RefTarget>,
-    /// Whether "@git" branches have been migrated to remote_targets.
+    /// Whether "@git" bookmark have been migrated to remote_targets.
     #[prost(bool, tag = "10")]
     pub has_git_refs_migrated_to_remote: bool,
 }

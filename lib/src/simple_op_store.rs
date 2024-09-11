@@ -436,7 +436,7 @@ fn view_to_proto(view: &View) -> crate::protos::op_store::View {
         proto.head_ids.push(head_id.to_bytes());
     }
 
-    proto.branches = bookmark_views_to_proto_legacy(&view.local_bookmarks, &view.remote_views);
+    proto.bookmarks = bookmark_views_to_proto_legacy(&view.local_bookmarks, &view.remote_views);
 
     for (name, target) in &view.tags {
         proto.tags.push(crate::protos::op_store::Tag {
@@ -475,7 +475,7 @@ fn view_from_proto(proto: crate::protos::op_store::View) -> View {
         view.head_ids.insert(CommitId::new(head_id_bytes));
     }
 
-    let (local_bookmarks, remote_views) = bookmark_views_from_proto_legacy(proto.branches);
+    let (local_bookmarks, remote_views) = bookmark_views_from_proto_legacy(proto.bookmarks);
     view.local_bookmarks = local_bookmarks;
     view.remote_views = remote_views;
 
@@ -511,7 +511,7 @@ fn view_from_proto(proto: crate::protos::op_store::View) -> View {
 fn bookmark_views_to_proto_legacy(
     local_bookmarks: &BTreeMap<String, RefTarget>,
     remote_views: &BTreeMap<String, RemoteView>,
-) -> Vec<crate::protos::op_store::Branch> {
+) -> Vec<crate::protos::op_store::Bookmark> {
     op_store::merge_join_bookmark_views(local_bookmarks, remote_views)
         .map(|(name, bookmark_target)| {
             let local_target = ref_target_to_proto(bookmark_target.local_target);
@@ -519,30 +519,30 @@ fn bookmark_views_to_proto_legacy(
                 .remote_refs
                 .iter()
                 .map(
-                    |&(remote_name, remote_ref)| crate::protos::op_store::RemoteBranch {
+                    |&(remote_name, remote_ref)| crate::protos::op_store::RemoteBookmark {
                         remote_name: remote_name.to_owned(),
                         target: ref_target_to_proto(&remote_ref.target),
                         state: remote_ref_state_to_proto(remote_ref.state),
                     },
                 )
                 .collect();
-            crate::protos::op_store::Branch {
+            crate::protos::op_store::Bookmark {
                 name: name.to_owned(),
                 local_target,
-                remote_branches: remote_bookmarks,
+                remote_bookmarks,
             }
         })
         .collect()
 }
 
 fn bookmark_views_from_proto_legacy(
-    bookmarks_legacy: Vec<crate::protos::op_store::Branch>,
+    bookmarks_legacy: Vec<crate::protos::op_store::Bookmark>,
 ) -> (BTreeMap<String, RefTarget>, BTreeMap<String, RemoteView>) {
     let mut local_bookmarks: BTreeMap<String, RefTarget> = BTreeMap::new();
     let mut remote_views: BTreeMap<String, RemoteView> = BTreeMap::new();
     for bookmark_proto in bookmarks_legacy {
         let local_target = ref_target_from_proto(bookmark_proto.local_target);
-        for remote_bookmark in bookmark_proto.remote_branches {
+        for remote_bookmark in bookmark_proto.remote_bookmarks {
             let state = remote_ref_state_from_proto(remote_bookmark.state).unwrap_or_else(|| {
                 // If local bookmark doesn't exist, we assume that the remote bookmark hasn't
                 // been merged because git.auto-local-bookmark was off. That's
@@ -905,13 +905,13 @@ mod tests {
             state: RemoteRefState::Tracking,
         };
         let bookmark_to_proto =
-            |name: &str, local_ref_target, remote_branches| crate::protos::op_store::Branch {
+            |name: &str, local_ref_target, remote_bookmarks| crate::protos::op_store::Bookmark {
                 name: name.to_owned(),
                 local_target: ref_target_to_proto(local_ref_target),
-                remote_branches,
+                remote_bookmarks,
             };
         let remote_bookmark_to_proto =
-            |remote_name: &str, ref_target| crate::protos::op_store::RemoteBranch {
+            |remote_name: &str, ref_target| crate::protos::op_store::RemoteBookmark {
                 remote_name: remote_name.to_owned(),
                 target: ref_target_to_proto(ref_target),
                 state: None, // to be generated based on local bookmark existence
@@ -923,7 +923,7 @@ mod tests {
         };
 
         let proto = crate::protos::op_store::View {
-            branches: vec![
+            bookmarks: vec![
                 bookmark_to_proto(
                     "main",
                     &normal_ref_target("111111"),
@@ -986,7 +986,7 @@ mod tests {
         // Once migrated, "git" remote bookmarks shouldn't be populated again.
         let mut proto = view_to_proto(&view);
         assert!(proto.has_git_refs_migrated_to_remote);
-        proto.branches.clear();
+        proto.bookmarks.clear();
         let view = view_from_proto(proto);
         assert!(!view.remote_views.contains_key("git"));
     }
