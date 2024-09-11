@@ -192,7 +192,7 @@ the operation will be aborted.
     // Mark the commit being split as rewritten to the second commit. As a
     // result, if @ points to the commit being split, it will point to the
     // second commit after the command finishes. This also means that any
-    // branches pointing to the commit being split are moved to the second
+    // bookmarks pointing to the commit being split are moved to the second
     // commit.
     tx.repo_mut()
         .set_rewritten_commit(commit.id().clone(), second_commit.id().clone());

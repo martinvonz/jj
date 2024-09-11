@@ -890,12 +890,12 @@ fn test_op_diff() {
     ○  Change qpvuntsmwlqt
        - qpvuntsm hidden 230dd059 (empty) (no description set)
 
-    Changed local branches:
+    Changed local bookmarks:
     bookmark-1:
     + ulyvmwyz 1d843d1f bookmark-1 | Commit 1
     - (absent)
 
-    Changed remote branches:
+    Changed remote bookmarks:
     bookmark-1@origin:
     + tracked ulyvmwyz 1d843d1f bookmark-1 | Commit 1
     - untracked ulyvmwyz 1d843d1f bookmark-1 | Commit 1
@@ -921,12 +921,12 @@ fn test_op_diff() {
     ○  Change zzzzzzzzzzzz
        + zzzzzzzz 00000000 (empty) (no description set)
 
-    Changed local branches:
+    Changed local bookmarks:
     bookmark-1:
     + ulyvmwyz 1d843d1f bookmark-1 | Commit 1
     - (absent)
 
-    Changed remote branches:
+    Changed remote bookmarks:
     bookmark-1@origin:
     + tracked ulyvmwyz 1d843d1f bookmark-1 | Commit 1
     - untracked (absent)
@@ -956,12 +956,12 @@ fn test_op_diff() {
     ○  Change zzzzzzzzzzzz
        - zzzzzzzz hidden 00000000 (empty) (no description set)
 
-    Changed local branches:
+    Changed local bookmarks:
     bookmark-1:
     + (absent)
     - ulyvmwyz hidden 1d843d1f Commit 1
 
-    Changed remote branches:
+    Changed remote bookmarks:
     bookmark-1@origin:
     + untracked (absent)
     - tracked ulyvmwyz hidden 1d843d1f Commit 1
@@ -1024,7 +1024,7 @@ fn test_op_diff() {
     From operation ea112f6a02be: check out git remote's default branch
       To operation f534dfc3151b: reconcile divergent operations
 
-    Changed local branches:
+    Changed local bookmarks:
     bookmark-1:
     + (added) ulyvmwyz 1d843d1f bookmark-1?? bookmark-1@origin | Commit 1
     + (added) yuvsmzqk 3d9189bc bookmark-1?? bookmark-2@origin | Commit 2
@@ -1047,13 +1047,13 @@ fn test_op_diff() {
     ○  Change qpvuntsmwlqt
        - qpvuntsm hidden 230dd059 (empty) (no description set)
 
-    Changed local branches:
+    Changed local bookmarks:
     bookmark-1:
     + (added) ulyvmwyz 1d843d1f bookmark-1?? bookmark-1@origin | Commit 1
     + (added) yuvsmzqk 3d9189bc bookmark-1?? bookmark-2@origin | Commit 2
     - yuvsmzqk 3d9189bc bookmark-1?? bookmark-2@origin | Commit 2
 
-    Changed remote branches:
+    Changed remote bookmarks:
     bookmark-1@origin:
     + tracked ulyvmwyz 1d843d1f bookmark-1?? bookmark-1@origin | Commit 1
     - untracked ulyvmwyz 1d843d1f bookmark-1?? bookmark-1@origin | Commit 1
@@ -1065,9 +1065,9 @@ fn test_op_diff() {
     insta::assert_snapshot!(&stdout, @r###"
     "###);
     insta::assert_snapshot!(&stderr, @r###"
-    branch: bookmark-1@origin [updated] tracked
-    branch: bookmark-2@origin [updated] untracked
-    branch: bookmark-3@origin [deleted] untracked
+    bookmark: bookmark-1@origin [updated] tracked
+    bookmark: bookmark-2@origin [updated] untracked
+    bookmark: bookmark-3@origin [deleted] untracked
     Abandoned 1 commits that are no longer reachable.
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["op", "diff"]);
@@ -1083,14 +1083,14 @@ fn test_op_diff() {
     ○  Change tqyxmsztkvot
        - tqyxmszt hidden 3e785984 Commit 3
 
-    Changed local branches:
+    Changed local bookmarks:
     bookmark-1:
     + (added) slvtnnzx 4f856199 bookmark-1?? bookmark-1@origin | Commit 4
     + (added) yuvsmzqk 3d9189bc bookmark-1?? | Commit 2
     - (added) ulyvmwyz 1d843d1f Commit 1
     - (added) yuvsmzqk 3d9189bc bookmark-1?? | Commit 2
 
-    Changed remote branches:
+    Changed remote bookmarks:
     bookmark-1@origin:
     + tracked slvtnnzx 4f856199 bookmark-1?? bookmark-1@origin | Commit 4
     - tracked ulyvmwyz 1d843d1f Commit 1
@@ -1123,7 +1123,7 @@ fn test_op_diff() {
     From operation 8a21e297a587: fetch from git remote(s) origin
       To operation ef314062f7f5: create bookmark bookmark-2 pointing to commit d487febd08e690ee775a4e0387e30d544307e409
 
-    Changed local branches:
+    Changed local bookmarks:
     bookmark-2:
     + qzxslznx d487febd bookmark-2 bookmark-2@origin | Commit 5
     - (absent)
@@ -1142,7 +1142,7 @@ fn test_op_diff() {
     From operation ef314062f7f5: create bookmark bookmark-2 pointing to commit d487febd08e690ee775a4e0387e30d544307e409
       To operation bc306c9bb67f: track remote bookmark bookmark-2@origin
 
-    Changed remote branches:
+    Changed remote bookmarks:
     bookmark-2@origin:
     + tracked qzxslznx d487febd bookmark-2 | Commit 5
     - untracked qzxslznx d487febd bookmark-2 | Commit 5
@@ -1163,7 +1163,7 @@ fn test_op_diff() {
     From operation ef314062f7f5: create bookmark bookmark-2 pointing to commit d487febd08e690ee775a4e0387e30d544307e409
       To operation bc306c9bb67f: track remote bookmark bookmark-2@origin
 
-    Changed remote branches:
+    Changed remote bookmarks:
     bookmark-2@origin:
     + tracked qzxslznx d487febd bookmark-2 | Commit 5
     - untracked qzxslznx d487febd bookmark-2 | Commit 5
@@ -1206,7 +1206,7 @@ fn test_op_diff() {
     From operation 1ae777a7acc8: new empty commit
       To operation 5728693d7de3: point bookmark bookmark-1 to commit 358b82d6be53fa9b062325abb8bc820a8b34c68d
 
-    Changed local branches:
+    Changed local bookmarks:
     bookmark-1:
     + wvuyspvk 358b82d6 bookmark-1* | (empty) new commit
     - (added) slvtnnzx 4f856199 bookmark-1@origin | Commit 4
@@ -1225,7 +1225,7 @@ fn test_op_diff() {
     From operation 5728693d7de3: point bookmark bookmark-1 to commit 358b82d6be53fa9b062325abb8bc820a8b34c68d
       To operation 0f77d601f1cd: delete bookmark bookmark-2
 
-    Changed local branches:
+    Changed local bookmarks:
     bookmark-2:
     + (absent)
     - qzxslznx d487febd bookmark-2@origin | Commit 5
@@ -1236,7 +1236,7 @@ fn test_op_diff() {
     insta::assert_snapshot!(&stdout, @r###"
     "###);
     insta::assert_snapshot!(&stderr, @r###"
-    Branch changes to push to origin:
+    Bookmark changes to push to origin:
       Move forward bookmark bookmark-1 from 4f856199edbf to 358b82d6be53
       Delete bookmark bookmark-2 from d487febd08e6
     Warning: The working-copy commit in workspace 'default' became immutable, so a new commit has been created on top of it.
@@ -1252,7 +1252,7 @@ fn test_op_diff() {
     ○  Change oupztwtkortx
        + oupztwtk 2f0718a0 (empty) (no description set)
 
-    Changed remote branches:
+    Changed remote bookmarks:
     bookmark-1@origin:
     + tracked wvuyspvk 358b82d6 bookmark-1 | (empty) new commit
     - tracked slvtnnzx 4f856199 Commit 4
@@ -1516,7 +1516,7 @@ fn test_op_diff_word_wrap() {
     test_env.jj_cmd_ok(&repo_path, &["debug", "snapshot"]);
 
     // ui.log-word-wrap option works, and diff stat respects content width
-    insta::assert_snapshot!(render(&["op", "diff", "--from=@---", "--stat"], 40, true), @r#"
+    insta::assert_snapshot!(render(&["op", "diff", "--from=@---", "--stat"], 40, true), @r###"
     From operation b51416386f26: add workspace 'default'
       To operation d12081b11443: snapshot working copy
 
@@ -1546,13 +1546,13 @@ fn test_op_diff_word_wrap() {
        (no description set)
        0 files changed, 0 insertions(+), 0 deletions(-)
 
-    Changed local branches:
+    Changed local bookmarks:
     bookmark-1:
     + ulyvmwyz 1d843d1f bookmark-1 | Commit
     1
     - (absent)
 
-    Changed remote branches:
+    Changed remote bookmarks:
     bookmark-1@origin:
     + tracked ulyvmwyz 1d843d1f bookmark-1 |
     Commit 1
@@ -1565,12 +1565,12 @@ fn test_op_diff_word_wrap() {
     + untracked tqyxmszt 3e785984
     bookmark-3@origin | Commit 3
     - untracked (absent)
-    "#);
+    "###);
 
     // Graph width should be subtracted from the term width
     let config = r#"templates.commit_summary='"0 1 2 3 4 5 6 7 8 9"'"#;
     insta::assert_snapshot!(
-        render(&["op", "diff", "--from=@---", "--config-toml", config], 10, true), @r#"
+        render(&["op", "diff", "--from=@---", "--config-toml", config], 10, true), @r###"
     From operation b51416386f26: add workspace 'default'
       To operation d12081b11443: snapshot working copy
 
@@ -1604,7 +1604,7 @@ fn test_op_diff_word_wrap() {
 
     Changed
     local
-    branches:
+    bookmarks:
     bookmark-1:
     + 0 1 2 3
     4 5 6 7 8
@@ -1613,7 +1613,7 @@ fn test_op_diff_word_wrap() {
 
     Changed
     remote
-    branches:
+    bookmarks:
     bookmark-1@origin:
     + tracked
     0 1 2 3 4
@@ -1637,7 +1637,7 @@ fn test_op_diff_word_wrap() {
     -
     untracked
     (absent)
-    "#);
+    "###);
 }
 
 #[test]
@@ -1683,12 +1683,12 @@ fn test_op_show() {
     ○  Change qpvuntsmwlqt
        - qpvuntsm hidden 230dd059 (empty) (no description set)
 
-    Changed local branches:
+    Changed local bookmarks:
     bookmark-1:
     + ulyvmwyz 1d843d1f bookmark-1 | Commit 1
     - (absent)
 
-    Changed remote branches:
+    Changed remote bookmarks:
     bookmark-1@origin:
     + tracked ulyvmwyz 1d843d1f bookmark-1 | Commit 1
     - untracked ulyvmwyz 1d843d1f bookmark-1 | Commit 1
@@ -1712,7 +1712,7 @@ fn test_op_show() {
     ○  Change ulyvmwyzwuwt
        + ulyvmwyz 1d843d1f bookmark-1@origin | Commit 1
 
-    Changed remote branches:
+    Changed remote bookmarks:
     bookmark-1@origin:
     + untracked ulyvmwyz 1d843d1f bookmark-1@origin | Commit 1
     - untracked (absent)
@@ -1755,9 +1755,9 @@ fn test_op_show() {
     insta::assert_snapshot!(&stdout, @r###"
     "###);
     insta::assert_snapshot!(&stderr, @r###"
-    branch: bookmark-1@origin [updated] tracked
-    branch: bookmark-2@origin [updated] untracked
-    branch: bookmark-3@origin [deleted] untracked
+    bookmark: bookmark-1@origin [updated] tracked
+    bookmark: bookmark-2@origin [updated] untracked
+    bookmark: bookmark-3@origin [deleted] untracked
     Abandoned 1 commits that are no longer reachable.
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["op", "show"]);
@@ -1774,14 +1774,14 @@ fn test_op_show() {
     ○  Change tqyxmsztkvot
        - tqyxmszt hidden 3e785984 Commit 3
 
-    Changed local branches:
+    Changed local bookmarks:
     bookmark-1:
     + (added) slvtnnzx 4f856199 bookmark-1?? bookmark-1@origin | Commit 4
     + (added) yuvsmzqk 3d9189bc bookmark-1?? | Commit 2
     - (added) ulyvmwyz 1d843d1f Commit 1
     - (added) yuvsmzqk 3d9189bc bookmark-1?? | Commit 2
 
-    Changed remote branches:
+    Changed remote bookmarks:
     bookmark-1@origin:
     + tracked slvtnnzx 4f856199 bookmark-1?? bookmark-1@origin | Commit 4
     - tracked ulyvmwyz 1d843d1f Commit 1
@@ -1815,7 +1815,7 @@ fn test_op_show() {
     create bookmark bookmark-2 pointing to commit d487febd08e690ee775a4e0387e30d544307e409
     args: jj bookmark create bookmark-2 -r bookmark-2@origin
 
-    Changed local branches:
+    Changed local bookmarks:
     bookmark-2:
     + qzxslznx d487febd bookmark-2 bookmark-2@origin | Commit 5
     - (absent)
@@ -1835,7 +1835,7 @@ fn test_op_show() {
     track remote bookmark bookmark-2@origin
     args: jj bookmark track bookmark-2@origin
 
-    Changed remote branches:
+    Changed remote bookmarks:
     bookmark-2@origin:
     + tracked qzxslznx d487febd bookmark-2 | Commit 5
     - untracked qzxslznx d487febd bookmark-2 | Commit 5
@@ -1856,7 +1856,7 @@ fn test_op_show() {
     track remote bookmark bookmark-2@origin
     args: jj bookmark track bookmark-2@origin
 
-    Changed remote branches:
+    Changed remote bookmarks:
     bookmark-2@origin:
     + tracked qzxslznx d487febd bookmark-2 | Commit 5
     - untracked qzxslznx d487febd bookmark-2 | Commit 5
@@ -1901,7 +1901,7 @@ fn test_op_show() {
     point bookmark bookmark-1 to commit eb6c2b21ec20a33ab6a1c44bc86c59d84ffd93ac
     args: jj bookmark set bookmark-1 -r @
 
-    Changed local branches:
+    Changed local bookmarks:
     bookmark-1:
     + xznxytkn eb6c2b21 bookmark-1* | (empty) new commit
     - (added) slvtnnzx 4f856199 bookmark-1@origin | Commit 4
@@ -1921,7 +1921,7 @@ fn test_op_show() {
     delete bookmark bookmark-2
     args: jj bookmark delete bookmark-2
 
-    Changed local branches:
+    Changed local bookmarks:
     bookmark-2:
     + (absent)
     - qzxslznx d487febd bookmark-2@origin | Commit 5
@@ -1932,7 +1932,7 @@ fn test_op_show() {
     insta::assert_snapshot!(&stdout, @r###"
     "###);
     insta::assert_snapshot!(&stderr, @r###"
-    Branch changes to push to origin:
+    Bookmark changes to push to origin:
       Move forward bookmark bookmark-1 from 4f856199edbf to eb6c2b21ec20
       Delete bookmark bookmark-2 from d487febd08e6
     Warning: The working-copy commit in workspace 'default' became immutable, so a new commit has been created on top of it.
@@ -1949,7 +1949,7 @@ fn test_op_show() {
     ○  Change pzsxstztnpkv
        + pzsxstzt 7ab2d837 (empty) (no description set)
 
-    Changed remote branches:
+    Changed remote bookmarks:
     bookmark-1@origin:
     + tracked xznxytkn eb6c2b21 bookmark-1 | (empty) new commit
     - tracked slvtnnzx 4f856199 Commit 4

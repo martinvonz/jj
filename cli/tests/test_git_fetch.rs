@@ -111,7 +111,7 @@ fn test_git_fetch_single_remote() {
     let (_stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["git", "fetch"]);
     insta::assert_snapshot!(stderr, @r###"
     Hint: Fetching from the only existing remote: rem1
-    branch: rem1@rem1 [new] tracked
+    bookmark: rem1@rem1 [new] tracked
     "###);
     insta::assert_snapshot!(get_bookmark_output(&test_env, &repo_path), @r###"
     rem1: qxosxrvv 6a211027 message
@@ -238,7 +238,7 @@ fn test_git_fetch_nonexistent_remote() {
         &["git", "fetch", "--remote", "rem1", "--remote", "rem2"],
     );
     insta::assert_snapshot!(stderr, @r###"
-    branch: rem1@rem1 [new] untracked
+    bookmark: rem1@rem1 [new] untracked
     Error: No git remote named 'rem2'
     "###);
     // No remote should have been fetched as part of the failing transaction
@@ -255,7 +255,7 @@ fn test_git_fetch_nonexistent_remote_from_config() {
 
     let stderr = &test_env.jj_cmd_failure(&repo_path, &["git", "fetch"]);
     insta::assert_snapshot!(stderr, @r###"
-    branch: rem1@rem1 [new] untracked
+    bookmark: rem1@rem1 [new] untracked
     Error: No git remote named 'rem2'
     "###);
     // No remote should have been fetched as part of the failing transaction
@@ -467,10 +467,10 @@ fn test_git_fetch_all() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&target_jj_repo_path, &["git", "fetch"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    branch: a1@origin     [new] tracked
-    branch: a2@origin     [new] tracked
-    branch: b@origin      [new] tracked
-    branch: trunk1@origin [new] tracked
+    bookmark: a1@origin     [new] tracked
+    bookmark: a2@origin     [new] tracked
+    bookmark: b@origin      [new] tracked
+    bookmark: trunk1@origin [new] tracked
     "###);
     insta::assert_snapshot!(get_bookmark_output(&test_env, &target_jj_repo_path), @r###"
     a1: nknoxmzm 359a9a02 descr_for_a1
@@ -539,10 +539,10 @@ fn test_git_fetch_all() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&target_jj_repo_path, &["git", "fetch"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    branch: a1@origin     [updated] tracked
-    branch: a2@origin     [updated] tracked
-    branch: b@origin      [updated] tracked
-    branch: trunk2@origin [new] tracked
+    bookmark: a1@origin     [updated] tracked
+    bookmark: a2@origin     [updated] tracked
+    bookmark: b@origin      [updated] tracked
+    bookmark: trunk2@origin [new] tracked
     Abandoned 2 commits that are no longer reachable.
     "###);
     insta::assert_snapshot!(get_bookmark_output(&test_env, &target_jj_repo_path), @r###"
@@ -631,7 +631,7 @@ fn test_git_fetch_some_of_many_bookmarks() {
         test_env.jj_cmd_ok(&target_jj_repo_path, &["git", "fetch", "--branch", "b"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    branch: b@origin [new] tracked
+    bookmark: b@origin [new] tracked
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"
     ○  c7d4bdcbc215 descr_for_b b
@@ -652,8 +652,8 @@ fn test_git_fetch_some_of_many_bookmarks() {
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    branch: a1@origin [new] tracked
-    branch: a2@origin [new] tracked
+    bookmark: a1@origin [new] tracked
+    bookmark: a2@origin [new] tracked
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"
     ○  decaa3966c83 descr_for_a2 a2
@@ -723,8 +723,8 @@ fn test_git_fetch_some_of_many_bookmarks() {
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    branch: a1@origin [updated] tracked
-    branch: b@origin  [updated] tracked
+    bookmark: a1@origin [updated] tracked
+    bookmark: b@origin  [updated] tracked
     Abandoned 1 commits that are no longer reachable.
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"
@@ -762,7 +762,7 @@ fn test_git_fetch_some_of_many_bookmarks() {
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    branch: a2@origin [updated] tracked
+    bookmark: a2@origin [updated] tracked
     Abandoned 1 commits that are no longer reachable.
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"
@@ -831,8 +831,8 @@ fn test_git_fetch_undo() {
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    branch: a1@origin [new] tracked
-    branch: b@origin  [new] tracked
+    bookmark: a1@origin [new] tracked
+    bookmark: b@origin  [new] tracked
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"
     ○  c7d4bdcbc215 descr_for_b b
@@ -856,7 +856,7 @@ fn test_git_fetch_undo() {
         test_env.jj_cmd_ok(&target_jj_repo_path, &["git", "fetch", "--branch", "b"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    branch: b@origin [new] tracked
+    bookmark: b@origin [new] tracked
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"
     ○  c7d4bdcbc215 descr_for_b b
@@ -908,7 +908,7 @@ fn test_fetch_undo_what() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["git", "fetch", "--branch", "b"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    branch: b@origin [new] tracked
+    bookmark: b@origin [new] tracked
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     ○  c7d4bdcbc215 descr_for_b b
@@ -996,7 +996,7 @@ fn test_git_fetch_remove_fetch() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["git", "fetch"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    branch: origin@origin [new] tracked
+    bookmark: origin@origin [new] tracked
     "###);
     insta::assert_snapshot!(get_bookmark_output(&test_env, &repo_path), @r###"
     origin (conflicted):
@@ -1081,10 +1081,10 @@ fn test_git_fetch_removed_bookmark() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&target_jj_repo_path, &["git", "fetch"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    branch: a1@origin     [new] tracked
-    branch: a2@origin     [new] tracked
-    branch: b@origin      [new] tracked
-    branch: trunk1@origin [new] tracked
+    bookmark: a1@origin     [new] tracked
+    bookmark: a2@origin     [new] tracked
+    bookmark: b@origin      [new] tracked
+    bookmark: trunk1@origin [new] tracked
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"
     ○  c7d4bdcbc215 descr_for_b b
@@ -1125,7 +1125,7 @@ fn test_git_fetch_removed_bookmark() {
         test_env.jj_cmd_ok(&target_jj_repo_path, &["git", "fetch", "--branch", "a2"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    branch: a2@origin [deleted] untracked
+    bookmark: a2@origin [deleted] untracked
     Abandoned 1 commits that are no longer reachable.
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"
@@ -1173,10 +1173,10 @@ fn test_git_fetch_removed_parent_bookmark() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&target_jj_repo_path, &["git", "fetch"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    branch: a1@origin     [new] tracked
-    branch: a2@origin     [new] tracked
-    branch: b@origin      [new] tracked
-    branch: trunk1@origin [new] tracked
+    bookmark: a1@origin     [new] tracked
+    bookmark: a2@origin     [new] tracked
+    bookmark: b@origin      [new] tracked
+    bookmark: trunk1@origin [new] tracked
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"
     ○  c7d4bdcbc215 descr_for_b b
@@ -1204,8 +1204,8 @@ fn test_git_fetch_removed_parent_bookmark() {
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    branch: a1@origin     [deleted] untracked
-    branch: trunk1@origin [deleted] untracked
+    bookmark: a1@origin     [deleted] untracked
+    bookmark: trunk1@origin [deleted] untracked
     Abandoned 1 commits that are no longer reachable.
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"

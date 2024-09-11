@@ -20,7 +20,7 @@ use crate::command_error::CommandError;
 use crate::git_util::get_git_repo;
 use crate::ui::Ui;
 
-/// Remove a Git remote and forget its branches
+/// Remove a Git remote and forget its bookmarks
 #[derive(clap::Args, Clone, Debug)]
 pub struct GitRemoteRemoveArgs {
     /// The remote's name

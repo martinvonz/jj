@@ -977,8 +977,8 @@ fn test_rebase_descendants_basic_bookmark_update() {
     let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
-    // Branch "main" points to commit B. B gets rewritten as B2. Branch main should
-    // be updated to point to B2.
+    // Bookmark "main" points to commit B. B gets rewritten as B2. Bookmark main
+    // should be updated to point to B2.
     //
     // B main         B2 main
     // |         =>   |
@@ -1015,7 +1015,7 @@ fn test_rebase_descendants_bookmark_move_two_steps() {
     let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
-    // Branch "main" points to bookmark C. C gets rewritten as C2 and B gets
+    // Bookmark "main" points to bookmark C. C gets rewritten as C2 and B gets
     // rewritten as B2. C2 should be rebased onto B2, creating C3, and main
     // should be updated to point to C3.
     //
@@ -1066,9 +1066,9 @@ fn test_rebase_descendants_basic_bookmark_update_with_non_local_bookmark() {
     let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
-    // Branch "main" points to commit B. B gets rewritten as B2. Branch main should
-    // be updated to point to B2. Remote bookmark main@origin and tag v1 should not
-    // get updated.
+    // Bookmark "main" points to commit B. B gets rewritten as B2. Bookmark main
+    // should be updated to point to B2. Remote bookmark main@origin and tag v1
+    // should not get updated.
     //
     //                                B2 main
     // B main main@origin v1          | B main@origin v1
@@ -1125,7 +1125,7 @@ fn test_rebase_descendants_update_bookmark_after_abandon() {
     let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
-    // Branch "main" points to commit B. B is then abandoned. Branch main should
+    // Bookmark "main" points to commit B. B is then abandoned. Bookmark main should
     // be updated to point to A.
     //
     // B main
@@ -1159,8 +1159,8 @@ fn test_rebase_descendants_update_bookmarks_after_divergent_rewrite() {
     let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
-    // Branch "main" points to commit B. B gets rewritten as {B2, B3, B4}, then
-    // B4 as {B41, B42}. Branch main should become a conflict pointing to {B2,
+    // Bookmark "main" points to commit B. B gets rewritten as {B2, B3, B4}, then
+    // B4 as {B41, B42}. Bookmark main should become a conflict pointing to {B2,
     // B3, B41, B42}.
     //
     //                                  C other
@@ -1228,7 +1228,7 @@ fn test_rebase_descendants_update_bookmarks_after_divergent_rewrite() {
 
     let main_target = tx.repo_mut().get_local_bookmark("main");
     assert!(main_target.has_conflict());
-    // If the branch were moved at each rewrite point, there would be separate
+    // If the bookmark were moved at each rewrite point, there would be separate
     // negative terms: { commit_b => 2, commit_b4 => 1 }. Since we flatten
     // intermediate rewrites, commit_b4 doesn't appear in the removed_ids.
     assert_eq!(
@@ -1266,7 +1266,7 @@ fn test_rebase_descendants_rewrite_updates_bookmark_conflict() {
     let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
-    // Branch "main" is a conflict removing commit A and adding commits B and C.
+    // Bookmark "main" is a conflict removing commit A and adding commits B and C.
     // A gets rewritten as A2 and A3. B gets rewritten as B2 and B2. The bookmark
     // should become a conflict removing A and B, and adding B2, B3, C.
     let mut tx = repo.start_transaction(&settings);
@@ -1351,7 +1351,7 @@ fn test_rebase_descendants_rewrite_resolves_bookmark_conflict() {
     let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
-    // Branch "main" is a conflict removing ancestor commit A and adding commit B
+    // Bookmark "main" is a conflict removing ancestor commit A and adding commit B
     // and C (maybe it moved forward to B locally and moved forward to C
     // remotely). Now B gets rewritten as B2, which is a descendant of C (maybe
     // B was automatically rebased on top of the updated remote). That
@@ -1397,7 +1397,7 @@ fn test_rebase_descendants_bookmark_delete_modify_abandon() {
     let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
-    // Branch "main" initially points to commit A. One operation rewrites it to
+    // Bookmark "main" initially points to commit A. One operation rewrites it to
     // point to B (child of A). A concurrent operation deletes the bookmark. That
     // leaves the bookmark pointing to "-A+B". We now abandon B. That should
     // result in the bookmark pointing to "-A+A=0", so the bookmark should

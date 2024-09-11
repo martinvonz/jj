@@ -41,7 +41,7 @@ fn parse_glob(src: &str) -> Result<glob::Pattern, StringPatternParseError> {
 }
 
 /// Pattern to be tested against string property like commit description or
-/// branch name.
+/// bookmark name.
 #[derive(Clone, Debug)]
 pub enum StringPattern {
     /// Matches strings exactly.

@@ -52,8 +52,8 @@ The [co-location documentation describes the
 drawbacks](git-compatibility.md#co-located-jujutsugit-repos) but the most
 important ones are:
 
-- Interleaving `git` and `jj` commands may create confusing branch conflicts or
-  divergent changes.
+- Interleaving `git` and `jj` commands may create confusing bookmark conflicts
+  or divergent changes.
 
 - Jujutsu commands may be a little slower in very large repositories due to
   importing and exporting changes to Git. Most repositories are not noticeably

@@ -14,7 +14,7 @@
 
 use std::collections::BTreeMap;
 
-use jj_lib::op_store::BranchTarget;
+use jj_lib::op_store::BookmarkTarget;
 use jj_lib::op_store::RefTarget;
 use jj_lib::op_store::RemoteRef;
 use jj_lib::op_store::RemoteRefState;
@@ -269,7 +269,7 @@ fn test_merge_views_bookmarks() {
     );
 
     let repo = commit_transactions(&settings, vec![tx1, tx2]);
-    let expected_main_bookmark = BranchTarget {
+    let expected_main_bookmark = BookmarkTarget {
         local_target: &RefTarget::from_legacy_form(
             [main_bookmark_local_tx0.id().clone()],
             [
@@ -283,7 +283,7 @@ fn test_merge_views_bookmarks() {
             ("origin", &main_bookmark_origin_tx2_remote_ref),
         ],
     };
-    let expected_feature_bookmark = BranchTarget {
+    let expected_feature_bookmark = BookmarkTarget {
         local_target: &RefTarget::normal(feature_bookmark_tx1.id().clone()),
         remote_refs: vec![],
     };

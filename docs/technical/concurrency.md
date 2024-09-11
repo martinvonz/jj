@@ -42,9 +42,9 @@ changes made remotely.
 Jujutsu's lock-free concurrency means that it's possible to update copies of the
 clone on different machines and then let `rsync` (or Dropbox, or NFS, etc.)
 merge them. The working copy may mismatch what's supposed to be checked out, but
-no changes to the repo will be lost (added commits, moved branches, etc.). If
+no changes to the repo will be lost (added commits, moved bookmarks, etc.). If
 conflicting changes were made, they will appear as conflicts. For example, if a
-branch was moved to two different locations, they will appear in `jj log` in
+bookmark was moved to two different locations, they will appear in `jj log` in
 both locations but with a "?" after the name, and `jj status` will also inform
 the user about the conflict.
 
@@ -57,8 +57,8 @@ Moreover, such use of Jujutsu is not currently thoroughly tested,
 especially in the context of [co-located
 repositories](../glossary.md#co-located-repos). While the contents of commits
 should be safe, concurrent modification of a repository from different computers
-might conceivably lose some branch pointers. Note that, unlike in pure
-Git, losing a branch pointer does not lead to losing commits.
+might conceivably lose some bookmark pointers. Note that, unlike in pure
+Git, losing a bookmark pointer does not lead to losing commits.
 
 
 ## Operation log
@@ -69,7 +69,7 @@ what allows us to detect and merge divergent operations.
 The operation log is similar to a commit DAG (such as in
 [Git's object model](https://git-scm.com/book/en/v2/Git-Internals-Git-Objects)),
 but each commit object is instead an "operation" and each tree object is instead
-a "view". The view object contains the set of visible head commits, branches,
+a "view". The view object contains the set of visible head commits, bookmarks,
 tags, and the working-copy commit in each workspace. The operation object
 contains a pointer to the view object (like how commit objects point to tree
 objects), pointers to parent operation(s) (like how commit objects point to
@@ -101,15 +101,15 @@ divergent operations.
 If Jujutsu tries to load the repo and finds multiple heads in the operation log,
 it will do a 3-way merge of the view objects based on their common ancestor
 (possibly several 3-way merges if there were more than two heads). Conflicts
-are recorded in the resulting view object. For example, if branch `main` was
+are recorded in the resulting view object. For example, if bookmark `main` was
 moved from commit A to commit B in one operation and moved to commit C in a
 concurrent operation, then `main` will be recorded as "moved from A to B or C".
 See the `RefTarget` definition in `op_store.proto`.
 
-Because we allow branches (etc.) to be in a conflicted state rather than just
+Because we allow bookmarks (etc.) to be in a conflicted state rather than just
 erroring out when there are multiple heads, the user can continue to use the
 repo, including performing further operations on the repo. Of course, some
-commands will fail when using a conflicted branch. For example,
+commands will fail when using a conflicted bookmark. For example,
 `jj checkout main` when `main` is in a conflicted state will result in an error
 telling you that `main` resolved to multiple revisions.
 

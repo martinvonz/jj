@@ -34,7 +34,7 @@ pub struct BookmarkUntrackArgs {
     /// https://martinvonz.github.io/jj/latest/revsets/#string-patterns.
     ///
     /// Examples: bookmark@remote, glob:main@*, glob:jjfan-*@upstream
-    #[arg(required = true, value_name = "BRANCH@REMOTE")]
+    #[arg(required = true, value_name = "BOOKMARK@REMOTE")]
     names: Vec<RemoteBookmarkNamePattern>,
 }
 

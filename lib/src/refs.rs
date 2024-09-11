@@ -175,14 +175,14 @@ pub struct LocalAndRemoteRef<'a> {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
-pub struct BranchPushUpdate {
+pub struct BookmarkPushUpdate {
     pub old_target: Option<CommitId>,
     pub new_target: Option<CommitId>,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub enum BranchPushAction {
-    Update(BranchPushUpdate),
+pub enum BookmarkPushAction {
+    Update(BookmarkPushUpdate),
     AlreadyMatches,
     LocalConflicted,
     RemoteConflicted,
@@ -191,19 +191,19 @@ pub enum BranchPushAction {
 
 /// Figure out what changes (if any) need to be made to the remote when pushing
 /// this bookmark.
-pub fn classify_bookmark_push_action(targets: LocalAndRemoteRef) -> BranchPushAction {
+pub fn classify_bookmark_push_action(targets: LocalAndRemoteRef) -> BookmarkPushAction {
     let local_target = targets.local_target;
     let remote_target = targets.remote_ref.tracking_target();
     if local_target == remote_target {
-        BranchPushAction::AlreadyMatches
+        BookmarkPushAction::AlreadyMatches
     } else if local_target.has_conflict() {
-        BranchPushAction::LocalConflicted
+        BookmarkPushAction::LocalConflicted
     } else if remote_target.has_conflict() {
-        BranchPushAction::RemoteConflicted
+        BookmarkPushAction::RemoteConflicted
     } else if targets.remote_ref.is_present() && !targets.remote_ref.is_tracking() {
-        BranchPushAction::RemoteUntracked
+        BookmarkPushAction::RemoteUntracked
     } else {
-        BranchPushAction::Update(BranchPushUpdate {
+        BookmarkPushAction::Update(BookmarkPushUpdate {
             old_target: remote_target.as_normal().cloned(),
             new_target: local_target.as_normal().cloned(),
         })
@@ -238,7 +238,7 @@ mod tests {
         };
         assert_eq!(
             classify_bookmark_push_action(targets),
-            BranchPushAction::AlreadyMatches
+            BookmarkPushAction::AlreadyMatches
         );
     }
 
@@ -251,7 +251,7 @@ mod tests {
         };
         assert_eq!(
             classify_bookmark_push_action(targets),
-            BranchPushAction::Update(BranchPushUpdate {
+            BookmarkPushAction::Update(BookmarkPushUpdate {
                 old_target: None,
                 new_target: Some(commit_id1),
             })
@@ -267,7 +267,7 @@ mod tests {
         };
         assert_eq!(
             classify_bookmark_push_action(targets),
-            BranchPushAction::Update(BranchPushUpdate {
+            BookmarkPushAction::Update(BookmarkPushUpdate {
                 old_target: Some(commit_id1),
                 new_target: None,
             })
@@ -284,7 +284,7 @@ mod tests {
         };
         assert_eq!(
             classify_bookmark_push_action(targets),
-            BranchPushAction::Update(BranchPushUpdate {
+            BookmarkPushAction::Update(BookmarkPushUpdate {
                 old_target: Some(commit_id1),
                 new_target: Some(commit_id2),
             })
@@ -302,7 +302,7 @@ mod tests {
         };
         assert_eq!(
             classify_bookmark_push_action(targets),
-            BranchPushAction::AlreadyMatches
+            BookmarkPushAction::AlreadyMatches
         );
     }
 
@@ -316,7 +316,7 @@ mod tests {
         };
         assert_eq!(
             classify_bookmark_push_action(targets),
-            BranchPushAction::RemoteUntracked
+            BookmarkPushAction::RemoteUntracked
         );
     }
 
@@ -330,7 +330,7 @@ mod tests {
         };
         assert_eq!(
             classify_bookmark_push_action(targets),
-            BranchPushAction::LocalConflicted
+            BookmarkPushAction::LocalConflicted
         );
     }
 
@@ -347,7 +347,7 @@ mod tests {
         };
         assert_eq!(
             classify_bookmark_push_action(targets),
-            BranchPushAction::RemoteConflicted
+            BookmarkPushAction::RemoteConflicted
         );
     }
 }

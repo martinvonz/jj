@@ -284,18 +284,18 @@ fn format_multiple_revisions_error(
             "Some of these commits have the same change id. Abandon one of them with `jj abandon \
              -r <REVISION>`.",
         );
-    } else if let RevsetExpression::CommitRef(RevsetCommitRef::Symbol(branch_name)) = expression {
-        // Separate hint if there's a conflicted branch
+    } else if let RevsetExpression::CommitRef(RevsetCommitRef::Symbol(bookmark_name)) = expression {
+        // Separate hint if there's a conflicted bookmark
         cmd_err.add_formatted_hint_with(|formatter| {
             writeln!(
                 formatter,
-                "Branch {branch_name} resolved to multiple revisions because it's conflicted."
+                "Bookmark {bookmark_name} resolved to multiple revisions because it's conflicted."
             )?;
             writeln!(formatter, "It resolved to these revisions:")?;
             write_commits_summary(formatter)
         });
         cmd_err.add_hint(format!(
-            "Set which revision the branch points to with `jj branch set {branch_name} -r \
+            "Set which revision the bookmark points to with `jj bookmark set {bookmark_name} -r \
              <REVISION>`.",
         ));
     } else {

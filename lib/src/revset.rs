@@ -1510,9 +1510,9 @@ impl PartialSymbolResolver for TagResolver {
     }
 }
 
-struct BranchResolver;
+struct BookmarkResolver;
 
-impl PartialSymbolResolver for BranchResolver {
+impl PartialSymbolResolver for BookmarkResolver {
     fn resolve_symbol(
         &self,
         repo: &dyn Repo,
@@ -1546,7 +1546,7 @@ impl PartialSymbolResolver for GitRefResolver {
 }
 
 const DEFAULT_RESOLVERS: &[&'static dyn PartialSymbolResolver] =
-    &[&TagResolver, &BranchResolver, &GitRefResolver];
+    &[&TagResolver, &BookmarkResolver, &GitRefResolver];
 
 #[derive(Default)]
 struct CommitPrefixResolver<'a> {

@@ -307,7 +307,7 @@ pub fn show_op_diff(
     if !changed_local_bookmarks.is_empty() {
         writeln!(formatter)?;
         with_content_format.write(formatter, |formatter| {
-            writeln!(formatter, "Changed local branches:")
+            writeln!(formatter, "Changed local bookmarks:")
         })?;
         for (name, (from_target, to_target)) in changed_local_bookmarks {
             with_content_format.write(formatter, |formatter| {
@@ -361,7 +361,7 @@ pub fn show_op_diff(
         writeln!(formatter)?;
     }
 
-    let changed_remote_branches = diff_named_remote_refs(
+    let changed_remote_bookmarks = diff_named_remote_refs(
         from_repo.view().all_remote_bookmarks(),
         to_repo.view().all_remote_bookmarks(),
     )
@@ -369,16 +369,16 @@ pub fn show_op_diff(
     // local branches.
     .filter(|((_, remote_name), _)| *remote_name != REMOTE_NAME_FOR_LOCAL_GIT_REPO)
     .collect_vec();
-    if !changed_remote_branches.is_empty() {
+    if !changed_remote_bookmarks.is_empty() {
         writeln!(formatter)?;
         with_content_format.write(formatter, |formatter| {
-            writeln!(formatter, "Changed remote branches:")
+            writeln!(formatter, "Changed remote bookmarks:")
         })?;
         let get_remote_ref_prefix = |remote_ref: &RemoteRef| match remote_ref.state {
             RemoteRefState::New => "untracked",
             RemoteRefState::Tracking => "tracked",
         };
-        for ((name, remote_name), (from_ref, to_ref)) in changed_remote_branches {
+        for ((name, remote_name), (from_ref, to_ref)) in changed_remote_bookmarks {
             with_content_format.write(formatter, |formatter| {
                 writeln!(formatter, "{}@{}:", name, remote_name)?;
                 write_ref_target_summary(

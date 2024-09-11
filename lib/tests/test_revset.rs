@@ -2125,7 +2125,7 @@ fn test_evaluate_expression_remote_bookmarks() {
 
     // Can get bookmarks when there are none
     assert_eq!(resolve_commit_ids(mut_repo, "remote_bookmarks()"), vec![]);
-    // Branch 1 is untracked on remote origin
+    // Bookmark 1 is untracked on remote origin
     mut_repo.set_remote_bookmark(
         "bookmark1",
         "origin",
@@ -2134,7 +2134,7 @@ fn test_evaluate_expression_remote_bookmarks() {
             state: RemoteRefState::New,
         },
     );
-    // Branch 2 is tracked on remote private
+    // Bookmark 2 is tracked on remote private
     mut_repo.set_remote_bookmark(
         "bookmark2",
         "private",

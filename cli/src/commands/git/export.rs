@@ -30,8 +30,8 @@ pub fn cmd_git_export(
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
     let mut tx = workspace_command.start_transaction();
-    let failed_branches = git::export_refs(tx.repo_mut())?;
+    let failed_refs = git::export_refs(tx.repo_mut())?;
     tx.finish(ui, "export git refs")?;
-    print_failed_git_export(ui, &failed_branches)?;
+    print_failed_git_export(ui, &failed_refs)?;
     Ok(())
 }

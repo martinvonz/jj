@@ -67,7 +67,7 @@ fn test_git_clone() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Fetching into new repo in "$TEST_ENV/clone"
-    branch: main@origin [new] tracked
+    bookmark: main@origin [new] tracked
     Setting the revset alias "trunk()" to "main@origin"
     Working copy now at: uuqppmxq 1f0b881a (empty) (no description set)
     Parent commit      : mzyxwzks 9f01a0e0 main | message
@@ -149,7 +149,7 @@ fn test_git_clone() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Fetching into new repo in "$TEST_ENV/nested/path/to/repo"
-    branch: main@origin [new] tracked
+    bookmark: main@origin [new] tracked
     Setting the revset alias "trunk()" to "main@origin"
     Working copy now at: uuzqqzqu df8acbac (empty) (no description set)
     Parent commit      : mzyxwzks 9f01a0e0 main | message
@@ -194,7 +194,7 @@ fn test_git_clone_colocate() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Fetching into new repo in "$TEST_ENV/clone"
-    branch: main@origin [new] tracked
+    bookmark: main@origin [new] tracked
     Setting the revset alias "trunk()" to "main@origin"
     Working copy now at: uuqppmxq 1f0b881a (empty) (no description set)
     Parent commit      : mzyxwzks 9f01a0e0 main | message
@@ -342,7 +342,7 @@ fn test_git_clone_colocate() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Fetching into new repo in "$TEST_ENV/nested/path/to/repo"
-    branch: main@origin [new] tracked
+    bookmark: main@origin [new] tracked
     Setting the revset alias "trunk()" to "main@origin"
     Working copy now at: vzqnnsmr 9407107f (empty) (no description set)
     Parent commit      : mzyxwzks 9f01a0e0 main | message
@@ -372,8 +372,8 @@ fn test_git_clone_remote_default_bookmark() {
         test_env.jj_cmd_ok(test_env.env_root(), &["git", "clone", "source", "clone1"]);
     insta::assert_snapshot!(stderr, @r###"
     Fetching into new repo in "$TEST_ENV/clone1"
-    branch: feature1@origin [new] tracked
-    branch: main@origin     [new] tracked
+    bookmark: feature1@origin [new] tracked
+    bookmark: main@origin     [new] tracked
     Setting the revset alias "trunk()" to "main@origin"
     Working copy now at: sqpuoqvx cad212e1 (empty) (no description set)
     Parent commit      : mzyxwzks 9f01a0e0 feature1 main | message
@@ -402,8 +402,8 @@ fn test_git_clone_remote_default_bookmark() {
         test_env.jj_cmd_ok(test_env.env_root(), &["git", "clone", "source", "clone2"]);
     insta::assert_snapshot!(stderr, @r###"
     Fetching into new repo in "$TEST_ENV/clone2"
-    branch: feature1@origin [new] untracked
-    branch: main@origin     [new] untracked
+    bookmark: feature1@origin [new] untracked
+    bookmark: main@origin     [new] untracked
     Setting the revset alias "trunk()" to "main@origin"
     Working copy now at: rzvqmyuk cc8a5041 (empty) (no description set)
     Parent commit      : mzyxwzks 9f01a0e0 feature1@origin main | message
@@ -422,8 +422,8 @@ fn test_git_clone_remote_default_bookmark() {
         test_env.jj_cmd_ok(test_env.env_root(), &["git", "clone", "source", "clone3"]);
     insta::assert_snapshot!(stderr, @r###"
     Fetching into new repo in "$TEST_ENV/clone3"
-    branch: feature1@origin [new] untracked
-    branch: main@origin     [new] untracked
+    bookmark: feature1@origin [new] untracked
+    bookmark: main@origin     [new] untracked
     Setting the revset alias "trunk()" to "feature1@origin"
     Working copy now at: nppvrztz b8a8a17b (empty) (no description set)
     Parent commit      : mzyxwzks 9f01a0e0 feature1 main@origin | message
@@ -460,7 +460,7 @@ fn test_git_clone_ignore_working_copy() {
     );
     insta::assert_snapshot!(stderr, @r###"
     Fetching into new repo in "$TEST_ENV/clone"
-    branch: main@origin [new] untracked
+    bookmark: main@origin [new] untracked
     Setting the revset alias "trunk()" to "main@origin"
     "###);
     let clone_path = test_env.env_root().join("clone");

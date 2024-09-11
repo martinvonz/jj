@@ -1137,34 +1137,34 @@ mod tests {
         );
         // Space is allowed around keyword arguments
         assert_eq!(
-            parse_normalized("remote_branches( remote  =   foo  )"),
-            parse_normalized("remote_branches(remote=foo)"),
+            parse_normalized("remote_bookmarks( remote  =   foo  )"),
+            parse_normalized("remote_bookmarks(remote=foo)"),
         );
 
         // Trailing comma isn't allowed for empty argument
-        assert!(parse_into_kind("branches(,)").is_err());
+        assert!(parse_into_kind("bookmarks(,)").is_err());
         // Trailing comma is allowed for the last argument
         assert_eq!(
-            parse_normalized("branches(a,)"),
-            parse_normalized("branches(a)")
+            parse_normalized("bookmarks(a,)"),
+            parse_normalized("bookmarks(a)")
         );
         assert_eq!(
-            parse_normalized("branches(a ,  )"),
-            parse_normalized("branches(a)")
+            parse_normalized("bookmarks(a ,  )"),
+            parse_normalized("bookmarks(a)")
         );
-        assert!(parse_into_kind("branches(,a)").is_err());
-        assert!(parse_into_kind("branches(a,,)").is_err());
-        assert!(parse_into_kind("branches(a  , , )").is_err());
+        assert!(parse_into_kind("bookmarks(,a)").is_err());
+        assert!(parse_into_kind("bookmarks(a,,)").is_err());
+        assert!(parse_into_kind("bookmarks(a  , , )").is_err());
         assert_eq!(
             parse_normalized("file(a,b,)"),
             parse_normalized("file(a, b)")
         );
         assert!(parse_into_kind("file(a,,b)").is_err());
         assert_eq!(
-            parse_normalized("remote_branches(a,remote=b  , )"),
-            parse_normalized("remote_branches(a, remote=b)"),
+            parse_normalized("remote_bookmarks(a,remote=b  , )"),
+            parse_normalized("remote_bookmarks(a, remote=b)"),
         );
-        assert!(parse_into_kind("remote_branches(a,,remote=b)").is_err());
+        assert!(parse_into_kind("remote_bookmarks(a,,remote=b)").is_err());
     }
 
     #[test]

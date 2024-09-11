@@ -68,10 +68,10 @@ pub fn cmd_operation(
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, clap::ValueEnum)]
 enum UndoWhatToRestore {
-    /// The jj repo state and local branches
+    /// The jj repo state and local bookmarks
     Repo,
-    /// The remote-tracking branches. Do not restore these if you'd like to push
-    /// after the undo
+    /// The remote-tracking bookmarks. Do not restore these if you'd like to
+    /// push after the undo
     RemoteTracking,
 }
 

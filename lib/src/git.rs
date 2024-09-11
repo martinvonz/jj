@@ -40,7 +40,7 @@ use crate::op_store::RefTargetOptionExt;
 use crate::op_store::RemoteRef;
 use crate::op_store::RemoteRefState;
 use crate::refs;
-use crate::refs::BranchPushUpdate;
+use crate::refs::BookmarkPushUpdate;
 use crate::repo::MutableRepo;
 use crate::repo::Repo;
 use crate::revset::RevsetExpression;
@@ -231,7 +231,7 @@ struct RefsToImport {
 
 /// Reflect changes made in the underlying Git repo in the Jujutsu repo.
 ///
-/// This function detects conflicts (if both Git and JJ modified a branch) and
+/// This function detects conflicts (if both Git and JJ modified a bookmark) and
 /// records them in JJ's view.
 pub fn import_refs(
     mut_repo: &mut MutableRepo,
@@ -1341,7 +1341,7 @@ pub enum GitPushError {
 
 #[derive(Clone, Debug)]
 pub struct GitBranchPushTargets {
-    pub branch_updates: Vec<(String, BranchPushUpdate)>,
+    pub branch_updates: Vec<(String, BookmarkPushUpdate)>,
 }
 
 pub struct GitRefUpdate {
