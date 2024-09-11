@@ -874,3 +874,72 @@ fn get_bookmark_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
     // --quiet to suppress deleted bookmarks hint
     test_env.jj_cmd_success(repo_path, &["bookmark", "list", "--all-remotes", "--quiet"])
 }
+
+#[test]
+fn test_colocated_workspaces_independent_heads() {
+    let test_env = TestEnvironment::default();
+    let repo_path = test_env.env_root().join("repo");
+    let second_path = test_env.env_root().join("second");
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "--colocate", "repo"]);
+    // create a commit so that git can have a HEAD
+    std::fs::write(repo_path.join("file"), "contents").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "initial commit"]);
+    test_env.jj_cmd_ok(&repo_path, &["workspace", "add", "--colocate", "../second"]);
+    let (initial_commit, _) = test_env.jj_cmd_ok(
+        &repo_path,
+        &["log", "--no-graph", "-T", "commit_id", "-r", "@-"],
+    );
+    {
+        let first_git = git2::Repository::open(&repo_path).unwrap();
+        assert!(first_git.head_detached().unwrap());
+
+        let second_git = git2::Repository::open(&second_path).unwrap();
+        assert!(second_git.head_detached().unwrap());
+        let second_head = second_git.head().unwrap();
+
+        let commit = second_head.peel_to_commit().unwrap().id();
+        assert_eq!(commit.to_string(), initial_commit);
+    }
+
+    // now commit again, and make sure the second repo's head does not move
+    std::fs::write(repo_path.join("file2"), "contents").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "followup commit"]);
+    let (followup_commit, _) = test_env.jj_cmd_ok(
+        &repo_path,
+        &["log", "--no-graph", "-T", "commit_id", "-r", "@-"],
+    );
+
+    {
+        // git HEAD should move in the default workspace
+        let first_git = git2::Repository::open(&repo_path).unwrap();
+        assert!(first_git.head_detached().unwrap());
+        let first_head = first_git.head().unwrap();
+        assert_eq!(
+            first_head.peel_to_commit().unwrap().id().to_string(),
+            followup_commit
+        );
+
+        let second_git = git2::Repository::open(&second_path).unwrap();
+        assert!(second_git.head_detached().unwrap());
+        let second_head = second_git.head().unwrap();
+        // still initial
+        assert_eq!(
+            second_head.peel_to_commit().unwrap().id().to_string(),
+            initial_commit
+        );
+    }
+
+    // Now that the functionality is tested, check we wrote a nice .git file
+    let dot_git = std::fs::read_to_string(second_path.join(".git")).expect("reading .git failed");
+    assert_eq!(
+        dot_git,
+        format!(
+            "gitdir: {}\n",
+            repo_path
+                .join(".git")
+                .join("worktrees")
+                .join("second")
+                .display()
+        )
+    );
+}
