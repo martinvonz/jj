@@ -36,7 +36,7 @@ use crate::command_error::CommandError;
 use crate::commands::git::maybe_add_gitignore;
 use crate::config::write_config_value_to_file;
 use crate::config::ConfigNamePathBuf;
-use crate::git_util::get_git_repo;
+use crate::git_util::get_git_backend_repo;
 use crate::git_util::is_colocated_git_workspace;
 use crate::git_util::print_failed_git_export;
 use crate::git_util::print_git_import_stats;
@@ -242,7 +242,7 @@ pub fn maybe_set_repository_level_trunk_alias(
     ui: &Ui,
     workspace_command: &WorkspaceCommandHelper,
 ) -> Result<(), CommandError> {
-    let git_repo = get_git_repo(workspace_command.repo().store())?;
+    let git_repo = get_git_backend_repo(workspace_command.repo().store())?;
     if let Ok(reference) = git_repo.find_reference("refs/remotes/origin/HEAD") {
         if let Some(reference_name) = reference.symbolic_target() {
             if let Some(RefName::RemoteBranch {
