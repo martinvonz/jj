@@ -219,8 +219,9 @@ Now you're ready to work:
 - The private commit _wwwwwwww_ is the second parent of the merge commit.
 - The working copy (_vvvvvvvv_) contains changes from both.
 
-As you work, squash your changes using `jj squash --into xxxxxxxx`. Or, you can
-keep your changes in a separate commit and remove _ttsqqnrx_ as a parent:
+As you work, squash your changes using `jj squash --into xxxxxxxx`. Or you can
+keep your changes in a separate commit without the private commit _wwwwwwww_ as a
+parent:
 
 ```shell
 # Remove the private commit as a parent
