@@ -43,22 +43,22 @@ enum RemoteRefState {
   Tracking = 1;
 }
 
-message RemoteBranch {
+message RemoteBookmark {
   string remote_name = 1;
   RefTarget target = 2;
   // Introduced in jj 0.11.
   optional RemoteRefState state = 3;
 }
 
-message Branch {
+message Bookmark {
   string name = 1;
-  // Unset if the branch has been deleted locally.
+  // Unset if the bookmark has been deleted locally.
   RefTarget local_target = 2;
   // TODO: How would we support renaming remotes while having undo work? If
   // the remote name is stored in config, it's going to become a mess if the
   // remote is renamed but the configs are left unchanged. Should each remote
   // be identified (here and in configs) by a UUID?
-  repeated RemoteBranch remote_branches = 3;
+  repeated RemoteBookmark remote_bookmarks = 3;
 }
 
 message GitRef {
@@ -80,7 +80,7 @@ message View {
   reserved 4;
   bytes wc_commit_id = 2 [deprecated = true];
   map<string, bytes> wc_commit_ids = 8;
-  repeated Branch branches = 5;
+  repeated Bookmark bookmarks = 5;
   repeated Tag tags = 6;
   // Only a subset of the refs. For example, does not include refs/notes/.
   repeated GitRef git_refs = 3;
@@ -89,7 +89,7 @@ message View {
   // TODO: Delete support for the old format.
   bytes git_head_legacy = 7 [deprecated = true];
   RefTarget git_head = 9;
-  // Whether "@git" branches have been migrated to remote_targets.
+  // Whether "@git" bookmark have been migrated to remote_targets.
   bool has_git_refs_migrated_to_remote = 10;
 }
 
