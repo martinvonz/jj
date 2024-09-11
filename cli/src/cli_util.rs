@@ -898,7 +898,7 @@ impl WorkspaceCommandHelper {
     }
 
     /// Snapshot the working copy if allowed, and import Git refs if the working
-    /// copy is collocated with Git.
+    /// copy is colocated with Git.
     #[instrument(skip_all)]
     pub fn maybe_snapshot(&mut self, ui: &Ui) -> Result<(), CommandError> {
         if self.may_update_working_copy {
@@ -1749,6 +1749,8 @@ See https://martinvonz.github.io/jj/latest/working-copy/#stale-working-copy \
             .transpose()?;
 
         if self.working_copy_shared_with_git {
+            // FIXME: should have a GIT_DIR pointing to the relevant worktree,
+            // if we're in a workspace in a colocated repo
             let git_repo = self.git_backend().unwrap().open_git_repo()?;
             if let Some(wc_commit) = &maybe_new_wc_commit {
                 git::reset_head(tx.repo_mut(), &git_repo, wc_commit)?;

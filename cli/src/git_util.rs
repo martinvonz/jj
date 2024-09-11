@@ -51,22 +51,87 @@ pub fn get_git_repo(store: &Store) -> Result<git2::Repository, CommandError> {
     }
 }
 
-pub fn is_colocated_git_workspace(workspace: &Workspace, repo: &ReadonlyRepo) -> bool {
+pub fn is_colocated_git_workspace<'a>(workspace: &'a Workspace, repo: &'a ReadonlyRepo) -> bool {
     let Some(git_backend) = repo.store().backend_impl().downcast_ref::<GitBackend>() else {
         return false;
     };
-    let Some(git_workdir) = git_backend.git_workdir() else {
-        return false; // Bare repository
-    };
-    if git_workdir == workspace.workspace_root() {
+
+    // The git backend may be a bare repository if we created it without --colocate
+    // but then created a workspace using `jj workspace add --colocate ../second`
+    let git_backend_workdir = git_backend.git_workdir();
+
+    // 1. Check if we are in a colocated workspace, specifically the one that has
+    //    both .git and .jj/repo.
+    // --------------------------------------------------------------------------
+
+    // Fast path -- the paths are the same, without looking through symlinks.
+    if git_backend_workdir == Some(workspace.workspace_root()) {
+        // We are in a colocated workspace that's home to the real .git directory.
+        // e.g. /repo with /repo/.git
         return true;
     }
+
+    // Otherwise, canonicalize both the git backend workdir and the workspace
+    let git_backend_workdir_canonical = git_backend_workdir.and_then(|p| p.canonicalize().ok());
+
     // Colocated workspace should have ".git" directory, file, or symlink. Compare
     // its parent as the git_workdir might be resolved from the real ".git" path.
-    let Ok(dot_git_path) = workspace.workspace_root().join(".git").canonicalize() else {
+    let Ok(workspace_dot_git) = workspace.workspace_root().join(".git").canonicalize() else {
         return false;
     };
-    git_workdir.canonicalize().ok().as_deref() == dot_git_path.parent()
+
+    // i.e. (/symlink_to_repo -> /repo).canonicalize() == (/repo/.git).parent()
+    if let Some(gbw) = git_backend_workdir_canonical.as_deref() {
+        if workspace_dot_git.parent() == Some(gbw) {
+            // This is the default workspace of a colocated repo
+            return true;
+        }
+    }
+
+    if !workspace_dot_git.exists() {
+        return false;
+    }
+
+    // 2. Check if we are in a secondary colocated workspace, specifically one using
+    //    a git worktree.
+    // -------------------------------------------------------------------
+
+    // Get the git directory for the git worktree associated with this workspace
+    // In the case of the default workspace in a colocated repo, this will just be
+    //     /repo/.git
+    // But for a JJ workspace of a colocated repo, this will be
+    //     /repo/.git/worktrees/second
+    // ... or, if the JJ repo was not originally colocated:
+    //     /repo/.jj/repo/store/git/worktrees/second
+    //
+    // ... and the regular file /second/.git will direct git to that location.
+    //
+    // So try to open the workspace root (/second) as a git repository.
+    let Ok(worktree_repo) = gix::open(workspace.workspace_root()) else {
+        return false;
+    };
+
+    // common_dir will be /repo/.git (or /repo/.jj/repo/store/git)
+    let Ok(worktree_common_dir) = worktree_repo.common_dir().canonicalize() else {
+        return false;
+    };
+    let Ok(backend_repo_path) = git_backend.git_repo_path().canonicalize() else {
+        return false;
+    };
+
+    // /repo/.git/worktrees/second should have the git backend's .git directory as a
+    // prefix. Check -- the .git file could somehow be pointing elsewhere, or be
+    // its own .git directory
+    if worktree_common_dir != backend_repo_path {
+        tracing::warn!(
+            "This workspace has a .git directory that isn't managed by JJ; it points to a Git \
+             repo at {}. You may wish to try `git worktree repair` if you have moved the repo or \
+             worktree around.",
+            worktree_common_dir.display()
+        );
+        return false;
+    }
+    true
 }
 
 fn terminal_get_username(ui: &Ui, url: &str) -> Option<String> {
