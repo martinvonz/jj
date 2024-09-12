@@ -166,6 +166,11 @@
          <changefreq>daily</changefreq>
     </url>
     <url>
+         <loc>https://martinvonz.github.io/jj/latest/governance/temporary-voting/</loc>
+         <lastmod>2024-09-12</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
          <loc>https://martinvonz.github.io/jj/latest/technical/architecture/</loc>
          <lastmod>2024-09-12</lastmod>
          <changefreq>daily</changefreq>
