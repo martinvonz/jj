@@ -2270,6 +2270,7 @@ fn test_fetch_empty_repo() {
         &[StringPattern::everything()],
         git::RemoteCallbacks::default(),
         &git_settings,
+        None,
     )
     .unwrap();
     // No default bookmark and no refs
@@ -2296,6 +2297,7 @@ fn test_fetch_initial_commit() {
         &[StringPattern::everything()],
         git::RemoteCallbacks::default(),
         &git_settings,
+        None,
     )
     .unwrap();
     // No default bookmark because the origin repo's HEAD wasn't set
@@ -2346,6 +2348,7 @@ fn test_fetch_success() {
         &[StringPattern::everything()],
         git::RemoteCallbacks::default(),
         &git_settings,
+        None,
     )
     .unwrap();
     test_data.repo = tx.commit("test");
@@ -2369,6 +2372,7 @@ fn test_fetch_success() {
         &[StringPattern::everything()],
         git::RemoteCallbacks::default(),
         &git_settings,
+        None,
     )
     .unwrap();
     // The default bookmark is "main"
@@ -2426,6 +2430,7 @@ fn test_fetch_prune_deleted_ref() {
         &[StringPattern::everything()],
         git::RemoteCallbacks::default(),
         &git_settings,
+        None,
     )
     .unwrap();
     // Test the setup
@@ -2449,6 +2454,7 @@ fn test_fetch_prune_deleted_ref() {
         &[StringPattern::everything()],
         git::RemoteCallbacks::default(),
         &git_settings,
+        None,
     )
     .unwrap();
     assert_eq!(stats.import_stats.abandoned_commits, vec![jj_id(&commit)]);
@@ -2476,6 +2482,7 @@ fn test_fetch_no_default_branch() {
         &[StringPattern::everything()],
         git::RemoteCallbacks::default(),
         &git_settings,
+        None,
     )
     .unwrap();
 
@@ -2499,6 +2506,7 @@ fn test_fetch_no_default_branch() {
         &[StringPattern::everything()],
         git::RemoteCallbacks::default(),
         &git_settings,
+        None,
     )
     .unwrap();
     // There is no default bookmark
@@ -2520,6 +2528,7 @@ fn test_fetch_empty_refspecs() {
         &[],
         git::RemoteCallbacks::default(),
         &git_settings,
+        None,
     )
     .unwrap();
     assert!(tx
@@ -2546,6 +2555,7 @@ fn test_fetch_no_such_remote() {
         &[StringPattern::everything()],
         git::RemoteCallbacks::default(),
         &git_settings,
+        None,
     );
     assert!(matches!(result, Err(GitFetchError::NoSuchRemote(_))));
 }
