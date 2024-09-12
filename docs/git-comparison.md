@@ -105,9 +105,9 @@ parent.
     </tr>
     <tr>
       <td>Clone an existing repo</td>
-      <td><code>jj git clone &lt;source&gt; &lt;destination&gt;</code> (there is no support
+      <td><code>jj git clone &lt;source&gt; &lt;destination&gt; [--remote &lt;remote name&gt;]</code> (there is no support
           for cloning non-Git repos yet)</td>
-      <td><code>git clone &lt;source&gt; &lt;destination&gt;</code></td>
+      <td><code>git clone &lt;source&gt; &lt;destination&gt; [--origin &lt;remote name&gt;]</code></td>
     </tr>
     <tr>
       <td>Update the local repo with all bookmarks from a remote</td>

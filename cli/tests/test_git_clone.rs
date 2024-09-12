@@ -498,6 +498,30 @@ fn test_git_clone_at_operation() {
     "###);
 }
 
+#[test]
+fn test_git_clone_with_remote_name() {
+    let test_env = TestEnvironment::default();
+    test_env.add_config("git.auto-local-branch = true");
+    let git_repo_path = test_env.env_root().join("source");
+    let git_repo = git2::Repository::init(git_repo_path).unwrap();
+    set_up_non_empty_git_repo(&git_repo);
+
+    // Clone with relative source path and a non-default remote name
+    let (stdout, stderr) = test_env.jj_cmd_ok(
+        test_env.env_root(),
+        &["git", "clone", "source", "clone", "--remote", "upstream"],
+    );
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r#"
+    Fetching into new repo in "$TEST_ENV/clone"
+    bookmark: main@upstream [new] tracked
+    Setting the revset alias "trunk()" to "main@upstream"
+    Working copy now at: sqpuoqvx cad212e1 (empty) (no description set)
+    Parent commit      : mzyxwzks 9f01a0e0 main | message
+    Added 1 files, modified 0 files, removed 0 files
+    "#);
+}
+
 fn get_bookmark_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
     test_env.jj_cmd_success(repo_path, &["bookmark", "list", "--all-remotes"])
 }

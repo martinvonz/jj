@@ -52,6 +52,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 * `jj op log` gained an option to include operation diffs.
 
+* `jj git clone` now accepts a `--remote <REMOTE NAME>` option, which
+  allows to set a name for the remote instead of using the default
+  `origin`.
+
 ### Fixed bugs
 
  * Fixed panic when parsing invalid conflict markers of a particular form.

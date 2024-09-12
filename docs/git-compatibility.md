@@ -94,6 +94,9 @@ To create a Jujutsu repo from a remote Git URL, use `jj git clone <URL>
 https://github.com/octocat/Hello-World` will clone GitHub's "Hello-World" repo
 into a directory by the same name.
 
+By default, the remote repository will be named `origin`. You can use
+a name of your choice by adding `--remote <remote name>` to the `jj
+git clone` command.
 
 ## Co-located Jujutsu/Git repos
 
