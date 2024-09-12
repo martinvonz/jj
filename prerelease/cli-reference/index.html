@@ -6201,11 +6201,11 @@ does not match the <code>jj help</code> output exactly.</p>
 <h2 id="jj-bookmark-track"><code>jj bookmark track</code><a class="headerlink" href="#jj-bookmark-track" title="Permanent link">&para;</a></h2>
 <p>Start tracking given remote bookmarks</p>
 <p>A tracking remote bookmark will be imported as a local bookmark of the same name. Changes to it will propagate to the existing local bookmark on future pulls.</p>
-<p><strong>Usage:</strong> <code>jj bookmark track &lt;BRANCH@REMOTE&gt;...</code></p>
+<p><strong>Usage:</strong> <code>jj bookmark track &lt;BOOKMARK@REMOTE&gt;...</code></p>
 <h6 id="arguments_8"><strong>Arguments:</strong><a class="headerlink" href="#arguments_8" title="Permanent link">&para;</a></h6>
 <ul>
 <li>
-<p><code>&lt;BRANCH@REMOTE&gt;</code> — Remote bookmarks to track</p>
+<p><code>&lt;BOOKMARK@REMOTE&gt;</code> — Remote bookmarks to track</p>
 <p>By default, the specified name matches exactly. Use <code>glob:</code> prefix to select bookmarks by wildcard pattern. For details, see https://martinvonz.github.io/jj/latest/revsets/#string-patterns.</p>
 <p>Examples: bookmark@remote, glob:main@<em>, glob:jjfan-</em>@upstream</p>
 </li>
@@ -6213,11 +6213,11 @@ does not match the <code>jj help</code> output exactly.</p>
 <h2 id="jj-bookmark-untrack"><code>jj bookmark untrack</code><a class="headerlink" href="#jj-bookmark-untrack" title="Permanent link">&para;</a></h2>
 <p>Stop tracking given remote bookmarks</p>
 <p>A non-tracking remote bookmark is just a pointer to the last-fetched remote bookmark. It won't be imported as a local bookmark on future pulls.</p>
-<p><strong>Usage:</strong> <code>jj bookmark untrack &lt;BRANCH@REMOTE&gt;...</code></p>
+<p><strong>Usage:</strong> <code>jj bookmark untrack &lt;BOOKMARK@REMOTE&gt;...</code></p>
 <h6 id="arguments_9"><strong>Arguments:</strong><a class="headerlink" href="#arguments_9" title="Permanent link">&para;</a></h6>
 <ul>
 <li>
-<p><code>&lt;BRANCH@REMOTE&gt;</code> — Remote bookmarks to untrack</p>
+<p><code>&lt;BOOKMARK@REMOTE&gt;</code> — Remote bookmarks to untrack</p>
 <p>By default, the specified name matches exactly. Use <code>glob:</code> prefix to select bookmarks by wildcard pattern. For details, see https://martinvonz.github.io/jj/latest/revsets/#string-patterns.</p>
 <p>Examples: bookmark@remote, glob:main@<em>, glob:jjfan-</em>@upstream</p>
 </li>
@@ -6358,7 +6358,7 @@ Martin von Zweigbergk</p>
 <h2 id="jj-diff"><code>jj diff</code><a class="headerlink" href="#jj-diff" title="Permanent link">&para;</a></h2>
 <p>Compare file contents between two revisions</p>
 <p>With the <code>-r</code> option, which is the default, shows the changes compared to the parent revision. If there are several parent revisions (i.e., the given revision is a merge), then they will be merged and the changes from the result to the given revision will be shown.</p>
-<p>With the <code>--from</code> and/or <code>--to</code> options, shows the difference from/to the given revisions. If either is left out, it defaults to the working-copy commit. For example, <code>jj diff --from main</code> shows the changes from "main" (perhaps a branch name) to the working-copy commit.</p>
+<p>With the <code>--from</code> and/or <code>--to</code> options, shows the difference from/to the given revisions. If either is left out, it defaults to the working-copy commit. For example, <code>jj diff --from main</code> shows the changes from "main" (perhaps a bookmark name) to the working-copy commit.</p>
 <p><strong>Usage:</strong> <code>jj diff [OPTIONS] [PATHS]...</code></p>
 <h6 id="arguments_15"><strong>Arguments:</strong><a class="headerlink" href="#arguments_15" title="Permanent link">&para;</a></h6>
 <ul>
@@ -6730,7 +6730,7 @@ will be removed in a future version.</p>
 <ul>
 <li><code>add</code> — Add a Git remote</li>
 <li><code>list</code> — List Git remotes</li>
-<li><code>remove</code> — Remove a Git remote and forget its branches</li>
+<li><code>remove</code> — Remove a Git remote and forget its bookmarks</li>
 <li><code>rename</code> — Rename a Git remote</li>
 <li><code>set-url</code> — Set the URL of a Git remote</li>
 </ul>
@@ -6746,7 +6746,7 @@ will be removed in a future version.</p>
 <p>List Git remotes</p>
 <p><strong>Usage:</strong> <code>jj git remote list</code></p>
 <h2 id="jj-git-remote-remove"><code>jj git remote remove</code><a class="headerlink" href="#jj-git-remote-remove" title="Permanent link">&para;</a></h2>
-<p>Remove a Git remote and forget its branches</p>
+<p>Remove a Git remote and forget its bookmarks</p>
 <p><strong>Usage:</strong> <code>jj git remote remove &lt;REMOTE&gt;</code></p>
 <h6 id="arguments_27"><strong>Arguments:</strong><a class="headerlink" href="#arguments_27" title="Permanent link">&para;</a></h6>
 <ul>
@@ -6855,7 +6855,7 @@ will be removed in a future version.</p>
 <h2 id="jj-new"><code>jj new</code><a class="headerlink" href="#jj-new" title="Permanent link">&para;</a></h2>
 <p>Create a new, empty change and (by default) edit it in the working copy</p>
 <p>By default, <code>jj</code> will edit the new change, making the working copy represent the new commit. This can be avoided with <code>--no-edit</code>.</p>
-<p>Note that you can create a merge commit by specifying multiple revisions as argument. For example, <code>jj new main @</code> will create a new commit with the <code>main</code> branch and the working copy as parents.</p>
+<p>Note that you can create a merge commit by specifying multiple revisions as argument. For example, <code>jj new main @</code> will create a new commit with the <code>main</code> bookmark and the working copy as parents.</p>
 <p>For more information, see https://martinvonz.github.io/jj/latest/working-copy/.</p>
 <p><strong>Usage:</strong> <code>jj new [OPTIONS] [REVISIONS]...</code></p>
 <h6 id="arguments_33"><strong>Arguments:</strong><a class="headerlink" href="#arguments_33" title="Permanent link">&para;</a></h6>
@@ -7031,9 +7031,9 @@ implied.</p>
 <p>Possible values:</p>
 <ul>
 <li><code>repo</code>:
-  The jj repo state and local branches</li>
+  The jj repo state and local bookmarks</li>
 <li><code>remote-tracking</code>:
-  The remote-tracking branches. Do not restore these if you'd like to push after the undo</li>
+  The remote-tracking bookmarks. Do not restore these if you'd like to push after the undo</li>
 </ul>
 </li>
 </ul>
@@ -7094,9 +7094,9 @@ implied.</p>
 <p>Possible values:</p>
 <ul>
 <li><code>repo</code>:
-  The jj repo state and local branches</li>
+  The jj repo state and local bookmarks</li>
 <li><code>remote-tracking</code>:
-  The remote-tracking branches. Do not restore these if you'd like to push after the undo</li>
+  The remote-tracking bookmarks. Do not restore these if you'd like to push after the undo</li>
 </ul>
 </li>
 </ul>
@@ -7543,9 +7543,9 @@ compinit
 <p>Possible values:</p>
 <ul>
 <li><code>repo</code>:
-  The jj repo state and local branches</li>
+  The jj repo state and local bookmarks</li>
 <li><code>remote-tracking</code>:
-  The remote-tracking branches. Do not restore these if you'd like to push after the undo</li>
+  The remote-tracking bookmarks. Do not restore these if you'd like to push after the undo</li>
 </ul>
 </li>
 </ul>

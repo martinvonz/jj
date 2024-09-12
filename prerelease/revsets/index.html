@@ -1584,7 +1584,7 @@ ID or a Git ref pointing to them).</p>
 <h2 id="symbols">Symbols<a class="headerlink" href="#symbols" title="Permanent link">&para;</a></h2>
 <p>The <code>@</code> expression refers to the working copy commit in the current workspace.
 Use <code>&lt;workspace name&gt;@</code> to refer to the working-copy commit in another
-workspace. Use <code>&lt;name&gt;@&lt;remote&gt;</code> to refer to a remote-tracking branch.</p>
+workspace. Use <code>&lt;name&gt;@&lt;remote&gt;</code> to refer to a remote-tracking bookmark.</p>
 <p>A full commit ID refers to a single commit. A unique prefix of the full commit
 ID can also be used. It is an error to use a non-unique prefix.</p>
 <p>A full change ID refers to all visible commits with that change ID (there is
@@ -1598,7 +1598,7 @@ something like <code>jj log -r '"x-"'</code>.</p>
 <p>Jujutsu attempts to resolve a symbol in the following order:</p>
 <ol>
 <li>Tag name</li>
-<li>Branch name</li>
+<li>Bookmark name</li>
 <li>Git ref</li>
 <li>Commit ID or change ID</li>
 </ol>
@@ -1757,35 +1757,35 @@ revsets (expressions) as arguments.</p>
   completeness.</p>
 </li>
 <li>
-<p><code>branches([pattern])</code>: All local branch targets. If <code>pattern</code> is specified,
-  this selects the branches whose name match the given <a href="#string-patterns">string
-  pattern</a>. For example, <code>branches(push)</code> would match the
-  branches <code>push-123</code> and <code>repushed</code> but not the branch <code>main</code>. If a branch is
+<p><code>bookmarks([pattern])</code>: All local bookmark targets. If <code>pattern</code> is specified,
+  this selects the bookmarks whose name match the given <a href="#string-patterns">string
+  pattern</a>. For example, <code>bookmarks(push)</code> would match the
+  bookmarks <code>push-123</code> and <code>repushed</code> but not the bookmark <code>main</code>. If a bookmark is
   in a conflicted state, all its possible targets are included.</p>
 </li>
 <li>
-<p><code>remote_branches([branch_pattern[, [remote=]remote_pattern]])</code>: All remote
-  branch targets across all remotes. If just the <code>branch_pattern</code> is
-  specified, the branches whose names match the given <a href="#string-patterns">string
+<p><code>remote_bookmarks([bookmark_pattern[, [remote=]remote_pattern]])</code>: All remote
+  bookmarks targets across all remotes. If just the <code>bookmark_pattern</code> is
+  specified, the bookmarks whose names match the given <a href="#string-patterns">string
   pattern</a> across all remotes are selected. If both
-  <code>branch_pattern</code> and <code>remote_pattern</code> are specified, the selection is
+  <code>bookmark_pattern</code> and <code>remote_pattern</code> are specified, the selection is
   further restricted to just the remotes whose names match <code>remote_pattern</code>.</p>
-<p>For example, <code>remote_branches(push, ri)</code> would match the branches
+<p>For example, <code>remote_bookmarks(push, ri)</code> would match the bookmarks
 <code>push-123@origin</code> and <code>repushed@private</code> but not <code>push-123@upstream</code> or
-<code>main@origin</code> or <code>main@upstream</code>. If a branch is in a conflicted state, all
+<code>main@origin</code> or <code>main@upstream</code>. If a bookmark is in a conflicted state, all
 its possible targets are included.</p>
-<p>While Git-tracking branches can be selected by <code>&lt;name&gt;@git</code>, these branches
-aren't included in <code>remote_branches()</code>.</p>
+<p>While Git-tracking bookmarks can be selected by <code>&lt;name&gt;@git</code>, these bookmarks
+aren't included in <code>remote_bookmarks()</code>.</p>
 </li>
 <li>
-<p><code>tracked_remote_branches([branch_pattern[, [remote=]remote_pattern]])</code>: All
-  targets of tracked remote branches. Supports the same optional arguments as
-  <code>remote_branches()</code>.</p>
+<p><code>tracked_remote_bookmarks([bookmark_pattern[, [remote=]remote_pattern]])</code>: All
+  targets of tracked remote bookmarks. Supports the same optional arguments as
+  <code>remote_bookmarks()</code>.</p>
 </li>
 <li>
-<p><code>untracked_remote_branches([branch_pattern[, [remote=]remote_pattern]])</code>:
-  All targets of untracked remote branches. Supports the same optional arguments
-  as <code>remote_branches()</code>.</p>
+<p><code>untracked_remote_bookmarks([bookmark_pattern[, [remote=]remote_pattern]])</code>:
+  All targets of untracked remote bookmarks. Supports the same optional arguments
+  as <code>remote_bookmarks()</code>.</p>
 </li>
 <li>
 <p><code>tags()</code>: All tag targets. If a tag is in a conflicted state, all its
@@ -1876,7 +1876,7 @@ is added to or removed from files under "src".</p>
 </li>
 <li>
 <p><code>present(x)</code>: Same as <code>x</code>, but evaluated to <code>none()</code> if any of the commits
-  in <code>x</code> doesn't exist (e.g. is an unknown branch name.)</p>
+  in <code>x</code> doesn't exist (e.g. is an unknown bookmark name.)</p>
 </li>
 <li>
 <p><code>working_copies()</code>: The working copy commits across all the workspaces.</p>
@@ -1978,29 +1978,30 @@ See <a href="https://github.com/martinvonz/jj/blob/main/cli/src/config/revsets.t
 for a comprehensive list.</p>
 <ul>
 <li>
-<p><code>trunk()</code>: Resolves to the head commit for the trunk branch of the remote
-  named <code>origin</code> or <code>upstream</code>. The branches <code>main</code>, <code>master</code>, and <code>trunk</code> are
+<p><code>trunk()</code>: Resolves to the head commit for the trunk bookmark of the remote
+  named <code>origin</code> or <code>upstream</code>. The bookmarks <code>main</code>, <code>master</code>, and <code>trunk</code> are
   tried. If more than one potential trunk commit exists, the newest one is
-  chosen. If none of the branches exist, the revset evaluates to <code>root()</code>.</p>
+  chosen. If none of the bookmarks exist, the revset evaluates to <code>root()</code>.</p>
 <p>When working with an existing Git repository (via <code>jj git clone</code> or
 <code>jj git init</code>), <code>trunk()</code> will be overridden at the repository level
-to the default branch of the remote <code>origin</code>.</p>
+to the default bookmark of the remote <code>origin</code>.</p>
 <p>You can <a href="../config/">override</a> this as appropriate. If you do, make sure it
 always resolves to exactly one commit. For example:</p>
 <div class="highlight"><pre><span></span><code><span class="k">[revset-aliases]</span>
-<span class="s1">&#39;trunk()&#39;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;your-branch@your-remote&#39;</span>
+<span class="s1">&#39;trunk()&#39;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;your-bookmark@your-remote&#39;</span>
 </code></pre></div>
 </li>
 <li>
-<p><code>builtin_immutable_heads()</code>: Resolves to <code>trunk() | tags() | untracked_remote_branches()</code>.
+<p><code>builtin_immutable_heads()</code>: Resolves to <code>trunk() | tags() | untracked_remote_bookmarks()</code>.
    It is used as the default definition for <code>immutable_heads()</code> below. it is not
-   recommended to redefined this alias. Prefer to redefine <code>immutable_heads()</code> instead.</p>
+   recommended to redefined this alias. Prefer to redefine <code>immutable_heads()</code>
+   instead.</p>
 </li>
 <li>
-<p><code>immutable_heads()</code>: Resolves to <code>trunk() | tags() |
-  untracked_remote_branches()</code> by default. It is actually defined as <code>builtin_immutable_heads()</code>,
-  and can be overridden as required.
-  See <a href="../config/#set-of-immutable-commits">here</a> for details.</p>
+<p><code>immutable_heads()</code>: Resolves to <code>trunk() | tags() | untracked_remote_bookmarks()</code>
+  by default. It is actually defined as <code>builtin_immutable_heads()</code>, and can be
+  overridden as required. See <a href="../config/#set-of-immutable-commits">here</a> for
+  details.</p>
 </li>
 <li>
 <p><code>immutable()</code>: The set of commits that <code>jj</code> treats as immutable. This is
@@ -2046,21 +2047,21 @@ xyz</code> will add <code>xyz</code> to the list of <code>w</code>'s parents.</p
 <p>Show all ancestors of the working copy (like plain <code>git log</code>)</p>
 <div class="highlight"><pre><span></span><code>jj log -r ::@
 </code></pre></div>
-<p>Show commits not on any remote branch:</p>
-<div class="highlight"><pre><span></span><code>jj log -r &#39;remote_branches()..&#39;
+<p>Show commits not on any remote bookmark:</p>
+<div class="highlight"><pre><span></span><code>jj log -r &#39;remote_bookmarks()..&#39;
 </code></pre></div>
 <p>Show commits not on <code>origin</code> (if you have other remotes like <code>fork</code>):</p>
-<div class="highlight"><pre><span></span><code>jj log -r &#39;remote_branches(remote=origin)..&#39;
+<div class="highlight"><pre><span></span><code>jj log -r &#39;remote_bookmarks(remote=origin)..&#39;
 </code></pre></div>
 <p>Show the initial commits in the repo (the ones Git calls "root commits"):</p>
 <div class="highlight"><pre><span></span><code>jj log -r &#39;root()+&#39;
 </code></pre></div>
 <p>Show some important commits (like <code>git --simplify-by-decoration</code>):</p>
-<div class="highlight"><pre><span></span><code>jj log -r &#39;tags() | branches()&#39;
+<div class="highlight"><pre><span></span><code>jj log -r &#39;tags() | bookmarks()&#39;
 </code></pre></div>
 <p>Show local commits leading up to the working copy, as well as descendants of
 those commits:</p>
-<div class="highlight"><pre><span></span><code>jj log -r &#39;(remote_branches()..@)::&#39;
+<div class="highlight"><pre><span></span><code>jj log -r &#39;(remote_bookmarks()..@)::&#39;
 </code></pre></div>
 <p>Show commits authored by "martinvonz" and containing the word "reset" in the
 description:</p>

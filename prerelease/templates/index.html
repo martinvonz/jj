@@ -1935,7 +1935,7 @@ type</a> are available as keywords. For example,
 <li><code>current_working_copy() -&gt; Boolean</code>: True for the working-copy commit of the
   current workspace.</li>
 <li><code>bookmarks() -&gt; List&lt;RefName&gt;</code>: Local and remote bookmarks pointing to the 
-  commit. A tracking remote branch will be included only if its target is 
+  commit. A tracking remote bookmark will be included only if its target is 
   different from the local one.</li>
 <li><code>local_bookmarks() -&gt; List&lt;RefName&gt;</code>: All local bookmarks pointing to the commit.</li>
 <li><code>remote_bookmarks() -&gt; List&lt;RefName&gt;</code>: All remote bookmarks pointing to the commit.</li>
@@ -2002,10 +2002,10 @@ invoked. If not set, an error will be reported inline on method call.</p>
 <h3 id="refname-type">RefName type<a class="headerlink" href="#refname-type" title="Permanent link">&para;</a></h3>
 <p>The following methods are defined.</p>
 <ul>
-<li><code>.name() -&gt; String</code>: Local branch or tag name.</li>
+<li><code>.name() -&gt; String</code>: Local bookmark or tag name.</li>
 <li><code>.remote() -&gt; String</code>: Remote name or empty if this is a local ref.</li>
 <li><code>.present() -&gt; Boolean</code>: True if the ref points to any commit.</li>
-<li><code>.conflict() -&gt; Boolean</code>: True if <a href="../bookmarks/#conflicts">the branch or tag is
+<li><code>.conflict() -&gt; Boolean</code>: True if <a href="../bookmarks/#conflicts">the bookmark or tag is
   conflicted</a>.</li>
 <li><code>.normal_target() -&gt; Option&lt;Commit&gt;</code>: Target commit if the ref is not
   conflicted and points to a commit.</li>

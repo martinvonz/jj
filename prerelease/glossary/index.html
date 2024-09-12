@@ -636,9 +636,9 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#anonymous-bookmark" class="md-nav__link">
+  <a href="#anonymous-branch" class="md-nav__link">
     <span class="md-ellipsis">
-      Anonymous bookmark
+      Anonymous branch
     </span>
   </a>
   
@@ -1593,9 +1593,9 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#anonymous-bookmark" class="md-nav__link">
+  <a href="#anonymous-branch" class="md-nav__link">
     <span class="md-ellipsis">
-      Anonymous bookmark
+      Anonymous branch
     </span>
   </a>
   
@@ -1851,12 +1851,12 @@
 
 
 <h1 id="glossary">Glossary<a class="headerlink" href="#glossary" title="Permanent link">&para;</a></h1>
-<h2 id="anonymous-bookmark">Anonymous bookmark<a class="headerlink" href="#anonymous-bookmark" title="Permanent link">&para;</a></h2>
-<p>An anonymous bookmark is a chain of commits that doesn't have any
+<h2 id="anonymous-branch">Anonymous branch<a class="headerlink" href="#anonymous-branch" title="Permanent link">&para;</a></h2>
+<p>An anonymous branch is a chain of commits that doesn't have any
 <a href="#bookmark">named bookmarks</a> pointing to it or to any of its descendants. Unlike
-Git, Jujutsu keeps commits on anonymous bookmarks around until they are
-explicitly abandoned. Visible anonymous bookmarks are tracked by the
-<a href="#view">view</a>, which stores a list of <a href="#head">heads</a> of such bookmarks.</p>
+Git, Jujutsu keeps commits on anonymous branches around until they are
+explicitly abandoned. Visible anonymous branches are tracked by the
+<a href="#view">view</a>, which stores a list of <a href="#head">heads</a> of such branches.</p>
 <h2 id="backend">Backend<a class="headerlink" href="#backend" title="Permanent link">&para;</a></h2>
 <p>A backend is an implementation of the storage layer. There are currently two
 builtin commit backends: the Git backend and the native backend. The Git backend
@@ -1868,12 +1868,11 @@ such as the "operation store backend" for storing
 <a href="#operation-log">the operation log</a>.</p>
 <h2 id="bookmark">Bookmark<a class="headerlink" href="#bookmark" title="Permanent link">&para;</a></h2>
 <p>A bookmark is a named pointer to a <a href="#commit">commit</a>. They automatically follow
-the commit if it gets <a href="#rewrite">rewritten</a>. Branches are sometimes called
-"named bookmarks" to distinguish them from
-<a href="#anonymous-bookmark">anonymous bookmarks</a>, but note that they are more similar
-to Git's bookmarks than to
-<a href="https://www.mercurial-scm.org/wiki/Branch#Named_bookmarks">Mercurial's named bookmarks</a>.
-See <a href="../bookmarks/">here</a> for details.</p>
+the commit if it gets <a href="#rewrite">rewritten</a>. Bookmarks are sometimes called
+"named branches" to distinguish them from <a href="#anonymous-branch">anonymous branches</a>.
+They are similar to Git's branches and even more similar to 
+<a href="https://wiki.mercurial-scm.org/Bookmarks">Mercurial's bookmarks</a>. See
+<a href="../bookmarks/">here</a> for details.</p>
 <h2 id="change">Change<a class="headerlink" href="#change" title="Permanent link">&para;</a></h2>
 <p>A change is a commit as it <a href="#rewrite">evolves over time</a>.</p>
 <h2 id="change-id">Change ID<a class="headerlink" href="#change-id" title="Permanent link">&para;</a></h2>
