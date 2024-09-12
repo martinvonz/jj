@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::collections::HashMap;
 use std::path::Path;
 use std::slice;
 use std::sync::Arc;
@@ -420,22 +421,37 @@ fn test_resolve_op_id() {
     let loader = repo.loader();
 
     let mut operations = Vec::new();
-    // The actual value of `i` doesn't matter, we just need to make sure we end
-    // up with hashes with ambiguous prefixes.
-    for i in (1..5).chain([39, 62]) {
+    // We just need to make sure we end up with hashes with ambiguous prefixes.
+    let mut first_letters = HashMap::new();
+    let mut collision = None;
+    let mut root_collision = None;
+    for i in 0.. {
         let tx = repo.start_transaction(&settings);
         let repo = tx.commit(format!("transaction {i}"));
         operations.push(repo.operation().clone());
+        let fl = repo.operation().id().hex().chars().next().unwrap();
+        if fl == '0' {
+            root_collision = Some(repo.operation().clone());
+        } else if collision.is_none() {
+            if let Some(prev) = first_letters.insert(fl, repo.operation().clone()) {
+                collision = Some([prev, repo.operation().clone()]);
+            }
+        }
+        if collision.is_some() && root_collision.is_some() {
+            break;
+        }
     }
-    // "b" and "0" are ambiguous
+    let operations = collision
+        .into_iter()
+        .flatten()
+        .chain(root_collision)
+        .collect_vec();
+    // "8" and "0" are ambiguous
     insta::assert_debug_snapshot!(operations.iter().map(|op| op.id().hex()).collect_vec(), @r#"
     [
-        "bb1ea76bb194556214b1259568d5f3381fb4209f10b86d6c3c7d162a9b8ee1a5d98da57cf21ceadeecd2416c20508348ed4c1a24226c708f035b138fc7a97d5b",
-        "5c35c6506eedd9c74ffab46940129cb3b66e5e1968b4eea5bb38701d6d3462b4a34d78efcaa81d41fabf6937d79c4431e2adc4361095c9fb795004da420d8a26",
-        "b43387cf7a5808ebb6cdacd5c95de9d4b315c6edc465a49ff290b731da1c3d57315af49686e5ffd4c2fc4478af40b4a70cba7334bbca8e3d4e69176de807a916",
-        "fcd828a3033f9a9f44c8f06cd0d7f79570d53895c9d7d794ea51a7ee4b7871c8fe245ec18d2ece76ec7b51a998b04da811c232668c7c2c53f72b5baf0ad20797",
-        "091574d16d89ab848ac08c9a8e35276484c5e332ea97f1fad7b794763aa280ce5b663d835b555b5b763cbdbb6d8dba5a35ad1f2780ebdca5e598f07f82dcd3c7",
-        "06e9f38473578a4b1a8672ab474eb2741269fffb2f765a610de47fddafc60a88c002f7cdb9d82a9d1dfdbdd3b4045cd62e34215e7a781ed149332980e90227f1",
+        "8d3099418d78527568be2060ff5746d86e0992d17172e125de5bb763bf2f1fde37a12c3a8604ba3415f7015f85558b7a54471ad9de2ac3f52fa7c36e34484b36",
+        "83e85338abea42445f59996c9ddc796862e24a517c02fe94a5ea27d74409183de5017f556a6888d5eab9a6090e00a075b19378987d137ee8db7628c74596d124",
+        "08465ecd25ff690c419eedda7a5fc7d46a5c1736c8d225d26a988092a5b37663bd1e97f9166581046b1ee3eda336414d0b8586f594a91926c8142dbf6d35403c",
     ]
     "#);
 
@@ -456,7 +472,7 @@ fn test_resolve_op_id() {
     );
     // Ambiguous id
     assert_matches!(
-        resolve("b"),
+        resolve("8"),
         Err(OpsetEvaluationError::OpsetResolution(
             OpsetResolutionError::AmbiguousIdPrefix(_)
         ))
@@ -478,8 +494,8 @@ fn test_resolve_op_id() {
     // Virtual root id
     let root_operation = loader.root_operation();
     assert_eq!(resolve(&root_operation.id().hex()).unwrap(), root_operation);
-    assert_eq!(resolve("00").unwrap(), root_operation);
-    assert_eq!(resolve("09").unwrap(), operations[4]);
+    assert_eq!(resolve("000").unwrap(), root_operation);
+    assert_eq!(resolve("8d3").unwrap(), operations[0]);
     assert_matches!(
         resolve("0"),
         Err(OpsetEvaluationError::OpsetResolution(

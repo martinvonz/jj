@@ -34,16 +34,17 @@ fn test_concurrent_operation_divergence() {
     let stderr = test_env.jj_cmd_failure(&repo_path, &["op", "log", "--at-op=@"]);
     insta::assert_snapshot!(stderr, @r#"
     Error: The "@" expression resolved to more than one operation
-    Hint: Try specifying one of the operations by ID: 0162305507cc, d74dff64472e
+    Hint: Try specifying one of the operations by ID: cd42d47c66af, 896a0c55975e
     "#);
+    let to_log = stderr.split_whitespace().next_back().unwrap();
 
     // "op log --at-op" should work without merging the head operations
-    let stdout = test_env.jj_cmd_success(&repo_path, &["op", "log", "--at-op=d74dff64472e"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["op", "log", &format!("--at-op={to_log}")]);
     insta::assert_snapshot!(stdout, @r#"
-    @  d74dff64472e test-username@host.example.com 2001-02-03 04:05:09.000 +07:00 - 2001-02-03 04:05:09.000 +07:00
+    @  896a0c55975e test-username@host.example.com 2001-02-03 04:05:09.000 +07:00 - 2001-02-03 04:05:09.000 +07:00
     │  describe commit 230dd059e1b059aefc0da06a2e5a7dbf22362f22
     │  args: jj describe -m 'message 2' --at-op @-
-    ○  eac759b9ab75 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
+    ○  1dd8979af5cf test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
     │  add workspace 'default'
     ○  000000000000 root()
     "#);
@@ -71,13 +72,13 @@ fn test_concurrent_operations_auto_rebase() {
     test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "initial"]);
     let stdout = test_env.jj_cmd_success(&repo_path, &["op", "log"]);
     insta::assert_snapshot!(stdout, @r#"
-    @  c62ace5c0522 test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
+    @  b92adf2ee77d test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
     │  describe commit 4e8f9d2be039994f589b4e57ac5e9488703e604d
     │  args: jj describe -m initial
-    ○  82d32fc68fc3 test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
+    ○  fd8b89d6114e test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
     │  snapshot working copy
     │  args: jj describe -m initial
-    ○  eac759b9ab75 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
+    ○  1dd8979af5cf test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
     │  add workspace 'default'
     ○  000000000000 root()
     "#);
@@ -183,19 +184,19 @@ fn test_concurrent_snapshot_wc_reloadable() {
     let template = r#"id ++ "\n" ++ description ++ "\n" ++ tags"#;
     let op_log_stdout = test_env.jj_cmd_success(&repo_path, &["op", "log", "-T", template]);
     insta::assert_snapshot!(op_log_stdout, @r#"
-    @  ec6bf266624bbaed55833a34ae62fa95c0e9efa651b94eb28846972da645845052dcdc8580332a5628849f23f48b9e99fc728dc3fb13106df8d0666d746f8b85
+    @  7a57e81b07f5283c79cd8bf4ee493bd2401b6a0f5a90350ab8d25e345c96ff04ee339ba4edadd0ff3dac9f526fe8db6f2c458952a1f87461f4882e9d792ad0ae
     │  commit 554d22b2c43c1c47e279430197363e8daabe2fd6
     │  args: jj commit -m 'new child1'
-    ○  23858df860b789e8176a73c0eb21804e3f1848f26d68b70d234c004d08980c41499b6669042bca20fbc2543c437222a084c7cd473e91c7a9a095a02bf38544ab
+    ○  65018d720747ce3a7f0d2aae7f3d82e6fa03a896f7184f52ec7599039fcf40512d2ede89bd89d2afc6caaae117b3cc6d9e4540147054b47017ca76eb5bb2ef1a
     │  snapshot working copy
     │  args: jj commit -m 'new child1'
-    ○  e1db5fa988fc66e5cc0491b00c53fb93e25e730341c850cb42e1e0db0c76d2b4065005787563301b1d292c104f381918897f7deabeb92d2532f42ce75d3fe588
+    ○  521a7442c756dab4dbfe969f632c47a3283c092bd6294bb77d14986c08f8c211dc534ff6195e4776fab2f0222efc2904549faf9e18b5acc093accdc09d1bacab
     │  commit de71e09289762a65f80bb1c3dae2a949df6bcde7
     │  args: jj commit -m initial
-    ○  7de878155a459b7751097222132c935f9dcbb8f69a72b0f3a9036345a963010a553dc7c92964220128679ead72b087ca3aaf4ab9e20a221d1ffa4f9e92a32193
+    ○  6ce0e3f160003258d9fb99f897cb8a89c482ffc93b15255aceb5feac64f0dcf8d9157c0ef9a214092036db3c2f9cb22c86a86d7cfab4e03024a59332cdbe06b4
     │  snapshot working copy
     │  args: jj commit -m initial
-    ○  eac759b9ab75793fd3da96e60939fb48f2cd2b2a9c1f13ffe723cf620f3005b8d3e7e923634a07ea39513e4f2f360c87b9ad5d331cf90d7a844864b83b72eba1
+    ○  1dd8979af5cf747a5bf398bfcc528bf76bf1fe71307cd9a5a53c34a2d7b616ce98658bfdccc9fde9253bba8b4a20b3a319796cba3ce8de63d9464aa1c038274a
     │  add workspace 'default'
     ○  00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 

@@ -236,7 +236,7 @@ fn test_debug_operation_id() {
     let stdout =
         test_env.jj_cmd_success(&workspace_path, &["debug", "operation", "--display", "id"]);
     assert_snapshot!(filter_index_stats(&stdout), @r#"
-    eac759b9ab75793fd3da96e60939fb48f2cd2b2a9c1f13ffe723cf620f3005b8d3e7e923634a07ea39513e4f2f360c87b9ad5d331cf90d7a844864b83b72eba1
+    1dd8979af5cf747a5bf398bfcc528bf76bf1fe71307cd9a5a53c34a2d7b616ce98658bfdccc9fde9253bba8b4a20b3a319796cba3ce8de63d9464aa1c038274a
     "#
     );
 }
