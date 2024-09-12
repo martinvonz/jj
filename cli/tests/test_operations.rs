@@ -159,7 +159,7 @@ fn test_op_log_with_no_template() {
     let repo_path = test_env.env_root().join("repo");
 
     let stderr = test_env.jj_cmd_cli_error(&repo_path, &["op", "log", "-T"]);
-    insta::assert_snapshot!(stderr, @r###"
+    insta::assert_snapshot!(stderr, @r#"
     error: a value is required for '--template <TEMPLATE>' but none was supplied
 
     For more information, try '--help'.
@@ -178,7 +178,7 @@ fn test_op_log_with_no_template() {
     - description_placeholder
     - email_placeholder
     - name_placeholder
-    "###);
+    "#);
 }
 
 #[test]
@@ -871,10 +871,10 @@ fn test_op_diff() {
 
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["op", "diff", "--from", "@", "--to", "@"]);
-    insta::assert_snapshot!(&stdout, @r###"
-    From operation ea112f6a02be: check out git remote's default branch
-      To operation ea112f6a02be: check out git remote's default branch
-    "###);
+    insta::assert_snapshot!(&stdout, @r#"
+    From operation ea112f6a02be 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00 check out git remote's default branch
+      To operation ea112f6a02be 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00 check out git remote's default branch
+    "#);
 
     // Diff from parent operation to latest operation.
     // `jj op diff --op @` should behave identically to `jj op diff --from
@@ -1312,9 +1312,9 @@ fn test_op_diff_patch() {
     Parent commit      : qpvuntsm 2ac85fd1 (no description set)
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["op", "diff", "-p", "--git"]);
-    insta::assert_snapshot!(&stdout, @r###"
-    From operation 874d3a8b4c77: snapshot working copy
-      To operation c53f5f1afbc6: squash commits into 6b1027d2770cd0a39c468e525e52bf8c47e1464a
+    insta::assert_snapshot!(&stdout, @r#"
+    From operation 874d3a8b4c77 2001-02-03 04:05:11.000 +07:00 - 2001-02-03 04:05:11.000 +07:00 snapshot working copy
+      To operation c53f5f1afbc6 2001-02-03 04:05:11.000 +07:00 - 2001-02-03 04:05:11.000 +07:00 squash commits into 6b1027d2770cd0a39c468e525e52bf8c47e1464a
 
     Changed commits:
     ○  Change mzvwutvlkqwt
@@ -1338,7 +1338,7 @@ fn test_op_diff_patch() {
        @@ -1,1 +1,1 @@
        -a
        +b
-    "###);
+    "#);
 
     // Abandon the working copy commit.
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["abandon"]);

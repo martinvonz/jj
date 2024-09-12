@@ -75,7 +75,9 @@ fn test_duplicate() {
 
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["undo"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(stderr, @r#"
+    Undid operation c4b0b2a977fe 2001-02-03 04:05:17.000 +07:00 - 2001-02-03 04:05:17.000 +07:00 duplicate 1 commit(s)
+    "#);
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["duplicate" /* duplicates `c` */]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
@@ -277,7 +279,9 @@ fn test_undo_after_duplicate() {
 
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["undo"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(stderr, @r#"
+    Undid operation 5a2bcfcdd78b 2001-02-03 04:05:11.000 +07:00 - 2001-02-03 04:05:11.000 +07:00 duplicate 1 commit(s)
+    "#);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  2443ea76b0b1   a
     ◆  000000000000

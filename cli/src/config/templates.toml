@@ -41,6 +41,13 @@ tag_list = '''
 label("tag", name) ++ format_ref_targets(self) ++ "\n"
 '''
 
+op_summary = '''
+if(root,
+  separate(" ", self.id().short(), label("root", "root()")),
+  separate(" ", self.id().short(), format_time_range(self.time()), self.description().first_line())
+)
+'''
+
 [template-aliases]
 builtin_log_oneline = '''
 if(root,

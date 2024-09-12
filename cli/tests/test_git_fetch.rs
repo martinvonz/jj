@@ -845,7 +845,9 @@ fn test_git_fetch_undo() {
     "###);
     let (stdout, stderr) = test_env.jj_cmd_ok(&target_jj_repo_path, &["undo"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(stderr, @r#"
+    Undid operation bbebbf6a6ebe 2001-02-03 04:05:18.000 +07:00 - 2001-02-03 04:05:18.000 +07:00 fetch from git remote(s) origin
+    "#);
     // The undo works as expected
     insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"
     @  230dd059e1b0

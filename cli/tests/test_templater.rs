@@ -103,7 +103,7 @@ fn test_templater_parse_error() {
 
     // -Tbuiltin shows the predefined builtin_* aliases. This isn't 100%
     // guaranteed, but is nice.
-    insta::assert_snapshot!(render_err(r#"builtin"#), @r###"
+    insta::assert_snapshot!(render_err(r#"builtin"#), @r#"
     Error: Failed to parse template: Keyword "builtin" doesn't exist
     Caused by:  --> 1:1
       |
@@ -112,7 +112,7 @@ fn test_templater_parse_error() {
       |
       = Keyword "builtin" doesn't exist
     Hint: Did you mean "builtin_log_comfortable", "builtin_log_compact", "builtin_log_detailed", "builtin_log_node", "builtin_log_node_ascii", "builtin_log_oneline", "builtin_op_log_comfortable", "builtin_op_log_compact", "builtin_op_log_node", "builtin_op_log_node_ascii"?
-    "###);
+    "#);
 }
 
 #[test]
