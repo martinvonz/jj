@@ -902,8 +902,8 @@ impl WorkspaceCommandHelper {
     #[instrument(skip_all)]
     pub fn maybe_snapshot(&mut self, ui: &Ui) -> Result<(), CommandError> {
         if self.may_update_working_copy {
-            if self.working_copy_shared_with_git {
-                self.import_git_head(ui)?;
+            if let Some(git_repo) = self.open_colocated_git_repo_gix()? {
+                self.import_git_head(ui, &git_repo)?;
             }
             // Because the Git refs (except HEAD) aren't imported yet, the ref
             // pointing to the new working-copy commit might not be exported.
@@ -925,11 +925,11 @@ impl WorkspaceCommandHelper {
     /// working-copy state will be reset to point to the new Git HEAD. The
     /// working-copy contents won't be updated.
     #[instrument(skip_all)]
-    fn import_git_head(&mut self, ui: &Ui) -> Result<(), CommandError> {
+    fn import_git_head(&mut self, ui: &Ui, git_repo: &gix::Repository) -> Result<(), CommandError> {
         assert!(self.may_update_working_copy);
         let command = self.env.command.clone();
         let mut tx = self.start_transaction();
-        git::import_head(tx.repo_mut())?;
+        git::import_head(tx.repo_mut(), git_repo)?;
         if !tx.repo().has_changes() {
             return Ok(());
         }
@@ -1786,8 +1786,7 @@ See https://martinvonz.github.io/jj/latest/working-copy/#stale-working-copy \
             .map(|commit_id| tx.repo().store().get_commit(commit_id))
             .transpose()?;
 
-        if self.working_copy_shared_with_git {
-            let git_repo = self.git_backend().unwrap().open_git_repo()?;
+        if let Some(git_repo) = self.open_colocated_git_repo_git2()? {
             if let Some(wc_commit) = &maybe_new_wc_commit {
                 git::reset_head(tx.repo_mut(), &git_repo, wc_commit)?;
             }

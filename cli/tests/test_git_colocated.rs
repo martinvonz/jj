@@ -952,22 +952,43 @@ fn test_colocated_workspace_in_bare_repo() {
     // TODO: replace with workspace add, when it can create worktrees
     stopgap_workspace_colocate(&test_env, &repo_path, false, "../second", &initial_commit);
 
-    // FIXME: this workspace should have its own HEAD, but for now, there is no HEAD
-    // as we are only reading the backing repo, which is bare.
     insta::assert_snapshot!(get_log_output(&test_env, &second_path), @r#"
-    @  05530a3e0f9d581260343e273d66c381e76957df second@
+    @  baf7f13355a30ddd3aa6476317fcbc9c65239b0c second@
+    │ ○  45c9d8477181a2b9c077ff1b724694fe0969b301 default@
+    ├─╯
+    ○  046d74c8ab0a4730e58488508a5398b7a91e54a2 HEAD@git initial commit
+    ◆  0000000000000000000000000000000000000000
+    "#);
+
+    test_env.jj_cmd_ok(
+        &second_path,
+        &["commit", "-m", "commit in second workspace"],
+    );
+    insta::assert_snapshot!(get_log_output(&test_env, &second_path), @r#"
+    @  fca81879c29229d0097cb7d32fc8a661ee80c6e4 second@
+    ○  220827d1ceb632ec7dd4cb2f5110b496977d14c2 HEAD@git commit in second workspace
     │ ○  45c9d8477181a2b9c077ff1b724694fe0969b301 default@
     ├─╯
     ○  046d74c8ab0a4730e58488508a5398b7a91e54a2 initial commit
     ◆  0000000000000000000000000000000000000000
     "#);
 
+    // FIXME: There should still be no git HEAD in the default workspace, which
+    // is not colocated. However, git_head() is a property of the view. And
+    // currently, all colocated workspaces read and write from the same
+    // entry of the common view.
+    //
+    // let stdout = test_env.jj_cmd_success(&repo_path, &["log", "--no-graph",
+    // "-r", "git_head()"]); insta::assert_snapshot!(stdout, @r#""#);
+
     let stdout = test_env.jj_cmd_success(
         &second_path,
         &["op", "log", "-Tself.description().first_line()"],
     );
     insta::assert_snapshot!(stdout, @r#"
-    @  create initial working-copy commit in workspace second
+    @  commit baf7f13355a30ddd3aa6476317fcbc9c65239b0c
+    ○  import git head
+    ○  create initial working-copy commit in workspace second
     ○  add workspace 'second'
     ○  commit 4e8f9d2be039994f589b4e57ac5e9488703e604d
     ○  snapshot working copy
@@ -1100,4 +1121,153 @@ fn test_colocated_workspace_invalid_gitdir() {
     Warning: Broken colocated git worktree.
     Hint: You may wish to try `git worktree repair` if you have moved the repo or worktree around.
     "#);
+}
+
+#[test]
+fn test_colocated_workspace_independent_heads() {
+    // TODO: Remove when this stops requiring git (stopgap_workspace_colocate)
+    if Command::new("git").arg("--version").status().is_err() {
+        eprintln!("Skipping because git command might fail to run");
+        return;
+    }
+
+    let test_env = TestEnvironment::default();
+    let repo_path = test_env.env_root().join("repo");
+    let second_path = test_env.env_root().join("second");
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "--colocate", "repo"]);
+    // create a commit so that git can have a HEAD
+    std::fs::write(repo_path.join("file"), "contents").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "initial commit"]);
+    let (initial_commit, _) = test_env.jj_cmd_ok(
+        &repo_path,
+        &["log", "--no-graph", "-T", "commit_id", "-r", "@-"],
+    );
+    // TODO: replace with workspace add, when it can create worktrees
+    stopgap_workspace_colocate(&test_env, &repo_path, true, "../second", &initial_commit);
+
+    {
+        let first_git = git2::Repository::open(&repo_path).unwrap();
+        assert!(first_git.head_detached().unwrap());
+        let first_head = first_git.head().unwrap();
+
+        let commit = first_head.peel_to_commit().unwrap().id();
+        assert_eq!(commit.to_string(), initial_commit);
+
+        let second_git = git2::Repository::open(&second_path).unwrap();
+        assert!(second_git.head_detached().unwrap());
+        let second_head = second_git.head().unwrap();
+
+        let commit = second_head.peel_to_commit().unwrap().id();
+        assert_eq!(commit.to_string(), initial_commit);
+    }
+
+    // now commit again in the second worktree, and make sure the original
+    // repo's head does not move.
+    //
+    // This tests that we are writing HEAD to the corresponding worktree,
+    // rather than unconditionally to the default workspace.
+    std::fs::write(repo_path.join("file2"), "contents").unwrap();
+    test_env.jj_cmd_ok(&second_path, &["commit", "-m", "followup commit"]);
+    let (followup_commit, _) = test_env.jj_cmd_ok(
+        &second_path,
+        &["log", "--no-graph", "-T", "commit_id", "-r", "@-"],
+    );
+
+    {
+        // git HEAD should not move in the default workspace
+        let first_git = git2::Repository::open(&repo_path).unwrap();
+        assert!(first_git.head_detached().unwrap());
+        let first_head = first_git.head().unwrap();
+        // still initial
+        assert_eq!(
+            first_head.peel_to_commit().unwrap().id().to_string(),
+            initial_commit,
+            "default workspace's git HEAD should not have moved from {initial_commit}"
+        );
+
+        let second_git = git2::Repository::open(&second_path).unwrap();
+        assert!(second_git.head_detached().unwrap());
+        let second_head = second_git.head().unwrap();
+        assert_eq!(
+            second_head.peel_to_commit().unwrap().id().to_string(),
+            followup_commit,
+            "second workspace's git HEAD should have advanced to {followup_commit}"
+        );
+    }
+
+    // Finally, test imports. Test that a commit written to HEAD in one workspace
+    // does not get imported by the other workspace.
+
+    // Write in default, expect second not to import it
+    let new_commit = test_independent_import(&test_env, &repo_path, &second_path, &followup_commit);
+    // Write in second, expect default not to import it
+    test_independent_import(&test_env, &second_path, &repo_path, &new_commit);
+
+    fn test_independent_import(
+        test_env: &TestEnvironment,
+        commit_in: &Path,
+        no_import_in_workspace: &Path,
+        workspace_at: &str,
+    ) -> String {
+        // Commit in one workspace
+        let mut repo = gix::open(commit_in).unwrap();
+        {
+            use gix::config::tree::*;
+            let mut config = repo.config_snapshot_mut();
+            let (name, email) = ("JJ test", "jj@example.com");
+            config.set_value(&Author::NAME, name).unwrap();
+            config.set_value(&Author::EMAIL, email).unwrap();
+            config.set_value(&Committer::NAME, name).unwrap();
+            config.set_value(&Committer::EMAIL, email).unwrap();
+        }
+        let tree = repo.head_tree_id().unwrap();
+        let current = repo.head_commit().unwrap().id;
+        let new_commit = repo
+            .commit(
+                "HEAD",
+                format!("empty commit in {}", commit_in.display()),
+                tree,
+                [current],
+            )
+            .unwrap()
+            .to_string();
+
+        let (check_git_head, stderr) = test_env.jj_cmd_ok(
+            no_import_in_workspace,
+            &["log", "--no-graph", "-r", "git_head()", "-T", "commit_id"],
+        );
+        // Asserting stderr is empty => no import occurred
+        assert_eq!(
+            stderr,
+            "",
+            "Should not have imported HEAD in workspace {}",
+            no_import_in_workspace.display()
+        );
+        // And the commit_id should be pointing to what it was before
+        assert_eq!(
+            check_git_head,
+            workspace_at,
+            "should still be at {workspace_at} in workspace {}",
+            no_import_in_workspace.display()
+        );
+
+        // Now we import the new HEAD in the commit_in workspace, so it's up to date.
+        let (check_git_head, stderr) = test_env.jj_cmd_ok(
+            commit_in,
+            &["log", "--no-graph", "-r", "git_head()", "-T", "commit_id"],
+        );
+        assert_eq!(
+            stderr,
+            "Reset the working copy parent to the new Git HEAD.\n",
+            "should have imported HEAD in workspace {}",
+            commit_in.display()
+        );
+        assert_eq!(
+            check_git_head,
+            new_commit,
+            "should have advanced to {new_commit} in workspace {}",
+            commit_in.display()
+        );
+        new_commit
+    }
 }

@@ -916,28 +916,22 @@ fn test_git_init_external_in_worktree_pointing_commondir() {
 
     // The local ".git" repository is related, so commits should be imported,
     // specifically from the worktree, not the original repo.
-    // FIXME: we should read/write the worktree HEAD, instead of always the
-    // backing git repo's HEAD
     let (stdout, stderr) = get_log_output_with_stderr(&test_env, &workspace_root);
     insta::assert_snapshot!(stdout, @r#"
-    @  b9966c2ebcc9
-    │ ○  49c630103a76 jj-worktree second commit
-    ├─╯
-    ○  70618e4d103f master HEAD@git initial commit
+    @  58a55009f1c1
+    ○  49c630103a76 jj-worktree HEAD@git second commit
+    ○  70618e4d103f master initial commit
     ◆  000000000000
     "#);
     insta::assert_snapshot!(stderr, @"");
 
     // Check that Git HEAD is advanced because this is colocated
-    // FIXME: we should read/write the worktree HEAD, instead of always the
-    // backing git repo's HEAD
     test_env.jj_cmd_ok(&workspace_root, &["new"]);
     let (stdout, stderr) = get_log_output_with_stderr(&test_env, &workspace_root);
     insta::assert_snapshot!(stdout, @r#"
-    @  2920e96adc59
-    ○  b9966c2ebcc9 HEAD@git
-    │ ○  49c630103a76 jj-worktree second commit
-    ├─╯
+    @  f133c02dde73
+    ○  58a55009f1c1 HEAD@git
+    ○  49c630103a76 jj-worktree second commit
     ○  70618e4d103f master initial commit
     ◆  000000000000
     "#);
