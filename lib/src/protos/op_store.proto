@@ -75,6 +75,11 @@ message Tag {
   RefTarget target = 2;
 }
 
+message GitHead {
+  string workspace_id = 1;
+  RefTarget git_head = 2;
+}
+
 message View {
   repeated bytes head_ids = 1;
   reserved 4;
@@ -85,11 +90,20 @@ message View {
   // Only a subset of the refs. For example, does not include refs/notes/.
   repeated GitRef git_refs = 3;
   // This field is just for historical reasons (before we had the RefTarget
-  // type). New Views have (only) the target field.
+  // type). New Views have (only) the git_head or git_heads fields.
   // TODO: Delete support for the old format.
   bytes git_head_legacy = 7 [deprecated = true];
-  RefTarget git_head = 9;
-  // Whether "@git" bookmark have been migrated to remote_targets.
+  // From before git_heads was introduced.
+  //
+  // Interpreted as git_heads with a single entry. The only way this field exists
+  // is with a collocated Git repo as the default workspace. Unfortunately it was
+  // also possible to use a WorkspaceId other than "default", and to add other
+  // workspaces, and JJ did not record which was the default workspace.
+  // So we have to guess when we read a view with this field.
+  RefTarget git_head = 9 [deprecated = true];
+  // We now track a git head per workspace.
+  repeated GitHead git_heads = 11;
+  // Whether "@git" bookmarks have been migrated to remote_targets.
   bool has_git_refs_migrated_to_remote = 10;
 }
 

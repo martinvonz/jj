@@ -174,9 +174,17 @@ pub fn do_init(
             workspace_command.maybe_snapshot(ui)?;
             maybe_set_repository_level_trunk_alias(ui, &workspace_command)?;
             if !workspace_command.working_copy_shared_with_git() {
+                let workspace_id = workspace_command.workspace_id().clone();
+                let git_repo = workspace_command.git_either_colocated_or_backend()?;
                 let mut tx = workspace_command.start_transaction();
-                jj_lib::git::import_head(tx.repo_mut())?;
-                if let Some(git_head_id) = tx.repo().view().git_head().as_normal().cloned() {
+                jj_lib::git::import_head(tx.repo_mut(), &git_repo, &workspace_id)?;
+                if let Some(git_head_id) = tx
+                    .repo()
+                    .view()
+                    .git_head(&workspace_id)
+                    .as_normal()
+                    .cloned()
+                {
                     let git_head_commit = tx.repo().store().get_commit(&git_head_id)?;
                     tx.check_out(&git_head_commit)?;
                 }

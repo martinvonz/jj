@@ -28,6 +28,7 @@ use std::path::PathBuf;
 use std::time::SystemTime;
 
 use itertools::Itertools as _;
+use maplit::hashmap;
 use prost::Message;
 use tempfile::NamedTempFile;
 use thiserror::Error;
@@ -444,21 +445,46 @@ fn view_to_proto(view: &View) -> crate::protos::op_store::View {
     for (name, target) in &view.tags {
         proto.tags.push(crate::protos::op_store::Tag {
             name: name.clone(),
-            target: ref_target_to_proto(target),
+            target: Some(ref_target_to_proto(target)),
         });
     }
 
     for (git_ref_name, target) in &view.git_refs {
         proto.git_refs.push(crate::protos::op_store::GitRef {
             name: git_ref_name.clone(),
-            target: ref_target_to_proto(target),
+            target: Some(ref_target_to_proto(target)),
             ..Default::default()
         });
     }
 
-    proto.git_head = ref_target_to_proto(&view.git_head);
+    proto.git_heads = git_heads_to_proto(view);
 
     proto
+}
+
+fn git_heads_from_proto(
+    proto: Vec<crate::protos::op_store::GitHead>,
+) -> HashMap<WorkspaceId, RefTarget> {
+    proto
+        .into_iter()
+        .map(|wv| {
+            let p = ref_target_from_proto(wv.git_head);
+            (WorkspaceId::new(wv.workspace_id), p)
+        })
+        .collect()
+}
+
+fn git_heads_to_proto(view: &View) -> Vec<crate::protos::op_store::GitHead> {
+    view.git_heads
+        .iter()
+        .map(|(id, target)| {
+            let p = ref_target_to_proto(target);
+            crate::protos::op_store::GitHead {
+                workspace_id: id.to_string(),
+                git_head: Some(p),
+            }
+        })
+        .collect()
 }
 
 fn view_from_proto(proto: crate::protos::op_store::View) -> View {
@@ -498,10 +524,16 @@ fn view_from_proto(proto: crate::protos::op_store::View) -> View {
     }
 
     #[allow(deprecated)]
-    if proto.git_head.is_some() {
-        view.git_head = ref_target_from_proto(proto.git_head);
+    if !proto.git_heads.is_empty() {
+        view.git_heads = git_heads_from_proto(proto.git_heads);
+    } else if proto.git_head.is_some() {
+        view.git_heads = hashmap! {
+            WorkspaceId::default() => ref_target_from_proto(proto.git_head),
+        };
     } else if !proto.git_head_legacy.is_empty() {
-        view.git_head = RefTarget::normal(CommitId::new(proto.git_head_legacy));
+        view.git_heads = hashmap! {
+            WorkspaceId::default() => RefTarget::normal(CommitId::new(proto.git_head_legacy)),
+        };
     }
 
     if !proto.has_git_refs_migrated_to_remote {
@@ -517,14 +549,14 @@ fn bookmark_views_to_proto_legacy(
 ) -> Vec<crate::protos::op_store::Bookmark> {
     op_store::merge_join_bookmark_views(local_bookmarks, remote_views)
         .map(|(name, bookmark_target)| {
-            let local_target = ref_target_to_proto(bookmark_target.local_target);
+            let local_target = Some(ref_target_to_proto(bookmark_target.local_target));
             let remote_bookmarks = bookmark_target
                 .remote_refs
                 .iter()
                 .map(
                     |&(remote_name, remote_ref)| crate::protos::op_store::RemoteBookmark {
                         remote_name: remote_name.to_owned(),
-                        target: ref_target_to_proto(&remote_ref.target),
+                        target: Some(ref_target_to_proto(&remote_ref.target)),
                         state: remote_ref_state_to_proto(remote_ref.state),
                     },
                 )
@@ -623,7 +655,7 @@ fn migrate_git_refs_to_remote(view: &mut View) {
     }
 }
 
-fn ref_target_to_proto(value: &RefTarget) -> Option<crate::protos::op_store::RefTarget> {
+fn ref_target_to_proto(value: &RefTarget) -> crate::protos::op_store::RefTarget {
     let term_to_proto = |term: &Option<CommitId>| crate::protos::op_store::ref_conflict::Term {
         value: term.as_ref().map(|id| id.to_bytes()),
     };
@@ -632,12 +664,11 @@ fn ref_target_to_proto(value: &RefTarget) -> Option<crate::protos::op_store::Ref
         removes: merge.removes().map(term_to_proto).collect(),
         adds: merge.adds().map(term_to_proto).collect(),
     };
-    let proto = crate::protos::op_store::RefTarget {
+    crate::protos::op_store::RefTarget {
         value: Some(crate::protos::op_store::ref_target::Value::Conflict(
             conflict_proto,
         )),
-    };
-    Some(proto)
+    }
 }
 
 #[allow(deprecated)]
@@ -746,6 +777,7 @@ mod tests {
         );
         let default_wc_commit_id = CommitId::from_hex("abc111");
         let test_wc_commit_id = CommitId::from_hex("abc222");
+        let test_workspace_id = || WorkspaceId::new("test".to_string());
         View {
             head_ids: hashset! {head_id1, head_id2},
             local_bookmarks: btreemap! {
@@ -763,13 +795,16 @@ mod tests {
                 },
             },
             git_refs: btreemap! {
-                "refs/heads/main".to_string() => git_refs_main_target,
-                "refs/heads/feature".to_string() => git_refs_feature_target,
+                "refs/heads/main".to_string() => git_refs_main_target.clone(),
+                "refs/heads/feature".to_string() => git_refs_feature_target.clone(),
             },
-            git_head: RefTarget::normal(CommitId::from_hex("fff111")),
+            git_heads: hashmap! {
+                WorkspaceId::default() => git_refs_main_target,
+                test_workspace_id() => git_refs_feature_target,
+            },
             wc_commit_ids: hashmap! {
                 WorkspaceId::default() => default_wc_commit_id,
-                WorkspaceId::new("test".to_string()) => test_wc_commit_id,
+                test_workspace_id() => test_wc_commit_id,
             },
         }
     }
@@ -916,18 +951,18 @@ mod tests {
         let bookmark_to_proto =
             |name: &str, local_ref_target, remote_bookmarks| crate::protos::op_store::Bookmark {
                 name: name.to_owned(),
-                local_target: ref_target_to_proto(local_ref_target),
+                local_target: Some(ref_target_to_proto(local_ref_target)),
                 remote_bookmarks,
             };
         let remote_bookmark_to_proto =
             |remote_name: &str, ref_target| crate::protos::op_store::RemoteBookmark {
                 remote_name: remote_name.to_owned(),
-                target: ref_target_to_proto(ref_target),
+                target: Some(ref_target_to_proto(ref_target)),
                 state: None, // to be generated based on local bookmark existence
             };
         let git_ref_to_proto = |name: &str, ref_target| crate::protos::op_store::GitRef {
             name: name.to_owned(),
-            target: ref_target_to_proto(ref_target),
+            target: Some(ref_target_to_proto(ref_target)),
             ..Default::default()
         };
 
@@ -1007,7 +1042,7 @@ mod tests {
             vec![Some(CommitId::from_hex("222222")), None],
         ));
         let maybe_proto = ref_target_to_proto(&target);
-        assert_eq!(ref_target_from_proto(maybe_proto), target);
+        assert_eq!(ref_target_from_proto(Some(maybe_proto)), target);
 
         // If it were legacy format, order of None entry would be lost.
         let target = RefTarget::from_merge(Merge::from_removes_adds(
@@ -1015,7 +1050,7 @@ mod tests {
             vec![None, Some(CommitId::from_hex("222222"))],
         ));
         let maybe_proto = ref_target_to_proto(&target);
-        assert_eq!(ref_target_from_proto(maybe_proto), target);
+        assert_eq!(ref_target_from_proto(Some(maybe_proto)), target);
     }
 
     #[test]

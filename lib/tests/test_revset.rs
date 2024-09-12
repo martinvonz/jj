@@ -70,22 +70,51 @@ fn resolve_symbol_with_extensions(
     repo: &dyn Repo,
     extensions: &RevsetExtensions,
     symbol: &str,
+    workspace: Option<&Workspace>,
+    cwd: Option<&Path>,
 ) -> Result<Vec<CommitId>, RevsetResolutionError> {
     let aliases_map = RevsetAliasesMap::default();
     let now = chrono::Local::now();
-    let context =
-        RevsetParseContext::new(&aliases_map, String::new(), now.into(), extensions, None);
+    let workspace_id = workspace.as_ref().map(|ws| ws.workspace_id());
+    let path_converter = workspace.as_ref().map(|ws| RepoPathUiConverter::Fs {
+        cwd: cwd.unwrap_or_else(|| ws.workspace_root()).to_owned(),
+        base: ws.workspace_root().to_owned(),
+    });
+    // Funny dance for lifetimes
+    let workspace_ctx =
+        workspace
+            .zip(path_converter.as_ref())
+            .map(|(workspace, path_converter)| RevsetWorkspaceContext {
+                path_converter,
+                workspace_id: workspace.workspace_id(),
+            });
+    let context = RevsetParseContext::new(
+        &aliases_map,
+        String::new(),
+        now.into(),
+        extensions,
+        workspace_ctx,
+    );
     let expression = parse(&mut RevsetDiagnostics::new(), symbol, &context).unwrap();
     assert_matches!(*expression, RevsetExpression::CommitRef(_));
-    let symbol_resolver = DefaultSymbolResolver::new(repo, extensions.symbol_resolvers());
+    let symbol_resolver =
+        DefaultSymbolResolver::new(repo, extensions.symbol_resolvers(), workspace_id);
     match expression.resolve_user_expression(repo, &symbol_resolver)? {
         ResolvedExpression::Commits(commits) => Ok(commits),
         expression => panic!("symbol resolved to compound expression: {expression:?}"),
     }
 }
 
+fn resolve_symbol_in_workspace(
+    repo: &dyn Repo,
+    symbol: &str,
+    workspace: Option<&Workspace>,
+) -> Result<Vec<CommitId>, RevsetResolutionError> {
+    resolve_symbol_with_extensions(repo, &RevsetExtensions::default(), symbol, workspace, None)
+}
+
 fn resolve_symbol(repo: &dyn Repo, symbol: &str) -> Result<Vec<CommitId>, RevsetResolutionError> {
-    resolve_symbol_with_extensions(repo, &RevsetExtensions::default(), symbol)
+    resolve_symbol_in_workspace(repo, symbol, None)
 }
 
 fn revset_for_commits<'index>(
@@ -93,7 +122,7 @@ fn revset_for_commits<'index>(
     commits: &[&Commit],
 ) -> Box<dyn Revset + 'index> {
     let symbol_resolver =
-        DefaultSymbolResolver::new(repo, &([] as [&Box<dyn SymbolResolverExtension>; 0]));
+        DefaultSymbolResolver::new(repo, &([] as [&Box<dyn SymbolResolverExtension>; 0]), None);
     RevsetExpression::commits(commits.iter().map(|commit| commit.id().clone()).collect())
         .resolve_user_expression(repo, &symbol_resolver)
         .unwrap()
@@ -205,6 +234,7 @@ fn test_resolve_symbol_commit_id() {
     let symbol_resolver = DefaultSymbolResolver::new(
         repo.as_ref(),
         &([] as [&Box<dyn SymbolResolverExtension>; 0]),
+        None,
     );
     let aliases_map = RevsetAliasesMap::default();
     let extensions = RevsetExtensions::default();
@@ -396,11 +426,14 @@ fn test_resolve_symbol_in_different_disambiguation_context() {
     let repo2 = tx.commit("test");
 
     // Set up disambiguation index which only contains the commit2.id().
-    let id_prefix_context = IdPrefixContext::new(Default::default())
+    let id_prefix_context = IdPrefixContext::new(Default::default(), None)
         .disambiguate_within(RevsetExpression::commit(commit2.id().clone()));
-    let symbol_resolver =
-        DefaultSymbolResolver::new(repo2.as_ref(), &[] as &[Box<dyn SymbolResolverExtension>])
-            .with_id_prefix_context(&id_prefix_context);
+    let symbol_resolver = DefaultSymbolResolver::new(
+        repo2.as_ref(),
+        &[] as &[Box<dyn SymbolResolverExtension>],
+        None,
+    )
+    .with_id_prefix_context(&id_prefix_context);
 
     // Sanity check
     let change_hex = &to_reverse_hex(&commit2.change_id().hex()).unwrap();
@@ -759,8 +792,8 @@ fn test_resolve_symbol_bookmarks() {
 #[test]
 fn test_resolve_symbol_tags() {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init();
-    let repo = &test_repo.repo;
+    let test_workspace = TestWorkspace::init(&settings);
+    let repo = &test_workspace.repo;
 
     let mut tx = repo.start_transaction(&settings);
     let mut_repo = tx.repo_mut();
@@ -789,13 +822,14 @@ fn test_resolve_symbol_tags() {
 
     // "@" (quoted) can be resolved, and root is a normal symbol.
     let ws_id = WorkspaceId::default();
+    let ws = Some(&test_workspace.workspace);
     mut_repo
         .set_wc_commit(ws_id.clone(), commit1.id().clone())
         .unwrap();
     mut_repo.set_tag_target("@", RefTarget::normal(commit2.id().clone()));
     mut_repo.set_tag_target("root", RefTarget::normal(commit3.id().clone()));
     assert_eq!(
-        resolve_symbol(mut_repo, r#""@""#).unwrap(),
+        resolve_symbol_in_workspace(mut_repo, r#""@""#, ws).unwrap(),
         vec![commit2.id().clone()]
     );
     assert_eq!(
@@ -807,24 +841,25 @@ fn test_resolve_symbol_tags() {
 #[test]
 fn test_resolve_symbol_git_head() {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init();
-    let repo = &test_repo.repo;
+    let test_workspace = TestWorkspace::init(&settings);
+    let repo = &test_workspace.repo;
 
     let mut tx = repo.start_transaction(&settings);
     let mut_repo = tx.repo_mut();
+    let ws = &test_workspace.workspace;
 
     let commit1 = write_random_commit(mut_repo, &settings);
 
     // Without HEAD@git
     insta::assert_debug_snapshot!(
-        resolve_symbol(mut_repo, "HEAD").unwrap_err(), @r###"
+        resolve_symbol_in_workspace(mut_repo, "HEAD", None).unwrap_err(), @r###"
     NoSuchRevision {
         name: "HEAD",
         candidates: [],
     }
     "###);
     insta::assert_debug_snapshot!(
-        resolve_symbol(mut_repo, "HEAD@git").unwrap_err(), @r###"
+        resolve_symbol_in_workspace(mut_repo, "HEAD@git", None).unwrap_err(), @r###"
     NoSuchRevision {
         name: "HEAD@git",
         candidates: [],
@@ -832,9 +867,9 @@ fn test_resolve_symbol_git_head() {
     "###);
 
     // With HEAD@git
-    mut_repo.set_git_head_target(RefTarget::normal(commit1.id().clone()));
+    mut_repo.set_git_head_target(ws.workspace_id(), RefTarget::normal(commit1.id().clone()));
     insta::assert_debug_snapshot!(
-        resolve_symbol(mut_repo, "HEAD").unwrap_err(), @r###"
+        resolve_symbol_in_workspace(mut_repo, "HEAD", Some(ws)).unwrap_err(), @r###"
     NoSuchRevision {
         name: "HEAD",
         candidates: [
@@ -843,7 +878,7 @@ fn test_resolve_symbol_git_head() {
     }
     "###);
     assert_eq!(
-        resolve_symbol(mut_repo, "HEAD@git").unwrap(),
+        resolve_symbol_in_workspace(mut_repo, "HEAD@git", Some(ws)).unwrap(),
         vec![commit1.id().clone()],
     );
 }
@@ -967,7 +1002,8 @@ fn try_resolve_commit_ids(
         None,
     );
     let expression = optimize(parse(&mut RevsetDiagnostics::new(), revset_str, &context).unwrap());
-    let symbol_resolver = DefaultSymbolResolver::new(repo, revset_extensions.symbol_resolvers());
+    let symbol_resolver =
+        DefaultSymbolResolver::new(repo, revset_extensions.symbol_resolvers(), None);
     let expression = expression.resolve_user_expression(repo, &symbol_resolver)?;
     Ok(expression.evaluate(repo).unwrap().iter().collect())
 }
@@ -997,8 +1033,11 @@ fn resolve_commit_ids_in_workspace(
         Some(workspace_ctx),
     );
     let expression = optimize(parse(&mut RevsetDiagnostics::new(), revset_str, &context).unwrap());
-    let symbol_resolver =
-        DefaultSymbolResolver::new(repo, &([] as [&Box<dyn SymbolResolverExtension>; 0]));
+    let symbol_resolver = DefaultSymbolResolver::new(
+        repo,
+        &([] as [&Box<dyn SymbolResolverExtension>; 0]),
+        Some(workspace.workspace_id()),
+    );
     let expression = expression
         .resolve_user_expression(repo, &symbol_resolver)
         .unwrap();
@@ -2091,8 +2130,8 @@ fn test_evaluate_expression_git_refs() {
 #[test]
 fn test_evaluate_expression_git_head() {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init();
-    let repo = &test_repo.repo;
+    let test_workspace = TestWorkspace::init(&settings);
+    let repo = &test_workspace.repo;
 
     let mut tx = repo.start_transaction(&settings);
     let mut_repo = tx.repo_mut();
@@ -2101,9 +2140,12 @@ fn test_evaluate_expression_git_head() {
 
     // Can get git head when it's not set
     assert_eq!(resolve_commit_ids(mut_repo, "git_head()"), vec![]);
-    mut_repo.set_git_head_target(RefTarget::normal(commit1.id().clone()));
+    mut_repo.set_git_head_target(
+        test_workspace.workspace.workspace_id(),
+        RefTarget::normal(commit1.id().clone()),
+    );
     assert_eq!(
-        resolve_commit_ids(mut_repo, "git_head()"),
+        resolve_commit_ids_in_workspace(mut_repo, "git_head()", &test_workspace.workspace, None),
         vec![commit1.id().clone()]
     );
 }

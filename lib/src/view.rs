@@ -84,8 +84,15 @@ impl View {
         &self.data.git_refs
     }
 
-    pub fn git_head(&self) -> &RefTarget {
-        &self.data.git_head
+    pub fn git_head(&self, workspace_id: &WorkspaceId) -> &RefTarget {
+        self.data
+            .git_heads
+            .get(workspace_id)
+            .unwrap_or(RefTarget::absent_ref())
+    }
+
+    pub fn git_heads(&self) -> &HashMap<WorkspaceId, RefTarget> {
+        &self.data.git_heads
     }
 
     pub fn set_wc_commit(&mut self, workspace_id: WorkspaceId, commit_id: CommitId) {
@@ -335,8 +342,14 @@ impl View {
 
     /// Sets `HEAD@git` to point to the given target. If the target is absent,
     /// the reference will be cleared.
-    pub fn set_git_head_target(&mut self, target: RefTarget) {
-        self.data.git_head = target;
+    pub fn set_git_head_target(&mut self, workspace_id: &WorkspaceId, target: RefTarget) {
+        self.data.git_heads.insert(workspace_id.clone(), target);
+    }
+
+    /// Sets each workspace's `HEAD@git`s at the same time. If the target is
+    /// absent, the reference will be cleared.
+    pub fn set_git_head_targets_all(&mut self, git_heads: HashMap<WorkspaceId, RefTarget>) {
+        self.data.git_heads = git_heads;
     }
 
     /// Iterates all commit ids referenced by this view.
@@ -362,7 +375,7 @@ impl View {
             tags,
             remote_views,
             git_refs,
-            git_head,
+            git_heads,
             wc_commit_ids,
         } = &self.data;
         itertools::chain!(
@@ -376,7 +389,7 @@ impl View {
                     .flat_map(|remote_ref| ref_target_ids(&remote_ref.target))
             }),
             git_refs.values().flat_map(ref_target_ids),
-            ref_target_ids(git_head),
+            git_heads.values().flat_map(ref_target_ids),
             wc_commit_ids.values()
         )
     }

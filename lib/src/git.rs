@@ -42,6 +42,7 @@ use crate::op_store::RefTarget;
 use crate::op_store::RefTargetOptionExt;
 use crate::op_store::RemoteRef;
 use crate::op_store::RemoteRefState;
+use crate::op_store::WorkspaceId;
 use crate::refs;
 use crate::refs::BookmarkPushUpdate;
 use crate::repo::MutableRepo;
@@ -677,20 +678,24 @@ fn remotely_pinned_commit_ids(view: &View) -> Vec<CommitId> {
         .collect()
 }
 
-/// Imports `HEAD@git` from the underlying Git repo.
+/// Imports `HEAD@git` from the underlying Git repo. The HEAD@git is for the
+/// workspace you're in.
 ///
 /// Unlike `import_refs()`, the old HEAD branch is not abandoned because HEAD
 /// move doesn't always mean the old HEAD branch has been rewritten.
 ///
 /// Unlike `reset_head()`, this function doesn't move the working-copy commit to
 /// the child of the new `HEAD@git` revision.
-pub fn import_head(mut_repo: &mut MutableRepo) -> Result<(), GitImportError> {
+pub fn import_head(
+    mut_repo: &mut MutableRepo,
+    git_worktree: &gix::Repository,
+    workspace_id: &WorkspaceId,
+) -> Result<(), GitImportError> {
     let store = mut_repo.store();
     let git_backend = get_git_backend(store).ok_or(GitImportError::UnexpectedBackend)?;
-    let git_repo = git_backend.git_repo();
 
-    let old_git_head = mut_repo.view().git_head();
-    let new_git_head_id = if let Ok(oid) = git_repo.head_id() {
+    let old_git_head = mut_repo.view().git_head(workspace_id);
+    let new_git_head_id = if let Ok(oid) = git_worktree.head_id() {
         Some(CommitId::from_bytes(oid.as_bytes()))
     } else {
         None
@@ -718,7 +723,7 @@ pub fn import_head(mut_repo: &mut MutableRepo) -> Result<(), GitImportError> {
             .map_err(GitImportError::InternalBackend)?;
     }
 
-    mut_repo.set_git_head_target(RefTarget::resolved(new_git_head_id));
+    mut_repo.set_git_head_target(workspace_id, RefTarget::resolved(new_git_head_id));
     Ok(())
 }
 
@@ -1122,6 +1127,7 @@ fn update_git_head(
 pub fn reset_head(
     mut_repo: &mut MutableRepo,
     git_repo: &git2::Repository,
+    workspace_id: &WorkspaceId,
     wc_commit: &Commit,
 ) -> Result<(), git2::Error> {
     let first_parent_id = &wc_commit.parent_ids()[0];
@@ -1131,7 +1137,7 @@ pub fn reset_head(
         RefTarget::absent()
     };
     if first_parent.is_present() {
-        let git_head = mut_repo.view().git_head();
+        let git_head = mut_repo.view().git_head(workspace_id);
         let new_git_commit_id = Oid::from_bytes(first_parent_id.as_bytes()).unwrap();
         let new_git_commit = git_repo.find_commit(new_git_commit_id)?;
         if git_head != &first_parent {
@@ -1179,7 +1185,7 @@ pub fn reset_head(
         // We can't set_head() an arbitrary unborn ref, so use reference_symbolic()
         // instead. Git CLI appears to deal with that. It would be nice if Git CLI
         // couldn't create a commit without setting a valid branch name.
-        if mut_repo.git_head().is_present() {
+        if mut_repo.git_head(workspace_id).is_present() {
             match git_repo.find_reference(UNBORN_ROOT_REF_NAME) {
                 Ok(mut git_repo_ref) => git_repo_ref.delete()?,
                 Err(err) if err.code() == git2::ErrorCode::NotFound => {}
@@ -1193,7 +1199,7 @@ pub fn reset_head(
         index.write()?;
         git_repo.cleanup_state()?;
     }
-    mut_repo.set_git_head_target(first_parent);
+    mut_repo.set_git_head_target(workspace_id, first_parent);
     Ok(())
 }
 

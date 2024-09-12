@@ -1543,11 +1543,20 @@ fn reload_repo_at_operation(
     })
 }
 
-fn resolve_remote_bookmark(repo: &dyn Repo, name: &str, remote: &str) -> Option<Vec<CommitId>> {
+fn resolve_remote_bookmark(
+    repo: &dyn Repo,
+    symbol_resolver: &dyn SymbolResolver,
+    name: &str,
+    remote: &str,
+) -> Option<Vec<CommitId>> {
     let view = repo.view();
     let target = match (name, remote) {
+        // HEAD@git => HEAD of current workspace
         #[cfg(feature = "git")]
-        ("HEAD", crate::git::REMOTE_NAME_FOR_LOCAL_GIT_REPO) => view.git_head(),
+        ("HEAD", crate::git::REMOTE_NAME_FOR_LOCAL_GIT_REPO) => {
+            let workspace_id = symbol_resolver.workspace_ctx()?;
+            view.git_head(workspace_id)
+        }
         (name, remote) => &view.get_remote_bookmark(name, remote).target,
     };
     target
@@ -1555,10 +1564,11 @@ fn resolve_remote_bookmark(repo: &dyn Repo, name: &str, remote: &str) -> Option<
         .then(|| target.added_ids().cloned().collect())
 }
 
-fn all_bookmark_symbols(
-    repo: &dyn Repo,
+fn all_bookmark_symbols<'a>(
+    repo: &'a dyn Repo,
+    symbol_resolver: &'a dyn SymbolResolver,
     include_synced_remotes: bool,
-) -> impl Iterator<Item = String> + '_ {
+) -> impl Iterator<Item = String> + 'a {
     let view = repo.view();
     view.bookmarks()
         .flat_map(move |(name, bookmark_target)| {
@@ -1576,13 +1586,21 @@ fn all_bookmark_symbols(
                 .map(move |(remote_name, _)| format!("{name}@{remote_name}"));
             local_symbol.into_iter().chain(remote_symbols)
         })
-        .chain(view.git_head().is_present().then(|| "HEAD@git".to_owned()))
+        .chain(symbol_resolver.workspace_ctx().and_then(|workspace_id| {
+            view.git_head(workspace_id)
+                .is_present()
+                .then(|| "HEAD@git".to_owned())
+        }))
 }
 
-fn make_no_such_symbol_error(repo: &dyn Repo, name: impl Into<String>) -> RevsetResolutionError {
+fn make_no_such_symbol_error(
+    repo: &dyn Repo,
+    symbol_resolver: &dyn SymbolResolver,
+    name: impl Into<String>,
+) -> RevsetResolutionError {
     let name = name.into();
     // TODO: include tags?
-    let bookmark_names = all_bookmark_symbols(repo, name.contains('@'));
+    let bookmark_names = all_bookmark_symbols(repo, symbol_resolver, name.contains('@'));
     let candidates = collect_similar(&name, bookmark_names);
     RevsetResolutionError::NoSuchRevision { name, candidates }
 }
@@ -1594,6 +1612,8 @@ pub trait SymbolResolver {
         repo: &dyn Repo,
         symbol: &str,
     ) -> Result<Vec<CommitId>, RevsetResolutionError>;
+
+    fn workspace_ctx(&self) -> Option<&WorkspaceId>;
 }
 
 /// Fails on any attempt to resolve a symbol.
@@ -1612,6 +1632,9 @@ impl SymbolResolver for FailingSymbolResolver {
             ),
             candidates: Default::default(),
         })
+    }
+    fn workspace_ctx(&self) -> Option<&WorkspaceId> {
+        None
     }
 }
 
@@ -1764,6 +1787,7 @@ pub struct DefaultSymbolResolver<'a> {
     commit_id_resolver: CommitPrefixResolver<'a>,
     change_id_resolver: ChangePrefixResolver<'a>,
     extensions: Vec<Box<dyn PartialSymbolResolver + 'a>>,
+    workspace_ctx: Option<&'a WorkspaceId>,
 }
 
 impl<'a> DefaultSymbolResolver<'a> {
@@ -1772,6 +1796,7 @@ impl<'a> DefaultSymbolResolver<'a> {
     pub fn new(
         context_repo: &'a dyn Repo,
         extensions: &[impl AsRef<dyn SymbolResolverExtension>],
+        workspace_ctx: Option<&'a WorkspaceId>,
     ) -> Self {
         DefaultSymbolResolver {
             commit_id_resolver: CommitPrefixResolver {
@@ -1786,6 +1811,7 @@ impl<'a> DefaultSymbolResolver<'a> {
                 .iter()
                 .flat_map(|ext| ext.as_ref().new_resolvers(context_repo))
                 .collect(),
+            workspace_ctx,
         }
     }
 
@@ -1822,7 +1848,11 @@ impl SymbolResolver for DefaultSymbolResolver<'_> {
             }
         }
 
-        Err(make_no_such_symbol_error(repo, symbol))
+        Err(make_no_such_symbol_error(repo, self, symbol))
+    }
+
+    fn workspace_ctx(&self) -> Option<&WorkspaceId> {
+        self.workspace_ctx
     }
 }
 
@@ -1834,8 +1864,9 @@ fn resolve_commit_ref(
     match commit_ref {
         RevsetCommitRef::Symbol(symbol) => symbol_resolver.resolve_symbol(repo, symbol),
         RevsetCommitRef::RemoteSymbol { name, remote } => {
-            resolve_remote_bookmark(repo, name, remote)
-                .ok_or_else(|| make_no_such_symbol_error(repo, format!("{name}@{remote}")))
+            resolve_remote_bookmark(repo, symbol_resolver, name, remote).ok_or_else(|| {
+                make_no_such_symbol_error(repo, symbol_resolver, format!("{name}@{remote}"))
+            })
         }
         RevsetCommitRef::WorkingCopy(workspace_id) => {
             if let Some(commit_id) = repo.view().get_wc_commit_id(workspace_id) {
@@ -1903,7 +1934,11 @@ fn resolve_commit_ref(
             }
             Ok(commit_ids)
         }
-        RevsetCommitRef::GitHead => Ok(repo.view().git_head().added_ids().cloned().collect()),
+        RevsetCommitRef::GitHead => Ok(symbol_resolver
+            .workspace_ctx()
+            .into_iter()
+            .flat_map(|workspace_id| repo.view().git_head(workspace_id).added_ids().cloned())
+            .collect()),
     }
 }
 

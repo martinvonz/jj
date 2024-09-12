@@ -96,6 +96,14 @@ pub struct Tag {
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
+pub struct GitHead {
+    #[prost(string, tag = "1")]
+    pub workspace_id: ::prost::alloc::string::String,
+    #[prost(message, optional, tag = "2")]
+    pub git_head: ::core::option::Option<RefTarget>,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct View {
     #[prost(bytes = "vec", repeated, tag = "1")]
     pub head_ids: ::prost::alloc::vec::Vec<::prost::alloc::vec::Vec<u8>>,
@@ -115,14 +123,25 @@ pub struct View {
     #[prost(message, repeated, tag = "3")]
     pub git_refs: ::prost::alloc::vec::Vec<GitRef>,
     /// This field is just for historical reasons (before we had the RefTarget
-    /// type). New Views have (only) the target field.
+    /// type). New Views have (only) the git_head or git_heads fields.
     /// TODO: Delete support for the old format.
     #[deprecated]
     #[prost(bytes = "vec", tag = "7")]
     pub git_head_legacy: ::prost::alloc::vec::Vec<u8>,
+    /// From before git_heads was introduced.
+    ///
+    /// Interpreted as git_heads with a single entry. The only way this field exists
+    /// is with a collocated Git repo as the default workspace. Unfortunately it was
+    /// also possible to use a WorkspaceId other than "default", and to add other
+    /// workspaces, and JJ did not record which was the default workspace.
+    /// So we have to guess when we read a view with this field.
+    #[deprecated]
     #[prost(message, optional, tag = "9")]
     pub git_head: ::core::option::Option<RefTarget>,
-    /// Whether "@git" bookmark have been migrated to remote_targets.
+    /// We now track a git head per workspace.
+    #[prost(message, repeated, tag = "11")]
+    pub git_heads: ::prost::alloc::vec::Vec<GitHead>,
+    /// Whether "@git" bookmarks have been migrated to remote_targets.
     #[prost(bool, tag = "10")]
     pub has_git_refs_migrated_to_remote: bool,
 }

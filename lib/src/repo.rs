@@ -1661,12 +1661,16 @@ impl MutableRepo {
         view.set_git_ref_target(name, new_target);
     }
 
-    pub fn git_head(&self) -> RefTarget {
-        self.view.with_ref(|v| v.git_head().clone())
+    pub fn git_head(&self, workspace_id: &WorkspaceId) -> RefTarget {
+        self.view.with_ref(|v| v.git_head(workspace_id).clone())
     }
 
-    pub fn set_git_head_target(&mut self, target: RefTarget) {
-        self.view_mut().set_git_head_target(target);
+    pub fn set_git_head_target(&mut self, workspace_id: &WorkspaceId, target: RefTarget) {
+        self.view_mut().set_git_head_target(workspace_id, target);
+    }
+
+    pub fn set_git_head_targets_all(&mut self, git_heads: HashMap<WorkspaceId, RefTarget>) {
+        self.view_mut().set_git_head_targets_all(git_heads);
     }
 
     pub fn set_view(&mut self, data: op_store::View) {
@@ -1765,13 +1769,21 @@ impl MutableRepo {
             self.merge_remote_bookmark(name, remote_name, base_ref, other_ref);
         }
 
-        let new_git_head_target = merge_ref_targets(
-            self.index(),
-            self.view().git_head(),
-            base.git_head(),
-            other.git_head(),
-        );
-        self.set_git_head_target(new_git_head_target);
+        let new_git_head_target = self
+            .view()
+            .git_heads()
+            .iter()
+            .map(|(id, head_in_view)| {
+                let merged_target = merge_ref_targets(
+                    self.index(),
+                    head_in_view,
+                    base.git_head(id),
+                    other.git_head(id),
+                );
+                (id.clone(), merged_target)
+            })
+            .collect();
+        self.set_git_head_targets_all(new_git_head_target);
     }
 
     /// Finds and records commits that were rewritten or abandoned between

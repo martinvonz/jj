@@ -100,7 +100,7 @@ fn view_with_desired_portions_restored(
         tags: repo_source.tags.clone(),
         remote_views: remote_source.remote_views.clone(),
         git_refs: current_view.git_refs.clone(),
-        git_head: current_view.git_head.clone(),
+        git_heads: current_view.git_heads.clone(),
         wc_commit_ids: repo_source.wc_commit_ids.clone(),
     }
 }

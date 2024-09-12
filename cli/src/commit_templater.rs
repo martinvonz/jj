@@ -704,7 +704,9 @@ fn builtin_commit_methods<'repo>() -> CommitTemplateBuildMethodFnMap<'repo, Comm
         |language, _diagnostics, _build_ctx, self_property, function| {
             function.expect_no_arguments()?;
             let repo = language.repo;
-            let out_property = self_property.map(|commit| extract_git_head(repo, &commit));
+            let workspace_id = language.workspace_id.clone();
+            let out_property =
+                self_property.map(move |commit| extract_git_head(repo, &workspace_id, &commit));
             Ok(L::wrap_ref_name_opt(out_property))
         },
     );
@@ -1231,8 +1233,12 @@ fn build_ref_names_index<'a>(
     index
 }
 
-fn extract_git_head(repo: &dyn Repo, commit: &Commit) -> Option<Rc<RefName>> {
-    let target = repo.view().git_head();
+fn extract_git_head(
+    repo: &dyn Repo,
+    workspace_id: &WorkspaceId,
+    commit: &Commit,
+) -> Option<Rc<RefName>> {
+    let target = repo.view().git_head(workspace_id);
     target
         .added_ids()
         .contains(commit.id())

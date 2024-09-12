@@ -23,6 +23,7 @@ use jj_lib::backend::BackendResult;
 use jj_lib::backend::CommitId;
 use jj_lib::commit::Commit;
 use jj_lib::id_prefix::IdPrefixContext;
+use jj_lib::op_store::WorkspaceId;
 use jj_lib::repo::Repo;
 use jj_lib::revset;
 use jj_lib::revset::DefaultSymbolResolver;
@@ -197,7 +198,8 @@ pub fn default_symbol_resolver<'a>(
     extensions: &[impl AsRef<dyn SymbolResolverExtension>],
     id_prefix_context: &'a IdPrefixContext,
 ) -> DefaultSymbolResolver<'a> {
-    DefaultSymbolResolver::new(repo, extensions).with_id_prefix_context(id_prefix_context)
+    DefaultSymbolResolver::new(repo, extensions, id_prefix_context.workspace_ctx())
+        .with_id_prefix_context(id_prefix_context)
 }
 
 /// Parses user-configured expression defining the heads of the immutable set.
@@ -220,6 +222,7 @@ pub(super) fn warn_unresolvable_trunk(
     ui: &Ui,
     repo: &dyn Repo,
     context: &RevsetParseContext,
+    workspace_id: &WorkspaceId,
 ) -> io::Result<()> {
     let (_, _, revset_str) = context
         .aliases_map()
@@ -231,7 +234,8 @@ pub(super) fn warn_unresolvable_trunk(
     };
     // Not using IdPrefixContext since trunk() revset shouldn't contain short
     // prefixes.
-    let symbol_resolver = DefaultSymbolResolver::new(repo, context.symbol_resolvers());
+    let symbol_resolver =
+        DefaultSymbolResolver::new(repo, context.symbol_resolvers(), Some(workspace_id));
     if let Err(err) = expression.resolve_user_expression(repo, &symbol_resolver) {
         writeln!(
             ui.warning_default(),

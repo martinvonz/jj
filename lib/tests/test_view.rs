@@ -406,29 +406,30 @@ fn test_merge_views_git_heads() {
     let settings = testutils::user_settings();
     let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
+    let workspace_id = &WorkspaceId::default();
 
     let mut tx0 = repo.start_transaction(&settings);
     let tx0_head = write_random_commit(tx0.repo_mut(), &settings);
     tx0.repo_mut()
-        .set_git_head_target(RefTarget::normal(tx0_head.id().clone()));
+        .set_git_head_target(workspace_id, RefTarget::normal(tx0_head.id().clone()));
     let repo = tx0.commit("test");
 
     let mut tx1 = repo.start_transaction(&settings);
     let tx1_head = write_random_commit(tx1.repo_mut(), &settings);
     tx1.repo_mut()
-        .set_git_head_target(RefTarget::normal(tx1_head.id().clone()));
+        .set_git_head_target(workspace_id, RefTarget::normal(tx1_head.id().clone()));
 
     let mut tx2 = repo.start_transaction(&settings);
     let tx2_head = write_random_commit(tx2.repo_mut(), &settings);
     tx2.repo_mut()
-        .set_git_head_target(RefTarget::normal(tx2_head.id().clone()));
+        .set_git_head_target(workspace_id, RefTarget::normal(tx2_head.id().clone()));
 
     let repo = commit_transactions(&settings, vec![tx1, tx2]);
     let expected_git_head = RefTarget::from_legacy_form(
         [tx0_head.id().clone()],
         [tx1_head.id().clone(), tx2_head.id().clone()],
     );
-    assert_eq!(repo.view().git_head(), &expected_git_head);
+    assert_eq!(repo.view().git_head(workspace_id), &expected_git_head);
 }
 
 #[test]

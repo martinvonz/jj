@@ -29,6 +29,7 @@ use crate::hex_util;
 use crate::object_id::HexPrefix;
 use crate::object_id::ObjectId;
 use crate::object_id::PrefixResolution;
+use crate::op_store::WorkspaceId;
 use crate::repo::Repo;
 use crate::revset::DefaultSymbolResolver;
 use crate::revset::RevsetEvaluationError;
@@ -61,9 +62,10 @@ impl DisambiguationData {
         &self,
         repo: &dyn Repo,
         extensions: &[impl AsRef<dyn SymbolResolverExtension>],
+        workspace_ctx: Option<&WorkspaceId>,
     ) -> Result<&Indexes, IdPrefixIndexLoadError> {
         self.indexes.get_or_try_init(|| {
-            let symbol_resolver = DefaultSymbolResolver::new(repo, extensions);
+            let symbol_resolver = DefaultSymbolResolver::new(repo, extensions, workspace_ctx);
             let resolved_expression = self
                 .expression
                 .clone()
@@ -117,13 +119,15 @@ impl IdIndexSourceEntry<ChangeId> for &'_ (CommitId, ChangeId) {
 pub struct IdPrefixContext {
     disambiguation: Option<DisambiguationData>,
     extensions: Arc<RevsetExtensions>,
+    workspace_ctx: Option<WorkspaceId>,
 }
 
 impl IdPrefixContext {
-    pub fn new(extensions: Arc<RevsetExtensions>) -> Self {
+    pub fn new(extensions: Arc<RevsetExtensions>, workspace_ctx: Option<WorkspaceId>) -> Self {
         Self {
             disambiguation: None,
             extensions,
+            workspace_ctx,
         }
     }
 
@@ -139,11 +143,19 @@ impl IdPrefixContext {
     /// disambiguate commit/change IDs.
     pub fn populate(&self, repo: &dyn Repo) -> Result<IdPrefixIndex<'_>, IdPrefixIndexLoadError> {
         let indexes = if let Some(disambiguation) = &self.disambiguation {
-            Some(disambiguation.indexes(repo, self.extensions.symbol_resolvers())?)
+            Some(disambiguation.indexes(
+                repo,
+                self.extensions.symbol_resolvers(),
+                self.workspace_ctx(),
+            )?)
         } else {
             None
         };
         Ok(IdPrefixIndex { indexes })
+    }
+
+    pub fn workspace_ctx(&self) -> Option<&WorkspaceId> {
+        self.workspace_ctx.as_ref()
     }
 }
 

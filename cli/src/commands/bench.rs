@@ -223,8 +223,12 @@ fn bench_revset<M: Measurement>(
     let routine = |workspace_command: &WorkspaceCommandHelper, expression: Rc<RevsetExpression>| {
         // Evaluate the expression without parsing/evaluating short-prefixes.
         let repo = workspace_command.repo().as_ref();
-        let symbol_resolver =
-            DefaultSymbolResolver::new(repo, &([] as [Box<dyn SymbolResolverExtension>; 0]));
+        let workspace_id = workspace_command.workspace_id();
+        let symbol_resolver = DefaultSymbolResolver::new(
+            repo,
+            &([] as [Box<dyn SymbolResolverExtension>; 0]),
+            Some(workspace_id),
+        );
         let resolved = expression
             .resolve_user_expression(repo, &symbol_resolver)
             .unwrap();
