@@ -346,6 +346,23 @@ impl CommandHelper {
         )?)
     }
 
+    pub fn should_commit_transaction(&self) -> bool {
+        !self.global_args().no_commit_transaction
+    }
+
+    pub fn maybe_commit_transaction(
+        &self,
+        tx: Transaction,
+        description: impl Into<String>,
+    ) -> Arc<ReadonlyRepo> {
+        let unpublished_op = tx.write(description);
+        if self.should_commit_transaction() {
+            unpublished_op.publish()
+        } else {
+            unpublished_op.leave_unpublished()
+        }
+    }
+
     pub fn workspace_loader(&self) -> Result<&dyn WorkspaceLoader, CommandError> {
         self.data
             .maybe_workspace_loader
@@ -839,7 +856,11 @@ impl WorkspaceCommandHelper {
             // state to it without updating working copy files.
             locked_ws.locked_wc().reset(&new_git_head_commit)?;
             tx.repo_mut().rebase_descendants(command.settings())?;
-            self.user_repo = ReadonlyUserRepo::new(tx.commit("import git head"));
+            self.user_repo = ReadonlyUserRepo::new(
+                self.env
+                    .command
+                    .maybe_commit_transaction(tx, "import git head"),
+            );
             locked_ws.finish(self.user_repo.repo.op_id().clone())?;
             if old_git_head.is_present() {
                 writeln!(
@@ -1489,9 +1510,15 @@ See https://martinvonz.github.io/jj/latest/working-copy/#stale-working-copy \
                 print_failed_git_export(ui, &refs)?;
             }
 
-            self.user_repo = ReadonlyUserRepo::new(tx.commit("snapshot working copy"));
+            self.user_repo = ReadonlyUserRepo::new(
+                self.env
+                    .command
+                    .maybe_commit_transaction(tx, "snapshot working copy"),
+            );
         }
-        locked_ws.finish(self.user_repo.repo.op_id().clone())?;
+        if self.env.command.should_commit_transaction() {
+            locked_ws.finish(self.user_repo.repo.op_id().clone())?;
+        }
         Ok(())
     }
 
@@ -1606,10 +1633,11 @@ See https://martinvonz.github.io/jj/latest/working-copy/#stale-working-copy \
             print_failed_git_export(ui, &refs)?;
         }
 
-        self.user_repo = ReadonlyUserRepo::new(tx.commit(description));
+        self.user_repo =
+            ReadonlyUserRepo::new(self.env.command.maybe_commit_transaction(tx, description));
         self.report_repo_changes(ui, &old_repo)?;
 
-        if self.may_update_working_copy {
+        if self.may_update_working_copy && self.env.command.should_commit_transaction() {
             if let Some(new_commit) = &maybe_new_wc_commit {
                 self.update_working_copy(ui, maybe_old_wc_commit.as_ref(), new_commit)?;
             } else {
@@ -1735,6 +1763,14 @@ See https://martinvonz.github.io/jj/latest/working-copy/#stale-working-copy \
                     .iter()
                     .map(|commit| commit.id().clone())
                     .collect(),
+            )?;
+        }
+
+        if !self.env.command.should_commit_transaction() {
+            writeln!(
+                fmt,
+                "Operation left uncommitted because --no-commit-transaction was requested: {}",
+                short_operation_hash(self.repo().op_id())
             )?;
         }
 
@@ -2610,6 +2646,21 @@ pub struct GlobalArgs {
     /// implies `--ignore-working-copy`.
     #[arg(long, global = true)]
     pub ignore_working_copy: bool,
+    /// Run the command as usual but don't commit any transactions
+    ///
+    /// When this option is given, the operations will still be created as
+    /// usual but they will not be committed/promoted to the operation log. The
+    /// working copy will also not be updated.
+    ///
+    /// The command will print the resulting operation id. You can pass that to
+    /// e.g. `jj --at-op` to inspect the resulting repo state, or you can pass
+    /// it to `jj op restore` to restore the repo to that state.
+    ///
+    /// Note that this does *not* prevent side effects outside the repo. For
+    /// example, `jj git push --no-commit-transaction` will still perform
+    /// the push.
+    #[arg(long, global = true)]
+    pub no_commit_transaction: bool,
     /// Allow rewriting immutable commits
     ///
     /// By default, Jujutsu prevents rewriting commits in the configured set of

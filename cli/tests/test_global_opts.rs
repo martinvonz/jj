@@ -148,6 +148,68 @@ fn test_ignore_working_copy() {
 }
 
 #[test]
+fn test_no_commit_transaction() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+
+    let repo_path = test_env.env_root().join("repo");
+
+    std::fs::write(repo_path.join("file1"), "initial").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m=initial"]);
+    let op_log_stdout = test_env.jj_cmd_success(&repo_path, &["op", "log"]);
+    let working_copy_stdout = test_env.jj_cmd_success(&repo_path, &["debug", "working-copy"]);
+
+    // Modify the working copy and run a mutating operation. With
+    // --no-commit-transaction, the working copy gets snapshotted and the operation
+    // gets created, but there's no new operation in the operation log, and the
+    // working copy state is not updated.
+    std::fs::write(repo_path.join("file2"), "initial").unwrap();
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["squash", "--no-commit-transaction"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Operation left uncommitted because --no-commit-transaction was requested: 3fa0e7ceb0e4
+    "###);
+    let first_line = stderr.split('\n').next().unwrap();
+    let op_id_hex = first_line[first_line.len() - 12..].to_string();
+    let stdout = test_env.jj_cmd_success(&repo_path, &["op", "log", "--ignore-working-copy"]);
+    assert_eq!(stdout, op_log_stdout);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["debug", "working-copy"]);
+    assert_eq!(stdout, working_copy_stdout);
+
+    // We can see the resulting log and op log with --at-op
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-s", "--at-op", op_id_hex.as_str()]);
+    insta::assert_snapshot!(stdout, @r###"
+    @  mzvwutvl test.user@example.com 2001-02-03 08:05:11 e4e6953f
+    │  (empty) (no description set)
+    ○  qpvuntsm test.user@example.com 2001-02-03 08:05:11 a2280cba
+    │  initial
+    │  A file1
+    │  A file2
+    ◆  zzzzzzzz root() 00000000
+    "###);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["op", "log", "--at-op", op_id_hex.as_str()]);
+    insta::assert_snapshot!(stdout, @r###"
+    @  3fa0e7ceb0e4 test-username@host.example.com 2001-02-03 04:05:11.000 +07:00 - 2001-02-03 04:05:11.000 +07:00
+    │  squash commits into dc5f5c36813feca46c1e26ea80c9634ea2fdb9e6
+    │  args: jj squash --no-commit-transaction
+    ○  63a798419dc4 test-username@host.example.com 2001-02-03 04:05:11.000 +07:00 - 2001-02-03 04:05:11.000 +07:00
+    │  snapshot working copy
+    │  args: jj squash --no-commit-transaction
+    ○  04139fd4890a test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
+    │  commit a38d281287b19f33abe36fedb6c2df1370b90f54
+    │  args: jj commit '-m=initial'
+    ○  0db616e9e09a test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
+    │  snapshot working copy
+    │  args: jj commit '-m=initial'
+    ○  b51416386f26 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
+    │  add workspace 'default'
+    ○  9a7d829846af test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
+    │  initialize repo
+    ○  000000000000 root()
+    "###);
+}
+
+#[test]
 fn test_repo_arg_with_init() {
     let test_env = TestEnvironment::default();
     let stderr = test_env.jj_cmd_failure(test_env.env_root(), &["init", "-R=.", "repo"]);
@@ -608,6 +670,7 @@ fn test_help() {
     Global Options:
       -R, --repository <REPOSITORY>      Path to repository to operate on
           --ignore-working-copy          Don't snapshot the working copy, and don't update it
+          --no-commit-transaction        Run the command as usual but don't commit any transactions
           --ignore-immutable             Allow rewriting immutable commits
           --at-operation <AT_OPERATION>  Operation to load the repo at [aliases: at-op]
           --debug                        Enable debug logging

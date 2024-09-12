@@ -83,6 +83,9 @@ pub fn cmd_git_init(
     command: &CommandHelper,
     args: &GitInitArgs,
 ) -> Result<(), CommandError> {
+    if command.global_args().no_commit_transaction {
+        return Err(cli_error("--no-commit-transaction is not respected"));
+    }
     if command.global_args().ignore_working_copy {
         return Err(cli_error("--ignore-working-copy is not respected"));
     }
