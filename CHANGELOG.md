@@ -56,6 +56,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   allows to set a name for the remote instead of using the default
   `origin`.
 
+* `jj op undo` now reports information on the operation that has been undone.
+
 ### Fixed bugs
 
  * Fixed panic when parsing invalid conflict markers of a particular form.

@@ -756,10 +756,11 @@ fn test_git_colocated_undo_head_move() {
     // HEAD should be moved back
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["undo"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
+    insta::assert_snapshot!(stderr, @r#"
     Working copy now at: royxmykx eb08b363 (empty) (no description set)
     Parent commit      : qpvuntsm 230dd059 (empty) (no description set)
-    "###);
+    Undid operation 951a1c249028 2001-02-03 04:05:13.000 +07:00 - 2001-02-03 04:05:13.000 +07:00 new empty commit
+    "#);
     insta::assert_snapshot!(
         git_repo.head().unwrap().target().unwrap().to_string(),
         @"230dd059e1b059aefc0da06a2e5a7dbf22362f22");

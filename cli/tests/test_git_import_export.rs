@@ -100,7 +100,9 @@ fn test_git_export_undo() {
     // bookmark is. This is the same as remote-tracking bookmarks.
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["op", "undo"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(stderr, @r#"
+    Undid operation 1bc51ad79d63 2001-02-03 04:05:10.000 +07:00 - 2001-02-03 04:05:10.000 +07:00 export git refs
+    "#);
     insta::assert_debug_snapshot!(get_git_repo_refs(&git_repo), @r###"
     [
         (
