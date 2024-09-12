@@ -215,11 +215,11 @@ fn test_chmod_file_dir_deletion_conflicts() {
         &["file", "chmod", "x", "file", "-r=file_deletion"],
     );
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
+    insta::assert_snapshot!(stderr, @r#"
     New conflicts appeared in these commits:
       kmkuslsw 1b2ef84c file_deletion | (conflict) file_deletion
     To resolve the conflicts, start by updating to it:
-      jj new kmkuslswpqwq
+      jj new kmkuslsw
     Then use `jj resolve`, or edit the conflict markers in the file directly.
     Once the conflicts are resolved, you may want to inspect the result with `jj diff`.
     Then run `jj squash` to move the resolution into the conflicted commit.
@@ -229,7 +229,7 @@ fn test_chmod_file_dir_deletion_conflicts() {
     Added 0 files, modified 1 files, removed 0 files
     There are unresolved conflicts at these paths:
     file    2-sided conflict including 1 deletion and an executable
-    "###);
+    "#);
     let stdout = test_env.jj_cmd_success(&repo_path, &["debug", "tree", "-r=file_deletion"]);
     insta::assert_snapshot!(stdout,
     @r###"

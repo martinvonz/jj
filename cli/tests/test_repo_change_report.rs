@@ -30,13 +30,13 @@ fn test_report_conflicts() {
     let (stdout, stderr) =
         test_env.jj_cmd_ok(&repo_path, &["rebase", "-s=description(B)", "-d=root()"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
+    insta::assert_snapshot!(stderr, @r#"
     Rebased 3 commits
     New conflicts appeared in these commits:
       kkmpptxz 64bdec0c (conflict) C
       rlvkpnrz 10a5fd45 (conflict) B
     To resolve the conflicts, start by updating to the first one:
-      jj new rlvkpnrzqnoo
+      jj new rlvkpnrz
     Then use `jj resolve`, or edit the conflict markers in the file directly.
     Once the conflicts are resolved, you may want to inspect the result with `jj diff`.
     Then run `jj squash` to move the resolution into the conflicted commit.
@@ -45,7 +45,7 @@ fn test_report_conflicts() {
     Added 0 files, modified 1 files, removed 0 files
     There are unresolved conflicts at these paths:
     file    2-sided conflict including 1 deletion
-    "###);
+    "#);
 
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-d=description(A)"]);
     insta::assert_snapshot!(stdout, @"");
@@ -70,8 +70,8 @@ fn test_report_conflicts() {
       kkmpptxz 17c72220 (conflict) C
       rlvkpnrz eb93a73d (conflict) B
     To resolve the conflicts, start by updating to one of the first ones:
-      jj new kkmpptxzrspx
-      jj new rlvkpnrzqnoo
+      jj new kkmpptxz
+      jj new rlvkpnrz
     Then use `jj resolve`, or edit the conflict markers in the file directly.
     Once the conflicts are resolved, you may want to inspect the result with `jj diff`.
     Then run `jj squash` to move the resolution into the conflicted commit.
@@ -121,7 +121,7 @@ fn test_report_conflicts_with_divergent_commits() {
     let (stdout, stderr) =
         test_env.jj_cmd_ok(&repo_path, &["rebase", "-s=description(B)", "-d=root()"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
+    insta::assert_snapshot!(stderr, @r#"
     Concurrent modification detected, resolving automatically.
     Rebased 3 commits
     New conflicts appeared in these commits:
@@ -129,7 +129,7 @@ fn test_report_conflicts_with_divergent_commits() {
       zsuskuln?? 97ce1783 (conflict) C2
       kkmpptxz eb93a73d (conflict) B
     To resolve the conflicts, start by updating to the first one:
-      jj new kkmpptxzrspx
+      jj new kkmpptxz
     Then use `jj resolve`, or edit the conflict markers in the file directly.
     Once the conflicts are resolved, you may want to inspect the result with `jj diff`.
     Then run `jj squash` to move the resolution into the conflicted commit.
@@ -138,7 +138,7 @@ fn test_report_conflicts_with_divergent_commits() {
     Added 0 files, modified 1 files, removed 0 files
     There are unresolved conflicts at these paths:
     file    2-sided conflict including 1 deletion
-    "###);
+    "#);
 
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-d=description(A)"]);
     insta::assert_snapshot!(stdout, @"");
@@ -157,12 +157,12 @@ fn test_report_conflicts_with_divergent_commits() {
     let (stdout, stderr) =
         test_env.jj_cmd_ok(&repo_path, &["rebase", "-s=description(C2)", "-d=root()"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
+    insta::assert_snapshot!(stderr, @r#"
     Rebased 1 commits
     New conflicts appeared in these commits:
       zsuskuln?? b15416ac (conflict) C2
     To resolve the conflicts, start by updating to it:
-      jj new zsuskulnrvyr
+      jj new zsuskuln
     Then use `jj resolve`, or edit the conflict markers in the file directly.
     Once the conflicts are resolved, you may want to inspect the result with `jj diff`.
     Then run `jj squash` to move the resolution into the conflicted commit.
@@ -171,21 +171,21 @@ fn test_report_conflicts_with_divergent_commits() {
     Added 0 files, modified 1 files, removed 0 files
     There are unresolved conflicts at these paths:
     file    2-sided conflict including 1 deletion
-    "###);
+    "#);
 
     let (stdout, stderr) =
         test_env.jj_cmd_ok(&repo_path, &["rebase", "-s=description(C3)", "-d=root()"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
+    insta::assert_snapshot!(stderr, @r#"
     Rebased 1 commits
     New conflicts appeared in these commits:
       zsuskuln?? 8cc7fde6 (conflict) C3
     To resolve the conflicts, start by updating to it:
-      jj new zsuskulnrvyr
+      jj new zsuskuln
     Then use `jj resolve`, or edit the conflict markers in the file directly.
     Once the conflicts are resolved, you may want to inspect the result with `jj diff`.
     Then run `jj squash` to move the resolution into the conflicted commit.
-    "###);
+    "#);
 
     let (stdout, stderr) = test_env.jj_cmd_ok(
         &repo_path,

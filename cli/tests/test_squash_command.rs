@@ -686,18 +686,18 @@ fn test_squash_from_multiple() {
     let (stdout, stderr) =
         test_env.jj_cmd_ok(&repo_path, &["squash", "--from=b", "--from=c", "--into=d"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
+    insta::assert_snapshot!(stderr, @r#"
     Rebased 2 descendant commits
     New conflicts appeared in these commits:
       yqosqzyt 98759deb d | (conflict) (no description set)
     To resolve the conflicts, start by updating to it:
-      jj new yqosqzytrlsw
+      jj new yqosqzyt
     Then use `jj resolve`, or edit the conflict markers in the file directly.
     Once the conflicts are resolved, you may want to inspect the result with `jj diff`.
     Then run `jj squash` to move the resolution into the conflicted commit.
     Working copy now at: kpqxywon 3e25ee21 f | (no description set)
     Parent commit      : yostqsxw abb5a4ea e | (no description set)
-    "###);
+    "#);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  3e25ee211f3f f
     ○    abb5a4ea1222 e
@@ -811,18 +811,18 @@ fn test_squash_from_multiple_partial() {
     let (stdout, stderr) =
         test_env.jj_cmd_ok(&repo_path, &["squash", "--from=b|c", "--into=d", "file1"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
+    insta::assert_snapshot!(stderr, @r#"
     Rebased 2 descendant commits
     New conflicts appeared in these commits:
       yqosqzyt b91b1157 d | (conflict) (no description set)
     To resolve the conflicts, start by updating to it:
-      jj new yqosqzytrlsw
+      jj new yqosqzyt
     Then use `jj resolve`, or edit the conflict markers in the file directly.
     Once the conflicts are resolved, you may want to inspect the result with `jj diff`.
     Then run `jj squash` to move the resolution into the conflicted commit.
     Working copy now at: kpqxywon 056dc38b f | (no description set)
     Parent commit      : yostqsxw 45069475 e | (no description set)
-    "###);
+    "#);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  056dc38bf286 f
     ○      450694753699 e

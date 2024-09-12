@@ -1290,6 +1290,11 @@ impl WorkspaceCommandHelper {
             .expect("parse error should be confined by WorkspaceCommandHelper::new()")
     }
 
+    pub fn short_change_id_template(&self) -> TemplateRenderer<'_, Commit> {
+        self.parse_commit_template("format_short_change_id(self.change_id())")
+            .expect("parse error should be confined by WorkspaceCommandHelper::new()")
+    }
+
     /// Returns one-line summary of the given `commit`.
     ///
     /// Use `write_commit_summary()` to get colorized output. Use
@@ -1746,17 +1751,16 @@ See https://martinvonz.github.io/jj/latest/working-copy/#stale-working-copy \
             .roots()
             .evaluate_programmatic(repo)?;
 
-        let root_conflict_change_ids: Vec<_> = root_conflicts_revset
+        let root_conflict_commits: Vec<_> = root_conflicts_revset
             .iter()
             .commits(repo.store())
-            .map(|maybe_commit| maybe_commit.map(|c| c.change_id().clone()))
             .try_collect()?;
 
-        if !root_conflict_change_ids.is_empty() {
+        if !root_conflict_commits.is_empty() {
             fmt.push_label("hint")?;
             if only_one_conflicted_commit {
                 writeln!(fmt, "To resolve the conflicts, start by updating to it:",)?;
-            } else if root_conflict_change_ids.len() == 1 {
+            } else if root_conflict_commits.len() == 1 {
                 writeln!(
                     fmt,
                     "To resolve the conflicts, start by updating to the first one:",
@@ -1767,8 +1771,11 @@ See https://martinvonz.github.io/jj/latest/working-copy/#stale-working-copy \
                     "To resolve the conflicts, start by updating to one of the first ones:",
                 )?;
             }
-            for change_id in root_conflict_change_ids {
-                writeln!(fmt, "  jj new {}", short_change_hash(&change_id))?;
+            let format_short_change_id = self.short_change_id_template();
+            for commit in root_conflict_commits {
+                write!(fmt, "  jj new ")?;
+                format_short_change_id.format(&commit, fmt)?;
+                writeln!(fmt)?;
             }
             writeln!(
                 fmt,
