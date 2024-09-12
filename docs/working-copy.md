@@ -4,8 +4,8 @@
 ## Introduction
 
 The working copy is where the current working-copy commit's files are written so
-you can interact with them. It also where files are read from in order to create
-new commits (though there are many other ways of creating new commits).
+you can interact with them. It is also where files are read from in order to
+create new commits (though there are many other ways of creating new commits).
 
 Unlike most other VCSs, Jujutsu will automatically create commits from the
 working-copy contents when they have changed. Most `jj` commands you run will
@@ -77,7 +77,7 @@ You can untrack such files with the jj file untrack command.
 
 ## Workspaces
 
-You can have multiple working copies backed by a single repo. Use 
+You can have multiple working copies backed by a single repo. Use
 `jj workspace add` to create a new working copy. The working copy will have a
 `.jj/` directory linked to the main repo. The working copy and the `.jj/`
 directory together is called a "workspace". Each workspace can have a different
