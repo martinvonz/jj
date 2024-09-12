@@ -15,6 +15,7 @@
 use std::fs;
 use std::io;
 use std::io::Write;
+use std::num::NonZeroU32;
 use std::path::Path;
 use std::path::PathBuf;
 
@@ -60,6 +61,9 @@ pub struct GitCloneArgs {
     /// Whether or not to colocate the Jujutsu repo with the git repo
     #[arg(long)]
     colocate: bool,
+    /// Create a shallow clone of the given depth
+    #[arg(long)]
+    depth: Option<NonZeroU32>,
 }
 
 fn absolute_git_source(cwd: &Path, source: &str) -> String {
@@ -132,6 +136,7 @@ pub fn cmd_git_clone(
         ui,
         command,
         args.colocate,
+        args.depth,
         remote_name,
         &source,
         &canonical_wc_path,
@@ -195,6 +200,7 @@ fn do_git_clone(
     ui: &mut Ui,
     command: &CommandHelper,
     colocate: bool,
+    depth: Option<NonZeroU32>,
     remote_name: &str,
     source: &str,
     wc_path: &Path,
@@ -223,6 +229,7 @@ fn do_git_clone(
             &[StringPattern::everything()],
             cb,
             &command.settings().git_settings(),
+            depth,
         )
     })
     .map_err(|err| match err {

@@ -21,6 +21,7 @@ use std::collections::HashSet;
 use std::default::Default;
 use std::fmt;
 use std::io::Read;
+use std::num::NonZeroU32;
 use std::path::PathBuf;
 use std::str;
 
@@ -1244,6 +1245,7 @@ pub fn fetch(
     branch_names: &[StringPattern],
     callbacks: RemoteCallbacks<'_>,
     git_settings: &GitSettings,
+    depth: Option<NonZeroU32>,
 ) -> Result<GitFetchStats, GitFetchError> {
     // Perform a `git fetch` on the local git repo, updating the remote-tracking
     // branches in the git repo.
@@ -1260,6 +1262,9 @@ pub fn fetch(
     fetch_options.proxy_options(proxy_options);
     let callbacks = callbacks.into_git();
     fetch_options.remote_callbacks(callbacks);
+    if let Some(depth) = depth {
+        fetch_options.depth(depth.get().try_into().unwrap_or(i32::MAX));
+    }
     // At this point, we are only updating Git's remote tracking branches, not the
     // local branches.
     let refspecs: Vec<_> = branch_names

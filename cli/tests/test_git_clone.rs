@@ -557,6 +557,26 @@ fn test_git_clone_trunk_deleted() {
     "#);
 }
 
+#[test]
+fn test_git_clone_with_depth() {
+    let test_env = TestEnvironment::default();
+    test_env.add_config("git.auto-local-branch = true");
+    let git_repo_path = test_env.env_root().join("source");
+    let git_repo = git2::Repository::init(git_repo_path).unwrap();
+    set_up_non_empty_git_repo(&git_repo);
+
+    // local transport does not support shallow clones so we just test that the
+    // depth arg is passed on here
+    let stderr = test_env.jj_cmd_failure(
+        test_env.env_root(),
+        &["git", "clone", "--depth", "1", "source", "clone"],
+    );
+    insta::assert_snapshot!(stderr, @r#"
+    Fetching into new repo in "$TEST_ENV/clone"
+    Error: shallow fetch is not supported by the local transport; class=Net (12)
+    "#);
+}
+
 fn get_bookmark_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
     test_env.jj_cmd_success(repo_path, &["bookmark", "list", "--all-remotes"])
 }
