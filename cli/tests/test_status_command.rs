@@ -197,18 +197,18 @@ fn test_status_display_relevant_working_commit_conflict_hints() {
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["status"]);
 
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @r#"
     The working copy is clean
     There are unresolved conflicts at these paths:
     conflicted.txt    2-sided conflict
     Working copy : yqosqzyt 65143fef (conflict) (empty) boom-cont-2
     Parent commit: royxmykx a4e88714 (conflict) (empty) boom-cont
     To resolve the conflicts, start by updating to the first one:
-      jj new mzvwutvlkqwt
+      jj new mzvwutvl
     Then use `jj resolve`, or edit the conflict markers in the file directly.
     Once the conflicts are resolved, you may want to inspect the result with `jj diff`.
     Then run `jj squash` to move the resolution into the conflicted commit.
-    "###);
+    "#);
 
     // Resolve conflict
     test_env.jj_cmd_ok(&repo_path, &["new", "--message", "fixed 1"]);
@@ -352,7 +352,7 @@ fn test_status_simplify_conflict_sides() {
     );
 
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["status"]),
-    @r###"
+    @r#"
     The working copy is clean
     There are unresolved conflicts at these paths:
     fileA    2-sided conflict
@@ -361,10 +361,10 @@ fn test_status_simplify_conflict_sides() {
     Parent commit: kmkuslsw 18c1fb00 conflictA | (conflict) (empty) conflictA
     Parent commit: lylxulpl d11c92eb conflictB | (conflict) (empty) conflictB
     To resolve the conflicts, start by updating to one of the first ones:
-      jj new lylxulplsnyw
-      jj new kmkuslswpqwq
+      jj new lylxulpl
+      jj new kmkuslsw
     Then use `jj resolve`, or edit the conflict markers in the file directly.
     Once the conflicts are resolved, you may want to inspect the result with `jj diff`.
     Then run `jj squash` to move the resolution into the conflicted commit.
-    "###);
+    "#);
 }
