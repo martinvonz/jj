@@ -253,11 +253,22 @@ the [tutorial][tut].
 It is common to use several remotes when contributing to a shared repository.
 For example, "upstream" can designate the remote where the changes will be
 merged through a pull-request while "origin" is your private fork of the
-project. In this case, you might want to `jj git fetch` from "upstream" and to
-`jj git push` to "origin".
+project.
 
-You can configure the default remotes to fetch from and push to in your
-configuration file (for example `.jj/repo/config.toml`):
+```shell
+$ jj git clone --remote upstream https://github.com/upstream-org/repo
+$ cd repo
+$ jj git remote add origin git@github.com:your-org/your-repo-fork
+```
+
+This will automatically setup your repository to track the main
+bookmark from the upstream repository, typically `main@upstream`
+or `master@upstream`.
+
+You might want to `jj git fetch` from "upstream" and to `jj git push`
+to "origin". You can configure the default remotes to fetch from and
+push to in your configuration file (for example,
+`.jj/repo/config.toml`):
 
 ```toml
 [git]
@@ -266,3 +277,13 @@ push = "origin"
 ```
 
 The default for both `git.fetch` and `git.push` is "origin".
+
+If you usually work on a project from several computers, you may
+configure `jj` to fetch from both repositories by default, in order to
+keep your own bookmarks synchronized through your `origin` repository:
+
+```toml
+[git]
+fetch = ["upstream", "origin"]
+push = "origin"
+```

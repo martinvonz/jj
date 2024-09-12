@@ -957,6 +957,9 @@ The Git repo will be a bare git repo stored inside the `.jj/` directory.
 
 ###### **Options:**
 
+* `--remote <REMOTE_NAME>` — Name of the newly created remote
+
+  Default value: `origin`
 * `--colocate` — Whether or not to colocate the Jujutsu repo with the git repo
 
 

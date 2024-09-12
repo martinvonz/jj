@@ -54,6 +54,9 @@ pub struct GitCloneArgs {
     /// doesn't exist.
     #[arg(value_hint = clap::ValueHint::DirPath)]
     destination: Option<String>,
+    /// Name of the newly created remote
+    #[arg(long = "remote", default_value = "origin")]
+    remote_name: String,
     /// Whether or not to colocate the Jujutsu repo with the git repo
     #[arg(long)]
     colocate: bool,
@@ -97,10 +100,10 @@ pub fn cmd_git_clone(
     command: &CommandHelper,
     args: &GitCloneArgs,
 ) -> Result<(), CommandError> {
+    let remote_name = &args.remote_name;
     if command.global_args().at_operation.is_some() {
         return Err(cli_error("--at-op is not respected"));
     }
-    let remote_name = "origin";
     let source = absolute_git_source(command.cwd(), &args.source);
     let wc_path_str = args
         .destination
