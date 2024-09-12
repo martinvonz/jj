@@ -95,6 +95,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   to keeping all changes into the first commit while keeping the current commit
   description for the second commit (the newly created empty one).
 
+* Initial support for shallow git repositories has been implemented. However
+  deepening the history of a shallow repository is not yet supported.
+
 ### Fixed bugs
 
 * Update working copy before reporting changes. This prevents errors during reporting
