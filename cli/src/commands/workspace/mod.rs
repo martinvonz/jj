@@ -15,6 +15,7 @@
 mod add;
 mod forget;
 mod list;
+mod rename;
 mod root;
 mod update_stale;
 
@@ -27,6 +28,8 @@ use self::forget::cmd_workspace_forget;
 use self::forget::WorkspaceForgetArgs;
 use self::list::cmd_workspace_list;
 use self::list::WorkspaceListArgs;
+use self::rename::cmd_workspace_rename;
+use self::rename::WorkspaceRenameArgs;
 use self::root::cmd_workspace_root;
 use self::root::WorkspaceRootArgs;
 use self::update_stale::cmd_workspace_update_stale;
@@ -51,6 +54,7 @@ pub(crate) enum WorkspaceCommand {
     Add(WorkspaceAddArgs),
     Forget(WorkspaceForgetArgs),
     List(WorkspaceListArgs),
+    Rename(WorkspaceRenameArgs),
     Root(WorkspaceRootArgs),
     UpdateStale(WorkspaceUpdateStaleArgs),
 }
@@ -65,6 +69,7 @@ pub(crate) fn cmd_workspace(
         WorkspaceCommand::Add(args) => cmd_workspace_add(ui, command, args),
         WorkspaceCommand::Forget(args) => cmd_workspace_forget(ui, command, args),
         WorkspaceCommand::List(args) => cmd_workspace_list(ui, command, args),
+        WorkspaceCommand::Rename(args) => cmd_workspace_rename(ui, command, args),
         WorkspaceCommand::Root(args) => cmd_workspace_root(ui, command, args),
         WorkspaceCommand::UpdateStale(args) => cmd_workspace_update_stale(ui, command, args),
     }

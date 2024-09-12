@@ -1626,6 +1626,7 @@ impl WorkingCopy for LocalWorkingCopy {
             old_operation_id,
             old_tree_id,
             tree_state_dirty: false,
+            new_workspace_id: None,
         }))
     }
 }
@@ -1825,6 +1826,7 @@ pub struct LockedLocalWorkingCopy {
     old_operation_id: OperationId,
     old_tree_id: MergedTreeId,
     tree_state_dirty: bool,
+    new_workspace_id: Option<WorkspaceId>,
 }
 
 impl LockedWorkingCopy for LockedLocalWorkingCopy {
@@ -1870,6 +1872,10 @@ impl LockedWorkingCopy for LockedLocalWorkingCopy {
             .check_out(&new_tree)?;
         self.tree_state_dirty = true;
         Ok(stats)
+    }
+
+    fn rename_workspace(&mut self, new_workspace_id: WorkspaceId) {
+        self.new_workspace_id = Some(new_workspace_id);
     }
 
     fn reset(&mut self, commit: &Commit) -> Result<(), ResetError> {
@@ -1937,7 +1943,10 @@ impl LockedWorkingCopy for LockedLocalWorkingCopy {
                     err: Box::new(err),
                 })?;
         }
-        if self.old_operation_id != operation_id {
+        if self.old_operation_id != operation_id || self.new_workspace_id.is_some() {
+            if let Some(new_workspace_id) = self.new_workspace_id {
+                self.wc.checkout_state_mut().workspace_id = new_workspace_id;
+            }
             self.wc.checkout_state_mut().operation_id = operation_id;
             self.wc.save();
         }

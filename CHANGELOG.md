@@ -47,6 +47,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   (inherit from parent; default), `full` (full working copy), or `empty` (the
   empty working copy).
 
+* New command `jj workspace rename` that can rename the current workspace.
+
 * `jj op log` gained an option to include operation diffs.
 
 ### Fixed bugs

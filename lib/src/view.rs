@@ -19,6 +19,7 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 
 use itertools::Itertools;
+use thiserror::Error;
 
 use crate::backend::CommitId;
 use crate::op_store;
@@ -93,6 +94,29 @@ impl View {
 
     pub fn remove_wc_commit(&mut self, workspace_id: &WorkspaceId) {
         self.data.wc_commit_ids.remove(workspace_id);
+    }
+
+    pub fn rename_workspace(
+        &mut self,
+        old_workspace_id: &WorkspaceId,
+        new_workspace_id: WorkspaceId,
+    ) -> Result<(), RenameWorkspaceError> {
+        if self.data.wc_commit_ids.contains_key(&new_workspace_id) {
+            return Err(RenameWorkspaceError::WorkspaceAlreadyExists {
+                workspace_id: new_workspace_id.as_str().to_owned(),
+            });
+        }
+        let wc_commit_id = self
+            .data
+            .wc_commit_ids
+            .remove(old_workspace_id)
+            .ok_or_else(|| RenameWorkspaceError::WorkspaceDoesNotExist {
+                workspace_id: old_workspace_id.as_str().to_owned(),
+            })?;
+        self.data
+            .wc_commit_ids
+            .insert(new_workspace_id, wc_commit_id);
+        Ok(())
     }
 
     pub fn add_head(&mut self, head_id: &CommitId) {
@@ -368,4 +392,14 @@ impl View {
     pub fn store_view_mut(&mut self) -> &mut op_store::View {
         &mut self.data
     }
+}
+
+/// Error from attempts to rename a workspace
+#[derive(Debug, Error)]
+pub enum RenameWorkspaceError {
+    #[error("Workspace {workspace_id} not found")]
+    WorkspaceDoesNotExist { workspace_id: String },
+
+    #[error("Workspace {workspace_id} already exists")]
+    WorkspaceAlreadyExists { workspace_id: String },
 }

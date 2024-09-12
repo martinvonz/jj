@@ -1078,6 +1078,93 @@ fn test_debug_snapshot() {
     "###);
 }
 
+#[test]
+fn test_workspaces_rename_nothing_changed() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "main"]);
+    let main_path = test_env.env_root().join("main");
+    let (stdout, stderr) = test_env.jj_cmd_ok(&main_path, &["workspace", "rename", "default"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Nothing changed.
+    "###);
+}
+
+#[test]
+fn test_workspaces_rename_new_workspace_name_already_used() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "main"]);
+    let main_path = test_env.env_root().join("main");
+    test_env.jj_cmd_ok(
+        &main_path,
+        &["workspace", "add", "--name", "second", "../secondary"],
+    );
+    let stderr = test_env.jj_cmd_failure(&main_path, &["workspace", "rename", "second"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Failed to rename a workspace
+    Caused by: Workspace second already exists
+    "###);
+}
+
+#[test]
+fn test_workspaces_rename_forgotten_workspace() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "main"]);
+    let main_path = test_env.env_root().join("main");
+    test_env.jj_cmd_ok(
+        &main_path,
+        &["workspace", "add", "--name", "second", "../secondary"],
+    );
+    test_env.jj_cmd_ok(&main_path, &["workspace", "forget", "second"]);
+    let secondary_path = test_env.env_root().join("secondary");
+    let stderr = test_env.jj_cmd_failure(&secondary_path, &["workspace", "rename", "third"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: The current workspace 'second' is not tracked in the repo.
+    "###);
+}
+
+#[test]
+fn test_workspaces_rename_workspace() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "main"]);
+    let main_path = test_env.env_root().join("main");
+    test_env.jj_cmd_ok(
+        &main_path,
+        &["workspace", "add", "--name", "second", "../secondary"],
+    );
+    let secondary_path = test_env.env_root().join("secondary");
+
+    // Both workspaces show up when we list them
+    let stdout = test_env.jj_cmd_success(&main_path, &["workspace", "list"]);
+    insta::assert_snapshot!(stdout, @r###"
+    default: qpvuntsm 230dd059 (empty) (no description set)
+    second: uuqppmxq 57d63245 (empty) (no description set)
+    "###);
+
+    let stdout = test_env.jj_cmd_success(&secondary_path, &["workspace", "rename", "third"]);
+    insta::assert_snapshot!(stdout, @"");
+
+    let stdout = test_env.jj_cmd_success(&main_path, &["workspace", "list"]);
+    insta::assert_snapshot!(stdout, @r###"
+    default: qpvuntsm 230dd059 (empty) (no description set)
+    third: uuqppmxq 57d63245 (empty) (no description set)
+    "###);
+
+    // Can see the working-copy commit in each workspace in the log output.
+    insta::assert_snapshot!(get_log_output(&test_env, &main_path), @r###"
+    ○  57d63245a308 third@
+    │ @  230dd059e1b0 default@
+    ├─╯
+    ◆  000000000000
+    "###);
+    insta::assert_snapshot!(get_log_output(&test_env, &secondary_path), @r###"
+    @  57d63245a308 third@
+    │ ○  230dd059e1b0 default@
+    ├─╯
+    ◆  000000000000
+    "###);
+}
+
 fn get_log_output(test_env: &TestEnvironment, cwd: &Path) -> String {
     let template = r#"
     separate(" ",
