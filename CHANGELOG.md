@@ -133,6 +133,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 * Author and committer names are now yellow by default.
 
+* Initial support for shallow git repositories has been implemented. However
+  deepening the history of a shallow repository is not yet supported.
+
 ### Fixed bugs
 
 * Update working copy before reporting changes. This prevents errors during reporting
