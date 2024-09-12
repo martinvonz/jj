@@ -546,13 +546,15 @@ fn remotely_pinned_commit_ids(view: &View) -> Vec<CommitId> {
 ///
 /// Unlike `reset_head()`, this function doesn't move the working-copy commit to
 /// the child of the new `HEAD@git` revision.
-pub fn import_head(mut_repo: &mut MutableRepo) -> Result<(), GitImportError> {
+pub fn import_head(
+    mut_repo: &mut MutableRepo,
+    git_worktree: &gix::Repository,
+) -> Result<(), GitImportError> {
     let store = mut_repo.store();
     let git_backend = get_git_backend(store).ok_or(GitImportError::UnexpectedBackend)?;
-    let git_repo = git_backend.git_repo();
 
     let old_git_head = mut_repo.view().git_head();
-    let new_git_head_id = if let Ok(oid) = git_repo.head_id() {
+    let new_git_head_id = if let Ok(oid) = git_worktree.head_id() {
         Some(CommitId::from_bytes(oid.as_bytes()))
     } else {
         None
