@@ -107,6 +107,9 @@ pub trait LockedWorkingCopy {
     /// Check out the specified commit in the working copy.
     fn check_out(&mut self, commit: &Commit) -> Result<CheckoutStats, CheckoutError>;
 
+    /// Update the workspace name.
+    fn rename_workspace(&mut self, new_workspace_name: WorkspaceId);
+
     /// Update to another commit without touching the files in the working copy.
     fn reset(&mut self, commit: &Commit) -> Result<(), ResetError>;
 

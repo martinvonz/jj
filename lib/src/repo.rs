@@ -92,6 +92,7 @@ use crate::simple_op_store::SimpleOpStore;
 use crate::store::Store;
 use crate::submodule_store::SubmoduleStore;
 use crate::transaction::Transaction;
+use crate::view::RenameWorkspaceError;
 use crate::view::View;
 
 pub trait Repo {
@@ -1351,6 +1352,15 @@ impl MutableRepo {
         self.maybe_abandon_wc_commit(workspace_id)?;
         self.view_mut().remove_wc_commit(workspace_id);
         Ok(())
+    }
+
+    pub fn rename_workspace(
+        &mut self,
+        old_workspace_id: &WorkspaceId,
+        new_workspace_id: WorkspaceId,
+    ) -> Result<(), RenameWorkspaceError> {
+        self.view_mut()
+            .rename_workspace(old_workspace_id, new_workspace_id)
     }
 
     pub fn check_out(

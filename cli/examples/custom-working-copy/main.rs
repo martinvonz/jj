@@ -250,6 +250,10 @@ impl LockedWorkingCopy for LockedConflictsWorkingCopy {
         self.inner.check_out(commit)
     }
 
+    fn rename_workspace(&mut self, new_workspace_id: WorkspaceId) {
+        self.inner.rename_workspace(new_workspace_id);
+    }
+
     fn reset(&mut self, commit: &Commit) -> Result<(), ResetError> {
         self.inner.reset(commit)
     }

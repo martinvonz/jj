@@ -46,6 +46,7 @@ use jj_lib::revset::RevsetParseErrorKind;
 use jj_lib::revset::RevsetResolutionError;
 use jj_lib::signing::SignInitError;
 use jj_lib::str_util::StringPatternParseError;
+use jj_lib::view::RenameWorkspaceError;
 use jj_lib::working_copy::ResetError;
 use jj_lib::working_copy::SnapshotError;
 use jj_lib::working_copy::WorkingCopyStateError;
@@ -261,6 +262,12 @@ impl From<EditCommitError> for CommandError {
 impl From<CheckOutCommitError> for CommandError {
     fn from(err: CheckOutCommitError) -> Self {
         internal_error_with_message("Failed to check out a commit", err)
+    }
+}
+
+impl From<RenameWorkspaceError> for CommandError {
+    fn from(err: RenameWorkspaceError) -> Self {
+        user_error_with_message("Failed to rename a workspace", err)
     }
 }
 

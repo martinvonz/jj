@@ -98,6 +98,7 @@ This document contains the help content for the `jj` command-line program.
 * [`jj workspace add`↴](#jj-workspace-add)
 * [`jj workspace forget`↴](#jj-workspace-forget)
 * [`jj workspace list`↴](#jj-workspace-list)
+* [`jj workspace rename`↴](#jj-workspace-rename)
 * [`jj workspace root`↴](#jj-workspace-root)
 * [`jj workspace update-stale`↴](#jj-workspace-update-stale)
 
@@ -2144,6 +2145,7 @@ Each workspace also has own sparse patterns.
 * `add` — Add a workspace
 * `forget` — Stop tracking a workspace's working-copy commit in the repo
 * `list` — List workspaces
+* `rename` — Renames the current workspace
 * `root` — Show the current workspace root directory
 * `update-stale` — Update a workspace that has become stale
 
@@ -2205,6 +2207,18 @@ The workspace will not be touched on disk. It can be deleted from disk before or
 List workspaces
 
 **Usage:** `jj workspace list`
+
+
+
+## `jj workspace rename`
+
+Renames the current workspace
+
+**Usage:** `jj workspace rename <NEW_WORKSPACE_NAME>`
+
+###### **Arguments:**
+
+* `<NEW_WORKSPACE_NAME>` — The name of the workspace to update to
 
 
 
