@@ -78,96 +78,96 @@ only symbols.
 You can use parentheses to control evaluation order, such as `(x & y) | z` or
 `x & (y | z)`.
 
-??? examples
+### Examples
 
-    Given this history:
-    ```
-    D
-    |\
-    | o C
-    | |
-    o | B
-    |/
-    o A
-    |
-    o root()
-    ```
+Given this history:
+```
+D
+|\
+| o C
+| |
+o | B
+|/
+o A
+|
+o root()
+```
 
-    **Operator** `x-`
+**Operator** `x-`
 
-    * `D-` ⇒ `{C,B}`
-    * `B-` ⇒ `{A}`
-    * `A-` ⇒ `{root()}`
-    * `root()-` ⇒ `{}` (empty set)
-    * `none()-` ⇒ `{}` (empty set)
-    * `(D|A)-` ⇒ `{C,B,root()}`
-    * `(C|B)-` ⇒ `{A}`
+* `D-` ⇒ `{C,B}`
+* `B-` ⇒ `{A}`
+* `A-` ⇒ `{root()}`
+* `root()-` ⇒ `{}` (empty set)
+* `none()-` ⇒ `{}` (empty set)
+* `(D|A)-` ⇒ `{C,B,root()}`
+* `(C|B)-` ⇒ `{A}`
 
-    **Operator** `x+`
+**Operator** `x+`
 
-    * `D+` ⇒ `{}` (empty set)
-    * `B+` ⇒ `{D}`
-    * `A+` ⇒ `{B,C}`
-    * `root()+` ⇒ `{A}`
-    * `none()+` ⇒ `{}` (empty set)
-    * `(C|B)+` ⇒ `{D}`
-    * `(B|root())+` ⇒ `{D,A}`
+* `D+` ⇒ `{}` (empty set)
+* `B+` ⇒ `{D}`
+* `A+` ⇒ `{B,C}`
+* `root()+` ⇒ `{A}`
+* `none()+` ⇒ `{}` (empty set)
+* `(C|B)+` ⇒ `{D}`
+* `(B|root())+` ⇒ `{D,A}`
 
-    **Operator** `x::`
+**Operator** `x::`
 
-    * `D::` ⇒ `{D}`
-    * `B::` ⇒ `{D,B}`
-    * `A::` ⇒ `{D,C,B,A}`
-    * `root()::` ⇒ `{D,C,B,A,root()}`
-    * `none()::` ⇒ `{}` (empty set)
-    * `(C|B)::` ⇒ `{D,C,B}`
+* `D::` ⇒ `{D}`
+* `B::` ⇒ `{D,B}`
+* `A::` ⇒ `{D,C,B,A}`
+* `root()::` ⇒ `{D,C,B,A,root()}`
+* `none()::` ⇒ `{}` (empty set)
+* `(C|B)::` ⇒ `{D,C,B}`
 
-    **Operator** `x..`
+**Operator** `x..`
 
-    * `D..` ⇒ `{}` (empty set)
-    * `B..` ⇒ `{D,C}` (note that, unlike `B::`, this includes `C`)
-    * `A..` ⇒ `{D,C,B}`
-    * `root()..` ⇒ `{D,C,B,A}`
-    * `none()..` ⇒ `{D,C,B,A,root()}`
-    * `(C|B)..` ⇒ `{D}`
+* `D..` ⇒ `{}` (empty set)
+* `B..` ⇒ `{D,C}` (note that, unlike `B::`, this includes `C`)
+* `A..` ⇒ `{D,C,B}`
+* `root()..` ⇒ `{D,C,B,A}`
+* `none()..` ⇒ `{D,C,B,A,root()}`
+* `(C|B)..` ⇒ `{D}`
 
-    **Operator** `::x`
+**Operator** `::x`
 
-    * `::D` ⇒ `{D,C,B,A,root()}`
-    * `::B` ⇒ `{B,A,root()}`
-    * `::A` ⇒ `{A,root()}`
-    * `::root()` ⇒ `{root()}`
-    * `::none()` ⇒ `{}` (empty set)
-    * `::(C|B)` ⇒ `{C,B,A,root()}`
+* `::D` ⇒ `{D,C,B,A,root()}`
+* `::B` ⇒ `{B,A,root()}`
+* `::A` ⇒ `{A,root()}`
+* `::root()` ⇒ `{root()}`
+* `::none()` ⇒ `{}` (empty set)
+* `::(C|B)` ⇒ `{C,B,A,root()}`
 
-    **Operator** `..x`
+**Operator** `..x`
 
-    * `..D` ⇒ `{D,C,B,A}`
-    * `..B` ⇒ `{B,A}`
-    * `..A` ⇒ `{A}`
-    * `..root()` ⇒ `{}` (empty set)
-    * `..none()` ⇒ `{}` (empty set)
-    * `..(C|B)` ⇒ `{C,B,A}`
+* `..D` ⇒ `{D,C,B,A}`
+* `..B` ⇒ `{B,A}`
+* `..A` ⇒ `{A}`
+* `..root()` ⇒ `{}` (empty set)
+* `..none()` ⇒ `{}` (empty set)
+* `..(C|B)` ⇒ `{C,B,A}`
 
-    **Operator** `x::y`
+**Operator** `x::y`
 
-    * `D::D` ⇒ `{D}`
-    * `B::D` ⇒ `{D,B}` (note that, unlike `B..D`, this includes `B` and excludes `C`)
-    * `A::D` ⇒ `{D,C,B,A}`
-    * `root()::D` ⇒ `{D,C,B,A,root()}`
-    * `none()::D` ⇒ `{}` (empty set)
-    * `D::B` ⇒ `{}` (empty set)
-    * `(C|B)::(C|B)` ⇒ `{C,B}`
+* `D::D` ⇒ `{D}`
+* `B::D` ⇒ `{D,B}` (note that, unlike `B..D`, this includes `B` and excludes `C`)
+* `A::D` ⇒ `{D,C,B,A}`
+* `root()::D` ⇒ `{D,C,B,A,root()}`
+* `none()::D` ⇒ `{}` (empty set)
+* `D::B` ⇒ `{}` (empty set)
+* `(C|B)::(C|B)` ⇒ `{C,B}`
 
-    **Operator** `x..y`
+**Operator** `x..y`
 
-    * `D..D` ⇒ `{}` (empty set)
-    * `B..D` ⇒ `{D,C}` (note that, unlike `B::D`, this includes `C` and excludes `B`)
-    * `A..D` ⇒ `{D,C,B}`
-    * `root()..D` ⇒ `{D,C,B,A}`
-    * `none()..D` ⇒ `{D,C,B,A,root()}`
-    * `D..B` ⇒ `{}` (empty set)
-    * `(C|B)..(C|B)` ⇒ `{}` (empty set)
+* `D..D` ⇒ `{}` (empty set)
+* `B..D` ⇒ `{D,C}` (note that, unlike `B::D`, this includes `C` and excludes `B`)
+* `A..D` ⇒ `{D,C,B}`
+* `root()..D` ⇒ `{D,C,B,A}`
+* `none()..D` ⇒ `{D,C,B,A,root()}`
+* `D..B` ⇒ `{}` (empty set)
+* `(C|B)..(C|B)` ⇒ `{}` (empty set)
 
 ## Functions
 
@@ -303,52 +303,52 @@ given [string pattern](#string-patterns).
 
 * `working_copies()`: The working copy commits across all the workspaces.
 
-??? examples
+### Examples
 
-    Given this history:
-    ```
-    E
-    |
-    | D
-    |/|
-    | o C
-    | |
-    o | B
-    |/
-    o A
-    |
-    o root()
-    ```
+Given this history:
+```
+E
+|
+| D
+|/|
+| o C
+| |
+o | B
+|/
+o A
+|
+o root()
+```
 
-    **function** `reachable()`
+**function** `reachable()`
 
-    * `reachable(E, A..)` ⇒ `{E,D,C,B}`
-    * `reachable(D, A..)` ⇒ `{E,D,C,B}`
-    * `reachable(C, A..)` ⇒ `{E,D,C,B}`
-    * `reachable(B, A..)` ⇒ `{E,D,C,B}`
-    * `reachable(A, A..)` ⇒ `{}` (empty set)
+* `reachable(E, A..)` ⇒ `{E,D,C,B}`
+* `reachable(D, A..)` ⇒ `{E,D,C,B}`
+* `reachable(C, A..)` ⇒ `{E,D,C,B}`
+* `reachable(B, A..)` ⇒ `{E,D,C,B}`
+* `reachable(A, A..)` ⇒ `{}` (empty set)
 
-    **function** `connected()`
+**function** `connected()`
 
-    * `connected(E|A)` ⇒ `{E,B,A}`
-    * `connected(D|A)` ⇒ `{D,C,B,A}`
-    * `connected(A)` ⇒ `{A}`
+* `connected(E|A)` ⇒ `{E,B,A}`
+* `connected(D|A)` ⇒ `{D,C,B,A}`
+* `connected(A)` ⇒ `{A}`
 
-    **function** `heads()`
+**function** `heads()`
 
-    * `heads(E|D)` ⇒ `{E,D}`
-    * `heads(E|C)` ⇒ `{E,C}`
-    * `heads(E|B)` ⇒ `{E}`
-    * `heads(E|A)` ⇒ `{E}`
-    * `heads(A)` ⇒ `{A}`
+* `heads(E|D)` ⇒ `{E,D}`
+* `heads(E|C)` ⇒ `{E,C}`
+* `heads(E|B)` ⇒ `{E}`
+* `heads(E|A)` ⇒ `{E}`
+* `heads(A)` ⇒ `{A}`
 
-    **function** `roots()`
+**function** `roots()`
 
-    * `roots(E|D)` ⇒ `{E,D}`
-    * `roots(E|C)` ⇒ `{E,C}`
-    * `roots(E|B)` ⇒ `{B}`
-    * `roots(E|A)` ⇒ `{A}`
-    * `roots(A)` ⇒ `{A}`
+* `roots(E|D)` ⇒ `{E,D}`
+* `roots(E|C)` ⇒ `{E,C}`
+* `roots(E|B)` ⇒ `{B}`
+* `roots(E|A)` ⇒ `{A}`
+* `roots(A)` ⇒ `{A}`
 
 ## String patterns
 
