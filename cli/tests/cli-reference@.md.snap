@@ -984,6 +984,7 @@ The Git repo will be a bare git repo stored inside the `.jj/` directory.
 
   Default value: `origin`
 * `--colocate` — Whether or not to colocate the Jujutsu repo with the git repo
+* `--depth <DEPTH>` — Create a shallow clone of the given depth
 
 
 

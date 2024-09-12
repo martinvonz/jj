@@ -136,6 +136,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * Initial support for shallow git repositories has been implemented. However
   deepening the history of a shallow repository is not yet supported.
 
+* `jj git clone` now accepts a `--depth <DEPTH>` option, which
+  allows to clone the repository with a given depth.
+
 ### Fixed bugs
 
 * Update working copy before reporting changes. This prevents errors during reporting
