@@ -449,12 +449,9 @@ impl From<GitImportError> for CommandError {
             GitImportError::MissingHeadTarget { .. }
             | GitImportError::MissingRefAncestor { .. } => Some(
                 "\
-Is this Git repository a shallow or partial clone (cloned with the --depth or --filter \
-                 argument)?
-jj currently does not support shallow/partial clones. To use jj with this \
-                 repository, try
-unshallowing the repository (https://stackoverflow.com/q/6802145) or re-cloning with the full
-repository contents."
+Is this Git repository a partial clone (cloned with the --filter argument)?
+jj currently does not support partial clones. To use jj with this repository, try re-cloning with \
+                 the full repository contents."
                     .to_string(),
             ),
             GitImportError::RemoteReservedForLocalGitRepo => {

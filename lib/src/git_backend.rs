@@ -519,6 +519,7 @@ fn commit_from_git_without_root_parent(
     id: &CommitId,
     git_object: &gix::Object,
     uses_tree_conflict_format: bool,
+    is_shallow: bool,
 ) -> BackendResult<Commit> {
     let commit = git_object
         .try_to_commit_ref()
@@ -537,10 +538,17 @@ fn commit_from_git_without_root_parent(
             .map(|b| b.reverse_bits())
             .collect(),
     );
-    let parents = commit
-        .parents()
-        .map(|oid| CommitId::from_bytes(oid.as_bytes()))
-        .collect_vec();
+    // shallow commits don't have parents their parents actually fetched, so we
+    // discard them here
+    // TODO: This causes issues when a shallow repository is deepened/unshallowed
+    let parents = if is_shallow {
+        vec![]
+    } else {
+        commit
+            .parents()
+            .map(|oid| CommitId::from_bytes(oid.as_bytes()))
+            .collect_vec()
+    };
     let tree_id = TreeId::from_bytes(commit.tree().as_bytes());
     // If this commit is a conflict, we'll update the root tree later, when we read
     // the extra metadata.
@@ -859,6 +867,10 @@ fn import_extra_metadata_entries_from_heads(
     head_ids: &HashSet<&CommitId>,
     uses_tree_conflict_format: bool,
 ) -> BackendResult<()> {
+    let shallow_commits = git_repo
+        .shallow_commits()
+        .map_err(|e| BackendError::Other(Box::new(e)))?;
+
     let mut work_ids = head_ids
         .iter()
         .filter(|&id| mut_table.get_value(id.as_bytes()).is_none())
@@ -868,11 +880,18 @@ fn import_extra_metadata_entries_from_heads(
         let git_object = git_repo
             .find_object(validate_git_object_id(&id)?)
             .map_err(|err| map_not_found_err(err, &id))?;
+        let is_shallow = shallow_commits
+            .as_ref()
+            .is_some_and(|shallow| shallow.contains(&git_object.id));
         // TODO(#1624): Should we read the root tree here and check if it has a
         // `.jjconflict-...` entries? That could happen if the user used `git` to e.g.
         // change the description of a commit with tree-level conflicts.
-        let commit =
-            commit_from_git_without_root_parent(&id, &git_object, uses_tree_conflict_format)?;
+        let commit = commit_from_git_without_root_parent(
+            &id,
+            &git_object,
+            uses_tree_conflict_format,
+            is_shallow,
+        )?;
         mut_table.add_entry(id.to_bytes(), serialize_extras(&commit));
         work_ids.extend(
             commit
@@ -1141,7 +1160,12 @@ impl Backend for GitBackend {
             let git_object = locked_repo
                 .find_object(git_commit_id)
                 .map_err(|err| map_not_found_err(err, id))?;
-            commit_from_git_without_root_parent(id, &git_object, false)?
+            let is_shallow = locked_repo
+                .shallow_commits()
+                .ok()
+                .flatten()
+                .is_some_and(|shallow| shallow.contains(&git_object.id));
+            commit_from_git_without_root_parent(id, &git_object, false, is_shallow)?
         };
         if commit.parents.is_empty() {
             commit.parents.push(self.root_commit_id.clone());
