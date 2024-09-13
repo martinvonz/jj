@@ -169,6 +169,8 @@ use crate::text_util;
 use crate::ui::ColorChoice;
 use crate::ui::Ui;
 
+const SHORT_CHANGE_ID_TEMPLATE_TEXT: &str = "format_short_change_id(self.change_id())";
+
 #[derive(Clone)]
 struct ChromeTracingFlushGuard {
     _inner: Option<Rc<tracing_chrome::FlushGuard>>,
@@ -751,6 +753,7 @@ impl WorkspaceCommandHelper {
         // Parse commit_summary template early to report error before starting
         // mutable operation.
         helper.parse_commit_template(&helper.commit_summary_template_text)?;
+        helper.parse_commit_template(SHORT_CHANGE_ID_TEMPLATE_TEXT)?;
         Ok(helper)
     }
 
@@ -1297,7 +1300,7 @@ impl WorkspaceCommandHelper {
     }
 
     pub fn short_change_id_template(&self) -> TemplateRenderer<'_, Commit> {
-        self.parse_commit_template("format_short_change_id(self.change_id())")
+        self.parse_commit_template(SHORT_CHANGE_ID_TEMPLATE_TEXT)
             .expect("parse error should be confined by WorkspaceCommandHelper::new()")
     }
 
