@@ -6,7 +6,7 @@ practice. In order to provide some motivation, we've collected a number of real,
 100% authentic testimonials &mdash; from our loving users, our silly developers
 &mdash; all to tip the scales and get you on our side!
 
-## What the users have to say 
+## What the users have to say
 
 > I've spent many years of my career working on version control. What I like
 > most about Jujutsu is how it has non-obvious solutions to UX problems that
@@ -37,18 +37,18 @@ practice. In order to provide some motivation, we've collected a number of real,
 > It's so rare that a solution attacks the innermost core of a problem so
 > thoroughly, I genuinely feel blessed to be in its presence. And also a bit
 > vindicated in not even trying to learn to use any of the tools that felt like
-> more crutches stacked upon a sand castle  
+> more crutches stacked upon a sand castle
 
 &mdash; Anonymous user, speaking from the shadows
 
-> It's the easiest time I've ever had learning a tool this deeply this quickly, 
-> because of the ability to experiment and undo, instead of triple-checking 
+> It's the easiest time I've ever had learning a tool this deeply this quickly,
+> because of the ability to experiment and undo, instead of triple-checking
 > before trying a new scary command.
 
 &mdash; Scott Olson, advanced Git user and now a Jujutsu user
 
-> I initially started to use Jujutsu for personal repos, and it has quickly 
-> gone from "neat, let's try this more" to "very neat, added to my permanent 
+> I initially started to use Jujutsu for personal repos, and it has quickly
+> gone from "neat, let's try this more" to "very neat, added to my permanent
 > config and automatically installed for new machines".
 
 &mdash; Poliorcetics, on GitHub
@@ -59,7 +59,7 @@ practice. In order to provide some motivation, we've collected a number of real,
 
 &mdash; jyn514, Rust contributor
 
-> Jujutsu is pretty cool, you can even keep most of your existing workflows 
+> Jujutsu is pretty cool, you can even keep most of your existing workflows
 
 &mdash; Ben, who doesn't want you keeping your existing workflow
 
@@ -69,9 +69,9 @@ practice. In order to provide some motivation, we've collected a number of real,
 Jujutsu exists)
 
 > When I heard about Jujutsu I decided to try it out before forming an opinion.
-> Technically it never formed, because I haven't considered going back. 
+> Technically it never formed, because I haven't considered going back.
 
-&mdash; gul banana, computer programmer 
+&mdash; gul banana, computer programmer
 
 ## What the developers have to say
 
@@ -94,7 +94,7 @@ Jujutsu exists)
 
 &mdash; Anton Bulakh, contributor and dopamine enthusiast
 
-> I'm sometimes still surprised that navigating with `jj next` and `jj prev` 
+> I'm sometimes still surprised that navigating with `jj next` and `jj prev`
 > works.
 
 &mdash; Philip Metzger, author of `jj next` and `jj prev`

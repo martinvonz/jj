@@ -132,22 +132,22 @@ developers monitor both channels.
 ### News and Updates 📣
 
 - **Feb 2024**: Version 0.14 is released, which deprecates ["jj checkout" and "jj merge"](CHANGELOG.md#0140---2024-02-07),
-  as well as `jj init --git`, which is now just called `jj git init`. 
+  as well as `jj init --git`, which is now just called `jj git init`.
 - **Oct 2023**: Version 0.10.0 is released! Now includes a bundled merge and
   diff editor for all platforms, "immutable revsets" to avoid accidentally
   `edit`-ing the wrong revisions, and lots of polish.
 - **Jan 2023**: Martin gave a presentation about Google's plans for Jujutsu at
-  Git Merge 2022! 
+  Git Merge 2022!
   See the [slides][merge-slides] or the [recording][merge-talk].
 
 ### Related Media
 
 - **Mar 2024**: Chris Krycho started [a YouTube series about Jujutsu][krycho-yt].
 - **Feb 2024**: Chris Krycho published an article about Jujutsu called [jj init][krycho]
-  and Steve Klabnik followed up with the [Jujutsu Tutorial][klabnik]. 
-- **Jan 2024**: Jujutsu was featured in an LWN.net article called 
+  and Steve Klabnik followed up with the [Jujutsu Tutorial][klabnik].
+- **Jan 2024**: Jujutsu was featured in an LWN.net article called
   [Jujutsu: a new, Git-compatible version control system][lwn].
-- **Jan 2023**: Martin's Talk about Jujutsu at Git Merge 2022, [video][merge-talk] 
+- **Jan 2023**: Martin's Talk about Jujutsu at Git Merge 2022, [video][merge-talk]
   and the associated [slides][merge-slides].
 
 The wiki also contains a more extensive list of [media references][wiki-media].
@@ -155,9 +155,9 @@ The wiki also contains a more extensive list of [media references][wiki-media].
 [krycho-yt]: https://www.youtube.com/playlist?list=PLelyiwKWHHAq01Pvmpf6x7J0y-yQpmtxp
 [krycho]: https://v5.chriskrycho.com/essays/jj-init/
 [klabnik]: https://steveklabnik.github.io/jujutsu-tutorial/
-[lwn]: https://lwn.net/Articles/958468/ 
+[lwn]: https://lwn.net/Articles/958468/
 [merge-talk]: https://www.youtube.com/watch?v=bx_LGilOuE4
-[merge-slides]: https://docs.google.com/presentation/d/1F8j9_UOOSGUN9MvHxPZX_L4bQ9NMcYOp1isn17kTC_M/view 
+[merge-slides]: https://docs.google.com/presentation/d/1F8j9_UOOSGUN9MvHxPZX_L4bQ9NMcYOp1isn17kTC_M/view
 [wiki-media]: https://github.com/martinvonz/jj/wiki/Media
 
 ## Getting started
@@ -209,7 +209,7 @@ The Git backend is fully featured and maintained, and allows you to use Jujutsu
 with any Git remote. The commits you create will look like regular Git commits.
 You can fetch branches from a regular Git remote and push branches to the
 remote. You can always switch back to Git.
- 
+
 Here is how you can explore a GitHub repository with `jj`.
 
 <img src="demos/git_compat.png" />

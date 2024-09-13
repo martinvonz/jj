@@ -77,7 +77,7 @@ You can untrack such files with the jj file untrack command.
 
 ## Workspaces
 
-You can have multiple working copies backed by a single repo. Use 
+You can have multiple working copies backed by a single repo. Use
 `jj workspace add` to create a new working copy. The working copy will have a
 `.jj/` directory linked to the main repo. The working copy and the `.jj/`
 directory together is called a "workspace". Each workspace can have a different

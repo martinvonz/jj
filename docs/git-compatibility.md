@@ -31,7 +31,7 @@ a comparison with Git, including how workflows are different, see the
 * **.gitignore: Yes.** Ignores in `.gitignore` files are supported. So are
   ignores in `.git/info/exclude` or configured via Git's `core.excludesfile`
   config. The `.gitignore` support uses a native implementation, so please
-  report a bug if you notice any difference compared to `git`.  
+  report a bug if you notice any difference compared to `git`.
 * **.gitattributes: No.** There's [#53](https://github.com/martinvonz/jj/issues/53)
   about adding support for at least the `eol` attribute.
 * **Hooks: No.** There's [#405](https://github.com/martinvonz/jj/issues/405)
@@ -45,7 +45,7 @@ a comparison with Git, including how workflows are different, see the
 * **Staging area: Kind of.** The staging area will be ignored. For example,
   `jj diff` will show a diff from the Git HEAD to the working copy. There are
   [ways of fulfilling your use cases without a staging
-  area](https://github.com/martinvonz/jj/blob/main/docs/git-comparison.md#the-index).  
+  area](https://github.com/martinvonz/jj/blob/main/docs/git-comparison.md#the-index).
 * **Garbage collection: Yes.** It should be safe to run `git gc` in the Git
   repo, but it's not tested, so it's probably a good idea to make a backup of
   the whole workspace first. There's [no garbage collection and repacking of

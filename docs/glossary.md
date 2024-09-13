@@ -25,7 +25,7 @@ such as the "operation store backend" for storing
 A bookmark is a named pointer to a [commit](#commit). They automatically follow
 the commit if it gets [rewritten](#rewrite). Bookmarks are sometimes called
 "named branches" to distinguish them from [anonymous branches](#anonymous-branch).
-They are similar to Git's branches and even more similar to 
+They are similar to Git's branches and even more similar to
 [Mercurial's bookmarks](https://wiki.mercurial-scm.org/Bookmarks). See
 [here](bookmarks.md) for details.
 

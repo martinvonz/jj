@@ -2,7 +2,7 @@
 
 >  **Hint:** This tutorial has become somewhat out of date. Many people find
 >   the alternative (not quite finished) [tutorial by Steve
->   Klabnik](https://steveklabnik.github.io/jujutsu-tutorial/) helpful. 
+>   Klabnik](https://steveklabnik.github.io/jujutsu-tutorial/) helpful.
 
 This text assumes that the reader is familiar with Git.
 

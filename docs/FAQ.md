@@ -66,18 +66,18 @@ important ones are:
 
 - Jujutsu commands may be a little slower in very large repositories due to
   importing and exporting changes to Git. Most repositories are not noticeably
-  affected by this. 
+  affected by this.
 
 If you primarily use Jujutsu to modify the repository, the drawbacks are
 unlikely to affect you. Try co-locating while you learn Jujutsu, then switch if
 you find a specific reason not to co-locate.
 
-### `jj` is said to record the working copy after `jj log` and every other command. Where can I see these automatic "saves"?  
+### `jj` is said to record the working copy after `jj log` and every other command. Where can I see these automatic "saves"?
 
-Indeed, every `jj` command updates the current "working-copy" revision, marked 
+Indeed, every `jj` command updates the current "working-copy" revision, marked
 with `@` in `jj log`. You can notice this by how the [commit ID] of the
 working copy revision changes when it's updated. Note that, unless you move to
-another revision (with `jj new` or `jj edit`, for example), the [change ID] will 
+another revision (with `jj new` or `jj edit`, for example), the [change ID] will
 not change.
 
 If you expected to see a historical view of your working copy changes in the
@@ -151,9 +151,9 @@ ignore everything in the directory including the `.gitignore` file itself.
 
 If `$EDITOR` integration is important, something like `scratchpad.*` may be more
 helpful, as you can keep the filename extension intact (it
-matches `scratchpad.md`, `scratchpad.rs` and more). Another option is to add a 
+matches `scratchpad.md`, `scratchpad.rs` and more). Another option is to add a
 directory to the global `.gitignore` which then stores all your temporary files
-and notes. For example, you could add `scratch/` to `~/.git/ignore` and then 
+and notes. For example, you could add `scratch/` to `~/.git/ignore` and then
 store arbitrary files in `<your-git-repo>/scratch/`.
 
 You can find more details on `gitignore` files [here][gitignore].
@@ -163,7 +163,7 @@ You can find more details on `gitignore` files [here][gitignore].
 Suppose your repository tracks a file like `secret_config.json`, and you make
 some changes to that file to work locally. Since Jujutsu automatically commits
 the working copy, there's no way to prevent Jujutsu from committing changes to
-the file. But, you never want to push those changes to the remote repository. 
+the file. But, you never want to push those changes to the remote repository.
 
 One solution is to keep these changes in a separate commit branched from the
 trunk. To use those changes in your working copy, _merge_ the private commit
@@ -251,7 +251,7 @@ commit to the new state.
 ### How do I resume working on an existing change?
 
 There are two ways to resume working on an earlier change: `jj new` then `jj squash`,
-and `jj edit`. The first is generally recommended, but `jj edit` can be useful. When 
+and `jj edit`. The first is generally recommended, but `jj edit` can be useful. When
 you use `jj edit`, the revision is directly amended with your new changes, making it
 difficult to tell what exactly you change. You should avoid using `jj edit` when the
 revision has a conflict, as you may accidentally break the plain-text annotations on
@@ -259,7 +259,7 @@ your state without realising.
 
 To start, use `jj new <rev>` to create a change based on that earlier revision. Make
 your edits, then use `jj squash` to update the earlier revision with those edits.
-For when you would use git stashing, use `jj edit <rev>` for expected behaviour. 
+For when you would use git stashing, use `jj edit <rev>` for expected behaviour.
 Other workflows may prefer `jj edit` as well.
 
 ### How do I deal with divergent changes ('??' after the [change ID])?

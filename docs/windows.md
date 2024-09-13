@@ -88,7 +88,7 @@ Then only use the `~/my-repo` workspace from Linux.
 
 ## Symbolic link support
 
-`jj` supports symlinks on Windows only when they are enabled by the operating 
+`jj` supports symlinks on Windows only when they are enabled by the operating
 system. This requires Windows 10 version 14972 or higher, as well as Developer
 Mode. If those conditions are not satisfied, `jj` will materialize symlinks as
 ordinary files.

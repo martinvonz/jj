@@ -36,22 +36,22 @@ commit and the new feature in a different commit. If the refactoring itself
 consists of many parts, try to separate out those into separate commits. You can
 use `jj split` to do it if you didn't realize ahead of time how it should be
 split up. Include tests and documentation in the same commit as the code they
-test and document. 
+test and document.
 
 The commit message should describe the changes in the commit;
 the PR description can even be empty, but feel free to include a personal
-message. We write commit messages in an affected component style and don't use 
-[conventional commits](www.conventionalcommits.org/en/v1.0.0/). This means if 
-you modified a command in the CLI, use its name as the topic, e.g 
+message. We write commit messages in an affected component style and don't use
+[conventional commits](www.conventionalcommits.org/en/v1.0.0/). This means if
+you modified a command in the CLI, use its name as the topic, e.g
 `next/prev: <your-modification>` or `conflicts: <your-modification>`. We don't
-currently have a specific guidelines on what to write in the topic field, but 
-the reviewers will help you provide a topic if you have difficulties choosing 
+currently have a specific guidelines on what to write in the topic field, but
+the reviewers will help you provide a topic if you have difficulties choosing
 it.
 
 When you address comments on a PR, don't make the changes in a commit on top (as
 is typical on GitHub). Instead, please make the changes in the appropriate
-commit. You can do that by creating a new commit on top of the initial commit 
- (`jj new <commit>`) and then squash in the changes when you're done (`jj squash`). 
+commit. You can do that by creating a new commit on top of the initial commit
+ (`jj new <commit>`) and then squash in the changes when you're done (`jj squash`).
 `jj git push`
 will automatically force-push the bookmark.
 
@@ -74,9 +74,9 @@ Guidelines](https://opensource.google/conduct/).
 
 ## Contributing large patches
 
-Before sending a PR for a large change which designs/redesigns or reworks an 
-existing component, we require an architecture review from  multiple 
-stakeholders, which we do with [Design Docs](design_docs.md), see the 
+Before sending a PR for a large change which designs/redesigns or reworks an
+existing component, we require an architecture review from  multiple
+stakeholders, which we do with [Design Docs](design_docs.md), see the
 [process here](design_docs.md#process).
 
 ## Contributing to the documentation
@@ -233,7 +233,7 @@ necessary. Any version of `pipx` will do. If you are installing `pipx` manually,
 you may first need to follow the [Python installation instructions].
 
 [Python installation instructions]: https://docs.python.org/3/using/index.html
-[Poetry installation instructions]: https://python-poetry.org/docs/#installation 
+[Poetry installation instructions]: https://python-poetry.org/docs/#installation
 
 Once you have `poetry` installed, you should ask it to install the rest
 of the required tools into a virtual environment as follows:

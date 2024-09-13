@@ -771,7 +771,7 @@ patterns = ["numbers.txt"]
 
 ## Commit Signing
 
-`jj` can be configured to sign and verify the commits it creates using either 
+`jj` can be configured to sign and verify the commits it creates using either
 GnuPG or SSH signing keys.
 
 To do this you need to configure a signing backend.
@@ -824,8 +824,8 @@ signing.backends.ssh.program = "/path/to/ssh-keygen"
 When verifying commit signatures the ssh backend needs to be provided with an allowed-signers
 file containing the public keys of authors whose signatures you want to be able to verify.
 
-You can find the format for this file in the 
-[ssh-keygen man page](https://man.openbsd.org/ssh-keygen#ALLOWED_SIGNERS). This can be provided 
+You can find the format for this file in the
+[ssh-keygen man page](https://man.openbsd.org/ssh-keygen#ALLOWED_SIGNERS). This can be provided
 as follows:
 
 ```toml
