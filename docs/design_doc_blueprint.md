@@ -8,17 +8,17 @@ Author: [Your-Name](mailto:your-name@reachable.com)
 
 ## Summary
 
-A short summary of your project/re-design/component and what problems it 
+A short summary of your project/re-design/component and what problems it
 addresses in about 3-10 sentences.
 
 ## State of the Feature as of `$VERSION` (optional)
 
-The state of the feature you want to improve and where it currently falls 
+The state of the feature you want to improve and where it currently falls
 short. If there's nothing to compare to, leave it out.
 
 ## Prior work (optional)
 
-Does this feature exist somewhere else and which tradeoffs it made. 
+Does this feature exist somewhere else and which tradeoffs it made.
 
 > If there's no prior work, then use the related work section below.
 
@@ -33,7 +33,7 @@ A detailed overview of the project and the improvements it brings.
 ### Detailed Design
 
 The place to describe all new interfaces and interactions and how it plays into
-the existing code and behavior. This is the place for all nitty-gritty details 
+the existing code and behavior. This is the place for all nitty-gritty details
 which interact with the system.
 
 ## Alternatives considered (optional)
@@ -46,8 +46,8 @@ A list of issues which are addressed by this design.
 
 ## Related Work (optional)
 
-If there's a feature in another VCS which shares some similarities to your 
-proposed work, it belongs here. An example would be Jujutsu sparse workspaces 
+If there's a feature in another VCS which shares some similarities to your
+proposed work, it belongs here. An example would be Jujutsu sparse workspaces
 and Perforce client workspaces.
 
 ## Future Possibilities

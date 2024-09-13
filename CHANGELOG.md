@@ -23,11 +23,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 * `jj branch` has been deprecated in favor of `jj bookmark`.
 
-  **Rationale:** Jujutsu's branches don't behave like Git branches, which a 
+  **Rationale:** Jujutsu's branches don't behave like Git branches, which a
   confused many newcomers, as they expected a similar behavior given the name.
   We've renamed them to "bookmarks" to match the actual behavior, as we think
-  that describes them better, and they also behave similar to Mercurial's 
-  bookmarks. 
+  that describes them better, and they also behave similar to Mercurial's
+  bookmarks.
 
 * The `git.push-branch-prefix` config has been deprecated in favor of
   `git.push-bookmark-prefix`.
@@ -87,7 +87,7 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 * A tilde (`~`) at the start of the path will now be expanded to the user's home
   directory when configuring a `signing.key` for SSH commit signing.
-  
+
 * When reconfiguring the author, warn that the working copy won't be updated
 
 ### Fixed bugs
@@ -187,7 +187,7 @@ Thanks to the people who made this release happen!
 
 * `jj backout` can now back out multiple commits at once.
 
-* `jj git clone some/nested/path` now creates the full directory tree for 
+* `jj git clone some/nested/path` now creates the full directory tree for
    nested destination paths if they don't exist.
 
 * String patterns now support case‐insensitive matching by suffixing any

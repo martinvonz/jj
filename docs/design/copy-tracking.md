@@ -75,12 +75,12 @@ pub type CopyRecordStream = BoxStream<BackendResult<CopyRecord>>;
 
 pub trait Backend {
     /// Get all copy records for `paths` in the dag range `roots..heads`.
-    /// 
+    ///
     /// The exact order these are returned is unspecified, but it is guaranteed
     /// to be reverse-topological. That is, for any two copy records with
     /// different commit ids A and B, if A is an ancestor of B, A is streamed
     /// after B.
-    /// 
+    ///
     /// Streaming by design to better support large backends which may have very
     /// large single-file histories. This also allows more iterative algorithms
     /// like blame/annotate to short-circuit after a point without wasting

@@ -18,4 +18,3 @@
   rewrite-relative-urls=false
   start="<!-- BEGIN MARKDOWN-->"
 %}
-

@@ -405,7 +405,7 @@ For example:
 ### Built-in Aliases
 
 The following aliases are built-in and used for certain operations. These functions
-are defined as aliases in order to allow you to overwrite them as needed. 
+are defined as aliases in order to allow you to overwrite them as needed.
 See [revsets.toml](https://github.com/martinvonz/jj/blob/main/cli/src/config/revsets.toml)
 for a comprehensive list.
 
@@ -439,7 +439,7 @@ for a comprehensive list.
 * `immutable()`: The set of commits that `jj` treats as immutable. This is
   equivalent to `::(immutable_heads() | root())`. It is not recommended to redefine
   this alias. Note that modifying this will *not* change whether a commit is immutable.
-  To do that, edit `immutable_heads()`. 
+  To do that, edit `immutable_heads()`.
 
 * `mutable()`: The set of commits that `jj` treats as mutable. This is
   equivalent to `~immutable()`. It is not recommended to redefined this alias.

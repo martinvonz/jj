@@ -80,8 +80,8 @@ This type cannot be printed. The following methods are defined.
   working-copy commit as `<workspace name>@`.
 * `current_working_copy() -> Boolean`: True for the working-copy commit of the
   current workspace.
-* `bookmarks() -> List<RefName>`: Local and remote bookmarks pointing to the 
-  commit. A tracking remote bookmark will be included only if its target is 
+* `bookmarks() -> List<RefName>`: Local and remote bookmarks pointing to the
+  commit. A tracking remote bookmark will be included only if its target is
   different from the local one.
 * `local_bookmarks() -> List<RefName>`: All local bookmarks pointing to the commit.
 * `remote_bookmarks() -> List<RefName>`: All remote bookmarks pointing to the commit.
