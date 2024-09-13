@@ -725,6 +725,7 @@ pub struct WorkspaceCommandHelper {
     env: WorkspaceCommandEnvironment,
     // TODO: Parsed template can be cached if it doesn't capture 'repo lifetime
     commit_summary_template_text: String,
+    op_summary_template_text: String,
     may_update_working_copy: bool,
     working_copy_shared_with_git: bool,
 }
@@ -740,6 +741,7 @@ impl WorkspaceCommandHelper {
         let settings = env.settings();
         let commit_summary_template_text =
             settings.config().get_string("templates.commit_summary")?;
+        let op_summary_template_text = settings.config().get_string("templates.op_summary")?;
         let may_update_working_copy =
             loaded_at_head && !env.command.global_args().ignore_working_copy;
         let working_copy_shared_with_git = is_colocated_git_workspace(&workspace, &repo);
@@ -748,11 +750,13 @@ impl WorkspaceCommandHelper {
             user_repo: ReadonlyUserRepo::new(repo),
             env,
             commit_summary_template_text,
+            op_summary_template_text,
             may_update_working_copy,
             working_copy_shared_with_git,
         };
         // Parse commit_summary template early to report error before starting
         // mutable operation.
+        helper.parse_operation_template(&helper.op_summary_template_text)?;
         helper.parse_commit_template(&helper.commit_summary_template_text)?;
         helper.parse_commit_template(SHORT_CHANGE_ID_TEMPLATE_TEXT)?;
         Ok(helper)
@@ -1288,6 +1292,19 @@ impl WorkspaceCommandHelper {
         )
     }
 
+    /// Parses commit template into evaluation tree.
+    pub fn parse_operation_template(
+        &self,
+        template_text: &str,
+    ) -> TemplateParseResult<TemplateRenderer<'_, Operation>> {
+        let language = self.operation_template_language();
+        self.parse_template(
+            &language,
+            template_text,
+            OperationTemplateLanguage::wrap_operation,
+        )
+    }
+
     /// Creates commit template language environment for this workspace.
     pub fn commit_template_language(&self) -> CommitTemplateLanguage<'_> {
         self.env
@@ -1306,6 +1323,12 @@ impl WorkspaceCommandHelper {
     /// Template for one-line summary of a commit.
     pub fn commit_summary_template(&self) -> TemplateRenderer<'_, Commit> {
         self.parse_commit_template(&self.commit_summary_template_text)
+            .expect("parse error should be confined by WorkspaceCommandHelper::new()")
+    }
+
+    /// Template for one-line summary of an operation.
+    pub fn operation_summary_template(&self) -> TemplateRenderer<'_, Operation> {
+        self.parse_operation_template(&self.op_summary_template_text)
             .expect("parse error should be confined by WorkspaceCommandHelper::new()")
     }
 
