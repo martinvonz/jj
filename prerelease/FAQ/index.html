@@ -1720,6 +1720,16 @@ important ones are:</p>
   or divergent changes.</p>
 </li>
 <li>
+<p>If the working copy commit or its parent contain any conflicted files, tools
+  expecting a Git repo may interpret the commit contents or its diff in a wrong
+  and confusing way. You should avoid doing mutating operations with Git tools
+  and ignore the confusing information such tools present for conflicted commits
+  (unless you are curious about <a href="../technical/conflicts/">the details of how <code>jj</code> stores
+  conflicts</a>). See
+  <a href="https://github.com/martinvonz/jj/issues/3979">#3979</a> for plans to improve
+  this situation.</p>
+</li>
+<li>
 <p>Jujutsu commands may be a little slower in very large repositories due to
   importing and exporting changes to Git. Most repositories are not noticeably
   affected by this. </p>
