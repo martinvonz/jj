@@ -52,6 +52,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 * `jj op log` gained an option to include operation diffs.
 
+* A new global flag `--no-commit-transaction` lets you run a command without
+  impacting the repo state or the working copy.
+
 ### Fixed bugs
 
  * Fixed panic when parsing invalid conflict markers of a particular form.

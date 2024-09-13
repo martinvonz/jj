@@ -159,6 +159,13 @@ To get started, see the tutorial at https://martinvonz.github.io/jj/latest/tutor
    By default, Jujutsu snapshots the working copy at the beginning of every command. The working copy is also updated at the end of the command, if the command modified the working-copy commit (`@`). If you want to avoid snapshotting the working copy and instead see a possibly stale working copy commit, you can use `--ignore-working-copy`. This may be useful e.g. in a command prompt, especially if you have another process that commits the working copy.
 
    Loading the repository at a specific operation with `--at-operation` implies `--ignore-working-copy`.
+* `--no-commit-transaction` — Run the command as usual but don't commit any transactions
+
+   When this option is given, the operations will still be created as usual but they will not be committed/promoted to the operation log. The working copy will also not be updated.
+
+   The command will print the resulting operation id. You can pass that to e.g. `jj --at-op` to inspect the resulting repo state, or you can pass it to `jj op restore` to restore the repo to that state.
+
+   Note that this does *not* prevent side effects outside the repo. For example, `jj git push --no-commit-transaction` will still perform the push.
 * `--ignore-immutable` — Allow rewriting immutable commits
 
    By default, Jujutsu prevents rewriting commits in the configured set of immutable commits. This option disables that check and lets you rewrite any commit but the root commit.
