@@ -36,7 +36,6 @@ use jj_lib::revset;
 use jj_lib::revset::RevsetIteratorExt as _;
 
 use crate::cli_util::short_change_hash;
-use crate::cli_util::short_operation_hash;
 use crate::cli_util::CommandHelper;
 use crate::cli_util::LogContentFormat;
 use crate::command_error::CommandError;
@@ -123,42 +122,15 @@ pub fn cmd_op_diff(
         workspace_env.parse_template(&language, &text, CommitTemplateLanguage::wrap_commit)?
     };
 
+    let op_summary_template = workspace_command.operation_summary_template();
     ui.request_pager();
     let mut formatter = ui.stdout_formatter();
     formatter.with_label("op_log", |formatter| {
         write!(formatter, "From operation ")?;
-        write!(
-            formatter.labeled("id"),
-            "{}",
-            short_operation_hash(from_op.id()),
-        )?;
-        write!(formatter, ": ")?;
-        write!(
-            formatter.labeled("description"),
-            "{}",
-            if from_op.id() == from_op.op_store().root_operation_id() {
-                "root()"
-            } else {
-                &from_op.metadata().description
-            }
-        )?;
+        op_summary_template.format(&from_op, &mut *formatter)?;
         writeln!(formatter)?;
         write!(formatter, "  To operation ")?;
-        write!(
-            formatter.labeled("id"),
-            "{}",
-            short_operation_hash(to_op.id()),
-        )?;
-        write!(formatter, ": ")?;
-        write!(
-            formatter.labeled("description"),
-            "{}",
-            if to_op.id() == to_op.op_store().root_operation_id() {
-                "root()"
-            } else {
-                &to_op.metadata().description
-            }
-        )?;
+        op_summary_template.format(&to_op, &mut *formatter)?;
         writeln!(formatter)
     })?;
 

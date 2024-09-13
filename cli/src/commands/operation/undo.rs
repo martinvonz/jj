@@ -21,7 +21,6 @@ use super::DEFAULT_UNDO_WHAT;
 use crate::cli_util::CommandHelper;
 use crate::command_error::user_error;
 use crate::command_error::CommandError;
-use crate::operation_templater::OperationTemplateLanguage;
 use crate::ui::Ui;
 
 /// Create a new operation that undoes an earlier operation
@@ -73,21 +72,7 @@ pub fn cmd_op_undo(
 
     if let Some(mut formatter) = ui.status_formatter() {
         write!(formatter, "Undid operation ")?;
-        let workspace_env = workspace_command.env();
-        let language = OperationTemplateLanguage::new(
-            bad_op.op_store().root_operation_id(),
-            Some(bad_op.id()),
-            workspace_env.operation_template_extensions(),
-        );
-        let text = command
-            .settings()
-            .config()
-            .get_string("templates.op_summary")?;
-        let template = workspace_env.parse_template(
-            &language,
-            &text,
-            OperationTemplateLanguage::wrap_operation,
-        )?;
+        let template = workspace_command.operation_summary_template();
         template.format(&bad_op, &mut *formatter)?;
         writeln!(formatter)?;
     }
