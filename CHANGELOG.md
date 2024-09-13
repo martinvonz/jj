@@ -29,6 +29,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   that describes them better, and they also behave similar to Mercurial's 
   bookmarks. 
 
+* The `git.push-branch-prefix` config has been deprecated in favor of
+  `git.push-bookmark-prefix`.
+
 ### New features
 
 * The new config option `snapshot.auto-track` lets you automatically track only

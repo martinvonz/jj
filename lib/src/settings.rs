@@ -196,6 +196,10 @@ impl UserSettings {
             .unwrap_or_else(|_| "push-".to_string())
     }
 
+    pub fn push_branch_prefix(&self) -> Option<String> {
+        self.config.get_string("git.push-branch-prefix").ok()
+    }
+
     pub fn default_description(&self) -> String {
         self.config()
             .get_string("ui.default-description")

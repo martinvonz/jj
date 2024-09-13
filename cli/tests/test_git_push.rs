@@ -679,6 +679,25 @@ fn test_git_push_changes() {
     Bookmark changes to push to origin:
       Add bookmark test-yostqsxwqrlt to 38cb417ce3a6
     "###);
+
+    // Test deprecation warning for `git.push-branch-prefix`
+    let (stdout, stderr) = test_env.jj_cmd_ok(
+        &workspace_root,
+        &[
+            "git",
+            "push",
+            "--config-toml",
+            r"git.push-branch-prefix='branch-'",
+            "--change=@",
+        ],
+    );
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+  Warning: Config git.push-branch-prefix is deprecated. Please switch to git.push-bookmark-prefix
+  Creating bookmark branch-yostqsxwqrlt for revision yostqsxwqrlt
+  Bookmark changes to push to origin:
+    Add bookmark branch-yostqsxwqrlt to 38cb417ce3a6
+  "###);
 }
 
 #[test]
