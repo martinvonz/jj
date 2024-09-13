@@ -1849,15 +1849,30 @@ the <a href="../tutorial/#conflicts">tutorial</a>.</p>
 <p>It is common to use several remotes when contributing to a shared repository.
 For example, "upstream" can designate the remote where the changes will be
 merged through a pull-request while "origin" is your private fork of the
-project. In this case, you might want to <code>jj git fetch</code> from "upstream" and to
-<code>jj git push</code> to "origin".</p>
-<p>You can configure the default remotes to fetch from and push to in your
-configuration file (for example <code>.jj/repo/config.toml</code>):</p>
+project.</p>
+<div class="highlight"><pre><span></span><code>$<span class="w"> </span>jj<span class="w"> </span>git<span class="w"> </span>clone<span class="w"> </span>--remote<span class="w"> </span>upstream<span class="w"> </span>https://github.com/upstream-org/repo
+$<span class="w"> </span><span class="nb">cd</span><span class="w"> </span>repo
+$<span class="w"> </span>jj<span class="w"> </span>git<span class="w"> </span>remote<span class="w"> </span>add<span class="w"> </span>origin<span class="w"> </span>git@github.com:your-org/your-repo-fork
+</code></pre></div>
+<p>This will automatically setup your repository to track the main
+bookmark from the upstream repository, typically <code>main@upstream</code>
+or <code>master@upstream</code>.</p>
+<p>You might want to <code>jj git fetch</code> from "upstream" and to <code>jj git push</code>
+to "origin". You can configure the default remotes to fetch from and
+push to in your configuration file (for example,
+<code>.jj/repo/config.toml</code>):</p>
 <div class="highlight"><pre><span></span><code><span class="k">[git]</span>
 <span class="n">fetch</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;upstream&quot;</span>
 <span class="n">push</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;origin&quot;</span>
 </code></pre></div>
 <p>The default for both <code>git.fetch</code> and <code>git.push</code> is "origin".</p>
+<p>If you usually work on a project from several computers, you may
+configure <code>jj</code> to fetch from both repositories by default, in order to
+keep your own bookmarks synchronized through your <code>origin</code> repository:</p>
+<div class="highlight"><pre><span></span><code><span class="k">[git]</span>
+<span class="n">fetch</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;upstream&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;origin&quot;</span><span class="p">]</span>
+<span class="n">push</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;origin&quot;</span>
+</code></pre></div>
 <div class="footnote">
 <hr />
 <ol>

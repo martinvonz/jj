@@ -1626,6 +1626,9 @@ update the Git repo with changes made in the Jujutsu repo.</p>
 [&lt;destination&gt;]</code>. For example, <code>jj git clone
 https://github.com/octocat/Hello-World</code> will clone GitHub's "Hello-World" repo
 into a directory by the same name.</p>
+<p>By default, the remote repository will be named <code>origin</code>. You can use
+a name of your choice by adding <code>--remote &lt;remote name&gt;</code> to the <code>jj
+git clone</code> command.</p>
 <h2 id="co-located-jujutsugit-repos">Co-located Jujutsu/Git repos<a class="headerlink" href="#co-located-jujutsugit-repos" title="Permanent link">&para;</a></h2>
 <p>A "co-located" Jujutsu repo is a hybrid Jujutsu/Git repo. These can be created
 if you initialize the Jujutsu repo in an existing Git repo by running <code>jj git
