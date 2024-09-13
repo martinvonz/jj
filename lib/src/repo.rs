@@ -1392,6 +1392,10 @@ impl MutableRepo {
         Ok(())
     }
 
+    pub fn remove_git_head_target(&mut self, workspace_id: &WorkspaceId) {
+        self.view_mut().remove_git_head_target(workspace_id);
+    }
+
     pub fn remove_wc_commit(&mut self, workspace_id: &WorkspaceId) -> Result<(), EditCommitError> {
         self.maybe_abandon_wc_commit(workspace_id)?;
         self.view_mut().remove_wc_commit(workspace_id);
@@ -1711,6 +1715,10 @@ impl MutableRepo {
             } else {
                 // The other side removed the workspace. We want to remove it even if the self
                 // side changed the working-copy commit.
+                // TODO: remove the git_heads entry as well. May want to migrate to a
+                // HashMap<WorkspaceId, WorkspaceView> in the View, and simply remove a
+                // workspace all at once. However this proved more tricky than
+                // expected.
                 self.view_mut().remove_wc_commit(workspace_id);
             }
         }

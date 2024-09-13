@@ -352,6 +352,10 @@ impl View {
         self.data.git_heads = git_heads;
     }
 
+    pub(crate) fn remove_git_head_target(&mut self, workspace_id: &WorkspaceId) {
+        self.data.git_heads.remove(workspace_id);
+    }
+
     /// Iterates all commit ids referenced by this view.
     ///
     /// This can include hidden commits referenced by remote bookmarks, previous
