@@ -17,7 +17,7 @@ categories = ["version-control", "development-tools"]
 keywords = ["VCS", "DVCS", "SCM", "Git", "Mercurial"]
 
 [workspace.dependencies]
-anyhow = "1.0.86"
+anyhow = "1.0.88"
 assert_cmd = "2.0.8"
 assert_matches = "1.5.0"
 async-trait = "0.1.82"
@@ -67,7 +67,7 @@ gix = { version = "0.66.0", default-features = false, features = [
 gix-filter = "0.13.0"
 glob = "0.3.1"
 hex = "0.4.3"
-ignore = "0.4.20"
+ignore = "0.4.23"
 indexmap = "2.5.0"
 indoc = "2.0.4"
 insta = { version = "1.40.0", features = ["filters"] }
@@ -91,7 +91,7 @@ rayon = "1.10.0"
 ref-cast = "1.0.23"
 regex = "1.10.6"
 rpassword = "7.3.1"
-rustix = { version = "0.38.36", features = ["fs"] }
+rustix = { version = "0.38.37", features = ["fs"] }
 scm-record = "0.3.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.128"
