@@ -307,9 +307,9 @@
                     "description": "Whether jj should abandon commits that became unreachable in Git.",
                     "default": true
                 },
-                "push-branch-prefix": {
+                "push-bookmark-prefix": {
                     "type": "string",
-                    "description": "Prefix used when pushing a change ID as a new branch",
+                    "description": "Prefix used when pushing a bookmark based on a change ID",
                     "default": "push-"
                 },
                 "fetch": {
