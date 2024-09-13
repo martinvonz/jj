@@ -13,8 +13,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 * Invalid `ui.graph.style` configuration is now an error.
 
-* The builtin template `branch_list` has been renamed to `bookmark_list` in 
-  lieu of the `jj branch` deprecation.
+* The builtin template `branch_list` has been renamed to `bookmark_list` as part
+  of the `jj branch` deprecation.
 
 ### Deprecations
 
