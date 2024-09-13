@@ -398,3 +398,151 @@ fn test_id_prefix_divergent() {
         3
     );
 }
+
+#[test]
+fn test_id_prefix_hidden() {
+    let settings = testutils::user_settings();
+    let test_repo = TestRepo::init_with_backend(TestRepoBackend::Git);
+    let repo = &test_repo.repo;
+    let root_commit_id = repo.store().root_commit_id();
+
+    let mut tx = repo.start_transaction(&settings);
+    let mut commits = vec![];
+    for i in 0..10 {
+        let signature = Signature {
+            name: "Some One".to_string(),
+            email: "some.one@example.com".to_string(),
+            timestamp: Timestamp {
+                timestamp: MillisSinceEpoch(i),
+                tz_offset: 0,
+            },
+        };
+        let commit = tx
+            .repo_mut()
+            .new_commit(
+                &settings,
+                vec![root_commit_id.clone()],
+                repo.store().empty_merged_tree_id(),
+            )
+            .set_author(signature.clone())
+            .set_committer(signature)
+            .write()
+            .unwrap();
+        commits.push(commit);
+    }
+
+    // Print the commit IDs and change IDs for reference
+    let commit_prefixes = commits
+        .iter()
+        .enumerate()
+        .map(|(i, commit)| format!("{} {}", &commit.id().hex()[..3], i))
+        .sorted()
+        .join("\n");
+    insta::assert_snapshot!(commit_prefixes, @r#"
+    15e 9
+    397 6
+    53c 7
+    62e 2
+    648 8
+    7c7 3
+    853 4
+    c0a 5
+    ce9 0
+    f10 1
+    "#);
+    let change_prefixes = commits
+        .iter()
+        .enumerate()
+        .map(|(i, commit)| format!("{} {}", &commit.change_id().hex()[..3], i))
+        .sorted()
+        .join("\n");
+    insta::assert_snapshot!(change_prefixes, @r#"
+    026 9
+    1b5 6
+    26b 3
+    26c 8
+    439 2
+    781 0
+    871 7
+    896 5
+    a2c 1
+    b93 4
+    "#);
+
+    let hidden_commit = &commits[8];
+    tx.repo_mut()
+        .record_abandoned_commit(hidden_commit.id().clone());
+    tx.repo_mut().rebase_descendants(&settings).unwrap();
+    let repo = tx.commit("test");
+
+    let prefix = |x: &str| HexPrefix::new(x).unwrap();
+
+    // Without a disambiguation revset
+    // --------------------------------
+    let c = IdPrefixContext::default();
+    assert_eq!(
+        c.shortest_commit_prefix_len(repo.as_ref(), hidden_commit.id()),
+        2
+    );
+    assert_eq!(
+        c.shortest_change_prefix_len(repo.as_ref(), hidden_commit.change_id()),
+        3
+    );
+    assert_eq!(
+        c.resolve_commit_prefix(repo.as_ref(), &prefix(&hidden_commit.id().hex()[..1])),
+        AmbiguousMatch
+    );
+    assert_eq!(
+        c.resolve_commit_prefix(repo.as_ref(), &prefix(&hidden_commit.id().hex()[..2])),
+        SingleMatch(hidden_commit.id().clone())
+    );
+    assert_eq!(
+        c.resolve_change_prefix(
+            repo.as_ref(),
+            &prefix(&hidden_commit.change_id().hex()[..2])
+        ),
+        AmbiguousMatch
+    );
+    assert_eq!(
+        c.resolve_change_prefix(
+            repo.as_ref(),
+            &prefix(&hidden_commit.change_id().hex()[..3])
+        ),
+        NoMatch
+    );
+
+    // Disambiguate within hidden
+    // --------------------------
+    let expression = RevsetExpression::commit(hidden_commit.id().clone());
+    let c = c.disambiguate_within(expression);
+    assert_eq!(
+        c.shortest_commit_prefix_len(repo.as_ref(), hidden_commit.id()),
+        1
+    );
+    assert_eq!(
+        c.shortest_change_prefix_len(repo.as_ref(), hidden_commit.change_id()),
+        1
+    );
+    // Short commit id can be resolved even if it's hidden.
+    assert_eq!(
+        c.resolve_commit_prefix(repo.as_ref(), &prefix(&hidden_commit.id().hex()[..1])),
+        SingleMatch(hidden_commit.id().clone())
+    );
+    // OTOH, hidden change id should never be found. The resolution might be
+    // ambiguous if hidden commits were excluded from the disambiguation set.
+    // In that case, shortest_change_prefix_len() shouldn't be 1.
+    assert_eq!(
+        c.resolve_change_prefix(
+            repo.as_ref(),
+            &prefix(&hidden_commit.change_id().hex()[..1])
+        ),
+        NoMatch
+    );
+    assert_eq!(
+        c.resolve_change_prefix(
+            repo.as_ref(),
+            &prefix(&hidden_commit.change_id().hex()[..2])
+        ),
+        NoMatch
+    );
+}

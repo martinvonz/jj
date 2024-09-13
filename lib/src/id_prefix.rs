@@ -176,10 +176,12 @@ impl IdPrefixContext {
                 .change_index
                 .resolve_prefix_to_key(&*indexes.commit_change_ids, prefix);
             if let PrefixResolution::SingleMatch(change_id) = resolution {
-                // There may be more commits with this change id outside the narrower sets.
-                return PrefixResolution::SingleMatch(repo.resolve_change_id(&change_id).expect(
-                    "Change ids present in narrower search set should be present globally.",
-                ));
+                return match repo.resolve_change_id(&change_id) {
+                    // There may be more commits with this change id outside the narrower sets.
+                    Some(commit_ids) => PrefixResolution::SingleMatch(commit_ids),
+                    // The disambiguation set may contain hidden commits.
+                    None => PrefixResolution::NoMatch,
+                };
             }
         }
         repo.resolve_change_id_prefix(prefix)
