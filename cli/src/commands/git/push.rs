@@ -193,12 +193,19 @@ pub fn cmd_git_push(
         let mut seen_bookmarks: HashSet<&str> = HashSet::new();
 
         // Process --change bookmarks first because matching bookmarks can be moved.
-        let change_bookmark_names = update_change_bookmarks(
-            ui,
-            &mut tx,
-            &args.change,
-            &command.settings().push_bookmark_prefix(),
-        )?;
+        // TODO: Drop support support for git.push-branch-prefix in 0.28.0+
+        let bookmark_prefix = if let Some(prefix) = command.settings().push_branch_prefix() {
+            writeln!(
+                ui.warning_default(),
+                "Config git.push-branch-prefix is deprecated. Please switch to \
+                 git.push-bookmark-prefix",
+            )?;
+            prefix
+        } else {
+            command.settings().push_bookmark_prefix()
+        };
+        let change_bookmark_names =
+            update_change_bookmarks(ui, &mut tx, &args.change, &bookmark_prefix)?;
         let change_bookmarks = change_bookmark_names.iter().map(|bookmark_name| {
             let targets = LocalAndRemoteRef {
                 local_target: tx.repo().view().get_local_bookmark(bookmark_name),
