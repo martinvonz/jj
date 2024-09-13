@@ -1748,39 +1748,39 @@
 <h1 id="introducing-jj-run">Introducing JJ run<a class="headerlink" href="#introducing-jj-run" title="Permanent link">&para;</a></h1>
 <p>Authors: <a href="mailto:philipmetzger@bluewin.ch">Philip Metzger</a>, <a href="mailto:martinvonz@google.com">Martin von Zweigberk</a>, <a href="mailto:hooper@google.com">Danny Hooper</a>, <a href="mailto:me@waleedkhan.name">Waleed Khan</a></p>
 <p>Initial Version, 10.12.2022 (view full history <a href="https://docs.google.com/document/d/14BiAoEEy_e-BRPHYpXRFjvHMfgYVKh-pKWzzTDi-v-g/edit">here</a>)</p>
-<p><strong>Summary:</strong> This Document documents the design of a new <code>run</code> command for 
+<p><strong>Summary:</strong> This Document documents the design of a new <code>run</code> command for
 Jujutsu which will be used to seamlessly integrate with build systems, linters
-and formatters. This is achieved by running a user-provided command or script 
-across multiple revisions. For more details, read the 
+and formatters. This is achieved by running a user-provided command or script
+across multiple revisions. For more details, read the
 <a href="#use-cases-of-jj-run">Use-Cases of jj run</a>.</p>
 <h2 id="preface">Preface<a class="headerlink" href="#preface" title="Permanent link">&para;</a></h2>
 <p>The goal of this Design Document is to specify the correct behavior of <code>jj run</code>.
-The points we decide on here I (Philip Metzger) will try to implement. There 
+The points we decide on here I (Philip Metzger) will try to implement. There
 exists some prior work in other DVCS:</p>
 <ul>
-<li><code>git test</code>: part of <a href="https://github.com/arxanas/git-branchless">git-branchless</a>. Similar to this proposal for <code>jj run</code>. </li>
+<li><code>git test</code>: part of <a href="https://github.com/arxanas/git-branchless">git-branchless</a>. Similar to this proposal for <code>jj run</code>.</li>
 <li><code>hg run</code>: Google's internal Mercurial extension. Similar to this proposal for
 <code>jj run</code>.
-Details not available. </li>
+Details not available.</li>
 <li><code>hg fix</code>: Google's open source Mercurial extension: <a href="https://repo.mercurial-scm.org/hg/file/tip/hgext/fix.py">source code</a>. A
 more specialized approach to rewriting file content without full context of the
-working directory. </li>
-<li><code>git rebase -x</code>: runs commands opportunistically as part of rebase. </li>
+working directory.</li>
+<li><code>git rebase -x</code>: runs commands opportunistically as part of rebase.</li>
 <li><code>git bisect run</code>: run a command to determine which commit introduced a bug.</li>
 </ul>
 <h2 id="context-and-scope">Context and Scope<a class="headerlink" href="#context-and-scope" title="Permanent link">&para;</a></h2>
 <p>The initial need for some kind of command runner integrated in the VCS, surfaced
 in a <a href="https://github.com/martinvonz/jj/issues/405">github discussion</a>. In a <a href="https://discord.com/channels/968932220549103686/969829516539228222/1047958933161119795">discussion on discord</a> about
 the git-hook model, there was consensus about not repeating their mistakes.</p>
-<p>For <code>jj run</code> there is prior art in Mercurial, git branchless and Google's 
+<p>For <code>jj run</code> there is prior art in Mercurial, git branchless and Google's
 internal Mercurial. Currently git-branchless <code>git test</code> and <code>hg fix</code> implement
-some kind of command runner. The Google internal <code>hg run</code> works in 
+some kind of command runner. The Google internal <code>hg run</code> works in
 conjunction with CitC (Clients in the Cloud) which allows it to lazily apply
 the current command to any affected file. Currently no Jujutsu backend
-(Git, Native) has a fancy virtual filesystem supporting it, so we 
-can't apply this optimization. We could do the same once we have an 
-implementation of the working copy based on a virtual file system. Until then, 
-we have to run the commands in regular local-disk working copies. </p>
+(Git, Native) has a fancy virtual filesystem supporting it, so we
+can't apply this optimization. We could do the same once we have an
+implementation of the working copy based on a virtual file system. Until then,
+we have to run the commands in regular local-disk working copies.</p>
 <h2 id="goals-and-non-goals">Goals and Non-Goals<a class="headerlink" href="#goals-and-non-goals" title="Permanent link">&para;</a></h2>
 <h3 id="goals">Goals<a class="headerlink" href="#goals" title="Permanent link">&para;</a></h3>
 <ul>
@@ -1788,22 +1788,22 @@ we have to run the commands in regular local-disk working copies. </p>
 <li>We should be able to parallelize running the actual command, while preserving a
 good console output.</li>
 <li>The run command should be able to work in any commit, the working-copy commit
-itself or any other commit. </li>
-<li>There should exist some way to signal hard failure. </li>
-<li>The command should build enough infrastructure for <code>jj test</code>, <code>jj fix</code> and 
+itself or any other commit.</li>
+<li>There should exist some way to signal hard failure.</li>
+<li>The command should build enough infrastructure for <code>jj test</code>, <code>jj fix</code> and
 <code>jj format</code>.</li>
-<li>The main goal is to be good enough, as we can always expand the functionality 
+<li>The main goal is to be good enough, as we can always expand the functionality
 in the future.</li>
 </ul>
 <h3 id="non-goals">Non-Goals<a class="headerlink" href="#non-goals" title="Permanent link">&para;</a></h3>
 <ul>
-<li>While we should build a base for <code>jj test</code>, <code>jj format</code> and <code>jj fix</code>, we 
+<li>While we should build a base for <code>jj test</code>, <code>jj format</code> and <code>jj fix</code>, we
 shouldn't mash their use-cases into <code>jj run</code>.</li>
-<li>The command shouldn't be too smart, as too many assumptions about workflows 
-makes the command confusing for users. </li>
+<li>The command shouldn't be too smart, as too many assumptions about workflows
+makes the command confusing for users.</li>
 <li>The smart caching of outputs, as user input commands can be unpredictable.
-makes the command confusing for users. </li>
-<li>Avoid the smart caching of outputs, as user input commands can be 
+makes the command confusing for users.</li>
+<li>Avoid the smart caching of outputs, as user input commands can be
 unpredictable.</li>
 <li>Fine grained user facing configuration, as it's unwarranted complexity.</li>
 <li>A <code>fix</code> subcommand as it cuts too much design space.</li>
@@ -1825,106 +1825,106 @@ unpredictable.</li>
 <li><code>jj run 'bazel build //some/target:somewhere'</code></li>
 <li><code>jj run 'ninja check-lld'</code></li>
 </ul>
-<p>Some of these use-cases should get a specialized command, as this allows 
-further optimization. A command could be <code>jj format</code>, which runs a list of 
-formatters over a subset of a file in a revision. Another command could be 
+<p>Some of these use-cases should get a specialized command, as this allows
+further optimization. A command could be <code>jj format</code>, which runs a list of
+formatters over a subset of a file in a revision. Another command could be
 <code>jj fix</code>, which runs a command like <code>rustfmt --fix</code> or <code>cargo clippy --fix</code> over
 a subset of a file in a revision.</p>
 <h2 id="design">Design<a class="headerlink" href="#design" title="Permanent link">&para;</a></h2>
 <h3 id="base-design">Base Design<a class="headerlink" href="#base-design" title="Permanent link">&para;</a></h3>
-<p>All the work will be done in the <code>.jj/</code> directory. This allows us to hide all 
+<p>All the work will be done in the <code>.jj/</code> directory. This allows us to hide all
 complexity from the users, while preserving the user's current workspace.</p>
-<p>We will copy the approach from git-branchless's <code>git test</code> of creating a 
-temporary working copy for each parallel command. The working copies will be 
-reused between <code>jj run</code> invocations. They will also be reused within <code>jj run</code> 
+<p>We will copy the approach from git-branchless's <code>git test</code> of creating a
+temporary working copy for each parallel command. The working copies will be
+reused between <code>jj run</code> invocations. They will also be reused within <code>jj run</code>
 invocation if there are more commits to run on than there are parallel jobs.</p>
-<p>We will leave ignored files in the temporary directory between runs. That 
+<p>We will leave ignored files in the temporary directory between runs. That
 enables incremental builds (e.g by letting cargo reuse its <code>target/</code> directory).
-However, it also means that runs potentially become less reproducible. We will 
+However, it also means that runs potentially become less reproducible. We will
 provide a flag for removing ignored files from the temporary working copies to
-address that. </p>
+address that.</p>
 <p>Another problem with leaving ignored files in the temporary directories is that
-they take up space. That is especially problematic in the case of cargo (the 
+they take up space. That is especially problematic in the case of cargo (the
 <code>target/</code> directory often takes up tens of GBs). The same flag for cleaning up
-ignored files can be used to address that. We may want to also have a flag for 
-cleaning up temporary working copies <em>after</em> running the command. </p>
-<p>An early version of the command will directly use <a href="https://github.com/martinvonz/jj/blob/af85f552b676d66ed0e9ae0d401cd0c4ffbbeb21/lib/src/working_copy.rs#L117">Treestate</a> to 
-to manage the temporary working copies. That means that running <code>jj</code> inside the 
+ignored files can be used to address that. We may want to also have a flag for
+cleaning up temporary working copies <em>after</em> running the command.</p>
+<p>An early version of the command will directly use <a href="https://github.com/martinvonz/jj/blob/af85f552b676d66ed0e9ae0d401cd0c4ffbbeb21/lib/src/working_copy.rs#L117">Treestate</a> to
+to manage the temporary working copies. That means that running <code>jj</code> inside the
 temporary working copies will not work . We can later extend that to use a full
-<a href="https://github.com/martinvonz/jj/blob/af85f552b676d66ed0e9ae0d401cd0c4ffbbeb21/lib/src/workspace.rs#L54">Workspace</a>. To prevent operations in the working copies from 
+<a href="https://github.com/martinvonz/jj/blob/af85f552b676d66ed0e9ae0d401cd0c4ffbbeb21/lib/src/workspace.rs#L54">Workspace</a>. To prevent operations in the working copies from
 impacting the repo, we can use a separate <a href="https://github.com/martinvonz/jj/blob/main/lib/src/op_heads_store.rs">OpHeadsStore</a> for it.</p>
 <h3 id="modifying-the-working-copy">Modifying the Working Copy<a class="headerlink" href="#modifying-the-working-copy" title="Permanent link">&para;</a></h3>
-<p>Since the subprocesses will run in temporary working copies, they 
+<p>Since the subprocesses will run in temporary working copies, they
 won't interfere with the user's working copy. The user can therefore continue
-to work in it while <code>jj run</code> is running. </p>
+to work in it while <code>jj run</code> is running.</p>
 <p>We want subprocesses to be able to make changes to the repo by updating their
-assigned working copy. Let's say the user runs <code>jj run</code> on just commits A and 
-B, where B's parent is A. Any changes made on top of A would be squashed into 
+assigned working copy. Let's say the user runs <code>jj run</code> on just commits A and
+B, where B's parent is A. Any changes made on top of A would be squashed into
 A, forming A'. Similarly B' would be formed by squasing it into B. We can then
 either do a normal rebase of B' onto A', or we can simply update its parent to
 A'. The former is useful, e.g when the subprocess only makes a partial update
-of the tree based on the parent commit. In addition to these two modes, we may 
-want to have an option to ignore any changes made in the subprocess's working 
+of the tree based on the parent commit. In addition to these two modes, we may
+want to have an option to ignore any changes made in the subprocess's working
 copy.</p>
 <h3 id="modifying-the-repo">Modifying the Repo<a class="headerlink" href="#modifying-the-repo" title="Permanent link">&para;</a></h3>
-<p>Once we give the subprocess access to a fork of the repo via separate 
+<p>Once we give the subprocess access to a fork of the repo via separate
 <a href="https://github.com/martinvonz/jj/blob/main/lib/src/op_heads_store.rs">OpHeadsStore</a>, it will be able to create new operations in its fork.
 If the user runs <code>jj run -r foo</code> and the subprocess checks out another commit,
-it's not clear what that should do. We should probably just verify that the 
+it's not clear what that should do. We should probably just verify that the
 working-copy commit's parents are unchanged after the subprocess returns. Any
-operations created by the subprocess will be ignored. </p>
+operations created by the subprocess will be ignored.</p>
 <h3 id="rewriting-the-revisions">Rewriting the revisions<a class="headerlink" href="#rewriting-the-revisions" title="Permanent link">&para;</a></h3>
 <p>Like all commands, <code>jj run</code> will refuse to rewrite public/immutable commits.
-For private/unpublished revisions, we either amend or reparent the changes, 
+For private/unpublished revisions, we either amend or reparent the changes,
 which are available as command options.</p>
 <h2 id="execution-orderparallelism">Execution order/parallelism<a class="headerlink" href="#execution-orderparallelism" title="Permanent link">&para;</a></h2>
-<p>It may be useful to execute commands in topological order. For example, 
-commands with costs proportional to incremental changes, like build systems. 
+<p>It may be useful to execute commands in topological order. For example,
+commands with costs proportional to incremental changes, like build systems.
 There may also be other relevant heuristics, but topological order is an easy
-and effective way to start. </p>
-<p>Parallel execution of commands on different commits may choose to schedule 
+and effective way to start.</p>
+<p>Parallel execution of commands on different commits may choose to schedule
 commits to still reduce incremental changes in the working copy used by each
-execution slot/"thread". However, running the command on all commits 
-concurrently should be possible if desired. </p>
-<p>Executing commands in topological order allows for more meaningful use of any 
-potential features that stop execution "at the first failure". For example, 
-when running tests on a chain of commits, it might be useful to proceed in 
-topological/chronological order, and stop on the first failure, because it 
+execution slot/"thread". However, running the command on all commits
+concurrently should be possible if desired.</p>
+<p>Executing commands in topological order allows for more meaningful use of any
+potential features that stop execution "at the first failure". For example,
+when running tests on a chain of commits, it might be useful to proceed in
+topological/chronological order, and stop on the first failure, because it
 might imply that the remaining executions will be undesirable because they will
 also fail.</p>
 <h2 id="dealing-with-failure">Dealing with failure<a class="headerlink" href="#dealing-with-failure" title="Permanent link">&para;</a></h2>
 <p>It will be useful to have multiple strategies to deal with failures on a single
 or multiple revisions. The reason for these strategies is to allow customized
-conflict handling. These strategies then can be exposed in the ui with a 
+conflict handling. These strategies then can be exposed in the ui with a
 matching option.</p>
-<p><strong>Continue:</strong> If any subprocess fails, we will continue the work on child 
-revisions. Notify the user on exit about the failed revisions. </p>
+<p><strong>Continue:</strong> If any subprocess fails, we will continue the work on child
+revisions. Notify the user on exit about the failed revisions.</p>
 <p><strong>Stop:</strong> Signal a fatal failure and cancel any scheduled work that has not
 yet started running, but let any already started subprocess finish. Notify the
-user about the failed command and display the generated error from the 
-subprocess. </p>
-<p><strong>Fatal:</strong> Signal a fatal failure and immediately stop processing and kill any 
-running processes. Notify the user that we failed to apply the command to the 
-specific revision. </p>
+user about the failed command and display the generated error from the
+subprocess.</p>
+<p><strong>Fatal:</strong> Signal a fatal failure and immediately stop processing and kill any
+running processes. Notify the user that we failed to apply the command to the
+specific revision.</p>
 <p>We will leave any affected commit in its current state, if any subprocess fails.
-This allows us to provide a better user experience, as leaving revisions in an 
+This allows us to provide a better user experience, as leaving revisions in an
 undesirable state, e.g partially formatted, may confuse users.</p>
 <h2 id="resource-constraints">Resource constraints<a class="headerlink" href="#resource-constraints" title="Permanent link">&para;</a></h2>
-<p>It will be useful to constrain the execution to prevent resource exhaustion. 
+<p>It will be useful to constrain the execution to prevent resource exhaustion.
 Relevant resources could include:</p>
 <ul>
 <li>CPU and memory available on the machine running the commands. <code>jj run</code> can
-provide some simple mitigations like limiting parallelism to "number of CPUs" 
-by default, and limiting parallelism by dividing "available memory" by some 
+provide some simple mitigations like limiting parallelism to "number of CPUs"
+by default, and limiting parallelism by dividing "available memory" by some
 estimate or measurement of per-invocation memory use of the commands.</li>
-<li>External resources that are not immediately known to jj. For example, 
+<li>External resources that are not immediately known to jj. For example,
 commands run in parallel may wish to limit the total number of connections
-to a server. We might choose to defer any handling of this to the 
-implementation of the command being invoked, instead of trying to 
+to a server. We might choose to defer any handling of this to the
+implementation of the command being invoked, instead of trying to
 communicate that information to jj.</li>
 </ul>
 <h2 id="command-options">Command Options<a class="headerlink" href="#command-options" title="Permanent link">&para;</a></h2>
-<p>The base command of any jj command should be usable. By default <code>jj run</code> works 
+<p>The base command of any jj command should be usable. By default <code>jj run</code> works
 on the <code>@</code> the current working copy.</p>
 <ul>
 <li>--command, explicit name of the first argument</li>
@@ -1932,11 +1932,11 @@ on the <code>@</code> the current working copy.</p>
 <li>-j, --jobs, the amount of parallelism to use</li>
 <li>-k, --keep-going, continue on failure (may alias another command)</li>
 <li>--show, display the diff for an affected revision</li>
-<li>--dry-run, do the command execution without doing any work, logging all 
+<li>--dry-run, do the command execution without doing any work, logging all
 intended files and arguments</li>
-<li>--rebase, rebase all parents on the consulitng diff (may alias another 
+<li>--rebase, rebase all parents on the consulitng diff (may alias another
 command)</li>
-<li>--reparent, change the parent of an effected revision to the new change 
+<li>--reparent, change the parent of an effected revision to the new change
 (may alias another command)</li>
 <li>--clean, remove existing workspaces and remove the ignored files</li>
 <li>--readonly, ignore changes across multiple run invocations</li>
@@ -1946,25 +1946,25 @@ command)</li>
 <p><code>jj log</code>: No special handling needed
 <code>jj diff</code>: No special handling needed
 <code>jj st</code>: For now reprint the final output of <code>jj run</code>
-<code>jj op log</code>: No special handling needed, but awaits further discussion in 
+<code>jj op log</code>: No special handling needed, but awaits further discussion in
 <a href="https://github.com/martinvonz/jj/issues/963">#963</a>
 <code>jj undo/jj op undo</code>: No special handling needed</p>
 <h2 id="open-points">Open Points<a class="headerlink" href="#open-points" title="Permanent link">&para;</a></h2>
-<p>Should the command be working copy backend specific?<br />
-How do we manage the Processes which the command will spawn?<br />
+<p>Should the command be working copy backend specific?
+How do we manage the Processes which the command will spawn?
 Configuration options, User and Repository Wide?</p>
 <h2 id="future-possibilities">Future possibilities<a class="headerlink" href="#future-possibilities" title="Permanent link">&para;</a></h2>
 <ul>
-<li>We could rewrite the file in memory, which is a neat optimization  </li>
-<li>Exposing some internal state, to allow preciser resource constraints  </li>
-<li>Integration options for virtual filesystems, which allow them to cache the 
-needed working copies.  </li>
+<li>We could rewrite the file in memory, which is a neat optimization</li>
+<li>Exposing some internal state, to allow preciser resource constraints</li>
+<li>Integration options for virtual filesystems, which allow them to cache the
+needed working copies.</li>
 <li>A Jujutsu wide concept for a cached working copy, as they could be expensive
-to materialize.  </li>
-<li>Customized failure messages, this maybe useful for bots, it could be similar 
+to materialize.</li>
+<li>Customized failure messages, this maybe useful for bots, it could be similar
 to Bazel's <code>select(..., message = "arch not supported for $project")</code>.</li>
 <li>Make <code>jj run</code> asynchronous by spawning a <code>main</code> process, directly return to the
-user and incrementally updating the output of <code>jj st</code>. </li>
+user and incrementally updating the output of <code>jj st</code>.</li>
 </ul>
 
 

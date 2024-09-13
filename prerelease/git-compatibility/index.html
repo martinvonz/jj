@@ -1571,7 +1571,7 @@ a comparison with Git, including how workflows are different, see the
 <li><strong>.gitignore: Yes.</strong> Ignores in <code>.gitignore</code> files are supported. So are
   ignores in <code>.git/info/exclude</code> or configured via Git's <code>core.excludesfile</code>
   config. The <code>.gitignore</code> support uses a native implementation, so please
-  report a bug if you notice any difference compared to <code>git</code>.  </li>
+  report a bug if you notice any difference compared to <code>git</code>.</li>
 <li><strong>.gitattributes: No.</strong> There's <a href="https://github.com/martinvonz/jj/issues/53">#53</a>
   about adding support for at least the <code>eol</code> attribute.</li>
 <li><strong>Hooks: No.</strong> There's <a href="https://github.com/martinvonz/jj/issues/405">#405</a>
@@ -1585,7 +1585,7 @@ a comparison with Git, including how workflows are different, see the
 <li><strong>Staging area: Kind of.</strong> The staging area will be ignored. For example,
   <code>jj diff</code> will show a diff from the Git HEAD to the working copy. There are
   <a href="https://github.com/martinvonz/jj/blob/main/docs/git-comparison.md#the-index">ways of fulfilling your use cases without a staging
-  area</a>.  </li>
+  area</a>.</li>
 <li><strong>Garbage collection: Yes.</strong> It should be safe to run <code>git gc</code> in the Git
   repo, but it's not tested, so it's probably a good idea to make a backup of
   the whole workspace first. There's <a href="https://github.com/martinvonz/jj/issues/12">no garbage collection and repacking of

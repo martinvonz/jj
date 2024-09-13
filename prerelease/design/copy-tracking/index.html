@@ -1828,12 +1828,12 @@ tracking:</p>
 
 <span class="k">pub</span><span class="w"> </span><span class="k">trait</span><span class="w"> </span><span class="n">Backend</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="sd">/// Get all copy records for `paths` in the dag range `roots..heads`.</span>
-<span class="w">    </span><span class="sd">/// </span>
+<span class="w">    </span><span class="sd">///</span>
 <span class="w">    </span><span class="sd">/// The exact order these are returned is unspecified, but it is guaranteed</span>
 <span class="w">    </span><span class="sd">/// to be reverse-topological. That is, for any two copy records with</span>
 <span class="w">    </span><span class="sd">/// different commit ids A and B, if A is an ancestor of B, A is streamed</span>
 <span class="w">    </span><span class="sd">/// after B.</span>
-<span class="w">    </span><span class="sd">/// </span>
+<span class="w">    </span><span class="sd">///</span>
 <span class="w">    </span><span class="sd">/// Streaming by design to better support large backends which may have very</span>
 <span class="w">    </span><span class="sd">/// large single-file histories. This also allows more iterative algorithms</span>
 <span class="w">    </span><span class="sd">/// like blame/annotate to short-circuit after a point without wasting</span>

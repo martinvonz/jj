@@ -3070,7 +3070,7 @@ contains one number on each line. This can be accomplished with <code>sort</code
 <span class="n">patterns</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;numbers.txt&quot;</span><span class="p">]</span>
 </code></pre></div>
 <h2 id="commit-signing">Commit Signing<a class="headerlink" href="#commit-signing" title="Permanent link">&para;</a></h2>
-<p><code>jj</code> can be configured to sign and verify the commits it creates using either 
+<p><code>jj</code> can be configured to sign and verify the commits it creates using either
 GnuPG or SSH signing keys.</p>
 <p>To do this you need to configure a signing backend.</p>
 <p>Setting the backend to <code>"none"</code> disables signing.</p>
@@ -3104,8 +3104,8 @@ to change the program used or specify a path to <code>ssh-keygen</code> explicit
 </code></pre></div>
 <p>When verifying commit signatures the ssh backend needs to be provided with an allowed-signers
 file containing the public keys of authors whose signatures you want to be able to verify.</p>
-<p>You can find the format for this file in the 
-<a href="https://man.openbsd.org/ssh-keygen#ALLOWED_SIGNERS">ssh-keygen man page</a>. This can be provided 
+<p>You can find the format for this file in the
+<a href="https://man.openbsd.org/ssh-keygen#ALLOWED_SIGNERS">ssh-keygen man page</a>. This can be provided
 as follows:</p>
 <div class="highlight"><pre><span></span><code><span class="n">signing</span><span class="p">.</span><span class="n">backends</span><span class="p">.</span><span class="n">ssh</span><span class="p">.</span><span class="n">allowed-signers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/path/to/allowed-signers&quot;</span>
 </code></pre></div>

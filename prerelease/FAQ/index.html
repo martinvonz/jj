@@ -1732,17 +1732,17 @@ important ones are:</p>
 <li>
 <p>Jujutsu commands may be a little slower in very large repositories due to
   importing and exporting changes to Git. Most repositories are not noticeably
-  affected by this. </p>
+  affected by this.</p>
 </li>
 </ul>
 <p>If you primarily use Jujutsu to modify the repository, the drawbacks are
 unlikely to affect you. Try co-locating while you learn Jujutsu, then switch if
 you find a specific reason not to co-locate.</p>
 <h3 id="jj-is-said-to-record-the-working-copy-after-jj-log-and-every-other-command-where-can-i-see-these-automatic-saves"><code>jj</code> is said to record the working copy after <code>jj log</code> and every other command. Where can I see these automatic "saves"?<a class="headerlink" href="#jj-is-said-to-record-the-working-copy-after-jj-log-and-every-other-command-where-can-i-see-these-automatic-saves" title="Permanent link">&para;</a></h3>
-<p>Indeed, every <code>jj</code> command updates the current "working-copy" revision, marked 
+<p>Indeed, every <code>jj</code> command updates the current "working-copy" revision, marked
 with <code>@</code> in <code>jj log</code>. You can notice this by how the <a href="../glossary/#commit-id">commit ID</a> of the
 working copy revision changes when it's updated. Note that, unless you move to
-another revision (with <code>jj new</code> or <code>jj edit</code>, for example), the <a href="../glossary/#change-id">change ID</a> will 
+another revision (with <code>jj new</code> or <code>jj edit</code>, for example), the <a href="../glossary/#change-id">change ID</a> will
 not change.</p>
 <p>If you expected to see a historical view of your working copy changes in the
 parent-child relationships between commits you can see in <code>jj log</code>, this is
@@ -1795,16 +1795,16 @@ can create a <code>.gitignore</code> file in that directory containing only <cod
 ignore everything in the directory including the <code>.gitignore</code> file itself.</p>
 <p>If <code>$EDITOR</code> integration is important, something like <code>scratchpad.*</code> may be more
 helpful, as you can keep the filename extension intact (it
-matches <code>scratchpad.md</code>, <code>scratchpad.rs</code> and more). Another option is to add a 
+matches <code>scratchpad.md</code>, <code>scratchpad.rs</code> and more). Another option is to add a
 directory to the global <code>.gitignore</code> which then stores all your temporary files
-and notes. For example, you could add <code>scratch/</code> to <code>~/.git/ignore</code> and then 
+and notes. For example, you could add <code>scratch/</code> to <code>~/.git/ignore</code> and then
 store arbitrary files in <code>&lt;your-git-repo&gt;/scratch/</code>.</p>
 <p>You can find more details on <code>gitignore</code> files <a href="https://git-scm.com/docs/gitignore">here</a>.</p>
 <h3 id="how-can-i-avoid-committing-my-local-only-changes-to-tracked-files">How can I avoid committing my local-only changes to tracked files?<a class="headerlink" href="#how-can-i-avoid-committing-my-local-only-changes-to-tracked-files" title="Permanent link">&para;</a></h3>
 <p>Suppose your repository tracks a file like <code>secret_config.json</code>, and you make
 some changes to that file to work locally. Since Jujutsu automatically commits
 the working copy, there's no way to prevent Jujutsu from committing changes to
-the file. But, you never want to push those changes to the remote repository. </p>
+the file. But, you never want to push those changes to the remote repository.</p>
 <p>One solution is to keep these changes in a separate commit branched from the
 trunk. To use those changes in your working copy, <em>merge</em> the private commit
 into your branch.</p>
@@ -1872,14 +1872,14 @@ to the old state, and <code>jj restore --from X</code> to restore the new workin
 commit to the new state.</p>
 <h3 id="how-do-i-resume-working-on-an-existing-change">How do I resume working on an existing change?<a class="headerlink" href="#how-do-i-resume-working-on-an-existing-change" title="Permanent link">&para;</a></h3>
 <p>There are two ways to resume working on an earlier change: <code>jj new</code> then <code>jj squash</code>,
-and <code>jj edit</code>. The first is generally recommended, but <code>jj edit</code> can be useful. When 
+and <code>jj edit</code>. The first is generally recommended, but <code>jj edit</code> can be useful. When
 you use <code>jj edit</code>, the revision is directly amended with your new changes, making it
 difficult to tell what exactly you change. You should avoid using <code>jj edit</code> when the
 revision has a conflict, as you may accidentally break the plain-text annotations on
 your state without realising.</p>
 <p>To start, use <code>jj new &lt;rev&gt;</code> to create a change based on that earlier revision. Make
 your edits, then use <code>jj squash</code> to update the earlier revision with those edits.
-For when you would use git stashing, use <code>jj edit &lt;rev&gt;</code> for expected behaviour. 
+For when you would use git stashing, use <code>jj edit &lt;rev&gt;</code> for expected behaviour.
 Other workflows may prefer <code>jj edit</code> as well.</p>
 <h3 id="how-do-i-deal-with-divergent-changes-after-the-change-id">How do I deal with divergent changes ('??' after the <a href="../glossary/#change-id">change ID</a>)?<a class="headerlink" href="#how-do-i-deal-with-divergent-changes-after-the-change-id" title="Permanent link">&para;</a></h3>
 <p>A <a href="../glossary/#divergent-change">divergent change</a> represents a change that has two

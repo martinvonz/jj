@@ -1785,20 +1785,20 @@ commit and the new feature in a different commit. If the refactoring itself
 consists of many parts, try to separate out those into separate commits. You can
 use <code>jj split</code> to do it if you didn't realize ahead of time how it should be
 split up. Include tests and documentation in the same commit as the code they
-test and document. </p>
+test and document.</p>
 <p>The commit message should describe the changes in the commit;
 the PR description can even be empty, but feel free to include a personal
-message. We write commit messages in an affected component style and don't use 
-<a href="www.conventionalcommits.org/en/v1.0.0/">conventional commits</a>. This means if 
-you modified a command in the CLI, use its name as the topic, e.g 
+message. We write commit messages in an affected component style and don't use
+<a href="www.conventionalcommits.org/en/v1.0.0/">conventional commits</a>. This means if
+you modified a command in the CLI, use its name as the topic, e.g
 <code>next/prev: &lt;your-modification&gt;</code> or <code>conflicts: &lt;your-modification&gt;</code>. We don't
-currently have a specific guidelines on what to write in the topic field, but 
-the reviewers will help you provide a topic if you have difficulties choosing 
+currently have a specific guidelines on what to write in the topic field, but
+the reviewers will help you provide a topic if you have difficulties choosing
 it.</p>
 <p>When you address comments on a PR, don't make the changes in a commit on top (as
 is typical on GitHub). Instead, please make the changes in the appropriate
-commit. You can do that by creating a new commit on top of the initial commit 
- (<code>jj new &lt;commit&gt;</code>) and then squash in the changes when you're done (<code>jj squash</code>). 
+commit. You can do that by creating a new commit on top of the initial commit
+ (<code>jj new &lt;commit&gt;</code>) and then squash in the changes when you're done (<code>jj squash</code>).
 <code>jj git push</code>
 will automatically force-push the bookmark.</p>
 <p>When your first PR has been approved, we typically give you contributor access,
@@ -1815,9 +1815,9 @@ your company's interests, do feel free to approve it.</p>
 <p>This project follows <a href="https://opensource.google/conduct/">Google's Open Source Community
 Guidelines</a>.</p>
 <h2 id="contributing-large-patches">Contributing large patches<a class="headerlink" href="#contributing-large-patches" title="Permanent link">&para;</a></h2>
-<p>Before sending a PR for a large change which designs/redesigns or reworks an 
-existing component, we require an architecture review from  multiple 
-stakeholders, which we do with <a href="../design_docs/">Design Docs</a>, see the 
+<p>Before sending a PR for a large change which designs/redesigns or reworks an
+existing component, we require an architecture review from  multiple
+stakeholders, which we do with <a href="../design_docs/">Design Docs</a>, see the
 <a href="../design_docs/#process">process here</a>.</p>
 <h2 id="contributing-to-the-documentation">Contributing to the documentation<a class="headerlink" href="#contributing-to-the-documentation" title="Permanent link">&para;</a></h2>
 <p>We appreciate <a href="https://github.com/martinvonz/jj/issues/new?template=bug_report.md">bug
