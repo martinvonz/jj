@@ -165,11 +165,38 @@ pub fn persist_content_addressed_temp_file<P: AsRef<Path>>(
 
 #[cfg(unix)]
 mod platform {
+    use std::fs;
     use std::io;
     use std::os::unix::fs::symlink;
+    use std::os::unix::fs::PermissionsExt;
     use std::path::Path;
+    use std::path::PathBuf;
 
-    /// Symlinks are always available on UNIX
+    use tempfile::NamedTempFile;
+
+    /// Whether executable bits are supported for the filesystem of this path.
+    pub fn check_executable_bit_support(path: &PathBuf) -> bool {
+        const DEFAULT: bool = true; // default to true on Unix
+        fn check_exec(path: &PathBuf) -> Result<bool, std::io::Error> {
+            // get current permissions and update with exec bit:
+            let temp_file = NamedTempFile::new_in(path)?;
+            let old_mode = temp_file.as_file().metadata()?.permissions().mode();
+            // TODO: Maybe check if we can disable the exec permission if we
+            // start executable?
+            let new_mode = old_mode | 0o100;
+            let new_perms = PermissionsExt::from_mode(new_mode);
+            if fs::set_permissions(temp_file.path(), new_perms).is_ok() {
+                let mode = temp_file.as_file().metadata()?.permissions().mode();
+                Ok(new_mode == mode && new_mode != old_mode)
+            } else {
+                Ok(DEFAULT)
+            }
+            // TODO: Actually test this function.
+        }
+        check_exec(path).unwrap_or(DEFAULT)
+    }
+
+    /// Symlinks are always available on Unix
     pub fn check_symlink_support() -> io::Result<bool> {
         Ok(true)
     }
