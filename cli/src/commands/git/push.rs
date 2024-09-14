@@ -264,74 +264,10 @@ pub fn cmd_git_push(
         return Ok(());
     }
 
-    let mut bookmark_push_direction = HashMap::new();
-    for (bookmark_name, update) in &bookmark_updates {
-        let BookmarkPushUpdate {
-            old_target: Some(old_target),
-            new_target: Some(new_target),
-        } = update
-        else {
-            continue;
-        };
-        assert_ne!(old_target, new_target);
-        bookmark_push_direction.insert(
-            bookmark_name.to_string(),
-            if repo.index().is_ancestor(old_target, new_target) {
-                BookmarkMoveDirection::Forward
-            } else if repo.index().is_ancestor(new_target, old_target) {
-                BookmarkMoveDirection::Backward
-            } else {
-                BookmarkMoveDirection::Sideways
-            },
-        );
-    }
-
     validate_commits_ready_to_push(&bookmark_updates, &remote, &tx, command, args)?;
 
     writeln!(ui.status(), "Bookmark changes to push to {}:", &remote)?;
-    for (bookmark_name, update) in &bookmark_updates {
-        match (&update.old_target, &update.new_target) {
-            (Some(old_target), Some(new_target)) => {
-                let old = short_commit_hash(old_target);
-                let new = short_commit_hash(new_target);
-                // TODO(ilyagr): Add color. Once there is color, "Move bookmark ... sideways"
-                // may read more naturally than "Move sideways bookmark ...".
-                // Without color, it's hard to see at a glance if one bookmark
-                // among many was moved sideways (say). TODO: People on Discord
-                // suggest "Move bookmark ... forward by n commits",
-                // possibly "Move bookmark ... sideways (X forward, Y back)".
-                let msg = match bookmark_push_direction.get(bookmark_name).unwrap() {
-                    BookmarkMoveDirection::Forward => {
-                        format!("Move forward bookmark {bookmark_name} from {old} to {new}")
-                    }
-                    BookmarkMoveDirection::Backward => {
-                        format!("Move backward bookmark {bookmark_name} from {old} to {new}")
-                    }
-                    BookmarkMoveDirection::Sideways => {
-                        format!("Move sideways bookmark {bookmark_name} from {old} to {new}")
-                    }
-                };
-                writeln!(ui.status(), "  {msg}")?;
-            }
-            (Some(old_target), None) => {
-                writeln!(
-                    ui.status(),
-                    "  Delete bookmark {bookmark_name} from {}",
-                    short_commit_hash(old_target)
-                )?;
-            }
-            (None, Some(new_target)) => {
-                writeln!(
-                    ui.status(),
-                    "  Add bookmark {bookmark_name} to {}",
-                    short_commit_hash(new_target)
-                )?;
-            }
-            (None, None) => {
-                panic!("Not pushing any change to bookmark {bookmark_name}");
-            }
-        }
-    }
+    print_commits_ready_to_push(ui, repo.as_ref(), &bookmark_updates)?;
 
     if args.dry_run {
         writeln!(ui.status(), "Dry-run requested, not pushing.")?;
@@ -436,6 +372,79 @@ fn validate_commits_ready_to_push(
                 short_commit_hash(commit.id()),
                 reasons.join(" and ")
             )));
+        }
+    }
+    Ok(())
+}
+
+fn print_commits_ready_to_push(
+    ui: &Ui,
+    repo: &dyn Repo,
+    bookmark_updates: &[(String, BookmarkPushUpdate)],
+) -> io::Result<()> {
+    let mut bookmark_push_direction = HashMap::new();
+    for (bookmark_name, update) in bookmark_updates {
+        let BookmarkPushUpdate {
+            old_target: Some(old_target),
+            new_target: Some(new_target),
+        } = update
+        else {
+            continue;
+        };
+        assert_ne!(old_target, new_target);
+        bookmark_push_direction.insert(
+            bookmark_name.to_string(),
+            if repo.index().is_ancestor(old_target, new_target) {
+                BookmarkMoveDirection::Forward
+            } else if repo.index().is_ancestor(new_target, old_target) {
+                BookmarkMoveDirection::Backward
+            } else {
+                BookmarkMoveDirection::Sideways
+            },
+        );
+    }
+
+    for (bookmark_name, update) in bookmark_updates {
+        match (&update.old_target, &update.new_target) {
+            (Some(old_target), Some(new_target)) => {
+                let old = short_commit_hash(old_target);
+                let new = short_commit_hash(new_target);
+                // TODO(ilyagr): Add color. Once there is color, "Move bookmark ... sideways"
+                // may read more naturally than "Move sideways bookmark ...".
+                // Without color, it's hard to see at a glance if one bookmark
+                // among many was moved sideways (say). TODO: People on Discord
+                // suggest "Move bookmark ... forward by n commits",
+                // possibly "Move bookmark ... sideways (X forward, Y back)".
+                let msg = match bookmark_push_direction.get(bookmark_name).unwrap() {
+                    BookmarkMoveDirection::Forward => {
+                        format!("Move forward bookmark {bookmark_name} from {old} to {new}")
+                    }
+                    BookmarkMoveDirection::Backward => {
+                        format!("Move backward bookmark {bookmark_name} from {old} to {new}")
+                    }
+                    BookmarkMoveDirection::Sideways => {
+                        format!("Move sideways bookmark {bookmark_name} from {old} to {new}")
+                    }
+                };
+                writeln!(ui.status(), "  {msg}")?;
+            }
+            (Some(old_target), None) => {
+                writeln!(
+                    ui.status(),
+                    "  Delete bookmark {bookmark_name} from {}",
+                    short_commit_hash(old_target)
+                )?;
+            }
+            (None, Some(new_target)) => {
+                writeln!(
+                    ui.status(),
+                    "  Add bookmark {bookmark_name} to {}",
+                    short_commit_hash(new_target)
+                )?;
+            }
+            (None, None) => {
+                panic!("Not pushing any change to bookmark {bookmark_name}");
+            }
         }
     }
     Ok(())
