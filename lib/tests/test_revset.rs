@@ -2456,7 +2456,7 @@ fn test_evaluate_expression_author() {
         .set_author(Signature {
             name: "name1".to_string(),
             email: "email1".to_string(),
-            timestamp: timestamp.clone(),
+            timestamp,
         })
         .write()
         .unwrap();
@@ -2465,7 +2465,7 @@ fn test_evaluate_expression_author() {
         .set_author(Signature {
             name: "name2".to_string(),
             email: "email2".to_string(),
-            timestamp: timestamp.clone(),
+            timestamp,
         })
         .write()
         .unwrap();
@@ -2543,12 +2543,12 @@ fn test_evaluate_expression_author_date() {
         .set_author(Signature {
             name: "name1".to_string(),
             email: "email1".to_string(),
-            timestamp: timestamp1.clone(),
+            timestamp: timestamp1,
         })
         .set_committer(Signature {
             name: "name1".to_string(),
             email: "email1".to_string(),
-            timestamp: timestamp2.clone(),
+            timestamp: timestamp2,
         })
         .write()
         .unwrap();
@@ -2557,12 +2557,12 @@ fn test_evaluate_expression_author_date() {
         .set_author(Signature {
             name: "name2".to_string(),
             email: "email2".to_string(),
-            timestamp: timestamp2.clone(),
+            timestamp: timestamp2,
         })
         .set_committer(Signature {
             name: "name1".to_string(),
             email: "email1".to_string(),
-            timestamp: timestamp2.clone(),
+            timestamp: timestamp2,
         })
         .write()
         .unwrap();
@@ -2576,7 +2576,7 @@ fn test_evaluate_expression_author_date() {
         .set_committer(Signature {
             name: "name1".to_string(),
             email: "email1".to_string(),
-            timestamp: timestamp2.clone(),
+            timestamp: timestamp2,
         })
         .write()
         .unwrap();
@@ -2610,12 +2610,12 @@ fn test_evaluate_expression_committer_date() {
         .set_author(Signature {
             name: "name1".to_string(),
             email: "email1".to_string(),
-            timestamp: timestamp2.clone(),
+            timestamp: timestamp2,
         })
         .set_committer(Signature {
             name: "name1".to_string(),
             email: "email1".to_string(),
-            timestamp: timestamp1.clone(),
+            timestamp: timestamp1,
         })
         .write()
         .unwrap();
@@ -2624,12 +2624,12 @@ fn test_evaluate_expression_committer_date() {
         .set_author(Signature {
             name: "name2".to_string(),
             email: "email2".to_string(),
-            timestamp: timestamp2.clone(),
+            timestamp: timestamp2,
         })
         .set_committer(Signature {
             name: "name1".to_string(),
             email: "email1".to_string(),
-            timestamp: timestamp2.clone(),
+            timestamp: timestamp2,
         })
         .write()
         .unwrap();
@@ -2638,7 +2638,7 @@ fn test_evaluate_expression_committer_date() {
         .set_author(Signature {
             name: "name3".to_string(),
             email: "email3".to_string(),
-            timestamp: timestamp2.clone(),
+            timestamp: timestamp2,
         })
         .set_committer(Signature {
             name: "name1".to_string(),
@@ -2676,7 +2676,7 @@ fn test_evaluate_expression_mine() {
         .set_author(Signature {
             name: "name1".to_string(),
             email: "email1".to_string(),
-            timestamp: timestamp.clone(),
+            timestamp,
         })
         .write()
         .unwrap();
@@ -2685,7 +2685,7 @@ fn test_evaluate_expression_mine() {
         .set_author(Signature {
             name: "name2".to_string(),
             email: settings.user_email(),
-            timestamp: timestamp.clone(),
+            timestamp,
         })
         .write()
         .unwrap();
@@ -2745,7 +2745,7 @@ fn test_evaluate_expression_committer() {
         .set_committer(Signature {
             name: "name1".to_string(),
             email: "email1".to_string(),
-            timestamp: timestamp.clone(),
+            timestamp,
         })
         .write()
         .unwrap();
@@ -2754,7 +2754,7 @@ fn test_evaluate_expression_committer() {
         .set_committer(Signature {
             name: "name2".to_string(),
             email: "email2".to_string(),
-            timestamp: timestamp.clone(),
+            timestamp,
         })
         .write()
         .unwrap();

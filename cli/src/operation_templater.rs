@@ -279,8 +279,8 @@ fn builtin_operation_methods() -> OperationTemplateBuildMethodFnMap<Operation> {
     map.insert("time", |_language, _build_ctx, self_property, function| {
         function.expect_no_arguments()?;
         let out_property = self_property.map(|op| TimestampRange {
-            start: op.metadata().start_time.clone(),
-            end: op.metadata().end_time.clone(),
+            start: op.metadata().start_time,
+            end: op.metadata().end_time,
         });
         Ok(L::wrap_timestamp_range(out_property))
     });

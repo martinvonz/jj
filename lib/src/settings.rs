@@ -211,7 +211,7 @@ impl UserSettings {
     }
 
     pub fn signature(&self) -> Signature {
-        let timestamp = self.timestamp.clone().unwrap_or_else(Timestamp::now);
+        let timestamp = self.timestamp.unwrap_or_else(Timestamp::now);
         Signature {
             name: self.user_name(),
             email: self.user_email(),

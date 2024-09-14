@@ -205,7 +205,7 @@ impl DetachedCommitBuilder {
             && commit.author.email == commit.committer.email
             && predecessor.is_discardable(repo).unwrap_or_default()
         {
-            commit.author.timestamp = commit.committer.timestamp.clone();
+            commit.author.timestamp = commit.committer.timestamp;
         }
 
         DetachedCommitBuilder {

@@ -155,7 +155,7 @@ pub(crate) fn cmd_describe(
                     let new_author = Signature {
                         name,
                         email,
-                        timestamp: commit.author().timestamp.clone(),
+                        timestamp: commit.author().timestamp,
                     };
                     commit_builder.set_author(new_author);
                 }
@@ -250,7 +250,7 @@ pub(crate) fn cmd_describe(
                     let new_author = Signature {
                         name,
                         email,
-                        timestamp: commit_builder.author().timestamp.clone(),
+                        timestamp: commit_builder.author().timestamp,
                     };
                     commit_builder = commit_builder.set_author(new_author);
                 }
