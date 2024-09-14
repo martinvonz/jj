@@ -48,6 +48,7 @@ use crate::command_error::user_error_with_hint;
 use crate::command_error::CommandError;
 use crate::commands::git::get_single_remote;
 use crate::commands::git::map_git_error;
+use crate::formatter::Formatter;
 use crate::git_util::get_git_repo;
 use crate::git_util::with_remote_git_callbacks;
 use crate::git_util::GitSidebandProgressMessageWriter;
@@ -265,9 +266,10 @@ pub fn cmd_git_push(
     }
 
     validate_commits_ready_to_push(&bookmark_updates, &remote, &tx, command, args)?;
-
-    writeln!(ui.status(), "Bookmark changes to push to {}:", &remote)?;
-    print_commits_ready_to_push(ui, repo.as_ref(), &bookmark_updates)?;
+    if let Some(mut formatter) = ui.status_formatter() {
+        writeln!(formatter, "Bookmark changes to push to {remote}:")?;
+        print_commits_ready_to_push(formatter.as_mut(), repo.as_ref(), &bookmark_updates)?;
+    }
 
     if args.dry_run {
         writeln!(ui.status(), "Dry-run requested, not pushing.")?;
@@ -378,7 +380,7 @@ fn validate_commits_ready_to_push(
 }
 
 fn print_commits_ready_to_push(
-    ui: &Ui,
+    formatter: &mut dyn Formatter,
     repo: &dyn Repo,
     bookmark_updates: &[(String, BookmarkPushUpdate)],
 ) -> io::Result<()> {
@@ -426,18 +428,18 @@ fn print_commits_ready_to_push(
                         format!("Move sideways bookmark {bookmark_name} from {old} to {new}")
                     }
                 };
-                writeln!(ui.status(), "  {msg}")?;
+                writeln!(formatter, "  {msg}")?;
             }
             (Some(old_target), None) => {
                 writeln!(
-                    ui.status(),
+                    formatter,
                     "  Delete bookmark {bookmark_name} from {}",
                     short_commit_hash(old_target)
                 )?;
             }
             (None, Some(new_target)) => {
                 writeln!(
-                    ui.status(),
+                    formatter,
                     "  Add bookmark {bookmark_name} to {}",
                     short_commit_hash(new_target)
                 )?;
