@@ -258,6 +258,17 @@ impl UserSettings {
     }
 }
 
+/// Whether to ignore changes to the executable bit for files on Unix. On
+/// Windows there is no executable bit and this config is unused.
+///
+/// You can read more about this in the config documentation.
+///
+/// This is not a method on UserSettings since it needs to be callable even when
+/// only having the config itself (currently only used in `Ui::with_config`).
+pub fn ignore_executable_bit(config: &config::Config) -> Option<bool> {
+    config.get_bool("core.ignore-executable-bit").ok()
+}
+
 /// This Rng uses interior mutability to allow generating random values using an
 /// immutable reference. It also fixes a specific seedable RNG for
 /// reproducibility.

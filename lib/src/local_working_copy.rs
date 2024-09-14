@@ -92,7 +92,9 @@ use crate::op_store::WorkspaceId;
 use crate::repo_path::RepoPath;
 use crate::repo_path::RepoPathBuf;
 use crate::repo_path::RepoPathComponent;
+use crate::settings::ignore_executable_bit;
 use crate::settings::HumanByteSize;
+use crate::settings::UserSettings;
 use crate::store::Store;
 use crate::tree::Tree;
 use crate::working_copy::CheckoutError;
@@ -675,8 +677,9 @@ impl TreeState {
         store: Arc<Store>,
         working_copy_path: PathBuf,
         state_path: PathBuf,
+        exec_config: Option<bool>,
     ) -> Result<TreeState, TreeStateError> {
-        let mut wc = TreeState::empty(store, working_copy_path, state_path, None);
+        let mut wc = TreeState::empty(store, working_copy_path, state_path, exec_config);
         wc.save()?;
         Ok(wc)
     }
@@ -714,9 +717,7 @@ impl TreeState {
         let tree_state_path = state_path.join("tree_state");
         let file = match File::open(&tree_state_path) {
             Err(ref err) if err.kind() == std::io::ErrorKind::NotFound => {
-                let mut wc = TreeState::empty(store, working_copy_path, state_path, exec_config);
-                wc.save()?;
-                return Ok(wc);
+                return TreeState::init(store, working_copy_path, state_path, exec_config);
             }
             Err(err) => {
                 return Err(TreeStateError::ReadTreeState {
@@ -1775,6 +1776,7 @@ impl LocalWorkingCopy {
         state_path: PathBuf,
         operation_id: OperationId,
         workspace_id: WorkspaceId,
+        settings: &UserSettings,
     ) -> Result<LocalWorkingCopy, WorkingCopyStateError> {
         let proto = crate::protos::working_copy::Checkout {
             operation_id: operation_id.to_bytes(),
@@ -1786,13 +1788,16 @@ impl LocalWorkingCopy {
             .open(state_path.join("checkout"))
             .unwrap();
         file.write_all(&proto.encode_to_vec()).unwrap();
-        let tree_state =
-            TreeState::init(store.clone(), working_copy_path.clone(), state_path.clone()).map_err(
-                |err| WorkingCopyStateError {
-                    message: "Failed to initialize working copy state".to_string(),
-                    err: err.into(),
-                },
-            )?;
+        let tree_state = TreeState::init(
+            store.clone(),
+            working_copy_path.clone(),
+            state_path.clone(),
+            ignore_executable_bit(settings.config()),
+        )
+        .map_err(|err| WorkingCopyStateError {
+            message: "Failed to initialize working copy state".to_string(),
+            err: err.into(),
+        })?;
         let ignore_exec = tree_state.ignore_exec;
         Ok(LocalWorkingCopy {
             store,
@@ -1808,8 +1813,10 @@ impl LocalWorkingCopy {
         store: Arc<Store>,
         working_copy_path: PathBuf,
         state_path: PathBuf,
+        settings: &UserSettings,
     ) -> LocalWorkingCopy {
-        let ignore_exec = IgnoreExec::load_config(None, &working_copy_path);
+        let exec_config = ignore_executable_bit(settings.config());
+        let ignore_exec = IgnoreExec::load_config(exec_config, &working_copy_path);
         LocalWorkingCopy {
             store,
             working_copy_path,
@@ -1928,6 +1935,7 @@ impl WorkingCopyFactory for LocalWorkingCopyFactory {
         state_path: PathBuf,
         operation_id: OperationId,
         workspace_id: WorkspaceId,
+        settings: &UserSettings,
     ) -> Result<Box<dyn WorkingCopy>, WorkingCopyStateError> {
         Ok(Box::new(LocalWorkingCopy::init(
             store,
@@ -1935,6 +1943,7 @@ impl WorkingCopyFactory for LocalWorkingCopyFactory {
             state_path,
             operation_id,
             workspace_id,
+            settings,
         )?))
     }
 
@@ -1943,11 +1952,13 @@ impl WorkingCopyFactory for LocalWorkingCopyFactory {
         store: Arc<Store>,
         working_copy_path: PathBuf,
         state_path: PathBuf,
+        settings: &UserSettings,
     ) -> Result<Box<dyn WorkingCopy>, WorkingCopyStateError> {
         Ok(Box::new(LocalWorkingCopy::load(
             store,
             working_copy_path,
             state_path,
+            settings,
         )))
     }
 }

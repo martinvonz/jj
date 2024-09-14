@@ -84,10 +84,11 @@ fn check_out(
     state_dir: PathBuf,
     tree: &MergedTree,
     sparse_patterns: Vec<RepoPathBuf>,
+    exec_config: Option<bool>,
 ) -> Result<TreeState, DiffCheckoutError> {
     std::fs::create_dir(&wc_dir).map_err(DiffCheckoutError::SetUpDir)?;
     std::fs::create_dir(&state_dir).map_err(DiffCheckoutError::SetUpDir)?;
-    let mut tree_state = TreeState::init(store, wc_dir, state_dir)?;
+    let mut tree_state = TreeState::init(store, wc_dir, state_dir, exec_config)?;
     tree_state.set_sparse_patterns(sparse_patterns)?;
     tree_state.check_out(tree)?;
     Ok(tree_state)
@@ -135,6 +136,7 @@ pub(crate) fn check_out_trees(
     right_tree: &MergedTree,
     matcher: &dyn Matcher,
     output_is: Option<DiffSide>,
+    exec_config: Option<bool>,
 ) -> Result<DiffWorkingCopies, DiffCheckoutError> {
     let changed_files: Vec<_> = left_tree
         .diff_stream(right_tree, matcher)
@@ -153,6 +155,7 @@ pub(crate) fn check_out_trees(
         left_state_dir,
         left_tree,
         changed_files.clone(),
+        exec_config,
     )?;
     let right_tree_state = check_out(
         store.clone(),
@@ -160,6 +163,7 @@ pub(crate) fn check_out_trees(
         right_state_dir,
         right_tree,
         changed_files.clone(),
+        exec_config,
     )?;
     let output_tree_state = output_is
         .map(|output_side| {
@@ -174,6 +178,7 @@ pub(crate) fn check_out_trees(
                     DiffSide::Right => right_tree,
                 },
                 changed_files,
+                exec_config,
             )
         })
         .transpose()?;
@@ -200,8 +205,16 @@ impl DiffEditWorkingCopies {
         matcher: &dyn Matcher,
         output_is: Option<DiffSide>,
         instructions: Option<&str>,
+        exec_config: Option<bool>,
     ) -> Result<Self, DiffEditError> {
-        let diff_wc = check_out_trees(store, left_tree, right_tree, matcher, output_is)?;
+        let diff_wc = check_out_trees(
+            store,
+            left_tree,
+            right_tree,
+            matcher,
+            output_is,
+            exec_config,
+        )?;
         let got_output_field = output_is.is_some();
 
         set_readonly_recursively(diff_wc.left_working_copy_path())

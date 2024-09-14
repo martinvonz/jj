@@ -255,6 +255,7 @@ pub fn edit_diff_external(
     matcher: &dyn Matcher,
     instructions: Option<&str>,
     base_ignores: Arc<GitIgnoreFile>,
+    exec_config: Option<bool>,
 ) -> Result<MergedTreeId, DiffEditError> {
     let got_output_field = find_all_variables(&editor.edit_args).contains(&"output");
     let store = left_tree.store();
@@ -265,6 +266,7 @@ pub fn edit_diff_external(
         matcher,
         got_output_field.then_some(DiffSide::Right),
         instructions,
+        exec_config,
     )?;
 
     let patterns = diffedit_wc.working_copies.to_command_variables();
@@ -296,7 +298,7 @@ pub fn generate_diff(
     tool: &ExternalMergeTool,
 ) -> Result<(), DiffGenerateError> {
     let store = left_tree.store();
-    let diff_wc = check_out_trees(store, left_tree, right_tree, matcher, None)?;
+    let diff_wc = check_out_trees(store, left_tree, right_tree, matcher, None, ui.exec_config)?;
     set_readonly_recursively(diff_wc.left_working_copy_path())
         .map_err(ExternalToolError::SetUpDir)?;
     set_readonly_recursively(diff_wc.right_working_copy_path())

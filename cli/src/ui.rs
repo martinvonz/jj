@@ -32,6 +32,7 @@ use std::thread::JoinHandle;
 
 use indoc::indoc;
 use itertools::Itertools as _;
+use jj_lib::settings::ignore_executable_bit;
 use minus::MinusError;
 use minus::Pager as MinusPager;
 use tracing::instrument;
@@ -259,6 +260,7 @@ pub struct Ui {
     progress_indicator: bool,
     formatter_factory: FormatterFactory,
     output: UiOutput,
+    pub exec_config: Option<bool>,
 }
 
 fn progress_indicator_setting(config: &config::Config) -> bool {
@@ -366,6 +368,7 @@ impl Ui {
             paginate: pagination_setting(config)?,
             progress_indicator,
             output: UiOutput::new_terminal(),
+            exec_config: ignore_executable_bit(config),
         })
     }
 

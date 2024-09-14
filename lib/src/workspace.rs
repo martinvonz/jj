@@ -142,6 +142,7 @@ fn init_working_copy(
         working_copy_state_path.clone(),
         repo.op_id().clone(),
         workspace_id,
+        user_settings,
     )?;
     let working_copy_type_path = working_copy_state_path.join("type");
     fs::write(&working_copy_type_path, working_copy.name()).context(&working_copy_type_path)?;
@@ -513,6 +514,7 @@ pub trait WorkspaceLoader {
         &self,
         store: &Arc<Store>,
         working_copy_factory: &dyn WorkingCopyFactory,
+        user_settings: &UserSettings,
     ) -> Result<Box<dyn WorkingCopy>, WorkspaceLoadError>;
 }
 
@@ -588,7 +590,8 @@ impl WorkspaceLoader for DefaultWorkspaceLoader {
         let repo_loader =
             RepoLoader::init_from_file_system(user_settings, &self.repo_path, store_factories)?;
         let working_copy_factory = get_working_copy_factory(self, working_copy_factories)?;
-        let working_copy = self.load_working_copy(repo_loader.store(), working_copy_factory)?;
+        let working_copy =
+            self.load_working_copy(repo_loader.store(), working_copy_factory, user_settings)?;
         let workspace = Workspace::new(
             &self.workspace_root,
             self.repo_path.clone(),
@@ -606,11 +609,13 @@ impl WorkspaceLoader for DefaultWorkspaceLoader {
         &self,
         store: &Arc<Store>,
         working_copy_factory: &dyn WorkingCopyFactory,
+        user_settings: &UserSettings,
     ) -> Result<Box<dyn WorkingCopy>, WorkspaceLoadError> {
         Ok(working_copy_factory.load_working_copy(
             store.clone(),
             self.workspace_root.to_owned(),
             self.working_copy_state_path.to_owned(),
+            user_settings,
         )?)
     }
 }

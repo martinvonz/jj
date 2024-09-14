@@ -26,6 +26,7 @@ use jj_lib::matchers::Matcher;
 use jj_lib::merged_tree::MergedTree;
 use jj_lib::repo_path::RepoPath;
 use jj_lib::repo_path::RepoPathBuf;
+use jj_lib::settings::ignore_executable_bit;
 use jj_lib::settings::ConfigResultExt as _;
 use jj_lib::settings::UserSettings;
 use jj_lib::working_copy::SnapshotError;
@@ -178,6 +179,7 @@ pub struct DiffEditor {
     tool: MergeTool,
     base_ignores: Arc<GitIgnoreFile>,
     use_instructions: bool,
+    exec_config: Option<bool>,
 }
 
 impl DiffEditor {
@@ -190,7 +192,8 @@ impl DiffEditor {
     ) -> Result<Self, MergeToolConfigError> {
         let tool = get_tool_config(settings, name)?
             .unwrap_or_else(|| MergeTool::external(ExternalMergeTool::with_program(name)));
-        Self::new_inner(tool, settings, base_ignores)
+        let exec_config = ignore_executable_bit(settings.config());
+        Self::new_inner(tool, settings, base_ignores, exec_config)
     }
 
     /// Loads the default diff editor from the settings.
@@ -206,18 +209,20 @@ impl DiffEditor {
             None
         }
         .unwrap_or_else(|| MergeTool::external(ExternalMergeTool::with_edit_args(&args)));
-        Self::new_inner(tool, settings, base_ignores)
+        Self::new_inner(tool, settings, base_ignores, ui.exec_config)
     }
 
     fn new_inner(
         tool: MergeTool,
         settings: &UserSettings,
         base_ignores: Arc<GitIgnoreFile>,
+        exec_config: Option<bool>,
     ) -> Result<Self, MergeToolConfigError> {
         Ok(DiffEditor {
             tool,
             base_ignores,
             use_instructions: settings.config().get_bool("ui.diff-instructions")?,
+            exec_config,
         })
     }
 
@@ -242,6 +247,7 @@ impl DiffEditor {
                     matcher,
                     instructions.as_deref(),
                     self.base_ignores.clone(),
+                    self.exec_config,
                 )
             }
         }
