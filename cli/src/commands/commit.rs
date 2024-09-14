@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use jj_lib::backend::Signature;
 use jj_lib::object_id::ObjectId;
 use jj_lib::repo::Repo;
 use tracing::instrument;
@@ -22,6 +23,7 @@ use crate::command_error::CommandError;
 use crate::description_util::description_template;
 use crate::description_util::edit_description;
 use crate::description_util::join_message_paragraphs;
+use crate::text_util::parse_author;
 use crate::ui::Ui;
 
 /// Update the description and create a new change on top.
@@ -50,6 +52,16 @@ pub(crate) struct CommitArgs {
     /// $ JJ_USER='Foo Bar' JJ_EMAIL=foo@bar.com jj commit --reset-author
     #[arg(long)]
     reset_author: bool,
+    /// Set author to the provided string
+    ///
+    /// This changes author name and email while retaining author
+    /// timestamp for non-discardable commits.
+    #[arg(
+        long,
+        conflicts_with = "reset_author",
+        value_parser = parse_author
+    )]
+    author: Option<(String, String)>,
 }
 
 #[instrument(skip_all)]
@@ -105,6 +117,14 @@ new working-copy commit.
     commit_builder.set_tree_id(tree_id);
     if args.reset_author {
         commit_builder.set_author(commit_builder.committer().clone());
+    }
+    if let Some((name, email)) = args.author.clone() {
+        let new_author = Signature {
+            name,
+            email,
+            timestamp: commit_builder.author().timestamp.clone(),
+        };
+        commit_builder.set_author(new_author);
     }
 
     let description = if !args.message_paragraphs.is_empty() {

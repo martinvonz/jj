@@ -17,6 +17,7 @@ use std::io;
 use std::io::Read;
 
 use itertools::Itertools;
+use jj_lib::backend::Signature;
 use jj_lib::commit::CommitIteratorExt;
 use jj_lib::object_id::ObjectId;
 use tracing::instrument;
@@ -30,6 +31,7 @@ use crate::description_util::edit_description;
 use crate::description_util::edit_multiple_descriptions;
 use crate::description_util::join_message_paragraphs;
 use crate::description_util::ParsedBulkEditMessage;
+use crate::text_util::parse_author;
 use crate::ui::Ui;
 
 /// Update the change description or other metadata
@@ -72,6 +74,16 @@ pub(crate) struct DescribeArgs {
     /// $ JJ_USER='Foo Bar' JJ_EMAIL=foo@bar.com jj describe --reset-author
     #[arg(long)]
     reset_author: bool,
+    /// Set author to the provided string
+    ///
+    /// This changes author name and email while retaining author
+    /// timestamp for non-discardable commits.
+    #[arg(
+        long,
+        conflicts_with = "reset_author",
+        value_parser = parse_author
+    )]
+    author: Option<(String, String)>,
 }
 
 #[instrument(skip_all)]
@@ -139,6 +151,14 @@ pub(crate) fn cmd_describe(
                     let new_author = commit_builder.committer().clone();
                     commit_builder.set_author(new_author);
                 }
+                if let Some((name, email)) = args.author.clone() {
+                    let new_author = Signature {
+                        name,
+                        email,
+                        timestamp: commit.author().timestamp.clone(),
+                    };
+                    commit_builder.set_author(new_author);
+                }
                 let temp_commit = commit_builder.write_hidden()?;
                 Ok((commit.id(), temp_commit))
             })
@@ -194,13 +214,14 @@ pub(crate) fn cmd_describe(
     // `transform_descendants` below unnecessarily.
     let commit_descriptions: HashMap<_, _> = commit_descriptions
         .into_iter()
-        .filter_map(|(commit, new_description)| {
-            if *new_description == *commit.description() && !args.reset_author {
-                None
-            } else {
-                Some((commit.id(), new_description))
-            }
+        .filter(|(commit, new_description)| {
+            new_description != commit.description()
+                || args.reset_author
+                || args.author.as_ref().is_some_and(|(name, email)| {
+                    name != &commit.author().name || email != &commit.author().email
+                })
         })
+        .map(|(commit, new_description)| (commit.id(), new_description))
         .collect();
 
     let mut num_described = 0;
@@ -223,6 +244,14 @@ pub(crate) fn cmd_describe(
                 commit_builder = commit_builder.set_description(description);
                 if args.reset_author {
                     let new_author = commit_builder.committer().clone();
+                    commit_builder = commit_builder.set_author(new_author);
+                }
+                if let Some((name, email)) = args.author.clone() {
+                    let new_author = Signature {
+                        name,
+                        email,
+                        timestamp: commit_builder.author().timestamp.clone(),
+                    };
                     commit_builder = commit_builder.set_author(new_author);
                 }
                 num_described += 1;

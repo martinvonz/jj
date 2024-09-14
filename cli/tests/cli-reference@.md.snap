@@ -447,6 +447,9 @@ Update the description and create a new change on top
    You can use it in combination with the JJ_USER and JJ_EMAIL environment variables to set a different author:
 
    $ JJ_USER='Foo Bar' JJ_EMAIL=foo@bar.com jj commit --reset-author
+* `--author <AUTHOR>` — Set author to the provided string
+
+   This changes author name and email while retaining author timestamp for non-discardable commits.
 
 
 
@@ -600,6 +603,9 @@ Starts an editor to let you edit the description of changes. The editor will be 
    You can use it in combination with the JJ_USER and JJ_EMAIL environment variables to set a different author:
 
    $ JJ_USER='Foo Bar' JJ_EMAIL=foo@bar.com jj describe --reset-author
+* `--author <AUTHOR>` — Set author to the provided string
+
+   This changes author name and email while retaining author timestamp for non-discardable commits.
 
 
 

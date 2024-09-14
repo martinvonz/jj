@@ -215,6 +215,7 @@ fn test_commit_with_description_template() {
 
     std::fs::write(workspace_path.join("file1"), "foo\n").unwrap();
     std::fs::write(workspace_path.join("file2"), "bar\n").unwrap();
+    std::fs::write(workspace_path.join("file3"), "foobar\n").unwrap();
 
     // Only file1 should be included in the diff
     test_env.jj_cmd_ok(&workspace_path, &["commit", "file1"]);
@@ -230,19 +231,41 @@ fn test_commit_with_description_template() {
     JJ: Lines starting with "JJ: " (like this one) will be removed.
     "###);
 
-    // Timestamp after the reset should be available to the template
-    test_env.jj_cmd_ok(&workspace_path, &["commit", "--reset-author"]);
+    // Only file2 with modified author should be included in the diff
+    test_env.jj_cmd_ok(
+        &workspace_path,
+        &[
+            "commit",
+            "--author",
+            "Another User <another.user@example.com>",
+            "file2",
+        ],
+    );
     insta::assert_snapshot!(
-        std::fs::read_to_string(test_env.env_root().join("editor")).unwrap(), @r###"
+        std::fs::read_to_string(test_env.env_root().join("editor")).unwrap(), @r#"
 
-    JJ: Author: Test User <test.user@example.com> (2001-02-03 08:05:09)
+    JJ: Author: Another User <another.user@example.com> (2001-02-03 08:05:08)
     JJ: Committer: Test User <test.user@example.com> (2001-02-03 08:05:09)
 
     JJ: file2 | 1 +
     JJ: 1 file changed, 1 insertion(+), 0 deletions(-)
 
     JJ: Lines starting with "JJ: " (like this one) will be removed.
-    "###);
+    "#);
+
+    // Timestamp after the reset should be available to the template
+    test_env.jj_cmd_ok(&workspace_path, &["commit", "--reset-author"]);
+    insta::assert_snapshot!(
+        std::fs::read_to_string(test_env.env_root().join("editor")).unwrap(), @r#"
+
+    JJ: Author: Test User <test.user@example.com> (2001-02-03 08:05:10)
+    JJ: Committer: Test User <test.user@example.com> (2001-02-03 08:05:10)
+
+    JJ: file3 | 1 +
+    JJ: 1 file changed, 1 insertion(+), 0 deletions(-)
+
+    JJ: Lines starting with "JJ: " (like this one) will be removed.
+    "#);
 }
 
 #[test]
