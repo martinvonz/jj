@@ -261,6 +261,12 @@ pub fn write_wrapped(
     })
 }
 
+pub fn parse_author(author: &str) -> Result<(String, String), &'static str> {
+    let re = regex::Regex::new(r"(?<name>.*?)\s*<(?<email>.+)>$").unwrap();
+    let captures = re.captures(author).ok_or("Invalid author string")?;
+    Ok((captures["name"].to_string(), captures["email"].to_string()))
+}
+
 #[cfg(test)]
 mod tests {
     use std::io::Write as _;
@@ -631,5 +637,34 @@ mod tests {
             format_plain_text(|formatter| write_wrapped(formatter, &recorder, 10)),
             "foo\n",
         );
+    }
+
+    #[test]
+    fn test_parse_author() {
+        let expected_name = "Example";
+        let expected_email = "example@example.com";
+        let parsed = parse_author(&format!("{expected_name} <{expected_email}>")).unwrap();
+        assert_eq!(
+            (expected_name.to_string(), expected_email.to_string()),
+            parsed
+        );
+    }
+
+    #[test]
+    fn test_parse_author_with_utf8() {
+        let expected_name = "Ąćęłńóśżź";
+        let expected_email = "example@example.com";
+        let parsed = parse_author(&format!("{expected_name} <{expected_email}>")).unwrap();
+        assert_eq!(
+            (expected_name.to_string(), expected_email.to_string()),
+            parsed
+        );
+    }
+
+    #[test]
+    fn test_parse_author_without_name() {
+        let expected_email = "example@example.com";
+        let parsed = parse_author(&format!("<{expected_email}>")).unwrap();
+        assert_eq!(("".to_string(), expected_email.to_string()), parsed);
     }
 }

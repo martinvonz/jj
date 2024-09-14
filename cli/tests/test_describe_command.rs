@@ -525,6 +525,52 @@ fn test_describe_author() {
     ~
     "###);
 
+    // Change the author for the latest commit (the committer is always reset)
+    test_env.jj_cmd_ok(
+        &repo_path,
+        &[
+            "describe",
+            "--no-edit",
+            "--author",
+            "Super Seeder <super.seeder@example.com>",
+        ],
+    );
+    insta::assert_snapshot!(get_signatures(), @r#"
+    @  Super Seeder super.seeder@example.com 2001-02-03 04:05:12.000 +07:00
+    │  Test User test.user@example.com 2001-02-03 04:05:12.000 +07:00
+    ○  Test User test.user@example.com 2001-02-03 04:05:09.000 +07:00
+    │  Test User test.user@example.com 2001-02-03 04:05:09.000 +07:00
+    ○  Test User test.user@example.com 2001-02-03 04:05:08.000 +07:00
+    │  Test User test.user@example.com 2001-02-03 04:05:08.000 +07:00
+    ○  Test User test.user@example.com 2001-02-03 04:05:07.000 +07:00
+    │  Test User test.user@example.com 2001-02-03 04:05:07.000 +07:00
+    ~
+    "#);
+
+    // Change the author for multiple commits (the committer is always reset)
+    test_env.jj_cmd_ok(
+        &repo_path,
+        &[
+            "describe",
+            "@---",
+            "@-",
+            "--no-edit",
+            "--author",
+            "Super Seeder <super.seeder@example.com>",
+        ],
+    );
+    insta::assert_snapshot!(get_signatures(), @r#"
+    @  Super Seeder super.seeder@example.com 2001-02-03 04:05:12.000 +07:00
+    │  Test User test.user@example.com 2001-02-03 04:05:14.000 +07:00
+    ○  Super Seeder super.seeder@example.com 2001-02-03 04:05:14.000 +07:00
+    │  Test User test.user@example.com 2001-02-03 04:05:14.000 +07:00
+    ○  Test User test.user@example.com 2001-02-03 04:05:14.000 +07:00
+    │  Test User test.user@example.com 2001-02-03 04:05:14.000 +07:00
+    ○  Super Seeder super.seeder@example.com 2001-02-03 04:05:14.000 +07:00
+    │  Test User test.user@example.com 2001-02-03 04:05:14.000 +07:00
+    ~
+    "#);
+
     // Reset the author for the latest commit (the committer is always reset)
     test_env.jj_cmd_ok(
         &repo_path,
@@ -537,17 +583,17 @@ fn test_describe_author() {
             "--reset-author",
         ],
     );
-    insta::assert_snapshot!(get_signatures(), @r###"
-    @  Ove Ridder ove.ridder@example.com 2001-02-03 04:05:12.000 +07:00
-    │  Ove Ridder ove.ridder@example.com 2001-02-03 04:05:12.000 +07:00
-    ○  Test User test.user@example.com 2001-02-03 04:05:09.000 +07:00
-    │  Test User test.user@example.com 2001-02-03 04:05:09.000 +07:00
-    ○  Test User test.user@example.com 2001-02-03 04:05:08.000 +07:00
-    │  Test User test.user@example.com 2001-02-03 04:05:08.000 +07:00
-    ○  Test User test.user@example.com 2001-02-03 04:05:07.000 +07:00
-    │  Test User test.user@example.com 2001-02-03 04:05:07.000 +07:00
+    insta::assert_snapshot!(get_signatures(), @r#"
+    @  Ove Ridder ove.ridder@example.com 2001-02-03 04:05:16.000 +07:00
+    │  Ove Ridder ove.ridder@example.com 2001-02-03 04:05:16.000 +07:00
+    ○  Super Seeder super.seeder@example.com 2001-02-03 04:05:14.000 +07:00
+    │  Test User test.user@example.com 2001-02-03 04:05:14.000 +07:00
+    ○  Test User test.user@example.com 2001-02-03 04:05:14.000 +07:00
+    │  Test User test.user@example.com 2001-02-03 04:05:14.000 +07:00
+    ○  Super Seeder super.seeder@example.com 2001-02-03 04:05:14.000 +07:00
+    │  Test User test.user@example.com 2001-02-03 04:05:14.000 +07:00
     ~
-    "###);
+    "#);
 
     // Reset the author for multiple commits (the committer is always reset)
     test_env.jj_cmd_ok(
@@ -563,17 +609,17 @@ fn test_describe_author() {
             "--reset-author",
         ],
     );
-    insta::assert_snapshot!(get_signatures(), @r###"
-    @  Ove Ridder ove.ridder@example.com 2001-02-03 04:05:14.000 +07:00
-    │  Ove Ridder ove.ridder@example.com 2001-02-03 04:05:14.000 +07:00
-    ○  Ove Ridder ove.ridder@example.com 2001-02-03 04:05:14.000 +07:00
-    │  Ove Ridder ove.ridder@example.com 2001-02-03 04:05:14.000 +07:00
-    ○  Test User test.user@example.com 2001-02-03 04:05:08.000 +07:00
-    │  Ove Ridder ove.ridder@example.com 2001-02-03 04:05:14.000 +07:00
-    ○  Ove Ridder ove.ridder@example.com 2001-02-03 04:05:14.000 +07:00
-    │  Ove Ridder ove.ridder@example.com 2001-02-03 04:05:14.000 +07:00
+    insta::assert_snapshot!(get_signatures(), @r#"
+    @  Ove Ridder ove.ridder@example.com 2001-02-03 04:05:18.000 +07:00
+    │  Ove Ridder ove.ridder@example.com 2001-02-03 04:05:18.000 +07:00
+    ○  Ove Ridder ove.ridder@example.com 2001-02-03 04:05:18.000 +07:00
+    │  Ove Ridder ove.ridder@example.com 2001-02-03 04:05:18.000 +07:00
+    ○  Test User test.user@example.com 2001-02-03 04:05:14.000 +07:00
+    │  Ove Ridder ove.ridder@example.com 2001-02-03 04:05:18.000 +07:00
+    ○  Ove Ridder ove.ridder@example.com 2001-02-03 04:05:18.000 +07:00
+    │  Ove Ridder ove.ridder@example.com 2001-02-03 04:05:18.000 +07:00
     ~
-    "###);
+    "#);
 }
 
 #[test]

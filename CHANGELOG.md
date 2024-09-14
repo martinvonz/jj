@@ -64,6 +64,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 * CommitId / ChangeId template types now support `.normal_hex()`.
 
+* `jj commit` and `jj describe` now accept `--author` option allowing to quickly change
+  author of given commit.
+
 ### Fixed bugs
 
  * `jj git fetch -b <remote-git-branch-name>` will now warn if the branch(es)
