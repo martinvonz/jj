@@ -150,7 +150,7 @@ pub fn create_op_metadata(
     let start_time = user_settings
         .operation_timestamp()
         .unwrap_or_else(Timestamp::now);
-    let end_time = start_time.clone();
+    let end_time = start_time;
     let hostname = user_settings.operation_hostname();
     let username = user_settings.operation_username();
     OperationMetadata {

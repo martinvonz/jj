@@ -374,7 +374,7 @@ impl Operation {
             tz_offset: 0,
         };
         let metadata = OperationMetadata {
-            start_time: timestamp.clone(),
+            start_time: timestamp,
             end_time: timestamp,
             description: "".to_string(),
             hostname: "".to_string(),

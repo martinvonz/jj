@@ -122,7 +122,7 @@ new working-copy commit.
         let new_author = Signature {
             name,
             email,
-            timestamp: commit_builder.author().timestamp.clone(),
+            timestamp: commit_builder.author().timestamp,
         };
         commit_builder.set_author(new_author);
     }
