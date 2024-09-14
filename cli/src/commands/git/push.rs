@@ -266,7 +266,7 @@ pub fn cmd_git_push(
 
     validate_commits_ready_to_push(&bookmark_updates, &remote, &tx, command, args)?;
     if let Some(mut formatter) = ui.status_formatter() {
-        writeln!(formatter, "Bookmark changes to push to {remote}:")?;
+        writeln!(formatter, "Changes to push to {remote}:")?;
         print_commits_ready_to_push(formatter.as_mut(), repo.as_ref(), &bookmark_updates)?;
     }
 
