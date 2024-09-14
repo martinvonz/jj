@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::HashMap;
 use std::collections::HashSet;
 use std::fmt;
 use std::io;
@@ -384,27 +383,16 @@ fn print_commits_ready_to_push(
     repo: &dyn Repo,
     bookmark_updates: &[(String, BookmarkPushUpdate)],
 ) -> io::Result<()> {
-    let mut bookmark_push_direction = HashMap::new();
-    for (bookmark_name, update) in bookmark_updates {
-        let BookmarkPushUpdate {
-            old_target: Some(old_target),
-            new_target: Some(new_target),
-        } = update
-        else {
-            continue;
-        };
+    let to_direction = |old_target: &CommitId, new_target: &CommitId| {
         assert_ne!(old_target, new_target);
-        bookmark_push_direction.insert(
-            bookmark_name.to_string(),
-            if repo.index().is_ancestor(old_target, new_target) {
-                BookmarkMoveDirection::Forward
-            } else if repo.index().is_ancestor(new_target, old_target) {
-                BookmarkMoveDirection::Backward
-            } else {
-                BookmarkMoveDirection::Sideways
-            },
-        );
-    }
+        if repo.index().is_ancestor(old_target, new_target) {
+            BookmarkMoveDirection::Forward
+        } else if repo.index().is_ancestor(new_target, old_target) {
+            BookmarkMoveDirection::Backward
+        } else {
+            BookmarkMoveDirection::Sideways
+        }
+    };
 
     for (bookmark_name, update) in bookmark_updates {
         match (&update.old_target, &update.new_target) {
@@ -417,7 +405,7 @@ fn print_commits_ready_to_push(
                 // among many was moved sideways (say). TODO: People on Discord
                 // suggest "Move bookmark ... forward by n commits",
                 // possibly "Move bookmark ... sideways (X forward, Y back)".
-                let msg = match bookmark_push_direction.get(bookmark_name).unwrap() {
+                let msg = match to_direction(old_target, new_target) {
                     BookmarkMoveDirection::Forward => {
                         format!("Move forward bookmark {bookmark_name} from {old} to {new}")
                     }
