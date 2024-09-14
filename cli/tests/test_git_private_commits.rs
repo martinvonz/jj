@@ -88,13 +88,13 @@ fn test_git_private_commits_block_pushing() {
     // May push when the commit is removed from git.private-commits
     test_env.add_config(r#"git.private-commits = "none()""#);
     let (_, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push", "--all"]);
-    insta::assert_snapshot!(stderr, @r###"
-    Bookmark changes to push to origin:
+    insta::assert_snapshot!(stderr, @r#"
+    Changes to push to origin:
       Move forward bookmark main from 7eb97bf230ad to aa3058ff8663
     Warning: The working-copy commit in workspace 'default' became immutable, so a new commit has been created on top of it.
     Working copy now at: znkkpsqq 2e1adf47 (empty) (no description set)
     Parent commit      : yqosqzyt aa3058ff main | (empty) private 1
-    "###);
+    "#);
 }
 
 #[test]
@@ -116,13 +116,13 @@ fn test_git_private_commits_can_be_overridden() {
         &workspace_root,
         &["git", "push", "--all", "--allow-private"],
     );
-    insta::assert_snapshot!(stderr, @r###"
-    Bookmark changes to push to origin:
+    insta::assert_snapshot!(stderr, @r#"
+    Changes to push to origin:
       Move forward bookmark main from 7eb97bf230ad to aa3058ff8663
     Warning: The working-copy commit in workspace 'default' became immutable, so a new commit has been created on top of it.
     Working copy now at: znkkpsqq 2e1adf47 (empty) (no description set)
     Parent commit      : yqosqzyt aa3058ff main | (empty) private 1
-    "###);
+    "#);
 }
 
 #[test]
@@ -135,13 +135,13 @@ fn test_git_private_commits_are_not_checked_if_immutable() {
     test_env.add_config(r#"git.private-commits = "description(glob:'private*')""#);
     test_env.add_config(r#"revset-aliases."immutable_heads()" = "all()""#);
     let (_, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push", "--all"]);
-    insta::assert_snapshot!(stderr, @r###"
-    Bookmark changes to push to origin:
+    insta::assert_snapshot!(stderr, @r#"
+    Changes to push to origin:
       Move forward bookmark main from 7eb97bf230ad to aa3058ff8663
     Warning: The working-copy commit in workspace 'default' became immutable, so a new commit has been created on top of it.
     Working copy now at: yostqsxw dce4a15c (empty) (no description set)
     Parent commit      : yqosqzyt aa3058ff main | (empty) private 1
-    "###);
+    "#);
 }
 
 #[test]
@@ -171,10 +171,10 @@ fn test_git_private_commits_descending_from_commits_pushed_do_not_block_pushing(
 
     test_env.add_config(r#"git.private-commits = "description(glob:'private*')""#);
     let (_, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push", "-b=main"]);
-    insta::assert_snapshot!(stderr, @r###"
-    Bookmark changes to push to origin:
+    insta::assert_snapshot!(stderr, @r#"
+    Changes to push to origin:
       Move forward bookmark main from 7eb97bf230ad to 05ef53bc99ec
-    "###);
+    "#);
 }
 
 #[test]
@@ -194,14 +194,14 @@ fn test_git_private_commits_already_on_the_remote_do_not_block_push() {
     test_env.jj_cmd_ok(&workspace_root, &["bookmark", "set", "main"]);
     let (_, stderr) =
         test_env.jj_cmd_ok(&workspace_root, &["git", "push", "-b=main", "-b=bookmark1"]);
-    insta::assert_snapshot!(stderr, @r###"
-    Bookmark changes to push to origin:
+    insta::assert_snapshot!(stderr, @r#"
+    Changes to push to origin:
       Move forward bookmark main from 7eb97bf230ad to fbb352762352
       Add bookmark bookmark1 to 7eb97bf230ad
     Warning: The working-copy commit in workspace 'default' became immutable, so a new commit has been created on top of it.
     Working copy now at: kpqxywon a7b08364 (empty) (no description set)
     Parent commit      : yostqsxw fbb35276 main | (empty) public 3
-    "###);
+    "#);
 
     test_env.add_config(r#"git.private-commits = "description(glob:'private*')""#);
 
@@ -211,10 +211,10 @@ fn test_git_private_commits_already_on_the_remote_do_not_block_push() {
         &["bookmark", "set", "bookmark1", "-r=main"],
     );
     let (_, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push", "--all"]);
-    insta::assert_snapshot!(stderr, @r###"
-    Bookmark changes to push to origin:
+    insta::assert_snapshot!(stderr, @r#"
+    Changes to push to origin:
       Move forward bookmark bookmark1 from 7eb97bf230ad to fbb352762352
-    "###);
+    "#);
 
     // Ensure that the already-pushed commit doesn't block a new bookmark from
     // being pushed
@@ -224,10 +224,10 @@ fn test_git_private_commits_already_on_the_remote_do_not_block_push() {
     );
     test_env.jj_cmd_ok(&workspace_root, &["bookmark", "create", "bookmark2"]);
     let (_, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push", "-b=bookmark2"]);
-    insta::assert_snapshot!(stderr, @r###"
-    Bookmark changes to push to origin:
+    insta::assert_snapshot!(stderr, @r#"
+    Changes to push to origin:
       Add bookmark bookmark2 to ee5b808b0b95
-    "###);
+    "#);
 }
 
 #[test]
@@ -242,10 +242,10 @@ fn test_git_private_commits_are_evaluated_separately_for_each_remote() {
     test_env.jj_cmd_ok(&workspace_root, &["new", "-m=public 3"]);
     test_env.jj_cmd_ok(&workspace_root, &["bookmark", "set", "main"]);
     let (_, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push", "-b=main"]);
-    insta::assert_snapshot!(stderr, @r###"
-    Bookmark changes to push to origin:
+    insta::assert_snapshot!(stderr, @r#"
+    Changes to push to origin:
       Move forward bookmark main from 7eb97bf230ad to d8632ce893ab
-    "###);
+    "#);
 
     test_env.add_config(r#"git.private-commits = "description(glob:'private*')""#);
 

@@ -1235,14 +1235,14 @@ fn test_op_diff() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["git", "push", "--tracked"]);
     insta::assert_snapshot!(&stdout, @r###"
     "###);
-    insta::assert_snapshot!(&stderr, @r###"
-    Bookmark changes to push to origin:
+    insta::assert_snapshot!(&stderr, @r#"
+    Changes to push to origin:
       Move forward bookmark bookmark-1 from 4f856199edbf to 358b82d6be53
       Delete bookmark bookmark-2 from d487febd08e6
     Warning: The working-copy commit in workspace 'default' became immutable, so a new commit has been created on top of it.
     Working copy now at: oupztwtk 2f0718a0 (empty) (no description set)
     Parent commit      : wvuyspvk 358b82d6 bookmark-1 | (empty) new commit
-    "###);
+    "#);
     let stdout = test_env.jj_cmd_success(&repo_path, &["op", "diff"]);
     insta::assert_snapshot!(&stdout, @r###"
     From operation 0f77d601f1cd: delete bookmark bookmark-2
@@ -1931,14 +1931,14 @@ fn test_op_show() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["git", "push", "--tracked"]);
     insta::assert_snapshot!(&stdout, @r###"
     "###);
-    insta::assert_snapshot!(&stderr, @r###"
-    Bookmark changes to push to origin:
+    insta::assert_snapshot!(&stderr, @r#"
+    Changes to push to origin:
       Move forward bookmark bookmark-1 from 4f856199edbf to eb6c2b21ec20
       Delete bookmark bookmark-2 from d487febd08e6
     Warning: The working-copy commit in workspace 'default' became immutable, so a new commit has been created on top of it.
     Working copy now at: pzsxstzt 7ab2d837 (empty) (no description set)
     Parent commit      : xznxytkn eb6c2b21 bookmark-1 | (empty) new commit
-    "###);
+    "#);
     let stdout = test_env.jj_cmd_success(&repo_path, &["op", "show"]);
     insta::assert_snapshot!(&stdout, @r###"
     5d994bb7d230 test-username@host.example.com 2001-02-03 04:05:30.000 +07:00 - 2001-02-03 04:05:30.000 +07:00

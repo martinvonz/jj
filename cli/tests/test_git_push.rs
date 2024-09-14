@@ -90,19 +90,19 @@ fn test_git_push_current_bookmark() {
     // First dry-run. `bookmark1` should not get pushed.
     let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push", "--dry-run"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
-    Bookmark changes to push to origin:
+    insta::assert_snapshot!(stderr, @r#"
+    Changes to push to origin:
       Move forward bookmark bookmark2 from 8476341eb395 to bc7610b65a91
       Add bookmark my-bookmark to bc7610b65a91
     Dry-run requested, not pushing.
-    "###);
+    "#);
     let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
-    Bookmark changes to push to origin:
+    insta::assert_snapshot!(stderr, @r#"
+    Changes to push to origin:
       Move forward bookmark bookmark2 from 8476341eb395 to bc7610b65a91
       Add bookmark my-bookmark to bc7610b65a91
-    "###);
+    "#);
     insta::assert_snapshot!(get_bookmark_output(&test_env, &workspace_root), @r###"
     bookmark1: xtvrqkyv 0f8dc656 (empty) modified bookmark1 commit
       @origin (ahead by 1 commits, behind by 1 commits): xtvrqkyv hidden d13ecdbd (empty) description 1
@@ -134,10 +134,10 @@ fn test_git_push_current_bookmark() {
     // We can move a bookmark backwards
     let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push", "-bbookmark2"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
-    Bookmark changes to push to origin:
+    insta::assert_snapshot!(stderr, @r#"
+    Changes to push to origin:
       Move backward bookmark bookmark2 from bc7610b65a91 to 8476341eb395
-    "###);
+    "#);
 }
 
 #[test]
@@ -153,10 +153,10 @@ fn test_git_push_parent_bookmark() {
     std::fs::write(workspace_root.join("file"), "file").unwrap();
     let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
-    Bookmark changes to push to origin:
+    insta::assert_snapshot!(stderr, @r#"
+    Changes to push to origin:
       Move sideways bookmark bookmark1 from d13ecdbda2a2 to e612d524a5c6
-    "###);
+    "#);
 }
 
 #[test]
@@ -213,10 +213,10 @@ fn test_git_push_other_remote_has_bookmark() {
     test_env.jj_cmd_ok(&workspace_root, &["describe", "-m=modified"]);
     let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
-    Bookmark changes to push to origin:
+    insta::assert_snapshot!(stderr, @r#"
+    Changes to push to origin:
       Move sideways bookmark bookmark1 from d13ecdbda2a2 to a657f1b61b94
-    "###);
+    "#);
     // Since it's already pushed to origin, nothing will happen if push again
     let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push"]);
     insta::assert_snapshot!(stdout, @"");
@@ -234,10 +234,10 @@ fn test_git_push_other_remote_has_bookmark() {
     // TODO: Saner test?
     let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push", "--remote=other"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
-    Bookmark changes to push to other:
+    insta::assert_snapshot!(stderr, @r#"
+    Changes to push to other:
       Add bookmark bookmark1 to a657f1b61b94
-    "###);
+    "#);
 }
 
 #[test]
@@ -258,12 +258,12 @@ fn test_git_push_forward_unexpectedly_moved() {
 
     // Pushing should fail
     let stderr = test_env.jj_cmd_failure(&workspace_root, &["git", "push"]);
-    insta::assert_snapshot!(stderr, @r###"
-    Bookmark changes to push to origin:
+    insta::assert_snapshot!(stderr, @r#"
+    Changes to push to origin:
       Move forward bookmark bookmark1 from d13ecdbda2a2 to 6750425ff51c
     Error: Refusing to push a bookmark that unexpectedly moved on the remote. Affected refs: refs/heads/bookmark1
     Hint: Try fetching from the remote, then make the bookmark point to where you want it to be, and push again.
-    "###);
+    "#);
 }
 
 #[test]
@@ -298,12 +298,12 @@ fn test_git_push_sideways_unexpectedly_moved() {
     "###);
 
     let stderr = test_env.jj_cmd_failure(&workspace_root, &["git", "push"]);
-    insta::assert_snapshot!(stderr, @r###"
-    Bookmark changes to push to origin:
+    insta::assert_snapshot!(stderr, @r#"
+    Changes to push to origin:
       Move sideways bookmark bookmark1 from d13ecdbda2a2 to 0f8bf988588e
     Error: Refusing to push a bookmark that unexpectedly moved on the remote. Affected refs: refs/heads/bookmark1
     Hint: Try fetching from the remote, then make the bookmark point to where you want it to be, and push again.
-    "###);
+    "#);
 }
 
 // This tests whether the push checks that the remote bookmarks are in expected
@@ -336,12 +336,12 @@ fn test_git_push_deletion_unexpectedly_moved() {
 
     let stderr =
         test_env.jj_cmd_failure(&workspace_root, &["git", "push", "--bookmark", "bookmark1"]);
-    insta::assert_snapshot!(stderr, @r###"
-    Bookmark changes to push to origin:
+    insta::assert_snapshot!(stderr, @r#"
+    Changes to push to origin:
       Delete bookmark bookmark1 from d13ecdbda2a2
     Error: Refusing to push a bookmark that unexpectedly moved on the remote. Affected refs: refs/heads/bookmark1
     Hint: Try fetching from the remote, then make the bookmark point to where you want it to be, and push again.
-    "###);
+    "#);
 }
 
 #[test]
@@ -375,12 +375,12 @@ fn test_git_push_unexpectedly_deleted() {
 
     // Pushing a moved bookmark fails if deleted on remote
     let stderr = test_env.jj_cmd_failure(&workspace_root, &["git", "push"]);
-    insta::assert_snapshot!(stderr, @r###"
-    Bookmark changes to push to origin:
+    insta::assert_snapshot!(stderr, @r#"
+    Changes to push to origin:
       Move sideways bookmark bookmark1 from d13ecdbda2a2 to 1ebe27ba04bf
     Error: Refusing to push a bookmark that unexpectedly moved on the remote. Affected refs: refs/heads/bookmark1
     Hint: Try fetching from the remote, then make the bookmark point to where you want it to be, and push again.
-    "###);
+    "#);
 
     test_env.jj_cmd_ok(&workspace_root, &["bookmark", "delete", "bookmark1"]);
     insta::assert_snapshot!(get_bookmark_output(&test_env, &workspace_root), @r###"
@@ -393,10 +393,10 @@ fn test_git_push_unexpectedly_deleted() {
     // bookmark1@origin to exist and point somewhere.
     let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push", "-bbookmark1"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
-    Bookmark changes to push to origin:
+    insta::assert_snapshot!(stderr, @r#"
+    Changes to push to origin:
       Delete bookmark bookmark1 from d13ecdbda2a2
-    "###);
+    "#);
 }
 
 #[test]
@@ -417,12 +417,12 @@ fn test_git_push_creation_unexpectedly_already_exists() {
     "###);
 
     let stderr = test_env.jj_cmd_failure(&workspace_root, &["git", "push"]);
-    insta::assert_snapshot!(stderr, @r###"
-    Bookmark changes to push to origin:
+    insta::assert_snapshot!(stderr, @r#"
+    Changes to push to origin:
       Add bookmark bookmark1 to cb17dcdc74d5
     Error: Refusing to push a bookmark that unexpectedly moved on the remote. Affected refs: refs/heads/bookmark1
     Hint: Try fetching from the remote, then make the bookmark point to where you want it to be, and push again.
-    "###);
+    "#);
 }
 
 #[test]
@@ -435,10 +435,10 @@ fn test_git_push_locally_created_and_rewritten() {
     test_env.jj_cmd_ok(&workspace_root, &["new", "root()", "-mlocal 1"]);
     test_env.jj_cmd_ok(&workspace_root, &["bookmark", "create", "my"]);
     let (_stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push"]);
-    insta::assert_snapshot!(stderr, @r###"
-    Bookmark changes to push to origin:
+    insta::assert_snapshot!(stderr, @r#"
+    Changes to push to origin:
       Add bookmark my to fcc999921ce9
-    "###);
+    "#);
 
     // Rewrite it and push again, which would fail if the pushed bookmark weren't
     // set to "tracking"
@@ -452,10 +452,10 @@ fn test_git_push_locally_created_and_rewritten() {
       @origin (ahead by 1 commits, behind by 1 commits): vruxwmqv hidden fcc99992 (empty) local 1
     "###);
     let (_stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push"]);
-    insta::assert_snapshot!(stderr, @r###"
-    Bookmark changes to push to origin:
+    insta::assert_snapshot!(stderr, @r#"
+    Changes to push to origin:
       Move sideways bookmark my from fcc999921ce9 to bde1d2e44b2a
-    "###);
+    "#);
 }
 
 #[test]
@@ -480,25 +480,25 @@ fn test_git_push_multiple() {
     let (stdout, stderr) =
         test_env.jj_cmd_ok(&workspace_root, &["git", "push", "--all", "--dry-run"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
-    Bookmark changes to push to origin:
+    insta::assert_snapshot!(stderr, @r#"
+    Changes to push to origin:
       Delete bookmark bookmark1 from d13ecdbda2a2
       Move sideways bookmark bookmark2 from 8476341eb395 to c4a3c3105d92
       Add bookmark my-bookmark to c4a3c3105d92
     Dry-run requested, not pushing.
-    "###);
+    "#);
     // Dry run requesting two specific bookmarks
     let (stdout, stderr) = test_env.jj_cmd_ok(
         &workspace_root,
         &["git", "push", "-b=bookmark1", "-b=my-bookmark", "--dry-run"],
     );
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
-    Bookmark changes to push to origin:
+    insta::assert_snapshot!(stderr, @r#"
+    Changes to push to origin:
       Delete bookmark bookmark1 from d13ecdbda2a2
       Add bookmark my-bookmark to c4a3c3105d92
     Dry-run requested, not pushing.
-    "###);
+    "#);
     // Dry run requesting two specific bookmarks twice
     let (stdout, stderr) = test_env.jj_cmd_ok(
         &workspace_root,
@@ -513,24 +513,24 @@ fn test_git_push_multiple() {
         ],
     );
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
-    Bookmark changes to push to origin:
+    insta::assert_snapshot!(stderr, @r#"
+    Changes to push to origin:
       Delete bookmark bookmark1 from d13ecdbda2a2
       Add bookmark my-bookmark to c4a3c3105d92
     Dry-run requested, not pushing.
-    "###);
+    "#);
     // Dry run with glob pattern
     let (stdout, stderr) = test_env.jj_cmd_ok(
         &workspace_root,
         &["git", "push", "-b=glob:bookmark?", "--dry-run"],
     );
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
-    Bookmark changes to push to origin:
+    insta::assert_snapshot!(stderr, @r#"
+    Changes to push to origin:
       Delete bookmark bookmark1 from d13ecdbda2a2
       Move sideways bookmark bookmark2 from 8476341eb395 to c4a3c3105d92
     Dry-run requested, not pushing.
-    "###);
+    "#);
 
     // Unmatched bookmark name is error
     let stderr = test_env.jj_cmd_failure(&workspace_root, &["git", "push", "-b=foo"]);
@@ -547,12 +547,12 @@ fn test_git_push_multiple() {
 
     let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push", "--all"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
-    Bookmark changes to push to origin:
+    insta::assert_snapshot!(stderr, @r#"
+    Changes to push to origin:
       Delete bookmark bookmark1 from d13ecdbda2a2
       Move sideways bookmark bookmark2 from 8476341eb395 to c4a3c3105d92
       Add bookmark my-bookmark to c4a3c3105d92
-    "###);
+    "#);
     insta::assert_snapshot!(get_bookmark_output(&test_env, &workspace_root), @r###"
     bookmark2: yqosqzyt c4a3c310 (empty) foo
       @origin: yqosqzyt c4a3c310 (empty) foo
@@ -581,11 +581,11 @@ fn test_git_push_changes() {
 
     let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push", "--change", "@"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
+    insta::assert_snapshot!(stderr, @r#"
     Creating bookmark push-yostqsxwqrlt for revision yostqsxwqrlt
-    Bookmark changes to push to origin:
+    Changes to push to origin:
       Add bookmark push-yostqsxwqrlt to cf1a53a8800a
-    "###);
+    "#);
     // test pushing two changes at once
     std::fs::write(workspace_root.join("file"), "modified2").unwrap();
     let stderr = test_env.jj_cmd_failure(&workspace_root, &["git", "push", "-c=(@|@-)"]);
@@ -599,20 +599,20 @@ fn test_git_push_changes() {
     // test pushing two changes at once, part 2
     let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push", "-c=all:(@|@-)"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
+    insta::assert_snapshot!(stderr, @r#"
     Creating bookmark push-yqosqzytrlsw for revision yqosqzytrlsw
-    Bookmark changes to push to origin:
+    Changes to push to origin:
       Move sideways bookmark push-yostqsxwqrlt from cf1a53a8800a to 16c169664e9f
       Add bookmark push-yqosqzytrlsw to a050abf4ff07
-    "###);
+    "#);
     // specifying the same change twice doesn't break things
     std::fs::write(workspace_root.join("file"), "modified3").unwrap();
     let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push", "-c=all:(@|@)"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
-    Bookmark changes to push to origin:
+    insta::assert_snapshot!(stderr, @r#"
+    Changes to push to origin:
       Move sideways bookmark push-yostqsxwqrlt from 16c169664e9f to ef6313d50ac1
-    "###);
+    "#);
 
     // specifying the same bookmark with --change/--bookmark doesn't break things
     std::fs::write(workspace_root.join("file"), "modified4").unwrap();
@@ -621,10 +621,10 @@ fn test_git_push_changes() {
         &["git", "push", "-c=@", "-b=push-yostqsxwqrlt"],
     );
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
-    Bookmark changes to push to origin:
+    insta::assert_snapshot!(stderr, @r#"
+    Changes to push to origin:
       Move sideways bookmark push-yostqsxwqrlt from ef6313d50ac1 to c1e65d3a64ce
-    "###);
+    "#);
 
     // try again with --change that moves the bookmark forward
     std::fs::write(workspace_root.join("file"), "modified5").unwrap();
@@ -650,10 +650,10 @@ fn test_git_push_changes() {
         &["git", "push", "-c=@", "-b=push-yostqsxwqrlt"],
     );
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
-    Bookmark changes to push to origin:
+    insta::assert_snapshot!(stderr, @r#"
+    Changes to push to origin:
       Move sideways bookmark push-yostqsxwqrlt from c1e65d3a64ce to 38cb417ce3a6
-    "###);
+    "#);
     let stdout = test_env.jj_cmd_success(&workspace_root, &["status"]);
     insta::assert_snapshot!(stdout, @r###"
     Working copy changes:
@@ -674,11 +674,11 @@ fn test_git_push_changes() {
         ],
     );
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
+    insta::assert_snapshot!(stderr, @r#"
     Creating bookmark test-yostqsxwqrlt for revision yostqsxwqrlt
-    Bookmark changes to push to origin:
+    Changes to push to origin:
       Add bookmark test-yostqsxwqrlt to 38cb417ce3a6
-    "###);
+    "#);
 
     // Test deprecation warning for `git.push-branch-prefix`
     let (stdout, stderr) = test_env.jj_cmd_ok(
@@ -692,12 +692,12 @@ fn test_git_push_changes() {
         ],
     );
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
-  Warning: Config git.push-branch-prefix is deprecated. Please switch to git.push-bookmark-prefix
-  Creating bookmark branch-yostqsxwqrlt for revision yostqsxwqrlt
-  Bookmark changes to push to origin:
-    Add bookmark branch-yostqsxwqrlt to 38cb417ce3a6
-  "###);
+    insta::assert_snapshot!(stderr, @r#"
+    Warning: Config git.push-branch-prefix is deprecated. Please switch to git.push-bookmark-prefix
+    Creating bookmark branch-yostqsxwqrlt for revision yostqsxwqrlt
+    Changes to push to origin:
+      Add bookmark branch-yostqsxwqrlt to 38cb417ce3a6
+    "#);
 }
 
 #[test]
@@ -730,44 +730,44 @@ fn test_git_push_revisions() {
     let (stdout, stderr) =
         test_env.jj_cmd_ok(&workspace_root, &["git", "push", "-r=@-", "--dry-run"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
-    Bookmark changes to push to origin:
+    insta::assert_snapshot!(stderr, @r#"
+    Changes to push to origin:
       Add bookmark bookmark-1 to 5f432a855e59
     Dry-run requested, not pushing.
-    "###);
+    "#);
     // Push multiple revisions of which some have bookmarks
     let (stdout, stderr) = test_env.jj_cmd_ok(
         &workspace_root,
         &["git", "push", "-r=@--", "-r=@-", "--dry-run"],
     );
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
+    insta::assert_snapshot!(stderr, @r#"
     Warning: No bookmarks point to the specified revisions: @--
-    Bookmark changes to push to origin:
+    Changes to push to origin:
       Add bookmark bookmark-1 to 5f432a855e59
     Dry-run requested, not pushing.
-    "###);
+    "#);
     // Push a revision with a multiple bookmarks
     let (stdout, stderr) =
         test_env.jj_cmd_ok(&workspace_root, &["git", "push", "-r=@", "--dry-run"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
-    Bookmark changes to push to origin:
+    insta::assert_snapshot!(stderr, @r#"
+    Changes to push to origin:
       Add bookmark bookmark-2a to 84f499037f5c
       Add bookmark bookmark-2b to 84f499037f5c
     Dry-run requested, not pushing.
-    "###);
+    "#);
     // Repeating a commit doesn't result in repeated messages about the bookmark
     let (stdout, stderr) = test_env.jj_cmd_ok(
         &workspace_root,
         &["git", "push", "-r=@-", "-r=@-", "--dry-run"],
     );
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
-    Bookmark changes to push to origin:
+    insta::assert_snapshot!(stderr, @r#"
+    Changes to push to origin:
       Add bookmark bookmark-1 to 5f432a855e59
     Dry-run requested, not pushing.
-    "###);
+    "#);
 }
 
 #[test]
@@ -794,14 +794,14 @@ fn test_git_push_mixed() {
         ],
     );
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
+    insta::assert_snapshot!(stderr, @r#"
     Creating bookmark push-yqosqzytrlsw for revision yqosqzytrlsw
-    Bookmark changes to push to origin:
+    Changes to push to origin:
       Add bookmark push-yqosqzytrlsw to a050abf4ff07
       Add bookmark bookmark-1 to 5f432a855e59
       Add bookmark bookmark-2a to 84f499037f5c
       Add bookmark bookmark-2b to 84f499037f5c
-    "###);
+    "#);
 }
 
 #[test]
@@ -820,10 +820,10 @@ fn test_git_push_existing_long_bookmark() {
 
     let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push", "--change=@"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
-    Bookmark changes to push to origin:
+    insta::assert_snapshot!(stderr, @r#"
+    Changes to push to origin:
       Add bookmark push-19b790168e73f7a73a98deae21e807c0 to a050abf4ff07
-    "###);
+    "#);
 }
 
 #[test]
@@ -900,11 +900,11 @@ fn test_git_push_no_description_in_immutable() {
         &["git", "push", "--bookmark=my-bookmark", "--dry-run"],
     );
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
-    Bookmark changes to push to origin:
+    insta::assert_snapshot!(stderr, @r#"
+    Changes to push to origin:
       Add bookmark my-bookmark to ea7373507ad9
     Dry-run requested, not pushing.
-    "###);
+    "#);
 }
 
 #[test]
@@ -968,11 +968,11 @@ fn test_git_push_missing_author_in_immutable() {
         &["git", "push", "--bookmark=my-bookmark", "--dry-run"],
     );
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
-    Bookmark changes to push to origin:
+    insta::assert_snapshot!(stderr, @r#"
+    Changes to push to origin:
       Add bookmark my-bookmark to 68fdae89de4f
     Dry-run requested, not pushing.
-    "###);
+    "#);
 }
 
 #[test]
@@ -1047,11 +1047,11 @@ fn test_git_push_missing_committer_in_immutable() {
         &["git", "push", "--bookmark=my-bookmark", "--dry-run"],
     );
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
-    Bookmark changes to push to origin:
+    insta::assert_snapshot!(stderr, @r#"
+    Changes to push to origin:
       Add bookmark my-bookmark to c79f85e90b4a
     Dry-run requested, not pushing.
-    "###);
+    "#);
 }
 
 #[test]
@@ -1061,10 +1061,10 @@ fn test_git_push_deleted() {
     test_env.jj_cmd_ok(&workspace_root, &["bookmark", "delete", "bookmark1"]);
     let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push", "--deleted"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
-    Bookmark changes to push to origin:
+    insta::assert_snapshot!(stderr, @r#"
+    Changes to push to origin:
       Delete bookmark bookmark1 from d13ecdbda2a2
-    "###);
+    "#);
     let stdout = test_env.jj_cmd_success(&workspace_root, &["log", "-rall()"]);
     insta::assert_snapshot!(stdout, @r###"
     ○  rlzusymt test.user@example.com 2001-02-03 08:05:10 bookmark2 8476341e
@@ -1137,23 +1137,23 @@ fn test_git_push_conflicting_bookmarks() {
     bump_bookmark1();
     let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push", "--all"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
+    insta::assert_snapshot!(stderr, @r#"
     Warning: Bookmark bookmark2 is conflicted
     Hint: Run `jj bookmark list` to inspect, and use `jj bookmark set` to fix it up.
-    Bookmark changes to push to origin:
+    Changes to push to origin:
       Move forward bookmark bookmark1 from d13ecdbda2a2 to 8df52121b022
-    "###);
+    "#);
 
     // --revisions shouldn't be blocked by conflicting bookmark
     bump_bookmark1();
     let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push", "-rall()"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
+    insta::assert_snapshot!(stderr, @r#"
     Warning: Bookmark bookmark2 is conflicted
     Hint: Run `jj bookmark list` to inspect, and use `jj bookmark set` to fix it up.
-    Bookmark changes to push to origin:
+    Changes to push to origin:
       Move forward bookmark bookmark1 from 8df52121b022 to 345e1f64a64d
-    "###);
+    "#);
 }
 
 #[test]
@@ -1201,11 +1201,11 @@ fn test_git_push_tracked_vs_all() {
     // try to push it and no other bookmarks.
     let (_stdout, stderr) =
         test_env.jj_cmd_ok(&workspace_root, &["git", "push", "--tracked", "--dry-run"]);
-    insta::assert_snapshot!(stderr, @r###"
-    Bookmark changes to push to origin:
+    insta::assert_snapshot!(stderr, @r#"
+    Changes to push to origin:
       Delete bookmark bookmark2 from 8476341eb395
     Dry-run requested, not pushing.
-    "###);
+    "#);
 
     // Untrack the last remaining tracked bookmark.
     test_env.jj_cmd_ok(
@@ -1242,12 +1242,12 @@ fn test_git_push_tracked_vs_all() {
     // - We could consider showing some hint on `jj bookmark untrack
     //   bookmark2@origin` instead of showing an error here.
     let (_stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push", "--all"]);
-    insta::assert_snapshot!(stderr, @r###"
+    insta::assert_snapshot!(stderr, @r#"
     Warning: Non-tracking remote bookmark bookmark1@origin exists
     Hint: Run `jj bookmark track bookmark1@origin` to import the remote bookmark.
-    Bookmark changes to push to origin:
+    Changes to push to origin:
       Add bookmark bookmark3 to 1aa4f1f2ef7f
-    "###);
+    "#);
 }
 
 #[test]
@@ -1303,12 +1303,12 @@ fn test_git_push_to_remote_named_git() {
 
     let stderr =
         test_env.jj_cmd_failure(&workspace_root, &["git", "push", "--all", "--remote=git"]);
-    insta::assert_snapshot!(stderr, @r###"
-    Bookmark changes to push to git:
+    insta::assert_snapshot!(stderr, @r#"
+    Changes to push to git:
       Add bookmark bookmark1 to d13ecdbda2a2
       Add bookmark bookmark2 to 8476341eb395
     Error: Git remote named 'git' is reserved for local Git repository
-    "###);
+    "#);
 }
 
 fn get_bookmark_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
