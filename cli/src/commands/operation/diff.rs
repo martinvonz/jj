@@ -84,8 +84,7 @@ pub fn cmd_op_diff(
 ) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
     let workspace_env = workspace_command.env();
-    let repo = workspace_command.repo();
-    let repo_loader = &repo.loader();
+    let repo_loader = workspace_command.workspace().repo_loader();
     let from_op;
     let to_op;
     if args.from.is_some() || args.to.is_some() {
