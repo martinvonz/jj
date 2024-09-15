@@ -23,6 +23,7 @@ use crate::command_error::user_error_with_hint;
 use crate::command_error::CommandError;
 use crate::description_util::description_template;
 use crate::description_util::edit_description;
+use crate::description_util::join_message_paragraphs;
 use crate::ui::Ui;
 
 /// Split a revision in two
@@ -35,10 +36,11 @@ use crate::ui::Ui;
 /// [diff editor]:
 ///     https://martinvonz.github.io/jj/latest/config/#editing-diffs
 ///
-/// If the change you split had a description, you will be asked to enter a
-/// change description for each commit. If the change did not have a
-/// description, the second part will not get a description, and you will be
-/// asked for a description only for the first part.
+/// Unless the `--message` arg has been passed, if the change you split had
+/// a description, you will be asked to enter a change description for both
+/// changes. If the change did not have a description, the second part will
+/// not get a description, and you will be asked for a description only for
+/// the first part.
 ///
 /// Splitting an empty commit is not supported because the same effect can be
 /// achieved with `jj new`.
@@ -62,6 +64,12 @@ pub(crate) struct SplitArgs {
     /// Put these paths in the first commit
     #[arg(value_hint = clap::ValueHint::AnyPath)]
     paths: Vec<String>,
+    /// The change description to use for the first part (don't open editor)
+    ///
+    /// The second part will retain the description of the split change if
+    /// there was one
+    #[arg(long = "message", short, value_name = "MESSAGE")]
+    message_paragraphs: Vec<String>,
 }
 
 #[instrument(skip_all)]
@@ -134,14 +142,17 @@ the operation will be aborted.
         if commit_builder.description().is_empty() {
             commit_builder.set_description(command.settings().default_description());
         }
-        let temp_commit = commit_builder.write_hidden()?;
-        let template = description_template(
-            &tx,
-            "Enter a description for the first commit.",
-            &temp_commit,
-        )?;
-        let description =
-            edit_description(tx.base_workspace_helper(), &template, command.settings())?;
+        let description = if !args.message_paragraphs.is_empty() {
+            join_message_paragraphs(&args.message_paragraphs)
+        } else {
+            let temp_commit = commit_builder.write_hidden()?;
+            let template = description_template(
+                &tx,
+                "Enter a description for the first commit.",
+                &temp_commit,
+            )?;
+            edit_description(tx.base_workspace_helper(), &template, command.settings())?
+        };
         commit_builder.set_description(description);
         commit_builder.write(tx.repo_mut())?
     };
@@ -172,7 +183,11 @@ the operation will be aborted.
             // Generate a new change id so that the commit being split doesn't
             // become divergent.
             .generate_new_change_id();
-        let description = if commit.description().is_empty() {
+        let description = if !args.message_paragraphs.is_empty() {
+            // Retain the original description if the user provided a message for the first
+            // change.
+            commit.description().to_owned()
+        } else if commit.description().is_empty() {
             // If there was no description before, don't ask for one for the
             // second commit.
             "".to_string()

@@ -263,6 +263,33 @@ fn test_split_with_default_description() {
     "###);
 }
 
+#[test]
+fn test_split_with_message_arg() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    test_env.add_config(r#"ui.default-description = "\n\nTESTED=TODO""#);
+    let workspace_path = test_env.env_root().join("repo");
+
+    std::fs::write(workspace_path.join("file1"), "foo\n").unwrap();
+    std::fs::write(workspace_path.join("file2"), "bar\n").unwrap();
+    test_env.jj_cmd_ok(&workspace_path, &["describe", "-m", "test"]);
+    let (stdout, stderr) =
+        test_env.jj_cmd_ok(&workspace_path, &["split", "file1", "-m", "first test"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r#"
+    First part: qpvuntsm 28cb8e0e first test
+    Second part: kkmpptxz eada7b3e test
+    Working copy now at: kkmpptxz eada7b3e test
+    Parent commit      : qpvuntsm 28cb8e0e first test
+    "#);
+
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r#"
+    @  kkmpptxzrspx false test
+    ○  qpvuntsmwlqt false first test
+    ◆  zzzzzzzzzzzz true
+    "#);
+}
+
 // This test makes sure that the children of the commit being split retain any
 // other parents which weren't involved in the split.
 #[test]
