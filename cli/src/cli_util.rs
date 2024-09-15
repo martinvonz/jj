@@ -64,7 +64,6 @@ use jj_lib::git;
 use jj_lib::git_backend::GitBackend;
 use jj_lib::gitignore::GitIgnoreError;
 use jj_lib::gitignore::GitIgnoreFile;
-use jj_lib::hex_util::to_reverse_hex;
 use jj_lib::id_prefix::IdPrefixContext;
 use jj_lib::matchers::Matcher;
 use jj_lib::merge::MergedTreeValue;
@@ -2632,17 +2631,21 @@ pub fn edit_temp_file(
 }
 
 pub fn short_commit_hash(commit_id: &CommitId) -> String {
-    commit_id.hex()[0..12].to_string()
+    let mut hash = commit_id.hex();
+    hash.truncate(12);
+    hash
 }
 
 pub fn short_change_hash(change_id: &ChangeId) -> String {
-    // TODO: We could avoid the unwrap() and make this more efficient by converting
-    // straight from binary.
-    to_reverse_hex(&change_id.hex()[0..12]).unwrap()
+    let mut hash = change_id.reverse_hex();
+    hash.truncate(12);
+    hash
 }
 
 pub fn short_operation_hash(operation_id: &OperationId) -> String {
-    operation_id.hex()[0..12].to_string()
+    let mut hash = operation_id.hex();
+    hash.truncate(12);
+    hash
 }
 
 /// Wrapper around a `DiffEditor` to conditionally start interactive session.

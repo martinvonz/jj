@@ -14,7 +14,17 @@
 
 #![allow(missing_docs)]
 
-fn to_reverse_hex_digit(b: u8) -> Option<u8> {
+pub fn to_reverse_hex_digit(b: u8) -> u8 {
+    let offset = match b {
+        b'0'..=b'9' => b - b'0',
+        b'A'..=b'F' => b - b'A' + 10,
+        b'a'..=b'f' => b - b'a' + 10,
+        b => return b,
+    };
+    b'z' - offset
+}
+
+fn to_reverse_hex_digit_checked(b: u8) -> Option<u8> {
     let value = match b {
         b'0'..=b'9' => b - b'0',
         b'A'..=b'F' => b - b'A' + 10,
@@ -24,7 +34,7 @@ fn to_reverse_hex_digit(b: u8) -> Option<u8> {
     Some(b'z' - value)
 }
 
-fn to_forward_hex_digit(b: u8) -> Option<u8> {
+fn to_forward_hex_digit_checked(b: u8) -> Option<u8> {
     let value = match b {
         b'k'..=b'z' => b'z' - b,
         b'K'..=b'Z' => b'Z' - b,
@@ -40,14 +50,14 @@ fn to_forward_hex_digit(b: u8) -> Option<u8> {
 pub fn to_forward_hex(reverse_hex: &str) -> Option<String> {
     reverse_hex
         .bytes()
-        .map(|b| to_forward_hex_digit(b).map(char::from))
+        .map(|b| to_forward_hex_digit_checked(b).map(char::from))
         .collect()
 }
 
 pub fn to_reverse_hex(forward_hex: &str) -> Option<String> {
     forward_hex
         .bytes()
-        .map(|b| to_reverse_hex_digit(b).map(char::from))
+        .map(|b| to_reverse_hex_digit_checked(b).map(char::from))
         .collect()
 }
 
