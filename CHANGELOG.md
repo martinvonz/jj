@@ -60,6 +60,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 * `jj squash`: the `-k` flag can be used as a shorthand for `--keep-emptied`.
 
+* `jj squash` will keep the new working copy at the same place in the tree
+  if the current working copy is abandoned after being emptied.
+
 ### Fixed bugs
 
  * Fixed panic when parsing invalid conflict markers of a particular form.

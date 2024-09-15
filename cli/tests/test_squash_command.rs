@@ -1221,6 +1221,119 @@ fn test_squash_use_destination_message_and_message_mutual_exclusion() {
     "###);
 }
 
+#[test]
+fn test_squash_working_copy_within_tree() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    test_env.jj_cmd_ok(&repo_path, &["bookmark", "create", "a"]);
+    std::fs::write(repo_path.join("file1"), "a\n").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["new", "-m", "[replace a by b]"]);
+    test_env.jj_cmd_ok(&repo_path, &["bookmark", "create", "b"]);
+    std::fs::write(repo_path.join("file1"), "b\n").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["new"]);
+    test_env.jj_cmd_ok(&repo_path, &["bookmark", "create", "c"]);
+    std::fs::write(repo_path.join("file1"), "c\n").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["edit", "b"]);
+    // Test the setup
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r#"
+    ○  7ed8de4a558b c
+    @  8e8523121952 b [replace a by b]
+    ○  184ddbcce5a9 a
+    ◆  000000000000 (empty)
+    "#);
+
+    // Squashes the working copy into the parent by default
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["squash"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r#"
+    Rebased 2 descendant commits
+    Working copy now at: yostqsxw f6d15e1e b | (empty) (no description set)
+    Parent commit      : qpvuntsm 3ca79c80 a | [replace a by b]
+    "#);
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r#"
+    ○  f3ac29ea9241 c
+    @  f6d15e1ed496 b (empty)
+    ○  3ca79c8023ec a [replace a by b]
+    ◆  000000000000 (empty)
+    "#);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["file", "show", "file1"]);
+    insta::assert_snapshot!(stdout, @r#"
+    b
+    "#);
+}
+
+#[test]
+fn test_squash_working_copy_within_tree_multiple_parents_and_children() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    std::fs::write(repo_path.join("a"), "a\n").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "[create a]"]);
+    test_env.jj_cmd_ok(&repo_path, &["bookmark", "create", "a"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "-m", "[create b]", "z"]);
+    test_env.jj_cmd_ok(&repo_path, &["bookmark", "create", "b"]);
+    std::fs::write(repo_path.join("b"), "b\n").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["new", "-m", "[create c]", "a", "b"]);
+    test_env.jj_cmd_ok(&repo_path, &["bookmark", "create", "c"]);
+    std::fs::write(repo_path.join("c"), "c\n").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["new", "-m", "[create d]", "a", "b"]);
+    test_env.jj_cmd_ok(&repo_path, &["bookmark", "create", "d"]);
+    std::fs::write(repo_path.join("d"), "d\n").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["new", "-A", "a", "-A", "b"]);
+    std::fs::write(repo_path.join("a"), "aa\n").unwrap();
+    // Test the setup
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["status"]);
+    insta::assert_snapshot!(stdout, @r#"
+    Working copy changes:
+    M a
+    Working copy : znkkpsqq 07bd93d6 (no description set)
+    Parent commit: qpvuntsm 4a2af425 a | [create a]
+    Parent commit: zsuskuln cf39da8f b | [create b]
+    "#);
+    insta::assert_snapshot!(stderr, @r#"
+    Rebased 2 descendant commits onto updated working copy
+    "#);
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r#"
+    ○  163a37c10790 c [create c]
+    │ ○  76b8fae673cd d [create d]
+    ├─╯
+    @    07bd93d68287
+    ├─╮
+    │ ○  cf39da8f72d7 b [create b]
+    ○ │  4a2af4254101 a [create a]
+    ├─╯
+    ◆  000000000000 (empty)
+    "#);
+
+    // Squashes the working copy into a
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["squash", "--into", "a"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r#"
+    Rebased 3 descendant commits
+    Working copy now at: wqnwkozp 2a1be50d (empty) (no description set)
+    Parent commit      : qpvuntsm 573f81f5 a | [create a]
+    Parent commit      : zsuskuln cf39da8f b | [create b]
+    "#);
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r#"
+    ○  1078e48f1b0b c [create c]
+    │ ○  5caffcc500db d [create d]
+    ├─╯
+    @    2a1be50d39e3 (empty)
+    ├─╮
+    │ ○  cf39da8f72d7 b [create b]
+    ○ │  573f81f5b39b a [create a]
+    ├─╯
+    ◆  000000000000 (empty)
+    "#);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["file", "show", "a"]);
+    insta::assert_snapshot!(stdout, @r#"
+    aa
+    "#);
+}
+
 fn get_description(test_env: &TestEnvironment, repo_path: &Path, rev: &str) -> String {
     test_env.jj_cmd_success(
         repo_path,
