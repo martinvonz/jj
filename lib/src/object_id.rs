@@ -66,8 +66,9 @@ macro_rules! impl_id_type {
             }
 
             /// Parses the given hex string into an ObjectId.
-            pub fn try_from_hex(hex: &str) -> Result<Self, hex::FromHexError> {
-                hex::decode(hex).map(Self)
+            pub fn try_from_hex(hex: &str) -> Result<Self, faster_hex::Error> {
+                let mut dst = vec![0; hex.len() / 2];
+                faster_hex::hex_decode(hex.as_bytes(), &mut dst).map(|()| Self(dst))
             }
         }
 
@@ -95,7 +96,7 @@ macro_rules! impl_id_type {
             }
 
             fn hex(&self) -> String {
-                hex::encode(&self.0)
+                faster_hex::hex_string(&self.0)
             }
         }
     };
@@ -140,7 +141,7 @@ impl HexPrefix {
     }
 
     pub fn hex(&self) -> String {
-        let mut hex_string = hex::encode(&self.min_prefix_bytes);
+        let mut hex_string = faster_hex::hex_string(&self.min_prefix_bytes);
         if self.has_odd_byte {
             hex_string.pop().unwrap();
         }

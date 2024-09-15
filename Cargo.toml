@@ -66,7 +66,7 @@ gix = { version = "0.66.0", default-features = false, features = [
 ] }
 gix-filter = "0.13.0"
 glob = "0.3.1"
-hex = "0.4.3"
+faster-hex = { version = "0.9.0", default-features = false, features = ["std"]}
 ignore = "0.4.23"
 indexmap = "2.5.0"
 indoc = "2.0.4"

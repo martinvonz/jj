@@ -52,7 +52,10 @@ pub fn to_reverse_hex(forward_hex: &str) -> Option<String> {
 }
 
 pub fn decode_hex_string(hex: &str) -> Option<Vec<u8>> {
-    hex::decode(hex.as_bytes()).ok()
+    let mut dst = vec![0; hex.len() / 2];
+    faster_hex::hex_decode(hex.as_bytes(), &mut dst)
+        .ok()
+        .map(|()| dst)
 }
 
 /// Calculates common prefix length of two byte sequences. The length

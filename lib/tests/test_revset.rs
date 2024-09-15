@@ -273,22 +273,22 @@ fn test_resolve_symbol_change_id(readonly: bool) {
 
     // Test the test setup
     assert_eq!(
-        hex::encode(git_commit_ids[0]),
+        &format!("{}", git_commit_ids[0]),
         // "04e12a5467bba790efb88a9870894ec208b16bf1" reversed
         "8fd68d104372910e19511df709e5dde62a548720"
     );
     assert_eq!(
-        hex::encode(git_commit_ids[1]),
+        &format!("{}", git_commit_ids[1]),
         // "040b3ba3a51d8edbc4c5855cbd09de71d4c29cca" reversed
         "5339432b8e7b90bd3aa1a323db71b8a5c5dcd020"
     );
     assert_eq!(
-        hex::encode(git_commit_ids[2]),
+        &format!("{}", git_commit_ids[2]),
         // "04e1c7082e4e34f3f371d8a1a46770b861b9b547" reversed
         "e2ad9d861d0ee625851b8ecfcf2c727410e38720"
     );
     assert_eq!(
-        hex::encode(git_commit_ids[3]),
+        &format!("{}", git_commit_ids[3]),
         // "911d7e52fd5ba04b8f289e14c3d30b52d38c0020" reversed
         "040031cb4ad0cbc3287914f1d205dabf4a7eb889"
     );

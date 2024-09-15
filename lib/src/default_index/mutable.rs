@@ -359,7 +359,7 @@ impl MutableIndexSegment {
         self.serialize_local_entries(&mut buf);
         let mut hasher = Blake2b512::new();
         hasher.update(&buf);
-        let index_file_id_hex = hex::encode(hasher.finalize());
+        let index_file_id_hex = faster_hex::hex_string(&hasher.finalize());
         let index_file_path = dir.join(&index_file_id_hex);
 
         let mut temp_file = NamedTempFile::new_in(dir)?;

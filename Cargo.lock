@@ -1626,12 +1626,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fbf6a919d6cf397374f7dfeeea91d974c7c0a7221d0d0f4f20d859d329e53fcc"
 
 [[package]]
-name = "hex"
-version = "0.4.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
-
-[[package]]
 name = "home"
 version = "0.5.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1833,6 +1827,7 @@ dependencies = [
  "dirs",
  "dunce",
  "esl01-renderdag",
+ "faster-hex",
  "futures 0.3.30",
  "git2",
  "gix",
@@ -1886,12 +1881,12 @@ dependencies = [
  "digest",
  "either",
  "esl01-renderdag",
+ "faster-hex",
  "futures 0.3.30",
  "git2",
  "gix",
  "gix-filter",
  "glob",
- "hex",
  "ignore",
  "indexmap",
  "indoc",
@@ -3096,9 +3091,9 @@ version = "0.21.0"
 dependencies = [
  "async-trait",
  "config",
+ "faster-hex",
  "futures 0.3.30",
  "git2",
- "hex",
  "itertools 0.13.0",
  "jj-lib",
  "pollster",

@@ -1512,7 +1512,6 @@ fn bytes_vec_from_json(value: &serde_json::Value) -> Vec<u8> {
 mod tests {
     use assert_matches::assert_matches;
     use git2::Oid;
-    use hex::ToHex;
     use pollster::FutureExt;
     use test_case::test_case;
 
@@ -2133,7 +2132,7 @@ mod tests {
         };
 
         let mut signer = |data: &_| {
-            let hash: String = blake2b_hash(data).encode_hex();
+            let hash: String = faster_hex::hex_string(&blake2b_hash(data));
             Ok(format!("test sig\n\n\nhash={hash}").into_bytes())
         };
 

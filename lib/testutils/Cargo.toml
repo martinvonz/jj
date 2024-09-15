@@ -19,7 +19,7 @@ async-trait = { workspace = true }
 config = { workspace = true }
 futures = { workspace = true }
 git2 = { workspace = true }
-hex = { workspace = true }
+faster-hex = { workspace = true }
 itertools = { workspace = true }
 jj-lib = { workspace = true, features = ["testing"] }
 pollster = { workspace = true }

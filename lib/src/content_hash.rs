@@ -215,7 +215,7 @@ mod tests {
             x: Vec<Option<i32>>,
             y: i64,
         }
-        let foo_hash = hex::encode(hash(&Foo {
+        let foo_hash = faster_hex::hex_string(&hash(&Foo {
             x: vec![None, Some(42)],
             y: 17,
         }));
@@ -231,7 +231,7 @@ mod tests {
             y: Y,
         }
         assert_eq!(
-            hex::encode(hash(&GenericFoo {
+            faster_hex::hex_string(&hash(&GenericFoo {
                 x: vec![None, Some(42)],
                 y: 17i64
             })),

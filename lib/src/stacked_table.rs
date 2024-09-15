@@ -333,7 +333,7 @@ impl MutableTable {
         let buf = self.maybe_squash_with_ancestors().serialize();
         let mut hasher = Blake2b512::new();
         hasher.update(&buf);
-        let file_id_hex = hex::encode(hasher.finalize());
+        let file_id_hex = faster_hex::hex_string(&hasher.finalize());
         let file_path = store.dir.join(&file_id_hex);
 
         let mut temp_file = NamedTempFile::new_in(&store.dir)?;
