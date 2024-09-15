@@ -105,6 +105,8 @@ This type cannot be printed. The following methods are defined.
 
 The following methods are defined.
 
+* `.normal_hex() -> String`: Normal hex representation (0-9a-f), useful for
+  ChangeId, whose canonical hex representation is "reversed" (z-k).
 * `.short([len: Integer]) -> String`
 * `.shortest([min_len: Integer]) -> ShortestIdPrefix`: Shortest unique prefix.
 

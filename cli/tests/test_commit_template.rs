@@ -644,6 +644,56 @@ fn test_log_git_head() {
 }
 
 #[test]
+fn test_log_commit_id_normal_hex() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    test_env.jj_cmd_ok(&repo_path, &["new", "-m", "first"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "-m", "second"]);
+
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &[
+            "log",
+            "-T",
+            r#"commit_id ++ ": " ++ commit_id.normal_hex()"#,
+        ],
+    );
+    insta::assert_snapshot!(stdout, @r#"
+    @  6572f22267c6f0f2bf7b8a37969ee5a7d54b8aae: 6572f22267c6f0f2bf7b8a37969ee5a7d54b8aae
+    ○  222fa9f0b41347630a1371203b8aad3897d34e5f: 222fa9f0b41347630a1371203b8aad3897d34e5f
+    ○  230dd059e1b059aefc0da06a2e5a7dbf22362f22: 230dd059e1b059aefc0da06a2e5a7dbf22362f22
+    ◆  0000000000000000000000000000000000000000: 0000000000000000000000000000000000000000
+    "#);
+}
+
+#[test]
+fn test_log_change_id_normal_hex() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    test_env.jj_cmd_ok(&repo_path, &["new", "-m", "first"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "-m", "second"]);
+
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &[
+            "log",
+            "-T",
+            r#"change_id ++ ": " ++ change_id.normal_hex()"#,
+        ],
+    );
+    insta::assert_snapshot!(stdout, @r#"
+    @  kkmpptxzrspxrzommnulwmwkkqwworpl: ffdaa62087a280bddc5e3d3ff933b8ae
+    ○  rlvkpnrzqnoowoytxnquwvuryrwnrmlp: 8e4fac809cbb3b162c953458183c8dea
+    ○  qpvuntsmwlqtpsluzzsnyyzlmlwvmlnu: 9a45c67d3e96a7e5007c110ede34dec5
+    ◆  zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz: 00000000000000000000000000000000
+    "#);
+}
+
+#[test]
 fn test_log_customize_short_id() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
