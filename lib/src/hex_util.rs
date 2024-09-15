@@ -51,24 +51,23 @@ pub fn to_reverse_hex(forward_hex: &str) -> Option<String> {
         .collect()
 }
 
-/// Calculates common prefix length of two bytes. The length to be returned is
-/// a number of hexadecimal digits.
+/// Calculates common prefix length of two byte sequences. The length
+/// to be returned is a number of hexadecimal digits.
 pub fn common_hex_len(bytes_a: &[u8], bytes_b: &[u8]) -> usize {
-    iter_half_bytes(bytes_a)
-        .zip(iter_half_bytes(bytes_b))
-        .take_while(|(a, b)| a == b)
-        .count()
-}
-
-fn iter_half_bytes(bytes: &[u8]) -> impl ExactSizeIterator<Item = u8> + '_ {
-    (0..bytes.len() * 2).map(|i| {
-        let v = bytes[i / 2];
-        if i & 1 == 0 {
-            v >> 4
-        } else {
-            v & 0xf
-        }
-    })
+    std::iter::zip(bytes_a, bytes_b)
+        .enumerate()
+        .find_map(|(i, (a, b))| {
+            if a != b {
+                if a >> 4 != b >> 4 {
+                    Some(i * 2)
+                } else {
+                    Some(i * 2 + 1)
+                }
+            } else {
+                None
+            }
+        })
+        .unwrap_or_else(|| bytes_a.len().min(bytes_b.len()) * 2)
 }
 
 #[cfg(test)]
