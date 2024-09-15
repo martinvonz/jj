@@ -156,6 +156,7 @@ use crate::git_util::print_git_import_stats;
 use crate::merge_tools::DiffEditor;
 use crate::merge_tools::MergeEditor;
 use crate::merge_tools::MergeToolConfigError;
+use crate::operation_templater::OperationTemplateLanguage;
 use crate::operation_templater::OperationTemplateLanguageExtension;
 use crate::revset_util;
 use crate::revset_util::RevsetExpressionEvaluator;
@@ -1291,6 +1292,15 @@ impl WorkspaceCommandHelper {
     pub fn commit_template_language(&self) -> CommitTemplateLanguage<'_> {
         self.env
             .commit_template_language(self.repo().as_ref(), self.id_prefix_context())
+    }
+
+    /// Creates operation template language environment for this workspace.
+    pub fn operation_template_language(&self) -> OperationTemplateLanguage {
+        OperationTemplateLanguage::new(
+            self.repo().op_store().root_operation_id(),
+            Some(self.repo().op_id()),
+            self.env.operation_template_extensions(),
+        )
     }
 
     /// Template for one-line summary of a commit.
