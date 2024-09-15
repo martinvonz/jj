@@ -64,6 +64,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 * CommitId / ChangeId template types now support `.normal_hex()`.
 
+* `jj squash` will keep the new working copy at the same place in the tree
+  if the current working copy is abandoned after being emptied.
+
 ### Fixed bugs
 
  * Fixed panic when parsing invalid conflict markers of a particular form.
