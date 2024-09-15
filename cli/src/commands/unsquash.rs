@@ -56,6 +56,15 @@ pub(crate) fn cmd_unsquash(
     command: &CommandHelper,
     args: &UnsquashArgs,
 ) -> Result<(), CommandError> {
+    writeln!(
+        ui.warning_default(),
+        "`jj unsquash` is deprecated; use `jj diffedit --restore-descendants` or `jj squash` \
+         instead"
+    )?;
+    writeln!(
+        ui.warning_default(),
+        "`jj unsquash` will be removed in a future version, and this will be a hard error"
+    )?;
     let mut workspace_command = command.workspace_helper(ui)?;
     let commit = workspace_command.resolve_single_rev(ui, &args.revision)?;
     workspace_command.check_rewritable([commit.id()])?;

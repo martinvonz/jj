@@ -326,8 +326,10 @@ fn test_rewrite_immutable_commands() {
     "###);
     // unsquash
     let stderr = test_env.jj_cmd_failure(&repo_path, &["unsquash", "-r=main"]);
-    insta::assert_snapshot!(stderr, @r###"
+    insta::assert_snapshot!(stderr, @r#"
+    Warning: `jj unsquash` is deprecated; use `jj diffedit --restore-descendants` or `jj squash` instead
+    Warning: `jj unsquash` will be removed in a future version, and this will be a hard error
     Error: Commit 1d5af877b8bb is immutable
     Hint: Pass `--ignore-immutable` or configure the set of immutable commits via `revset-aliases.immutable_heads()`.
-    "###);
+    "#);
 }
