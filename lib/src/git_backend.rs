@@ -1505,7 +1505,7 @@ fn tree_value_from_json(json: &serde_json::Value) -> TreeValue {
 }
 
 fn bytes_vec_from_json(value: &serde_json::Value) -> Vec<u8> {
-    hex::decode(value.as_str().unwrap()).unwrap()
+    crate::hex_util::decode_hex_string(value.as_str().unwrap()).unwrap()
 }
 
 #[cfg(test)]

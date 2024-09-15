@@ -21,6 +21,7 @@ use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
 
+use crate::hex_util::decode_hex_string;
 use crate::lock::FileLock;
 use crate::object_id::ObjectId;
 use crate::op_heads_store::OpHeadsStore;
@@ -96,7 +97,7 @@ impl OpHeadsStore for SimpleOpHeadsStore {
         for op_head_entry in std::fs::read_dir(&self.dir).unwrap() {
             let op_head_file_name = op_head_entry.unwrap().file_name();
             let op_head_file_name = op_head_file_name.to_str().unwrap();
-            if let Ok(op_head) = hex::decode(op_head_file_name) {
+            if let Some(op_head) = decode_hex_string(op_head_file_name) {
                 op_heads.push(OperationId::new(op_head));
             }
         }

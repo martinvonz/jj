@@ -104,6 +104,8 @@ macro_rules! impl_id_type {
 pub(crate) use id_type;
 pub(crate) use impl_id_type;
 
+use crate::hex_util::decode_hex_string;
+
 /// An identifier prefix (typically from a type implementing the [`ObjectId`]
 /// trait) with facilities for converting between bytes and a hex string.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -120,9 +122,9 @@ impl HexPrefix {
     pub fn new(prefix: &str) -> Option<HexPrefix> {
         let has_odd_byte = prefix.len() & 1 != 0;
         let min_prefix_bytes = if has_odd_byte {
-            hex::decode(prefix.to_owned() + "0").ok()?
+            decode_hex_string(&format!("{prefix}0"))?
         } else {
-            hex::decode(prefix).ok()?
+            decode_hex_string(prefix)?
         };
         Some(HexPrefix {
             min_prefix_bytes,

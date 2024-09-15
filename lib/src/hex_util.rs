@@ -51,6 +51,10 @@ pub fn to_reverse_hex(forward_hex: &str) -> Option<String> {
         .collect()
 }
 
+pub fn decode_hex_string(hex: &str) -> Option<Vec<u8>> {
+    hex::decode(hex.as_bytes()).ok()
+}
+
 /// Calculates common prefix length of two byte sequences. The length
 /// to be returned is a number of hexadecimal digits.
 pub fn common_hex_len(bytes_a: &[u8], bytes_b: &[u8]) -> usize {
