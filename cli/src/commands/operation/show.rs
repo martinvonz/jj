@@ -53,8 +53,7 @@ pub fn cmd_op_show(
 ) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
     let workspace_env = workspace_command.env();
-    let repo = workspace_command.repo();
-    let repo_loader = &repo.loader();
+    let repo_loader = workspace_command.workspace().repo_loader();
     let op = workspace_command.resolve_single_op(&args.operation)?;
     let parents: Vec<_> = op.parents().try_collect()?;
     let parent_op = repo_loader.merge_operations(command.settings(), parents, None)?;
