@@ -24,6 +24,7 @@ use jj_lib::dag_walk;
 use jj_lib::git::REMOTE_NAME_FOR_LOCAL_GIT_REPO;
 use jj_lib::graph::GraphEdge;
 use jj_lib::graph::TopoGroupedGraphIterator;
+use jj_lib::id_prefix::IdPrefixContext;
 use jj_lib::matchers::EverythingMatcher;
 use jj_lib::op_store::RefTarget;
 use jj_lib::op_store::RemoteRef;
@@ -35,7 +36,7 @@ use jj_lib::repo::Repo;
 use jj_lib::revset;
 use jj_lib::revset::RevsetIteratorExt as _;
 
-use crate::cli_util::short_change_hash;
+use crate::cli_util::format_change_shortest_prefix;
 use crate::cli_util::CommandHelper;
 use crate::cli_util::LogContentFormat;
 use crate::command_error::CommandError;
@@ -140,6 +141,7 @@ pub fn cmd_op_diff(
         merged_repo,
         &from_repo,
         &to_repo,
+        &id_prefix_context,
         &commit_summary_template,
         (!args.no_graph).then_some(graph_style),
         &with_content_format,
@@ -158,6 +160,7 @@ pub fn show_op_diff(
     current_repo: &dyn Repo,
     from_repo: &Arc<ReadonlyRepo>,
     to_repo: &Arc<ReadonlyRepo>,
+    id_prefix_context: &IdPrefixContext,
     commit_summary_template: &TemplateRenderer<Commit>,
     graph_style: Option<GraphStyle>,
     with_content_format: &LogContentFormat,
@@ -224,6 +227,8 @@ pub fn show_op_diff(
                     write_modified_change_summary(
                         formatter,
                         commit_summary_template,
+                        current_repo,
+                        id_prefix_context,
                         &change_id,
                         modified_change,
                     )
@@ -258,6 +263,8 @@ pub fn show_op_diff(
                     write_modified_change_summary(
                         formatter,
                         commit_summary_template,
+                        current_repo,
+                        id_prefix_context,
                         &change_id,
                         modified_change,
                     )
@@ -379,10 +386,14 @@ pub fn show_op_diff(
 fn write_modified_change_summary(
     formatter: &mut dyn Formatter,
     commit_summary_template: &TemplateRenderer<Commit>,
+    repo: &dyn Repo,
+    id_prefix_context: &IdPrefixContext,
     change_id: &ChangeId,
     modified_change: &ModifiedChange,
 ) -> Result<(), std::io::Error> {
-    writeln!(formatter, "Change {}", short_change_hash(change_id))?;
+    write!(formatter, "Change ")?;
+    format_change_shortest_prefix(formatter, repo, id_prefix_context, change_id)?;
+    writeln!(formatter)?;
     for commit in modified_change.added_commits.iter() {
         formatter.with_label("diff", |formatter| write!(formatter.labeled("added"), "+"))?;
         write!(formatter, " ")?;

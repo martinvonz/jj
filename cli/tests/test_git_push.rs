@@ -92,7 +92,7 @@ fn test_git_push_current_bookmark() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r#"
     Changes to push to origin:
-      Move forward bookmark bookmark2 from 8476341eb395 to bc7610b65a91
+      Move bookmark bookmark2 forward from 8476341eb395 to bc7610b65a91
       Add bookmark my-bookmark to bc7610b65a91
     Dry-run requested, not pushing.
     "#);
@@ -155,7 +155,7 @@ fn test_git_push_parent_bookmark() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r#"
     Changes to push to origin:
-      Move sideways bookmark bookmark1 from d13ecdbda2a2 to e612d524a5c6
+      Move bookmark bookmark1 sideways from d13ecdbda2a2 to e612d524a5c6
     "#);
 }
 
@@ -215,7 +215,7 @@ fn test_git_push_other_remote_has_bookmark() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r#"
     Changes to push to origin:
-      Move sideways bookmark bookmark1 from d13ecdbda2a2 to a657f1b61b94
+      Move bookmark bookmark1 sideways from d13ecdbda2a2 to a657f1b61b94
     "#);
     // Since it's already pushed to origin, nothing will happen if push again
     let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push"]);
@@ -260,7 +260,7 @@ fn test_git_push_forward_unexpectedly_moved() {
     let stderr = test_env.jj_cmd_failure(&workspace_root, &["git", "push"]);
     insta::assert_snapshot!(stderr, @r#"
     Changes to push to origin:
-      Move forward bookmark bookmark1 from d13ecdbda2a2 to 6750425ff51c
+      Move bookmark bookmark1 forward from d13ecdbda2a2 to 6750425ff51c
     Error: Refusing to push a bookmark that unexpectedly moved on the remote. Affected refs: refs/heads/bookmark1
     Hint: Try fetching from the remote, then make the bookmark point to where you want it to be, and push again.
     "#);
@@ -300,7 +300,7 @@ fn test_git_push_sideways_unexpectedly_moved() {
     let stderr = test_env.jj_cmd_failure(&workspace_root, &["git", "push"]);
     insta::assert_snapshot!(stderr, @r#"
     Changes to push to origin:
-      Move sideways bookmark bookmark1 from d13ecdbda2a2 to 0f8bf988588e
+      Move bookmark bookmark1 sideways from d13ecdbda2a2 to 0f8bf988588e
     Error: Refusing to push a bookmark that unexpectedly moved on the remote. Affected refs: refs/heads/bookmark1
     Hint: Try fetching from the remote, then make the bookmark point to where you want it to be, and push again.
     "#);
@@ -377,7 +377,7 @@ fn test_git_push_unexpectedly_deleted() {
     let stderr = test_env.jj_cmd_failure(&workspace_root, &["git", "push"]);
     insta::assert_snapshot!(stderr, @r#"
     Changes to push to origin:
-      Move sideways bookmark bookmark1 from d13ecdbda2a2 to 1ebe27ba04bf
+      Move bookmark bookmark1 sideways from d13ecdbda2a2 to 1ebe27ba04bf
     Error: Refusing to push a bookmark that unexpectedly moved on the remote. Affected refs: refs/heads/bookmark1
     Hint: Try fetching from the remote, then make the bookmark point to where you want it to be, and push again.
     "#);
@@ -483,7 +483,7 @@ fn test_git_push_multiple() {
     insta::assert_snapshot!(stderr, @r#"
     Changes to push to origin:
       Delete bookmark bookmark1 from d13ecdbda2a2
-      Move sideways bookmark bookmark2 from 8476341eb395 to c4a3c3105d92
+      Move bookmark bookmark2 sideways from 8476341eb395 to c4a3c3105d92
       Add bookmark my-bookmark to c4a3c3105d92
     Dry-run requested, not pushing.
     "#);
@@ -1141,7 +1141,7 @@ fn test_git_push_conflicting_bookmarks() {
     Warning: Bookmark bookmark2 is conflicted
     Hint: Run `jj bookmark list` to inspect, and use `jj bookmark set` to fix it up.
     Changes to push to origin:
-      Move forward bookmark bookmark1 from d13ecdbda2a2 to 8df52121b022
+      Move bookmark bookmark1 forward from d13ecdbda2a2 to 8df52121b022
     "#);
 
     // --revisions shouldn't be blocked by conflicting bookmark
@@ -1152,7 +1152,7 @@ fn test_git_push_conflicting_bookmarks() {
     Warning: Bookmark bookmark2 is conflicted
     Hint: Run `jj bookmark list` to inspect, and use `jj bookmark set` to fix it up.
     Changes to push to origin:
-      Move forward bookmark bookmark1 from 8df52121b022 to 345e1f64a64d
+      Move bookmark bookmark1 forward from 8df52121b022 to 345e1f64a64d
     "#);
 }
 
