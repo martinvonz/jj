@@ -62,6 +62,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 * `jj squash`: the `-k` flag can be used as a shorthand for `--keep-emptied`.
 
+* CommitId / ChangeId template types now support `.normal_hex()`.
+
 ### Fixed bugs
 
  * Fixed panic when parsing invalid conflict markers of a particular form.

@@ -1225,6 +1225,21 @@ fn builtin_commit_or_change_id_methods<'repo>(
     // Not using maplit::hashmap!{} or custom declarative macro here because
     // code completion inside macro is quite restricted.
     let mut map = CommitTemplateBuildMethodFnMap::<CommitOrChangeId>::new();
+    map.insert(
+        "normal_hex",
+        |_language, _build_ctx, self_property, function| {
+            function.expect_no_arguments()?;
+            Ok(L::wrap_string(self_property.map(|id| {
+                // Note: this is _not_ the same as id.hex() for ChangeId, which
+                // returns the "reverse" hex (z-k), instead of the "forward" /
+                // normal hex (0-9a-f) we want here.
+                match id {
+                    CommitOrChangeId::Commit(id) => id.hex(),
+                    CommitOrChangeId::Change(id) => id.hex(),
+                }
+            })))
+        },
+    );
     map.insert("short", |language, build_ctx, self_property, function| {
         let ([], [len_node]) = function.expect_arguments()?;
         let len_property = len_node
