@@ -31,6 +31,17 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   that describes them better, and they also behave similar to Mercurial's
   bookmarks.
 
+* `jj unsquash` has been deprecated in favor of `jj squash` and
+  `jj diffedit --restore-descendants`.
+
+  **Rationale:** `jj squash` can be used in interactive mode to pull
+  changes from one commit to another, including from a parent commit
+  to a child commit. For fine-grained dependent diffs, such as when
+  the parent and the child commits must successively modify the same
+  location in a file, `jj diffedit --restore-descendants` can be used
+  to set the parent commit to the desired content without altering the
+  content of the child commit.
+
 * The `git.push-branch-prefix` config has been deprecated in favor of
   `git.push-bookmark-prefix`.
 

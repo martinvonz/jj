@@ -92,7 +92,6 @@ This document contains the help content for the `jj` command-line program.
 * [`jj util markdown-help`↴](#jj-util-markdown-help)
 * [`jj util config-schema`↴](#jj-util-config-schema)
 * [`jj undo`↴](#jj-undo)
-* [`jj unsquash`↴](#jj-unsquash)
 * [`jj version`↴](#jj-version)
 * [`jj workspace`↴](#jj-workspace)
 * [`jj workspace add`↴](#jj-workspace-add)
@@ -146,7 +145,6 @@ To get started, see the tutorial at https://martinvonz.github.io/jj/latest/tutor
 * `tag` — Manage tags
 * `util` — Infrequently used commands such as for generating shell completions
 * `undo` — Undo an operation (shortcut for `jj op undo`)
-* `unsquash` — Move changes from a revision's parent into the revision
 * `version` — Display version information
 * `workspace` — Commands for working with workspaces
 
@@ -657,7 +655,7 @@ With the `--from` and/or `--to` options, starts a [diff editor] comparing the "f
 
 Edit the right side of the diff until it looks the way you want. Once you close the editor, the revision specified with `-r` or `--to` will be updated. Unless `--restore-descendants` is used, descendants will be rebased on top as usual, which may result in conflicts.
 
-See `jj restore` if you want to move entire files from one revision to another. See `jj squash -i` or `jj unsquash -i` if you instead want to move changes into or out of the parent revision.
+See `jj restore` if you want to move entire files from one revision to another. For moving changes between revisions, see `jj squash -i`.
 
 **Usage:** `jj diffedit [OPTIONS]`
 
@@ -2110,28 +2108,6 @@ Undo an operation (shortcut for `jj op undo`)
   - `remote-tracking`:
     The remote-tracking bookmarks. Do not restore these if you'd like to push after the undo
 
-
-
-
-## `jj unsquash`
-
-Move changes from a revision's parent into the revision
-
-After moving the changes out of the parent, the child revision will have the same content state as before. If moving the change out of the parent change made it empty compared to its parent, it will be abandoned. Without `--interactive`, the parent change will always become empty.
-
-If the source became empty and both the source and destination had a non-empty description, you will be asked for the combined description. If either was empty, then the other one will be used.
-
-If a working-copy commit gets abandoned, it will be given a new, empty commit. This is true in general; it is not specific to this command.
-
-**Usage:** `jj unsquash [OPTIONS]`
-
-###### **Options:**
-
-* `-r`, `--revision <REVISION>`
-
-  Default value: `@`
-* `-i`, `--interactive` — Interactively choose which parts to unsquash
-* `--tool <NAME>` — Specify diff editor to be used (implies --interactive)
 
 
 

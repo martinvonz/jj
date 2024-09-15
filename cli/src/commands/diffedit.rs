@@ -42,8 +42,7 @@ use crate::ui::Ui;
 /// rebased on top as usual, which may result in conflicts.
 ///
 /// See `jj restore` if you want to move entire files from one revision to
-/// another. See `jj squash -i` or `jj unsquash -i` if you instead want to move
-/// changes into or out of the parent revision.
+/// another. For moving changes between revisions, see `jj squash -i`.
 #[derive(clap::Args, Clone, Debug)]
 pub(crate) struct DiffeditArgs {
     /// The revision to touch up

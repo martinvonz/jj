@@ -156,6 +156,8 @@ enum Command {
     Util(util::UtilCommand),
     /// Undo an operation (shortcut for `jj op undo`)
     Undo(operation::undo::OperationUndoArgs),
+    // TODO: Delete `unsquash` in jj 0.28+
+    #[command(hide = true)]
     Unsquash(unsquash::UnsquashArgs),
     // TODO: Delete `untrack` in jj 0.27+
     #[command(hide = true)]

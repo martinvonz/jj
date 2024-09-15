@@ -42,10 +42,12 @@ fn test_unsquash() {
     // Unsquashes into the working copy from its parent by default
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["unsquash"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
+    insta::assert_snapshot!(stderr, @r#"
+    Warning: `jj unsquash` is deprecated; use `jj diffedit --restore-descendants` or `jj squash` instead
+    Warning: `jj unsquash` will be removed in a future version, and this will be a hard error
     Working copy now at: mzvwutvl 9177132c c | (no description set)
     Parent commit      : qpvuntsm 184ddbcc a b | (no description set)
-    "###);
+    "#);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  9177132cfbb9 c
     ○  184ddbcce5a9 a b
@@ -60,11 +62,13 @@ fn test_unsquash() {
     test_env.jj_cmd_ok(&repo_path, &["undo"]);
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["unsquash", "-r", "b"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
+    insta::assert_snapshot!(stderr, @r#"
+    Warning: `jj unsquash` is deprecated; use `jj diffedit --restore-descendants` or `jj squash` instead
+    Warning: `jj unsquash` will be removed in a future version, and this will be a hard error
     Rebased 1 descendant commits
     Working copy now at: mzvwutvl b353b29c c | (no description set)
     Parent commit      : kkmpptxz 27772b15 b | (no description set)
-    "###);
+    "#);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  b353b29c423d c
     ○  27772b156771 b
@@ -99,20 +103,24 @@ fn test_unsquash() {
     ◆  000000000000
     "###);
     let stderr = test_env.jj_cmd_failure(&repo_path, &["unsquash"]);
-    insta::assert_snapshot!(stderr, @r###"
+    insta::assert_snapshot!(stderr, @r#"
+    Warning: `jj unsquash` is deprecated; use `jj diffedit --restore-descendants` or `jj squash` instead
+    Warning: `jj unsquash` will be removed in a future version, and this will be a hard error
     Error: Cannot unsquash merge commits
-    "###);
+    "#);
 
     // Can unsquash from a merge commit
     test_env.jj_cmd_ok(&repo_path, &["new", "e"]);
     std::fs::write(repo_path.join("file1"), "e\n").unwrap();
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["unsquash"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
+    insta::assert_snapshot!(stderr, @r#"
+    Warning: `jj unsquash` is deprecated; use `jj diffedit --restore-descendants` or `jj squash` instead
+    Warning: `jj unsquash` will be removed in a future version, and this will be a hard error
     Working copy now at: pzsxstzt bd05eb69 merge
     Parent commit      : mzvwutvl 382c9bad c e?? | (no description set)
     Parent commit      : xznxytkn f86e2b3a d e?? | (no description set)
-    "###);
+    "#);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    bd05eb698d1e
     ├─╮
@@ -160,11 +168,13 @@ fn test_unsquash_partial() {
     std::fs::write(&edit_script, "dump JJ-INSTRUCTIONS instrs").unwrap();
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["unsquash", "-r", "b", "-i"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
+    insta::assert_snapshot!(stderr, @r#"
+    Warning: `jj unsquash` is deprecated; use `jj diffedit --restore-descendants` or `jj squash` instead
+    Warning: `jj unsquash` will be removed in a future version, and this will be a hard error
     Rebased 1 descendant commits
     Working copy now at: mzvwutvl 8802263d c | (no description set)
     Parent commit      : kkmpptxz 5bd83140 b | (no description set)
-    "###);
+    "#);
 
     insta::assert_snapshot!(
         std::fs::read_to_string(test_env.env_root().join("instrs")).unwrap(), @r###"
@@ -195,10 +205,12 @@ fn test_unsquash_partial() {
     std::fs::write(edit_script, "reset file1").unwrap();
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["unsquash", "-i"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
+    insta::assert_snapshot!(stderr, @r#"
+    Warning: `jj unsquash` is deprecated; use `jj diffedit --restore-descendants` or `jj squash` instead
+    Warning: `jj unsquash` will be removed in a future version, and this will be a hard error
     Working copy now at: mzvwutvl a896ffde c | (no description set)
     Parent commit      : kkmpptxz 904111b4 b | (no description set)
-    "###);
+    "#);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  a896ffdebb85 c
     ○  904111b4d3c4 b
@@ -233,10 +245,12 @@ fn test_unsquash_partial() {
         ],
     );
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
+    insta::assert_snapshot!(stderr, @r#"
+    Warning: `jj unsquash` is deprecated; use `jj diffedit --restore-descendants` or `jj squash` instead
+    Warning: `jj unsquash` will be removed in a future version, and this will be a hard error
     Working copy now at: mzvwutvl aaca9268 c | (no description set)
     Parent commit      : kkmpptxz fe8eb117 b | (no description set)
-    "###);
+    "#);
     let stdout = test_env.jj_cmd_success(&repo_path, &["file", "show", "file1", "-r", "b"]);
     insta::assert_snapshot!(stdout, @r###"
     a
