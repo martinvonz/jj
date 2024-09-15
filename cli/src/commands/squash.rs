@@ -82,7 +82,7 @@ pub(crate) struct SquashArgs {
     #[arg(conflicts_with_all = ["interactive", "tool"], value_hint = clap::ValueHint::AnyPath)]
     paths: Vec<String>,
     /// The source revision will not be abandoned
-    #[arg(long)]
+    #[arg(long, short)]
     keep_emptied: bool,
 }
 

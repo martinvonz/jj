@@ -58,6 +58,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 * `jj op undo` now reports information on the operation that has been undone.
 
+* `jj squash`: the `-k` flag can be used as a shorthand for `--keep-emptied`.
+
 ### Fixed bugs
 
  * Fixed panic when parsing invalid conflict markers of a particular form.
