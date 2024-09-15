@@ -54,7 +54,6 @@ pub fn cmd_op_show(
     let workspace_command = command.workspace_helper(ui)?;
     let workspace_env = workspace_command.env();
     let repo = workspace_command.repo();
-    let current_op_id = repo.operation().id();
     let repo_loader = &repo.loader();
     let op = workspace_command.resolve_single_op(&args.operation)?;
     let parents: Vec<_> = op.parents().try_collect()?;
@@ -81,18 +80,13 @@ pub fn cmd_op_show(
     };
 
     // TODO: Should we make this customizable via clap arg?
-    let template;
-    {
-        let language = OperationTemplateLanguage::new(
-            repo_loader.op_store().root_operation_id(),
-            Some(current_op_id),
-            workspace_env.operation_template_extensions(),
-        );
+    let template = {
+        let language = workspace_command.operation_template_language();
         let text = command.settings().config().get_string("templates.op_log")?;
-        template = workspace_command
+        workspace_command
             .parse_template(&language, &text, OperationTemplateLanguage::wrap_operation)?
-            .labeled("op_log");
-    }
+            .labeled("op_log")
+    };
 
     ui.request_pager();
     let mut formatter = ui.stdout_formatter();
