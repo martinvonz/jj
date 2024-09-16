@@ -792,6 +792,92 @@ fn test_git_fetch_some_of_many_bookmarks() {
     "###);
 }
 
+#[test]
+fn test_git_fetch_bookmarks_some_missing() {
+    let test_env = TestEnvironment::default();
+    test_env.add_config("git.auto-local-branch = true");
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+    add_git_remote(&test_env, &repo_path, "origin");
+    add_git_remote(&test_env, &repo_path, "rem1");
+    add_git_remote(&test_env, &repo_path, "rem2");
+
+    // single missing bookmark, implicit remotes (@origin)
+    let (_stdout, stderr) =
+        test_env.jj_cmd_ok(&repo_path, &["git", "fetch", "--branch", "noexist"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Warning: No branch matching `noexist` found on any specified/configured remote
+    Nothing changed.
+    "###);
+    insta::assert_snapshot!(get_bookmark_output(&test_env, &repo_path), @"");
+
+    // multiple missing bookmarks, implicit remotes (@origin)
+    let (_stdout, stderr) = test_env.jj_cmd_ok(
+        &repo_path,
+        &[
+            "git", "fetch", "--branch", "noexist1", "--branch", "noexist2",
+        ],
+    );
+    insta::assert_snapshot!(stderr, @r###"
+    Warning: No branch matching `noexist1` found on any specified/configured remote
+    Warning: No branch matching `noexist2` found on any specified/configured remote
+    Nothing changed.
+    "###);
+    insta::assert_snapshot!(get_bookmark_output(&test_env, &repo_path), @"");
+
+    // single existing bookmark, implicit remotes (@origin)
+    let (_stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["git", "fetch", "--branch", "origin"]);
+    insta::assert_snapshot!(stderr, @r###"
+    bookmark: origin@origin [new] tracked
+    "###);
+    insta::assert_snapshot!(get_bookmark_output(&test_env, &repo_path), @r###"
+    origin: oputwtnw ffecd2d6 message
+      @origin: oputwtnw ffecd2d6 message
+    "###);
+
+    // multiple existing bookmark, explicit remotes, each bookmark is only in one
+    // remote.
+    let (_stdout, stderr) = test_env.jj_cmd_ok(
+        &repo_path,
+        &[
+            "git", "fetch", "--branch", "rem1", "--branch", "rem2", "--remote", "rem1", "--remote",
+            "rem2",
+        ],
+    );
+    insta::assert_snapshot!(stderr, @r###"
+    bookmark: rem1@rem1 [new] tracked
+    bookmark: rem2@rem2 [new] tracked
+    "###);
+    insta::assert_snapshot!(get_bookmark_output(&test_env, &repo_path), @r###"
+    origin: oputwtnw ffecd2d6 message
+      @origin: oputwtnw ffecd2d6 message
+    rem1: qxosxrvv 6a211027 message
+      @rem1: qxosxrvv 6a211027 message
+    rem2: yszkquru 2497a8a0 message
+      @rem2: yszkquru 2497a8a0 message
+    "###);
+
+    // multiple bookmarks, one exists, one doesn't
+    let (_stdout, stderr) = test_env.jj_cmd_ok(
+        &repo_path,
+        &[
+            "git", "fetch", "--branch", "rem1", "--branch", "notexist", "--remote", "rem1",
+        ],
+    );
+    insta::assert_snapshot!(stderr, @r###"
+    Warning: No branch matching `notexist` found on any specified/configured remote
+    Nothing changed.
+    "###);
+    insta::assert_snapshot!(get_bookmark_output(&test_env, &repo_path), @r###"
+    origin: oputwtnw ffecd2d6 message
+      @origin: oputwtnw ffecd2d6 message
+    rem1: qxosxrvv 6a211027 message
+      @rem1: qxosxrvv 6a211027 message
+    rem2: yszkquru 2497a8a0 message
+      @rem2: yszkquru 2497a8a0 message
+    "###);
+}
+
 // See `test_undo_restore_commands.rs` for fetch-undo-push and fetch-undo-fetch
 // of the same bookmarks for various kinds of undo.
 #[test]
@@ -1209,6 +1295,7 @@ fn test_git_fetch_removed_parent_bookmark() {
     bookmark: a1@origin     [deleted] untracked
     bookmark: trunk1@origin [deleted] untracked
     Abandoned 1 commits that are no longer reachable.
+    Warning: No branch matching `master` found on any specified/configured remote
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"
     ○  c7d4bdcbc215 descr_for_b b

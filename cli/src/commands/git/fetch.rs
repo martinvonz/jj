@@ -21,6 +21,7 @@ use jj_lib::settings::UserSettings;
 use jj_lib::str_util::StringPattern;
 
 use crate::cli_util::CommandHelper;
+use crate::cli_util::WorkspaceCommandTransaction;
 use crate::command_error::user_error;
 use crate::command_error::user_error_with_hint;
 use crate::command_error::CommandError;
@@ -100,6 +101,12 @@ pub fn cmd_git_fetch(
         })?;
         print_git_import_stats(ui, tx.repo(), &stats.import_stats, true)?;
     }
+    warn_if_branches_not_found(
+        ui,
+        &tx,
+        &args.branch,
+        &remotes.iter().map(StringPattern::exact).collect_vec(),
+    )?;
     tx.finish(
         ui,
         format!("fetch from git remote(s) {}", remotes.iter().join(",")),
@@ -139,4 +146,35 @@ fn get_all_remotes(git_repo: &git2::Repository) -> Result<Vec<String>, CommandEr
         .iter()
         .filter_map(|x| x.map(ToOwned::to_owned))
         .collect())
+}
+
+fn warn_if_branches_not_found(
+    ui: &mut Ui,
+    tx: &WorkspaceCommandTransaction,
+    branches: &[StringPattern],
+    remotes: &[StringPattern],
+) -> Result<(), CommandError> {
+    for branch in branches {
+        let matches = remotes.iter().any(|remote| {
+            tx.repo()
+                .view()
+                .remote_bookmarks_matching(branch, remote)
+                .next()
+                .is_some()
+                || tx
+                    .base_repo()
+                    .view()
+                    .remote_bookmarks_matching(branch, remote)
+                    .next()
+                    .is_some()
+        });
+        if !matches {
+            writeln!(
+                ui.warning_default(),
+                "No branch matching `{branch}` found on any specified/configured remote",
+            )?;
+        }
+    }
+
+    Ok(())
 }

@@ -66,6 +66,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed bugs
 
+ * `jj git fetch -b <remote-git-branch-name>` will now warn if the branch(es)
+   can not be found in any of the specified/configured remotes.
+
  * Fixed panic when parsing invalid conflict markers of a particular form.
    ([#2611](https://github.com/martinvonz/jj/pull/2611))
 
