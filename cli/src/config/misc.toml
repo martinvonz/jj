@@ -2,6 +2,7 @@
 # all aliases from here.
 [aliases]
 amend = ["squash"]
+b = ["bookmark"]
 co = ["checkout"]
 unamend = ["unsquash"]
 

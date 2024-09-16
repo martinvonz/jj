@@ -218,4 +218,13 @@ To resolve a conflicted state in a remote bookmark (e.g. `main@origin`), simply
 pull from the remote (e.g. `jj git fetch`). The conflict resolution will also
 propagate to the local bookmark (which was presumably also conflicted).
 
+## Ease of use
+
+The use of bookmarks is frequent in some workflows, for example, when
+interacting with Git repositories containing branches. To this end,
+one-letter shortcuts have been implemented, both for the `jj bookmark`
+command itself through an alias (as `jj b`), and for its subcommands.
+For example, `jj bookmark create BOOKMARK-NAME` can be abbreviated as
+`jj b c BOOKMARK-NAME`.
+
 [design]: design/tracking-branches.md
