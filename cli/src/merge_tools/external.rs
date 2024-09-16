@@ -27,7 +27,7 @@ use super::diff_working_copies::check_out_trees;
 use super::diff_working_copies::new_utf8_temp_dir;
 use super::diff_working_copies::set_readonly_recursively;
 use super::diff_working_copies::DiffEditWorkingCopies;
-use super::diff_working_copies::DiffSide;
+use super::diff_working_copies::DiffType;
 use super::ConflictResolveError;
 use super::DiffEditError;
 use super::DiffGenerateError;
@@ -258,13 +258,18 @@ pub fn edit_diff_external(
     exec_config: Option<bool>,
 ) -> Result<MergedTreeId, DiffEditError> {
     let got_output_field = find_all_variables(&editor.edit_args).contains(&"output");
+    let diff_type = if got_output_field {
+        DiffType::ThreeWay
+    } else {
+        DiffType::TwoWay
+    };
     let store = left_tree.store();
     let diffedit_wc = DiffEditWorkingCopies::check_out(
         store,
         left_tree,
         right_tree,
         matcher,
-        got_output_field.then_some(DiffSide::Right),
+        diff_type,
         instructions,
         exec_config,
     )?;
@@ -298,11 +303,14 @@ pub fn generate_diff(
     tool: &ExternalMergeTool,
 ) -> Result<(), DiffGenerateError> {
     let store = left_tree.store();
-    let diff_wc = check_out_trees(store, left_tree, right_tree, matcher, None, ui.exec_config)?;
-    set_readonly_recursively(diff_wc.left_working_copy_path())
-        .map_err(ExternalToolError::SetUpDir)?;
-    set_readonly_recursively(diff_wc.right_working_copy_path())
-        .map_err(ExternalToolError::SetUpDir)?;
+    let diff_wc = check_out_trees(
+        store,
+        left_tree,
+        right_tree,
+        matcher,
+        DiffType::TwoWay,
+        ui.exec_config,
+    )?;
     invoke_external_diff(ui, writer, tool, &diff_wc.to_command_variables())
 }
 
