@@ -56,16 +56,10 @@ pub fn to_reverse_hex(forward_hex: &str) -> Option<String> {
 pub fn common_hex_len(bytes_a: &[u8], bytes_b: &[u8]) -> usize {
     std::iter::zip(bytes_a, bytes_b)
         .enumerate()
-        .find_map(|(i, (a, b))| {
-            if a != b {
-                if a >> 4 != b >> 4 {
-                    Some(i * 2)
-                } else {
-                    Some(i * 2 + 1)
-                }
-            } else {
-                None
-            }
+        .find_map(|(i, (a, b))| match a ^ b {
+            0 => None,
+            d if d & 0xf0 == 0 => Some(i * 2 + 1),
+            _ => Some(i * 2),
         })
         .unwrap_or_else(|| bytes_a.len().min(bytes_b.len()) * 2)
 }
