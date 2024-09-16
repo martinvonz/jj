@@ -48,7 +48,7 @@ use crate::ui::Ui;
 /// parent(s), and `--keep-emptied` is not set, it will be abandoned. Without
 /// `--interactive` or paths, the source revision will always be empty.
 ///
-/// If the source became empty and both the source and destination had a
+/// If the source was abandoned and both the source and destination had a
 /// non-empty description, you will be asked for the combined description. If
 /// either was empty, then the other one will be used.
 ///
