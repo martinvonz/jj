@@ -48,6 +48,7 @@ plugins:
     - search
     - redirects:
         redirect_maps:
+            branches.md: bookmarks.md
 
 # Not all of these may be necessary, especially since the material
 # theme substitutes for some of them
