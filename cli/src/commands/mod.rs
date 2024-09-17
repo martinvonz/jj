@@ -46,6 +46,7 @@ mod restore;
 mod root;
 mod run;
 mod show;
+mod simplify_parents;
 mod sparse;
 mod split;
 mod squash;
@@ -145,6 +146,7 @@ enum Command {
     // TODO: Flesh out.
     Run(run::RunArgs),
     Show(show::ShowArgs),
+    SimplifyParents(simplify_parents::SimplifyParentsArgs),
     #[command(subcommand)]
     Sparse(sparse::SparseCommand),
     Split(split::SplitArgs),
@@ -232,6 +234,9 @@ pub fn run_command(ui: &mut Ui, command_helper: &CommandHelper) -> Result<(), Co
         Command::Revert(_args) => revert(),
         Command::Root(args) => root::cmd_root(ui, command_helper, args),
         Command::Run(args) => run::cmd_run(ui, command_helper, args),
+        Command::SimplifyParents(args) => {
+            simplify_parents::cmd_simplify_parents(ui, command_helper, args)
+        }
         Command::Show(args) => show::cmd_show(ui, command_helper, args),
         Command::Sparse(args) => sparse::cmd_sparse(ui, command_helper, args),
         Command::Split(args) => split::cmd_split(ui, command_helper, args),

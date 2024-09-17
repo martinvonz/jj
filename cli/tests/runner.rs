@@ -61,6 +61,7 @@ mod test_revset_output;
 mod test_root;
 mod test_shell_completion;
 mod test_show_command;
+mod test_simplify_parents_command;
 mod test_sparse_command;
 mod test_split_command;
 mod test_squash_command;
