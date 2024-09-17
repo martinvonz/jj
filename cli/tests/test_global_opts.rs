@@ -602,6 +602,7 @@ fn test_help() {
           --from <FROM>          Show changes from this revision
           --to <TO>              Edit changes in this revision
           --tool <NAME>          Specify diff editor to be used
+          --restore-descendants  Preserve the content (not the diff) when rebasing descendants
       -h, --help                 Print help (see more with '--help')
 
     Global Options:

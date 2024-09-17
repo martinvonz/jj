@@ -655,7 +655,7 @@ With the `--from` and/or `--to` options, starts a [diff editor] comparing the "f
 
 [diff editor]: https://martinvonz.github.io/jj/latest/config/#editing-diffs
 
-Edit the right side of the diff until it looks the way you want. Once you close the editor, the revision specified with `-r` or `--to` will be updated. Descendants will be rebased on top as usual, which may result in conflicts.
+Edit the right side of the diff until it looks the way you want. Once you close the editor, the revision specified with `-r` or `--to` will be updated. Unless `--restore-descendants` is used, descendants will be rebased on top as usual, which may result in conflicts.
 
 See `jj restore` if you want to move entire files from one revision to another. See `jj squash -i` or `jj unsquash -i` if you instead want to move changes into or out of the parent revision.
 
@@ -673,6 +673,9 @@ See `jj restore` if you want to move entire files from one revision to another. 
 
    Defaults to @ if --from is specified.
 * `--tool <NAME>` — Specify diff editor to be used
+* `--restore-descendants` — Preserve the content (not the diff) when rebasing descendants
+
+   When rebasing a descendant on top of the rewritten revision, its diff compared to its parent(s) is normally preserved, i.e. the same way that descendants are always rebased. This flag makes it so the content/state is preserved instead of preserving the diff.
 
 
 
