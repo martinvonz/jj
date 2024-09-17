@@ -21,6 +21,7 @@ use jj_lib::repo::Repo;
 use maplit::hashset;
 use testutils::assert_rebased_onto;
 use testutils::create_random_commit;
+use testutils::create_random_tree;
 use testutils::write_random_commit;
 use testutils::CommitGraphBuilder;
 use testutils::TestRepo;
@@ -675,4 +676,76 @@ fn test_remove_wc_commit_previous_discardable() {
     mut_repo.remove_wc_commit(&ws_id).unwrap();
     mut_repo.rebase_descendants(&settings).unwrap();
     assert!(!mut_repo.view().heads().contains(old_wc_commit.id()));
+}
+
+#[test]
+fn test_reparent_descendants() {
+    // Test that MutableRepo::reparent_descendants() reparents descendants of
+    // rewritten commits without altering their content.
+    let settings = testutils::user_settings();
+    let test_repo = TestRepo::init();
+    let repo = &test_repo.repo;
+
+    let mut tx = repo.start_transaction(&settings);
+    let mut graph_builder = CommitGraphBuilder::new(&settings, tx.repo_mut());
+    let commit_a = graph_builder.initial_commit();
+    let commit_b = graph_builder.initial_commit();
+    let commit_child_a_b = graph_builder.commit_with_parents(&[&commit_a, &commit_b]);
+    let commit_grandchild_a_b = graph_builder.commit_with_parents(&[&commit_child_a_b]);
+    let commit_child_a = graph_builder.commit_with_parents(&[&commit_a]);
+    let commit_child_b = graph_builder.commit_with_parents(&[&commit_b]);
+    let mut_repo = tx.repo_mut();
+    for (bookmark, commit) in [
+        ("b", &commit_b),
+        ("child_a_b", &commit_child_a_b),
+        ("grandchild_a_b", &commit_grandchild_a_b),
+        ("child_a", &commit_child_a),
+        ("child_b", &commit_child_b),
+    ] {
+        mut_repo.set_local_bookmark_target(bookmark, RefTarget::normal(commit.id().clone()));
+    }
+    let repo = tx.commit("test");
+
+    // Rewrite "commit_a".
+    let mut tx = repo.start_transaction(&settings);
+    let mut_repo = tx.repo_mut();
+    mut_repo
+        .rewrite_commit(&settings, &commit_a)
+        .set_tree_id(create_random_tree(&repo))
+        .write()
+        .unwrap();
+    let reparented = mut_repo.reparent_descendants(&settings).unwrap();
+    // "child_a_b", "grandchild_a_b" and "child_a" (3 commits) must have been
+    // reparented.
+    assert_eq!(reparented, 3);
+    let repo = tx.commit("test");
+
+    for (bookmark, commit) in [
+        ("b", &commit_b),
+        ("child_a_b", &commit_child_a_b),
+        ("grandchild_a_b", &commit_grandchild_a_b),
+        ("child_a", &commit_child_a),
+        ("child_b", &commit_child_b),
+    ] {
+        let rewritten_id = repo
+            .view()
+            .get_local_bookmark(bookmark)
+            .as_normal()
+            .unwrap()
+            .clone();
+        if matches!(bookmark, "b" | "child_b") {
+            // "b" and "child_b" have been kept untouched.
+            assert_eq!(commit.id(), &rewritten_id);
+        } else {
+            // All commits except "b", and "child_b" have been reparented while keeping
+            // their content.
+            assert_ne!(commit.id(), &rewritten_id);
+            let rewritten_commit = repo.store().get_commit(&rewritten_id).unwrap();
+            assert_eq!(commit.tree_id(), rewritten_commit.tree_id());
+            let (parent_ids, rewritten_parent_ids) =
+                (commit.parent_ids(), rewritten_commit.parent_ids());
+            assert_eq!(parent_ids.len(), rewritten_parent_ids.len());
+            assert_ne!(parent_ids, rewritten_parent_ids);
+        }
+    }
 }
