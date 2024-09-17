@@ -364,6 +364,42 @@ fn test_double_abandon() {
     "###);
 }
 
+#[test]
+fn test_abandon_restore_descendants() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    std::fs::write(repo_path.join("file"), "foo\n").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["new"]);
+    std::fs::write(repo_path.join("file"), "bar\n").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["new"]);
+    std::fs::write(repo_path.join("file"), "baz\n").unwrap();
+
+    // Remove the commit containing "bar"
+    let (stdout, stderr) = test_env.jj_cmd_ok(
+        &repo_path,
+        &["abandon", "-r", "@-", "--restore-descendants"],
+    );
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r#"
+    Abandoned commit rlvkpnrz 225adef1 (no description set)
+    Rebased 1 descendant commits (while preserving their content) onto parents of abandoned commits
+    Working copy now at: kkmpptxz a734deb0 (no description set)
+    Parent commit      : qpvuntsm 485d52a9 (no description set)
+    "#);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "--git"]);
+    insta::assert_snapshot!(stdout, @r#"
+    diff --git a/file b/file
+    index 257cc5642c..76018072e0 100644
+    --- a/file
+    +++ b/file
+    @@ -1,1 +1,1 @@
+    -foo
+    +baz
+    "#);
+}
+
 fn get_log_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
     test_env.jj_cmd_success(
         repo_path,

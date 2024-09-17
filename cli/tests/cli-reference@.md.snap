@@ -207,6 +207,7 @@ If a working-copy commit gets abandoned, it will be given a new, empty commit. T
 ###### **Options:**
 
 * `-s`, `--summary` — Do not print every abandoned commit on a separate line
+* `--restore-descendants` — Do not modify the content of the children of the abandoned commits
 
 
 

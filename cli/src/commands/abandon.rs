@@ -43,6 +43,9 @@ pub(crate) struct AbandonArgs {
     /// Ignored (but lets you pass `-r` for consistency with other commands)
     #[arg(short = 'r', hide = true, action = clap::ArgAction::Count)]
     unused_revision: u8,
+    /// Do not modify the content of the children of the abandoned commits
+    #[arg(long)]
+    restore_descendants: bool,
 }
 
 #[instrument(skip_all)]
@@ -66,7 +69,14 @@ pub(crate) fn cmd_abandon(
     for commit in &to_abandon {
         tx.repo_mut().record_abandoned_commit(commit.id().clone());
     }
-    let num_rebased = tx.repo_mut().rebase_descendants(command.settings())?;
+    let (num_rebased, extra_msg) = if args.restore_descendants {
+        (
+            tx.repo_mut().reparent_descendants(command.settings())?,
+            " (while preserving their content)",
+        )
+    } else {
+        (tx.repo_mut().rebase_descendants(command.settings())?, "")
+    };
 
     if let Some(mut formatter) = ui.status_formatter() {
         if to_abandon.len() == 1 {
@@ -88,7 +98,8 @@ pub(crate) fn cmd_abandon(
         if num_rebased > 0 {
             writeln!(
                 formatter,
-                "Rebased {num_rebased} descendant commits onto parents of abandoned commits"
+                "Rebased {num_rebased} descendant commits{extra_msg} onto parents of abandoned \
+                 commits",
             )?;
         }
     }
