@@ -1334,6 +1334,27 @@ impl MutableRepo {
         Ok(num_rebased)
     }
 
+    /// Reparent descendants of the rewritten commits.
+    ///
+    /// The descendants of the commits registered in `self.parent_mappings` will
+    /// be recursively reparented onto the new version of their parents.
+    /// The content of those descendants will remain untouched.
+    /// Returns the number of reparented descendants.
+    pub fn reparent_descendants(&mut self, settings: &UserSettings) -> BackendResult<usize> {
+        let roots = self.parent_mapping.keys().cloned().collect_vec();
+        let mut num_reparented = 0;
+        self.transform_descendants(settings, roots, |rewriter| {
+            if rewriter.parents_changed() {
+                let builder = rewriter.reparent(settings)?;
+                builder.write()?;
+                num_reparented += 1;
+            }
+            Ok(())
+        })?;
+        self.parent_mapping.clear();
+        Ok(num_reparented)
+    }
+
     pub fn rebase_descendants_return_map(
         &mut self,
         settings: &UserSettings,
