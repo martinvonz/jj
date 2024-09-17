@@ -268,8 +268,25 @@ from the source will be moved into the destination.
 
     for source in &source_commits {
         if source.abandon {
-            tx.repo_mut()
-                .record_abandoned_commit(source.commit.id().clone());
+            if tx.repo().view().is_wc_commit_id(source.commit.id())
+                && !tx.repo().view().heads().contains(source.commit.id())
+            {
+                // This commit is a working copy and has children. It should be
+                // replaced by a new commit with the same parents.
+                let new_commit = tx
+                    .repo_mut()
+                    .new_commit(
+                        settings,
+                        source.commit.parent_ids().to_vec(),
+                        source.selected_tree.id(),
+                    )
+                    .write()?;
+                tx.repo_mut()
+                    .set_rewritten_commit(source.commit.id().clone(), new_commit.id().clone());
+            } else {
+                tx.repo_mut()
+                    .record_abandoned_commit(source.commit.id().clone());
+            }
         } else {
             let source_tree = source.commit.tree()?;
             // Apply the reverse of the selected changes onto the source
