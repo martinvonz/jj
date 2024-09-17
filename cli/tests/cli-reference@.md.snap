@@ -75,6 +75,7 @@ This document contains the help content for the `jj` command-line program.
 * [`jj restore`↴](#jj-restore)
 * [`jj root`↴](#jj-root)
 * [`jj show`↴](#jj-show)
+* [`jj simplify-parents`↴](#jj-simplify-parents)
 * [`jj sparse`↴](#jj-sparse)
 * [`jj sparse edit`↴](#jj-sparse-edit)
 * [`jj sparse list`↴](#jj-sparse-list)
@@ -138,6 +139,7 @@ To get started, see the tutorial at https://martinvonz.github.io/jj/latest/tutor
 * `restore` — Restore paths from another revision
 * `root` — Show the current workspace root directory
 * `show` — Show commit description and changes in a revision
+* `simplify-parents` — Simplify parent edges for the specified revision(s)
 * `sparse` — Manage which paths from the working-copy commit are present in the working copy
 * `split` — Split a revision in two
 * `squash` — Move changes from a revision into another revision
@@ -1841,6 +1843,23 @@ Show commit description and changes in a revision
 * `--context <CONTEXT>` — Number of lines of context to show
 * `--ignore-all-space` — Ignore whitespace when comparing lines
 * `--ignore-space-change` — Ignore changes in amount of whitespace when comparing lines
+
+
+
+## `jj simplify-parents`
+
+Simplify parent edges for the specified revision(s).
+
+Removes all parents of each of the specified revisions that are also indirect ancestors of the same revisions through other parents. This has no effect on any revision's contents, including the working copy.
+
+In other words, for all (A, B, C) where A has (B, C) as parents and C is an ancestor of B, A will be rewritten to have only B as a parent instead of B+C.
+
+**Usage:** `jj simplify-parents <--source <SOURCE>|--revisions <REVISIONS>>`
+
+###### **Options:**
+
+* `-s`, `--source <SOURCE>` — Simplify specified revision(s) together with their trees of descendants (can be repeated)
+* `-r`, `--revisions <REVISIONS>` — Simplify specified revision(s) (can be repeated)
 
 
 
