@@ -72,6 +72,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * `jj diffedit` now accepts a `--restore-descendants` flag. When used,
   descendants of the edited commit will keep their original content.
 
+* `jj abandon` now accepts a `--restore-descendants` flag. When used,
+  descendants of the abandoned commits will keep their original content.
+
 ### Fixed bugs
 
  * Update working copy before reporting changes. This prevents errors during reporting
