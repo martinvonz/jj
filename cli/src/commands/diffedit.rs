@@ -46,14 +46,19 @@ use crate::ui::Ui;
 /// changes into or out of the parent revision.
 #[derive(clap::Args, Clone, Debug)]
 pub(crate) struct DiffeditArgs {
-    /// The revision to touch up. Defaults to @ if neither --to nor --from are
-    /// specified.
+    /// The revision to touch up
+    ///
+    /// Defaults to @ if neither --to nor --from are specified.
     #[arg(long, short)]
     revision: Option<RevisionArg>,
-    /// Show changes from this revision. Defaults to @ if --to is specified.
+    /// Show changes from this revision
+    ///
+    /// Defaults to @ if --to is specified.
     #[arg(long, conflicts_with = "revision")]
     from: Option<RevisionArg>,
-    /// Edit changes in this revision. Defaults to @ if --from is specified.
+    /// Edit changes in this revision
+    ///
+    /// Defaults to @ if --from is specified.
     #[arg(long, conflicts_with = "revision")]
     to: Option<RevisionArg>,
     /// Specify diff editor to be used
