@@ -69,6 +69,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * `jj commit` and `jj describe` now accept `--author` option allowing to quickly change
   author of given commit.
 
+* `jj diffedit` now accepts a `--restore-descendants` flag. When used,
+  descendants of the edited commit will keep their original content.
+
 ### Fixed bugs
 
  * Update working copy before reporting changes. This prevents errors during reporting

@@ -38,8 +38,8 @@ use crate::ui::Ui;
 ///
 /// Edit the right side of the diff until it looks the way you want. Once you
 /// close the editor, the revision specified with `-r` or `--to` will be
-/// updated. Descendants will be rebased on top as usual, which may result in
-/// conflicts.
+/// updated. Unless `--restore-descendants` is used, descendants will be
+/// rebased on top as usual, which may result in conflicts.
 ///
 /// See `jj restore` if you want to move entire files from one revision to
 /// another. See `jj squash -i` or `jj unsquash -i` if you instead want to move
@@ -64,6 +64,14 @@ pub(crate) struct DiffeditArgs {
     /// Specify diff editor to be used
     #[arg(long, value_name = "NAME")]
     tool: Option<String>,
+    /// Preserve the content (not the diff) when rebasing descendants
+    ///
+    /// When rebasing a descendant on top of the rewritten revision, its diff
+    /// compared to its parent(s) is normally preserved, i.e. the same way that
+    /// descendants are always rebased. This flag makes it so the content/state
+    /// is preserved instead of preserving the diff.
+    #[arg(long)]
+    restore_descendants: bool,
 }
 
 #[instrument(skip_all)]
@@ -119,13 +127,23 @@ don't make any changes, then the operation will be aborted.",
             .write()?;
         // rebase_descendants early; otherwise `new_commit` would always have
         // a conflicted change id at this point.
-        let num_rebased = tx.repo_mut().rebase_descendants(command.settings())?;
+        let (num_rebased, extra_msg) = if args.restore_descendants {
+            (
+                tx.repo_mut().reparent_descendants(command.settings())?,
+                " (while preserving their content)",
+            )
+        } else {
+            (tx.repo_mut().rebase_descendants(command.settings())?, "")
+        };
         if let Some(mut formatter) = ui.status_formatter() {
             write!(formatter, "Created ")?;
             tx.write_commit_summary(formatter.as_mut(), &new_commit)?;
             writeln!(formatter)?;
             if num_rebased > 0 {
-                writeln!(formatter, "Rebased {num_rebased} descendant commits")?;
+                writeln!(
+                    formatter,
+                    "Rebased {num_rebased} descendant commits{extra_msg}"
+                )?;
             }
         }
         tx.finish(ui, format!("edit commit {}", target_commit.id().hex()))?;

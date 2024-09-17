@@ -514,3 +514,42 @@ fn test_diffedit_old_restore_interactive_tests() {
     +unrelated
     "###);
 }
+
+#[test]
+fn test_diffedit_restore_descendants() {
+    let mut test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    std::fs::write(repo_path.join("file"), "println!(\"foo\")\n").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["new"]);
+    std::fs::write(repo_path.join("file"), "println!(\"bar\")\n").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["new"]);
+    std::fs::write(repo_path.join("file"), "println!(\"baz\");\n").unwrap();
+
+    let edit_script = test_env.set_up_fake_diff_editor();
+
+    // Add a ";" after the line with "bar". There should be no conflict.
+    std::fs::write(edit_script, "write file\nprintln!(\"bar\");\n").unwrap();
+    let (stdout, stderr) = test_env.jj_cmd_ok(
+        &repo_path,
+        &["diffedit", "-r", "@-", "--restore-descendants"],
+    );
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r#"
+    Created rlvkpnrz 62b8c2ce (no description set)
+    Rebased 1 descendant commits (while preserving their content)
+    Working copy now at: kkmpptxz 321d1cd1 (no description set)
+    Parent commit      : rlvkpnrz 62b8c2ce (no description set)
+    "#);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "--git"]);
+    insta::assert_snapshot!(stdout, @r#"
+    diff --git a/file b/file
+    index 1a598a8fc9..7b6a85ab5a 100644
+    --- a/file
+    +++ b/file
+    @@ -1,1 +1,1 @@
+    -println!("bar");
+    +println!("baz");
+    "#);
+}
