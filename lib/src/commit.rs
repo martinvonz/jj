@@ -126,12 +126,7 @@ impl Commit {
     /// Returns whether commit's content is empty. Commit description is not
     /// taken into consideration.
     pub fn is_empty(&self, repo: &dyn Repo) -> BackendResult<bool> {
-        let parents: Vec<_> = self.parents().try_collect()?;
-        if let [parent] = &parents[..] {
-            return Ok(parent.tree_id() == self.tree_id());
-        }
-        let parent_tree = merge_commit_trees(repo, &parents)?;
-        Ok(*self.tree_id() == parent_tree.id())
+        Ok(self.tree_id() == &self.parent_tree(repo)?.id())
     }
 
     pub fn has_conflict(&self) -> BackendResult<bool> {
