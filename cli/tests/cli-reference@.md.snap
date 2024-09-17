@@ -657,9 +657,15 @@ See `jj restore` if you want to move entire files from one revision to another. 
 
 ###### **Options:**
 
-* `-r`, `--revision <REVISION>` — The revision to touch up. Defaults to @ if neither --to nor --from are specified
-* `--from <FROM>` — Show changes from this revision. Defaults to @ if --to is specified
-* `--to <TO>` — Edit changes in this revision. Defaults to @ if --from is specified
+* `-r`, `--revision <REVISION>` — The revision to touch up
+
+   Defaults to @ if neither --to nor --from are specified.
+* `--from <FROM>` — Show changes from this revision
+
+   Defaults to @ if --to is specified.
+* `--to <TO>` — Edit changes in this revision
+
+   Defaults to @ if --from is specified.
 * `--tool <NAME>` — Specify diff editor to be used
 
 

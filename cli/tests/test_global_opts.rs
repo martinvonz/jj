@@ -592,16 +592,15 @@ fn test_help() {
     let test_env = TestEnvironment::default();
 
     let stdout = test_env.jj_cmd_success(test_env.env_root(), &["diffedit", "-h"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @r#"
     Touch up the content changes in a revision with a diff editor
 
     Usage: jj diffedit [OPTIONS]
 
     Options:
-      -r, --revision <REVISION>  The revision to touch up. Defaults to @ if neither --to nor --from are
-                                 specified
-          --from <FROM>          Show changes from this revision. Defaults to @ if --to is specified
-          --to <TO>              Edit changes in this revision. Defaults to @ if --from is specified
+      -r, --revision <REVISION>  The revision to touch up
+          --from <FROM>          Show changes from this revision
+          --to <TO>              Edit changes in this revision
           --tool <NAME>          Specify diff editor to be used
       -h, --help                 Print help (see more with '--help')
 
@@ -615,7 +614,7 @@ fn test_help() {
           --quiet                        Silence non-primary command output
           --no-pager                     Disable the pager
           --config-toml <TOML>           Additional configuration options (can be repeated)
-    "###);
+    "#);
 }
 
 #[test]
