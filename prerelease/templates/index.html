@@ -1979,6 +1979,8 @@ type</a> are available as keywords. For example,
 <h3 id="commitid-changeid-type">CommitId / ChangeId type<a class="headerlink" href="#commitid-changeid-type" title="Permanent link">&para;</a></h3>
 <p>The following methods are defined.</p>
 <ul>
+<li><code>.normal_hex() -&gt; String</code>: Normal hex representation (0-9a-f), useful for
+  ChangeId, whose canonical hex representation is "reversed" (z-k).</li>
 <li><code>.short([len: Integer]) -&gt; String</code></li>
 <li><code>.shortest([min_len: Integer]) -&gt; ShortestIdPrefix</code>: Shortest unique prefix.</li>
 </ul>
