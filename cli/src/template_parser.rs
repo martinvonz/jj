@@ -26,6 +26,7 @@ use jj_lib::dsl_util::AliasExpandError;
 use jj_lib::dsl_util::AliasExpandableExpression;
 use jj_lib::dsl_util::AliasId;
 use jj_lib::dsl_util::AliasesMap;
+use jj_lib::dsl_util::Diagnostics;
 use jj_lib::dsl_util::ExpressionFolder;
 use jj_lib::dsl_util::FoldableExpression;
 use jj_lib::dsl_util::InvalidArguments;
@@ -83,6 +84,9 @@ impl Rule {
         }
     }
 }
+
+/// Manages diagnostic messages emitted during template parsing and building.
+pub type TemplateDiagnostics = Diagnostics<TemplateParseError>;
 
 pub type TemplateParseResult<T> = Result<T, TemplateParseError>;
 

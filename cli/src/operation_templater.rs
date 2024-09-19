@@ -32,6 +32,7 @@ use crate::template_builder::TemplateBuildMethodFnMap;
 use crate::template_builder::TemplateLanguage;
 use crate::template_parser;
 use crate::template_parser::FunctionCallNode;
+use crate::template_parser::TemplateDiagnostics;
 use crate::template_parser::TemplateParseResult;
 use crate::templater::PlainTextFormattedProperty;
 use crate::templater::Template;
@@ -87,15 +88,17 @@ impl TemplateLanguage<'static> for OperationTemplateLanguage {
 
     fn build_function(
         &self,
+        diagnostics: &mut TemplateDiagnostics,
         build_ctx: &BuildContext<Self::Property>,
         function: &FunctionCallNode,
     ) -> TemplateParseResult<Self::Property> {
         let table = &self.build_fn_table.core;
-        table.build_function(self, build_ctx, function)
+        table.build_function(self, diagnostics, build_ctx, function)
     }
 
     fn build_method(
         &self,
+        diagnostics: &mut TemplateDiagnostics,
         build_ctx: &BuildContext<Self::Property>,
         property: Self::Property,
         function: &FunctionCallNode,
@@ -104,17 +107,17 @@ impl TemplateLanguage<'static> for OperationTemplateLanguage {
         match property {
             OperationTemplatePropertyKind::Core(property) => {
                 let table = &self.build_fn_table.core;
-                table.build_method(self, build_ctx, property, function)
+                table.build_method(self, diagnostics, build_ctx, property, function)
             }
             OperationTemplatePropertyKind::Operation(property) => {
                 let table = &self.build_fn_table.operation_methods;
                 let build = template_parser::lookup_method(type_name, table, function)?;
-                build(self, build_ctx, property, function)
+                build(self, diagnostics, build_ctx, property, function)
             }
             OperationTemplatePropertyKind::OperationId(property) => {
                 let table = &self.build_fn_table.operation_id_methods;
                 let build = template_parser::lookup_method(type_name, table, function)?;
-                build(self, build_ctx, property, function)
+                build(self, diagnostics, build_ctx, property, function)
             }
         }
     }
@@ -236,7 +239,7 @@ fn builtin_operation_methods() -> OperationTemplateBuildMethodFnMap<Operation> {
     let mut map = OperationTemplateBuildMethodFnMap::<Operation>::new();
     map.insert(
         "current_operation",
-        |language, _build_ctx, self_property, function| {
+        |language, _diagnostics, _build_ctx, self_property, function| {
             function.expect_no_arguments()?;
             let current_op_id = language.current_op_id.clone();
             let out_property = self_property.map(move |op| Some(op.id()) == current_op_id.as_ref());
@@ -245,59 +248,74 @@ fn builtin_operation_methods() -> OperationTemplateBuildMethodFnMap<Operation> {
     );
     map.insert(
         "description",
-        |_language, _build_ctx, self_property, function| {
+        |_language, _diagnostics, _build_ctx, self_property, function| {
             function.expect_no_arguments()?;
             let out_property = self_property.map(|op| op.metadata().description.clone());
             Ok(L::wrap_string(out_property))
         },
     );
-    map.insert("id", |_language, _build_ctx, self_property, function| {
-        function.expect_no_arguments()?;
-        let out_property = self_property.map(|op| op.id().clone());
-        Ok(L::wrap_operation_id(out_property))
-    });
-    map.insert("tags", |_language, _build_ctx, self_property, function| {
-        function.expect_no_arguments()?;
-        let out_property = self_property.map(|op| {
-            // TODO: introduce map type
-            op.metadata()
-                .tags
-                .iter()
-                .map(|(key, value)| format!("{key}: {value}"))
-                .join("\n")
-        });
-        Ok(L::wrap_string(out_property))
-    });
+    map.insert(
+        "id",
+        |_language, _diagnostics, _build_ctx, self_property, function| {
+            function.expect_no_arguments()?;
+            let out_property = self_property.map(|op| op.id().clone());
+            Ok(L::wrap_operation_id(out_property))
+        },
+    );
+    map.insert(
+        "tags",
+        |_language, _diagnostics, _build_ctx, self_property, function| {
+            function.expect_no_arguments()?;
+            let out_property = self_property.map(|op| {
+                // TODO: introduce map type
+                op.metadata()
+                    .tags
+                    .iter()
+                    .map(|(key, value)| format!("{key}: {value}"))
+                    .join("\n")
+            });
+            Ok(L::wrap_string(out_property))
+        },
+    );
     map.insert(
         "snapshot",
-        |_language, _build_ctx, self_property, function| {
+        |_language, _diagnostics, _build_ctx, self_property, function| {
             function.expect_no_arguments()?;
             let out_property = self_property.map(|op| op.metadata().is_snapshot);
             Ok(L::wrap_boolean(out_property))
         },
     );
-    map.insert("time", |_language, _build_ctx, self_property, function| {
-        function.expect_no_arguments()?;
-        let out_property = self_property.map(|op| TimestampRange {
-            start: op.metadata().start_time,
-            end: op.metadata().end_time,
-        });
-        Ok(L::wrap_timestamp_range(out_property))
-    });
-    map.insert("user", |_language, _build_ctx, self_property, function| {
-        function.expect_no_arguments()?;
-        let out_property = self_property.map(|op| {
-            // TODO: introduce dedicated type and provide accessors?
-            format!("{}@{}", op.metadata().username, op.metadata().hostname)
-        });
-        Ok(L::wrap_string(out_property))
-    });
-    map.insert("root", |language, _build_ctx, self_property, function| {
-        function.expect_no_arguments()?;
-        let root_op_id = language.root_op_id.clone();
-        let out_property = self_property.map(move |op| op.id() == &root_op_id);
-        Ok(L::wrap_boolean(out_property))
-    });
+    map.insert(
+        "time",
+        |_language, _diagnostics, _build_ctx, self_property, function| {
+            function.expect_no_arguments()?;
+            let out_property = self_property.map(|op| TimestampRange {
+                start: op.metadata().start_time,
+                end: op.metadata().end_time,
+            });
+            Ok(L::wrap_timestamp_range(out_property))
+        },
+    );
+    map.insert(
+        "user",
+        |_language, _diagnostics, _build_ctx, self_property, function| {
+            function.expect_no_arguments()?;
+            let out_property = self_property.map(|op| {
+                // TODO: introduce dedicated type and provide accessors?
+                format!("{}@{}", op.metadata().username, op.metadata().hostname)
+            });
+            Ok(L::wrap_string(out_property))
+        },
+    );
+    map.insert(
+        "root",
+        |language, _diagnostics, _build_ctx, self_property, function| {
+            function.expect_no_arguments()?;
+            let root_op_id = language.root_op_id.clone();
+            let out_property = self_property.map(move |op| op.id() == &root_op_id);
+            Ok(L::wrap_boolean(out_property))
+        },
+    );
     map
 }
 
@@ -312,17 +330,27 @@ fn builtin_operation_id_methods() -> OperationTemplateBuildMethodFnMap<Operation
     // Not using maplit::hashmap!{} or custom declarative macro here because
     // code completion inside macro is quite restricted.
     let mut map = OperationTemplateBuildMethodFnMap::<OperationId>::new();
-    map.insert("short", |language, build_ctx, self_property, function| {
-        let ([], [len_node]) = function.expect_arguments()?;
-        let len_property = len_node
-            .map(|node| template_builder::expect_usize_expression(language, build_ctx, node))
-            .transpose()?;
-        let out_property = (self_property, len_property).map(|(id, len)| {
-            let mut hex = id.hex();
-            hex.truncate(len.unwrap_or(12));
-            hex
-        });
-        Ok(L::wrap_string(out_property))
-    });
+    map.insert(
+        "short",
+        |language, diagnostics, build_ctx, self_property, function| {
+            let ([], [len_node]) = function.expect_arguments()?;
+            let len_property = len_node
+                .map(|node| {
+                    template_builder::expect_usize_expression(
+                        language,
+                        diagnostics,
+                        build_ctx,
+                        node,
+                    )
+                })
+                .transpose()?;
+            let out_property = (self_property, len_property).map(|(id, len)| {
+                let mut hex = id.hex();
+                hex.truncate(len.unwrap_or(12));
+                hex
+            });
+            Ok(L::wrap_string(out_property))
+        },
+    );
     map
 }
