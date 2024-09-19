@@ -166,7 +166,7 @@ use crate::revset_util::RevsetExpressionEvaluator;
 use crate::template_builder;
 use crate::template_builder::TemplateLanguage;
 use crate::template_parser::TemplateAliasesMap;
-use crate::template_parser::TemplateParseResult;
+use crate::template_parser::TemplateDiagnostics;
 use crate::templater::PropertyPlaceholder;
 use crate::templater::TemplateRenderer;
 use crate::text_util;
@@ -343,13 +343,17 @@ impl CommandHelper {
         template_text: &str,
         wrap_self: impl Fn(PropertyPlaceholder<C>) -> L::Property,
     ) -> Result<TemplateRenderer<'a, C>, CommandError> {
+        let mut diagnostics = TemplateDiagnostics::new();
         let aliases = self.load_template_aliases(ui)?;
-        Ok(template_builder::parse(
+        let template = template_builder::parse(
             language,
+            &mut diagnostics,
             template_text,
             &aliases,
             wrap_self,
-        )?)
+        )?;
+        print_parse_diagnostics(ui, "In template expression", &diagnostics)?;
+        Ok(template)
     }
 
     pub fn workspace_loader(&self) -> Result<&dyn WorkspaceLoader, CommandError> {
@@ -780,13 +784,21 @@ impl WorkspaceCommandEnvironment {
     /// be one of the `L::wrap_*()` functions.
     pub fn parse_template<'a, C: Clone + 'a, L: TemplateLanguage<'a> + ?Sized>(
         &self,
-        _ui: &Ui,
+        ui: &Ui,
         language: &L,
         template_text: &str,
         wrap_self: impl Fn(PropertyPlaceholder<C>) -> L::Property,
-    ) -> TemplateParseResult<TemplateRenderer<'a, C>> {
-        let aliases = &self.template_aliases_map;
-        template_builder::parse(language, template_text, aliases, wrap_self)
+    ) -> Result<TemplateRenderer<'a, C>, CommandError> {
+        let mut diagnostics = TemplateDiagnostics::new();
+        let template = template_builder::parse(
+            language,
+            &mut diagnostics,
+            template_text,
+            &self.template_aliases_map,
+            wrap_self,
+        )?;
+        print_parse_diagnostics(ui, "In template expression", &diagnostics)?;
+        Ok(template)
     }
 
     /// Creates commit template language environment for this workspace and the
@@ -1392,7 +1404,7 @@ impl WorkspaceCommandHelper {
         language: &L,
         template_text: &str,
         wrap_self: impl Fn(PropertyPlaceholder<C>) -> L::Property,
-    ) -> TemplateParseResult<TemplateRenderer<'a, C>> {
+    ) -> Result<TemplateRenderer<'a, C>, CommandError> {
         self.env
             .parse_template(ui, language, template_text, wrap_self)
     }
@@ -1404,9 +1416,14 @@ impl WorkspaceCommandHelper {
         template_text: &str,
         wrap_self: impl Fn(PropertyPlaceholder<C>) -> L::Property,
     ) -> TemplateRenderer<'a, C> {
-        let aliases = &self.env.template_aliases_map;
-        template_builder::parse(language, template_text, aliases, wrap_self)
-            .expect("parse error should be confined by WorkspaceCommandHelper::new()")
+        template_builder::parse(
+            language,
+            &mut TemplateDiagnostics::new(),
+            template_text,
+            &self.env.template_aliases_map,
+            wrap_self,
+        )
+        .expect("parse error should be confined by WorkspaceCommandHelper::new()")
     }
 
     /// Parses commit template into evaluation tree.
@@ -1414,7 +1431,7 @@ impl WorkspaceCommandHelper {
         &self,
         ui: &Ui,
         template_text: &str,
-    ) -> TemplateParseResult<TemplateRenderer<'_, Commit>> {
+    ) -> Result<TemplateRenderer<'_, Commit>, CommandError> {
         let language = self.commit_template_language();
         self.parse_template(
             ui,
@@ -1429,7 +1446,7 @@ impl WorkspaceCommandHelper {
         &self,
         ui: &Ui,
         template_text: &str,
-    ) -> TemplateParseResult<TemplateRenderer<'_, Operation>> {
+    ) -> Result<TemplateRenderer<'_, Operation>, CommandError> {
         let language = self.operation_template_language();
         self.parse_template(
             ui,
@@ -2056,7 +2073,7 @@ impl WorkspaceCommandTransaction<'_> {
         &self,
         ui: &Ui,
         template_text: &str,
-    ) -> TemplateParseResult<TemplateRenderer<'_, Commit>> {
+    ) -> Result<TemplateRenderer<'_, Commit>, CommandError> {
         let language = self.commit_template_language();
         self.helper.env.parse_template(
             ui,

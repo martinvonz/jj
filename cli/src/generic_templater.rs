@@ -22,6 +22,7 @@ use crate::template_builder::IntoTemplateProperty;
 use crate::template_builder::TemplateLanguage;
 use crate::template_parser;
 use crate::template_parser::FunctionCallNode;
+use crate::template_parser::TemplateDiagnostics;
 use crate::template_parser::TemplateParseResult;
 use crate::templater::Template;
 use crate::templater::TemplateProperty;
@@ -86,15 +87,17 @@ impl<'a, C: 'a> TemplateLanguage<'a> for GenericTemplateLanguage<'a, C> {
 
     fn build_function(
         &self,
+        diagnostics: &mut TemplateDiagnostics,
         build_ctx: &BuildContext<Self::Property>,
         function: &FunctionCallNode,
     ) -> TemplateParseResult<Self::Property> {
         let table = &self.build_fn_table.core;
-        table.build_function(self, build_ctx, function)
+        table.build_function(self, diagnostics, build_ctx, function)
     }
 
     fn build_method(
         &self,
+        diagnostics: &mut TemplateDiagnostics,
         build_ctx: &BuildContext<Self::Property>,
         property: Self::Property,
         function: &FunctionCallNode,
@@ -103,7 +106,7 @@ impl<'a, C: 'a> TemplateLanguage<'a> for GenericTemplateLanguage<'a, C> {
         match property {
             GenericTemplatePropertyKind::Core(property) => {
                 let table = &self.build_fn_table.core;
-                table.build_method(self, build_ctx, property, function)
+                table.build_method(self, diagnostics, build_ctx, property, function)
             }
             GenericTemplatePropertyKind::Self_(property) => {
                 let table = &self.build_fn_table.keywords;

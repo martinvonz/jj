@@ -53,7 +53,7 @@ impl OperationTemplateLanguageExtension for HexCounter {
         let mut table = OperationTemplateBuildFnTable::empty();
         table.operation_methods.insert(
             "num_digits_in_id",
-            |_language, _build_context, property, call| {
+            |_language, _diagnostics, _build_context, property, call| {
                 call.expect_no_arguments()?;
                 Ok(L::wrap_integer(
                     property.map(|operation| num_digits_in_id(operation.id())),
@@ -62,7 +62,7 @@ impl OperationTemplateLanguageExtension for HexCounter {
         );
         table.operation_methods.insert(
             "num_char_in_id",
-            |_language, _build_context, property, call| {
+            |_language, _diagnostics, _build_context, property, call| {
                 let [string_arg] = call.expect_exact_arguments()?;
                 let char_arg =
                     template_parser::expect_string_literal_with(string_arg, |string, span| {
