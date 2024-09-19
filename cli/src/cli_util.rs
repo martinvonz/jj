@@ -1354,6 +1354,18 @@ impl WorkspaceCommandHelper {
         self.env.parse_template(language, template_text, wrap_self)
     }
 
+    /// Parses template that is validated by `Self::new()`.
+    fn reparse_valid_template<'a, C: Clone + 'a, L: TemplateLanguage<'a> + ?Sized>(
+        &self,
+        language: &L,
+        template_text: &str,
+        wrap_self: impl Fn(PropertyPlaceholder<C>) -> L::Property,
+    ) -> TemplateRenderer<'a, C> {
+        let aliases = &self.env.template_aliases_map;
+        template_builder::parse(language, template_text, aliases, wrap_self)
+            .expect("parse error should be confined by WorkspaceCommandHelper::new()")
+    }
+
     /// Parses commit template into evaluation tree.
     pub fn parse_commit_template(
         &self,
@@ -1397,19 +1409,31 @@ impl WorkspaceCommandHelper {
 
     /// Template for one-line summary of a commit.
     pub fn commit_summary_template(&self) -> TemplateRenderer<'_, Commit> {
-        self.parse_commit_template(&self.commit_summary_template_text)
-            .expect("parse error should be confined by WorkspaceCommandHelper::new()")
+        let language = self.commit_template_language();
+        self.reparse_valid_template(
+            &language,
+            &self.commit_summary_template_text,
+            CommitTemplateLanguage::wrap_commit,
+        )
     }
 
     /// Template for one-line summary of an operation.
     pub fn operation_summary_template(&self) -> TemplateRenderer<'_, Operation> {
-        self.parse_operation_template(&self.op_summary_template_text)
-            .expect("parse error should be confined by WorkspaceCommandHelper::new()")
+        let language = self.operation_template_language();
+        self.reparse_valid_template(
+            &language,
+            &self.op_summary_template_text,
+            OperationTemplateLanguage::wrap_operation,
+        )
     }
 
     pub fn short_change_id_template(&self) -> TemplateRenderer<'_, Commit> {
-        self.parse_commit_template(SHORT_CHANGE_ID_TEMPLATE_TEXT)
-            .expect("parse error should be confined by WorkspaceCommandHelper::new()")
+        let language = self.commit_template_language();
+        self.reparse_valid_template(
+            &language,
+            SHORT_CHANGE_ID_TEMPLATE_TEXT,
+            CommitTemplateLanguage::wrap_commit,
+        )
     }
 
     /// Returns one-line summary of the given `commit`.
@@ -1957,8 +1981,12 @@ impl WorkspaceCommandTransaction<'_> {
 
     /// Template for one-line summary of a commit within transaction.
     pub fn commit_summary_template(&self) -> TemplateRenderer<'_, Commit> {
-        self.parse_commit_template(&self.helper.commit_summary_template_text)
-            .expect("parse error should be confined by WorkspaceCommandHelper::new()")
+        let language = self.commit_template_language();
+        self.helper.reparse_valid_template(
+            &language,
+            &self.helper.commit_summary_template_text,
+            CommitTemplateLanguage::wrap_commit,
+        )
     }
 
     /// Creates commit template language environment capturing the current
