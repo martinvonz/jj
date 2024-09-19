@@ -17,10 +17,72 @@
 use std::array;
 use std::collections::HashMap;
 use std::fmt;
+use std::slice;
 
 use itertools::Itertools as _;
 use pest::iterators::Pairs;
 use pest::RuleType;
+
+/// Manages diagnostic messages emitted during parsing.
+///
+/// `T` is usually a parse error type of the language, which contains a message
+/// and source span of 'static lifetime.
+#[derive(Debug)]
+pub struct Diagnostics<T> {
+    // This might be extended to [{ kind: Warning|Error, message: T }, ..].
+    diagnostics: Vec<T>,
+}
+
+impl<T> Diagnostics<T> {
+    /// Creates new empty diagnostics collector.
+    pub fn new() -> Self {
+        Diagnostics {
+            diagnostics: Vec::new(),
+        }
+    }
+
+    /// Returns `true` if there are no diagnostic messages.
+    pub fn is_empty(&self) -> bool {
+        self.diagnostics.is_empty()
+    }
+
+    /// Returns the number of diagnostic messages.
+    pub fn len(&self) -> usize {
+        self.diagnostics.len()
+    }
+
+    /// Returns iterator over diagnostic messages.
+    pub fn iter(&self) -> slice::Iter<'_, T> {
+        self.diagnostics.iter()
+    }
+
+    /// Adds a diagnostic message of warning level.
+    pub fn add_warning(&mut self, diag: T) {
+        self.diagnostics.push(diag);
+    }
+
+    /// Moves diagnostic messages of different type (such as fileset warnings
+    /// emitted within `file()` revset.)
+    pub fn extend_with<U>(&mut self, diagnostics: Diagnostics<U>, mut f: impl FnMut(U) -> T) {
+        self.diagnostics
+            .extend(diagnostics.diagnostics.into_iter().map(&mut f));
+    }
+}
+
+impl<T> Default for Diagnostics<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<'a, T> IntoIterator for &'a Diagnostics<T> {
+    type Item = &'a T;
+    type IntoIter = slice::Iter<'a, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
 
 /// AST node without type or name checking.
 #[derive(Clone, Debug, Eq, PartialEq)]
