@@ -14,6 +14,8 @@
 
 use std::path::Path;
 
+use indoc::indoc;
+
 use crate::common::TestEnvironment;
 
 #[test]
@@ -116,6 +118,64 @@ fn test_templater_parse_error() {
 }
 
 #[test]
+fn test_template_parse_warning() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    let template = indoc! {r#"
+        separate(' ',
+          branches,
+          local_branches,
+          remote_branches,
+          self.contained_in('branches()'),
+        )
+    "#};
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["log", "-r@", "-T", template]);
+    insta::assert_snapshot!(stdout, @r#"
+    @  false
+    │
+    ~
+    "#);
+    insta::assert_snapshot!(stderr, @r#"
+    Warning: In template expression
+     --> 2:3
+      |
+    2 |   branches,
+      |   ^------^
+      |
+      = branches() is deprecated; use bookmarks() instead
+    Warning: In template expression
+     --> 3:3
+      |
+    3 |   local_branches,
+      |   ^------------^
+      |
+      = local_branches() is deprecated; use local_bookmarks() instead
+    Warning: In template expression
+     --> 4:3
+      |
+    4 |   remote_branches,
+      |   ^-------------^
+      |
+      = remote_branches() is deprecated; use remote_bookmarks() instead
+    Warning: In template expression
+     --> 5:21
+      |
+    5 |   self.contained_in('branches()'),
+      |                     ^----------^
+      |
+      = In revset expression
+     --> 1:1
+      |
+    1 | branches()
+      | ^------^
+      |
+      = branches() is deprecated; use bookmarks() instead
+    "#);
+}
+
+#[test]
 fn test_templater_upper_lower() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
@@ -148,6 +208,7 @@ fn test_templater_alias() {
     'recurse2()' = 'recurse'
     'identity(x)' = 'x'
     'coalesce(x, y)' = 'if(x, x, y)'
+    'deprecated()' = 'branches ++ self.contained_in("branches()")'
     'builtin_log_node' = '"#"'
     'builtin_op_log_node' = '"#"'
     "###,
@@ -311,6 +372,47 @@ fn test_templater_alias() {
       | ^---------------^
       |
       = Expected expression of type "Integer", but actual type is "String"
+    "#);
+
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["log", "-r@", "-Tdeprecated()"]);
+    insta::assert_snapshot!(stdout, @r##"
+    #  false
+    │
+    ~
+    "##);
+    insta::assert_snapshot!(stderr, @r#"
+    Warning: In template expression
+     --> 1:1
+      |
+    1 | deprecated()
+      | ^----------^
+      |
+      = In alias "deprecated()"
+     --> 1:1
+      |
+    1 | branches ++ self.contained_in("branches()")
+      | ^------^
+      |
+      = branches() is deprecated; use bookmarks() instead
+    Warning: In template expression
+     --> 1:1
+      |
+    1 | deprecated()
+      | ^----------^
+      |
+      = In alias "deprecated()"
+     --> 1:31
+      |
+    1 | branches ++ self.contained_in("branches()")
+      |                               ^----------^
+      |
+      = In revset expression
+     --> 1:1
+      |
+    1 | branches()
+      | ^------^
+      |
+      = branches() is deprecated; use bookmarks() instead
     "#);
 }
 
