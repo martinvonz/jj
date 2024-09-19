@@ -288,6 +288,66 @@ fn test_bad_function_call() {
 }
 
 #[test]
+fn test_parse_warning() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    let (stdout, stderr) = test_env.jj_cmd_ok(
+        &repo_path,
+        &[
+            "log",
+            "-r",
+            "branches() | remote_branches() | tracked_remote_branches() | \
+             untracked_remote_branches()",
+        ],
+    );
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r#"
+    Warning: In revset expression
+     --> 1:1
+      |
+    1 | branches() | remote_branches() | tracked_remote_branches() | untracked_remote_branches()
+      | ^------^
+      |
+      = branches() is deprecated; use bookmarks() instead
+    Warning: In revset expression
+     --> 1:14
+      |
+    1 | branches() | remote_branches() | tracked_remote_branches() | untracked_remote_branches()
+      |              ^-------------^
+      |
+      = remote_branches() is deprecated; use remote_bookmarks() instead
+    Warning: In revset expression
+     --> 1:34
+      |
+    1 | branches() | remote_branches() | tracked_remote_branches() | untracked_remote_branches()
+      |                                  ^---------------------^
+      |
+      = tracked_remote_branches() is deprecated; use tracked_remote_bookmarks() instead
+    Warning: In revset expression
+     --> 1:62
+      |
+    1 | branches() | remote_branches() | tracked_remote_branches() | untracked_remote_branches()
+      |                                                              ^-----------------------^
+      |
+      = untracked_remote_branches() is deprecated; use untracked_remote_bookmarks() instead
+    "#);
+
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["log", "-r", "file(foo, bar)"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r#"
+    Warning: In revset expression
+     --> 1:6
+      |
+    1 | file(foo, bar)
+      |      ^------^
+      |
+      = Multi-argument patterns syntax is deprecated; separate them with |
+    "#);
+}
+
+#[test]
 fn test_function_name_hint() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
@@ -363,6 +423,7 @@ fn test_alias() {
     'recurse2()' = 'recurse'
     'identity(x)' = 'x'
     'my_author(x)' = 'author(x)'
+    'deprecated()' = 'branches()'
     "###,
     );
 
@@ -457,6 +518,41 @@ fn test_alias() {
       | ^-----^
       |
       = Alias "recurse" expanded recursively
+    "#);
+
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["log", "-r", "deprecated()"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r#"
+    Warning: In revset expression
+     --> 1:1
+      |
+    1 | deprecated()
+      | ^----------^
+      |
+      = In alias "deprecated()"
+     --> 1:1
+      |
+    1 | branches()
+      | ^------^
+      |
+      = branches() is deprecated; use bookmarks() instead
+    "#);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["log", "-r", "all:deprecated()"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r#"
+    Warning: In revset expression
+     --> 1:5
+      |
+    1 | all:deprecated()
+      |     ^----------^
+      |
+      = In alias "deprecated()"
+     --> 1:1
+      |
+    1 | branches()
+      | ^------^
+      |
+      = branches() is deprecated; use bookmarks() instead
     "#);
 }
 

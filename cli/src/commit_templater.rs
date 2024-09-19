@@ -599,7 +599,14 @@ fn builtin_commit_methods<'repo>() -> CommitTemplateBuildMethodFnMap<'repo, Comm
     );
     map.insert(
         "bookmarks",
-        |language, _diagnostics, _build_ctx, self_property, function| {
+        |language, diagnostics, _build_ctx, self_property, function| {
+            if function.name != "bookmarks" {
+                // TODO: Remove in jj 0.28+
+                diagnostics.add_warning(TemplateParseError::expression(
+                    "branches() is deprecated; use bookmarks() instead",
+                    function.name_span,
+                ));
+            }
             function.expect_no_arguments()?;
             let index = language
                 .keyword_cache
@@ -618,7 +625,14 @@ fn builtin_commit_methods<'repo>() -> CommitTemplateBuildMethodFnMap<'repo, Comm
     );
     map.insert(
         "local_bookmarks",
-        |language, _diagnostics, _build_ctx, self_property, function| {
+        |language, diagnostics, _build_ctx, self_property, function| {
+            if function.name != "local_bookmarks" {
+                // TODO: Remove in jj 0.28+
+                diagnostics.add_warning(TemplateParseError::expression(
+                    "local_branches() is deprecated; use local_bookmarks() instead",
+                    function.name_span,
+                ));
+            }
             function.expect_no_arguments()?;
             let index = language
                 .keyword_cache
@@ -637,7 +651,14 @@ fn builtin_commit_methods<'repo>() -> CommitTemplateBuildMethodFnMap<'repo, Comm
     );
     map.insert(
         "remote_bookmarks",
-        |language, _diagnostics, _build_ctx, self_property, function| {
+        |language, diagnostics, _build_ctx, self_property, function| {
+            if function.name != "remote_bookmarks" {
+                // TODO: Remove in jj 0.28+
+                diagnostics.add_warning(TemplateParseError::expression(
+                    "remote_branches() is deprecated; use remote_bookmarks() instead",
+                    function.name_span,
+                ));
+            }
             function.expect_no_arguments()?;
             let index = language
                 .keyword_cache
