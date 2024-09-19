@@ -24,7 +24,6 @@ use crate::cli_util::CommandHelper;
 use crate::command_error::CommandError;
 use crate::diff_util::get_copy_records;
 use crate::diff_util::DiffFormat;
-use crate::revset_util;
 use crate::ui::Ui;
 
 /// Show high-level repo status
@@ -118,9 +117,7 @@ pub(crate) fn cmd_status(
                         .parents()
                         .ancestors()
                         .filtered(RevsetFilterPredicate::HasConflict)
-                        .minus(&revset_util::parse_immutable_expression(
-                            &workspace_command.revset_parse_context(),
-                        )?),
+                        .minus(&workspace_command.env().immutable_expression()),
                 )
                 .evaluate_to_commit_ids()?
                 .collect();

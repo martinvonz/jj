@@ -51,7 +51,6 @@ use crate::formatter::Formatter;
 use crate::git_util::get_git_repo;
 use crate::git_util::with_remote_git_callbacks;
 use crate::git_util::GitSidebandProgressMessageWriter;
-use crate::revset_util;
 use crate::ui::Ui;
 
 /// Push to a Git remote
@@ -326,9 +325,7 @@ fn validate_commits_ready_to_push(
         .cloned()
         .collect_vec();
     let commits_to_push = RevsetExpression::commits(old_heads)
-        .union(&revset_util::parse_immutable_heads_expression(
-            &tx.base_workspace_helper().revset_parse_context(),
-        )?)
+        .union(workspace_helper.env().immutable_heads_expression())
         .range(&RevsetExpression::commits(new_heads));
 
     let config = command.settings().config();
