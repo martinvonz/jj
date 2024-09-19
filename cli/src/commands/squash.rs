@@ -98,14 +98,14 @@ pub(crate) fn cmd_squash(
     let destination;
     if !args.from.is_empty() || args.into.is_some() {
         sources = if args.from.is_empty() {
-            workspace_command.parse_revset(&RevisionArg::AT)?
+            workspace_command.parse_revset(ui, &RevisionArg::AT)?
         } else {
-            workspace_command.parse_union_revsets(&args.from)?
+            workspace_command.parse_union_revsets(ui, &args.from)?
         }
         .evaluate_to_commits()?
         .try_collect()?;
-        destination =
-            workspace_command.resolve_single_rev(args.into.as_ref().unwrap_or(&RevisionArg::AT))?;
+        destination = workspace_command
+            .resolve_single_rev(ui, args.into.as_ref().unwrap_or(&RevisionArg::AT))?;
         if sources.iter().any(|source| source.id() == destination.id()) {
             return Err(user_error("Source and destination cannot be the same"));
         }
@@ -115,7 +115,7 @@ pub(crate) fn cmd_squash(
         sources.reverse();
     } else {
         let source = workspace_command
-            .resolve_single_rev(args.revision.as_ref().unwrap_or(&RevisionArg::AT))?;
+            .resolve_single_rev(ui, args.revision.as_ref().unwrap_or(&RevisionArg::AT))?;
         let mut parents: Vec<_> = source.parents().try_collect()?;
         if parents.len() != 1 {
             return Err(user_error_with_hint(
@@ -128,7 +128,7 @@ pub(crate) fn cmd_squash(
     }
 
     let matcher = workspace_command
-        .parse_file_patterns(&args.paths)?
+        .parse_file_patterns(ui, &args.paths)?
         .to_matcher();
     let diff_selector =
         workspace_command.diff_selector(ui, args.tool.as_deref(), args.interactive)?;
@@ -252,7 +252,7 @@ from the source will be moved into the destination.
             if no_rev_arg
                 && tx
                     .base_workspace_helper()
-                    .parse_revset(&RevisionArg::from(only_path.to_owned()))
+                    .parse_revset(ui, &RevisionArg::from(only_path.to_owned()))
                     .is_ok()
             {
                 writeln!(

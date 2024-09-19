@@ -97,12 +97,12 @@ pub(crate) fn cmd_new(
 
     if !args.insert_before.is_empty() && !args.insert_after.is_empty() {
         parent_commits = workspace_command
-            .resolve_some_revsets_default_single(&args.insert_after)?
+            .resolve_some_revsets_default_single(ui, &args.insert_after)?
             .into_iter()
             .collect_vec();
         parent_commit_ids = parent_commits.iter().ids().cloned().collect();
         children_commits = workspace_command
-            .resolve_some_revsets_default_single(&args.insert_before)?
+            .resolve_some_revsets_default_single(ui, &args.insert_before)?
             .into_iter()
             .collect_vec();
         let children_commit_ids = children_commits.iter().ids().cloned().collect();
@@ -119,7 +119,7 @@ pub(crate) fn cmd_new(
         // The parents of the new commit will be the parents of the target commits
         // which are not descendants of other target commits.
         children_commits = workspace_command
-            .resolve_some_revsets_default_single(&args.insert_before)?
+            .resolve_some_revsets_default_single(ui, &args.insert_before)?
             .into_iter()
             .collect_vec();
         let children_commit_ids = children_commits.iter().ids().cloned().collect();
@@ -144,7 +144,7 @@ pub(crate) fn cmd_new(
             .try_collect()?;
     } else if !args.insert_after.is_empty() {
         parent_commits = workspace_command
-            .resolve_some_revsets_default_single(&args.insert_after)?
+            .resolve_some_revsets_default_single(ui, &args.insert_after)?
             .into_iter()
             .collect_vec();
         parent_commit_ids = parent_commits.iter().ids().cloned().collect();
@@ -162,7 +162,7 @@ pub(crate) fn cmd_new(
             .try_collect()?;
     } else {
         parent_commits = workspace_command
-            .resolve_some_revsets_default_single(&args.revisions)?
+            .resolve_some_revsets_default_single(ui, &args.revisions)?
             .into_iter()
             .collect_vec();
         parent_commit_ids = parent_commits.iter().ids().cloned().collect();

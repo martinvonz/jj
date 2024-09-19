@@ -52,10 +52,11 @@ pub(crate) fn cmd_interdiff(
 ) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
     let from =
-        workspace_command.resolve_single_rev(args.from.as_ref().unwrap_or(&RevisionArg::AT))?;
-    let to = workspace_command.resolve_single_rev(args.to.as_ref().unwrap_or(&RevisionArg::AT))?;
+        workspace_command.resolve_single_rev(ui, args.from.as_ref().unwrap_or(&RevisionArg::AT))?;
+    let to =
+        workspace_command.resolve_single_rev(ui, args.to.as_ref().unwrap_or(&RevisionArg::AT))?;
     let matcher = workspace_command
-        .parse_file_patterns(&args.paths)?
+        .parse_file_patterns(ui, &args.paths)?
         .to_matcher();
     let diff_renderer = workspace_command.diff_renderer_for(&args.format)?;
     ui.request_pager();

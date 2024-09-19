@@ -119,7 +119,7 @@ pub fn cmd_op_diff(
             .settings()
             .config()
             .get_string("templates.commit_summary")?;
-        workspace_env.parse_template(&language, &text, CommitTemplateLanguage::wrap_commit)?
+        workspace_env.parse_template(ui, &language, &text, CommitTemplateLanguage::wrap_commit)?
     };
 
     let op_summary_template = workspace_command.operation_summary_template();

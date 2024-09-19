@@ -70,11 +70,11 @@ pub fn cmd_bookmark_move(
     let mut workspace_command = command.workspace_helper(ui)?;
     let repo = workspace_command.repo().clone();
 
-    let target_commit = workspace_command.resolve_single_rev(&args.to)?;
+    let target_commit = workspace_command.resolve_single_rev(ui, &args.to)?;
     let matched_bookmarks = {
         let is_source_commit = if !args.from.is_empty() {
             workspace_command
-                .parse_union_revsets(&args.from)?
+                .parse_union_revsets(ui, &args.from)?
                 .evaluate()?
                 .containing_fn()
         } else {

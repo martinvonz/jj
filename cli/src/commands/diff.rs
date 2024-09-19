@@ -67,10 +67,10 @@ pub(crate) fn cmd_diff(
 ) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
     let repo = workspace_command.repo();
-    let fileset_expression = workspace_command.parse_file_patterns(&args.paths)?;
+    let fileset_expression = workspace_command.parse_file_patterns(ui, &args.paths)?;
     let matcher = fileset_expression.to_matcher();
     let resolve_revision = |r: &Option<RevisionArg>| {
-        workspace_command.resolve_single_rev(r.as_ref().unwrap_or(&RevisionArg::AT))
+        workspace_command.resolve_single_rev(ui, r.as_ref().unwrap_or(&RevisionArg::AT))
     };
 
     let from_tree;

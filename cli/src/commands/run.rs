@@ -53,7 +53,7 @@ pub struct RunArgs {
 pub fn cmd_run(ui: &mut Ui, command: &CommandHelper, args: &RunArgs) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
     let _resolved_commits: Vec<_> = workspace_command
-        .parse_union_revsets(&args.revisions)?
+        .parse_union_revsets(ui, &args.revisions)?
         .evaluate_to_commits()?
         .try_collect()?;
     // Jobs are resolved in this order:

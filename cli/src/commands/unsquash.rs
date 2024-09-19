@@ -57,7 +57,7 @@ pub(crate) fn cmd_unsquash(
     args: &UnsquashArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let commit = workspace_command.resolve_single_rev(&args.revision)?;
+    let commit = workspace_command.resolve_single_rev(ui, &args.revision)?;
     workspace_command.check_rewritable([commit.id()])?;
     if commit.parent_ids().len() > 1 {
         return Err(user_error("Cannot unsquash merge commits"));

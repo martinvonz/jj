@@ -65,7 +65,7 @@ pub(crate) fn cmd_commit(
         .ok_or_else(|| user_error("This command requires a working copy"))?;
     let commit = workspace_command.repo().store().get_commit(commit_id)?;
     let matcher = workspace_command
-        .parse_file_patterns(&args.paths)?
+        .parse_file_patterns(ui, &args.paths)?
         .to_matcher();
     let advanceable_bookmarks = workspace_command.get_advanceable_bookmarks(commit.parent_ids())?;
     let diff_selector =
@@ -114,7 +114,7 @@ new working-copy commit.
             commit_builder.set_description(command.settings().default_description());
         }
         let temp_commit = commit_builder.write_hidden()?;
-        let template = description_template(&tx, "", &temp_commit)?;
+        let template = description_template(ui, &tx, "", &temp_commit)?;
         edit_description(tx.base_workspace_helper(), &template, command.settings())?
     };
     commit_builder.set_description(description);

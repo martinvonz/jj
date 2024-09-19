@@ -63,7 +63,7 @@ fn cmd_submodule_print(
 ) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
     let repo = workspace_command.repo();
-    let commit = workspace_command.resolve_single_rev(&args.revisions)?;
+    let commit = workspace_command.resolve_single_rev(ui, &args.revisions)?;
     let tree = commit.tree()?;
     let gitmodules_path = RepoPath::from_internal_string(".gitmodules");
     let mut gitmodules_file = match tree.path_value(gitmodules_path)?.into_resolved() {

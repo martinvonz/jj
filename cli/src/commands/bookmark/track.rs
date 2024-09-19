@@ -87,7 +87,7 @@ pub fn cmd_bookmark_track(
                 .config()
                 .get::<String>("templates.bookmark_list")?;
             workspace_command
-                .parse_template(&language, &text, CommitTemplateLanguage::wrap_ref_name)?
+                .parse_template(ui, &language, &text, CommitTemplateLanguage::wrap_ref_name)?
                 .labeled("bookmark_list")
         };
 

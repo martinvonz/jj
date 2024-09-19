@@ -124,10 +124,16 @@ fn do_op_log(
             None => settings.config().get_string("templates.op_log")?,
         };
         template = workspace_env
-            .parse_template(&language, &text, OperationTemplateLanguage::wrap_operation)?
+            .parse_template(
+                ui,
+                &language,
+                &text,
+                OperationTemplateLanguage::wrap_operation,
+            )?
             .labeled("op_log");
         op_node_template = workspace_env
             .parse_template(
+                ui,
                 &language,
                 &get_node_template(graph_style, settings)?,
                 OperationTemplateLanguage::wrap_operation,
@@ -152,6 +158,7 @@ fn do_op_log(
                 let language =
                     workspace_env.commit_template_language(repo.as_ref(), &id_prefix_context);
                 workspace_env.parse_template(
+                    ui,
                     &language,
                     &template_text,
                     CommitTemplateLanguage::wrap_commit,

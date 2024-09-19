@@ -17,6 +17,7 @@ use crate::cli_util::WorkspaceCommandTransaction;
 use crate::command_error::CommandError;
 use crate::formatter::PlainTextFormatter;
 use crate::text_util;
+use crate::ui::Ui;
 
 /// Cleanup a description by normalizing line endings, and removing leading and
 /// trailing blank lines.
@@ -57,6 +58,7 @@ JJ: Lines starting with "JJ: " (like this one) will be removed.
 
 /// Edits the descriptions of the given commits in a single editor session.
 pub fn edit_multiple_descriptions(
+    ui: &Ui,
     tx: &WorkspaceCommandTransaction,
     commits: &[(&CommitId, Commit)],
     settings: &UserSettings,
@@ -77,7 +79,7 @@ pub fn edit_multiple_descriptions(
         bulk_message.push_str(&commit_hash);
         bulk_message.push_str(" -------\n");
         commits_map.insert(commit_hash, *commit_id);
-        let template = description_template(tx, "", temp_commit)?;
+        let template = description_template(ui, tx, "", temp_commit)?;
         bulk_message.push_str(&template);
         bulk_message.push('\n');
     }
@@ -225,6 +227,7 @@ pub fn join_message_paragraphs(paragraphs: &[String]) -> String {
 
 /// Renders commit description template, which will be edited by user.
 pub fn description_template(
+    ui: &Ui,
     tx: &WorkspaceCommandTransaction,
     intro: &str,
     commit: &Commit,
@@ -238,7 +241,7 @@ pub fn description_template(
     // Named as "draft" because the output can contain "JJ: " comment lines.
     let template_key = "templates.draft_commit_description";
     let template_text = tx.settings().config().get_string(template_key)?;
-    let template = tx.parse_commit_template(&template_text)?;
+    let template = tx.parse_commit_template(ui, &template_text)?;
 
     let mut output = Vec::new();
     if !intro.is_empty() {
