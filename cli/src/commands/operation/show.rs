@@ -66,7 +66,7 @@ pub fn cmd_op_show(
             .settings()
             .config()
             .get_string("templates.commit_summary")?;
-        workspace_env.parse_template(&language, &text, CommitTemplateLanguage::wrap_commit)?
+        workspace_env.parse_template(ui, &language, &text, CommitTemplateLanguage::wrap_commit)?
     };
 
     let graph_style = GraphStyle::from_settings(command.settings())?;
@@ -81,7 +81,7 @@ pub fn cmd_op_show(
     let template = {
         let text = command.settings().config().get_string("templates.op_log")?;
         workspace_command
-            .parse_operation_template(&text)?
+            .parse_operation_template(ui, &text)?
             .labeled("op_log")
     };
 

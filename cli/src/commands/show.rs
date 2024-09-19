@@ -46,12 +46,12 @@ pub(crate) fn cmd_show(
     args: &ShowArgs,
 ) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
-    let commit = workspace_command.resolve_single_rev(&args.revision)?;
+    let commit = workspace_command.resolve_single_rev(ui, &args.revision)?;
     let template_string = match &args.template {
         Some(value) => value.to_string(),
         None => command.settings().config().get_string("templates.show")?,
     };
-    let template = workspace_command.parse_commit_template(&template_string)?;
+    let template = workspace_command.parse_commit_template(ui, &template_string)?;
     let diff_renderer = workspace_command.diff_renderer_for(&args.format)?;
     ui.request_pager();
     let mut formatter = ui.stdout_formatter();

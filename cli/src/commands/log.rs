@@ -93,14 +93,14 @@ pub(crate) fn cmd_log(
 ) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
 
-    let fileset_expression = workspace_command.parse_file_patterns(&args.paths)?;
+    let fileset_expression = workspace_command.parse_file_patterns(ui, &args.paths)?;
     let revset_expression = {
         // only use default revset if neither revset nor path are specified
         let mut expression = if args.revisions.is_empty() && args.paths.is_empty() {
             workspace_command
-                .parse_revset(&RevisionArg::from(command.settings().default_revset()))?
+                .parse_revset(ui, &RevisionArg::from(command.settings().default_revset()))?
         } else if !args.revisions.is_empty() {
-            workspace_command.parse_union_revsets(&args.revisions)?
+            workspace_command.parse_union_revsets(ui, &args.revisions)?
         } else {
             // a path was specified so we use all() and add path filter later
             workspace_command.attach_revset_evaluator(RevsetExpression::all())
@@ -138,6 +138,7 @@ pub(crate) fn cmd_log(
         };
         template = workspace_command
             .parse_template(
+                ui,
                 &language,
                 &template_string,
                 CommitTemplateLanguage::wrap_commit,
@@ -145,6 +146,7 @@ pub(crate) fn cmd_log(
             .labeled("log");
         node_template = workspace_command
             .parse_template(
+                ui,
                 &language,
                 &get_node_template(graph_style, command.settings())?,
                 CommitTemplateLanguage::wrap_commit_opt,
@@ -281,7 +283,7 @@ pub(crate) fn cmd_log(
             )?;
         } else if revset.is_empty()
             && workspace_command
-                .parse_revset(&RevisionArg::from(only_path.to_owned()))
+                .parse_revset(ui, &RevisionArg::from(only_path.to_owned()))
                 .is_ok()
         {
             writeln!(

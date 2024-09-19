@@ -46,12 +46,12 @@ pub(crate) fn cmd_file_untrack(
     let mut workspace_command = command.workspace_helper(ui)?;
     let store = workspace_command.repo().store().clone();
     let matcher = workspace_command
-        .parse_file_patterns(&args.paths)?
+        .parse_file_patterns(ui, &args.paths)?
         .to_matcher();
 
     let mut tx = workspace_command.start_transaction().into_inner();
     let base_ignores = workspace_command.base_ignores()?;
-    let auto_tracking_matcher = workspace_command.auto_tracking_matcher()?;
+    let auto_tracking_matcher = workspace_command.auto_tracking_matcher(ui)?;
     let (mut locked_ws, wc_commit) = workspace_command.start_working_copy_mutation()?;
     // Create a new tree without the unwanted files
     let mut tree_builder = MergedTreeBuilder::new(wc_commit.tree_id().clone());

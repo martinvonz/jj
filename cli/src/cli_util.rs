@@ -375,7 +375,7 @@ impl CommandHelper {
         let op_head = self.resolve_operation(ui, workspace.repo_loader())?;
         let repo = workspace.repo_loader().load_at(&op_head)?;
         let env = self.workspace_environment(ui, &workspace)?;
-        WorkspaceCommandHelper::new(workspace, repo, env, self.is_at_head_operation())
+        WorkspaceCommandHelper::new(ui, workspace, repo, env, self.is_at_head_operation())
     }
 
     pub fn get_working_copy_factory(&self) -> Result<&dyn WorkingCopyFactory, CommandError> {
@@ -491,7 +491,7 @@ impl CommandHelper {
     ) -> Result<WorkspaceCommandHelper, CommandError> {
         let env = self.workspace_environment(ui, &workspace)?;
         let loaded_at_head = true;
-        WorkspaceCommandHelper::new(workspace, repo, env, loaded_at_head)
+        WorkspaceCommandHelper::new(ui, workspace, repo, env, loaded_at_head)
     }
 }
 
@@ -618,8 +618,8 @@ impl WorkspaceCommandEnvironment {
             immutable_heads_expression: RevsetExpression::root(),
             short_prefixes_expression: None,
         };
-        env.immutable_heads_expression = env.load_immutable_heads_expression()?;
-        env.short_prefixes_expression = env.load_short_prefixes_expression()?;
+        env.immutable_heads_expression = env.load_immutable_heads_expression(ui)?;
+        env.short_prefixes_expression = env.load_short_prefixes_expression(ui)?;
         Ok(env)
     }
 
@@ -678,12 +678,18 @@ impl WorkspaceCommandEnvironment {
         &self.immutable_heads_expression
     }
 
-    fn load_immutable_heads_expression(&self) -> Result<Rc<RevsetExpression>, CommandError> {
+    fn load_immutable_heads_expression(
+        &self,
+        _ui: &Ui,
+    ) -> Result<Rc<RevsetExpression>, CommandError> {
         revset_util::parse_immutable_heads_expression(&self.revset_parse_context())
             .map_err(|e| config_error_with_message("Invalid `revset-aliases.immutable_heads()`", e))
     }
 
-    fn load_short_prefixes_expression(&self) -> Result<Option<Rc<RevsetExpression>>, CommandError> {
+    fn load_short_prefixes_expression(
+        &self,
+        _ui: &Ui,
+    ) -> Result<Option<Rc<RevsetExpression>>, CommandError> {
         let revset_string = self
             .settings()
             .config()
@@ -761,6 +767,7 @@ impl WorkspaceCommandEnvironment {
     /// be one of the `L::wrap_*()` functions.
     pub fn parse_template<'a, C: Clone + 'a, L: TemplateLanguage<'a> + ?Sized>(
         &self,
+        _ui: &Ui,
         language: &L,
         template_text: &str,
         wrap_self: impl Fn(PropertyPlaceholder<C>) -> L::Property,
@@ -808,6 +815,7 @@ pub struct WorkspaceCommandHelper {
 impl WorkspaceCommandHelper {
     #[instrument(skip_all)]
     fn new(
+        ui: &Ui,
         workspace: Workspace,
         repo: Arc<ReadonlyRepo>,
         env: WorkspaceCommandEnvironment,
@@ -831,9 +839,9 @@ impl WorkspaceCommandHelper {
         };
         // Parse commit_summary template early to report error before starting
         // mutable operation.
-        helper.parse_operation_template(&helper.op_summary_template_text)?;
-        helper.parse_commit_template(&helper.commit_summary_template_text)?;
-        helper.parse_commit_template(SHORT_CHANGE_ID_TEMPLATE_TEXT)?;
+        helper.parse_operation_template(ui, &helper.op_summary_template_text)?;
+        helper.parse_commit_template(ui, &helper.commit_summary_template_text)?;
+        helper.parse_commit_template(ui, SHORT_CHANGE_ID_TEMPLATE_TEXT)?;
         Ok(helper)
     }
 
@@ -1051,6 +1059,7 @@ impl WorkspaceCommandHelper {
     /// Parses the given strings as file patterns.
     pub fn parse_file_patterns(
         &self,
+        ui: &Ui,
         values: &[String],
     ) -> Result<FilesetExpression, CommandError> {
         // TODO: This function might be superseded by parse_union_filesets(),
@@ -1059,7 +1068,7 @@ impl WorkspaceCommandHelper {
         if values.is_empty() {
             Ok(FilesetExpression::all())
         } else if self.settings().config().get_bool("ui.allow-filesets")? {
-            self.parse_union_filesets(values)
+            self.parse_union_filesets(ui, values)
         } else {
             let expressions = values
                 .iter()
@@ -1073,6 +1082,7 @@ impl WorkspaceCommandHelper {
     /// Parses the given fileset expressions and concatenates them all.
     pub fn parse_union_filesets(
         &self,
+        _ui: &Ui,
         file_args: &[String], // TODO: introduce FileArg newtype?
     ) -> Result<FilesetExpression, CommandError> {
         let expressions: Vec<_> = file_args
@@ -1082,7 +1092,7 @@ impl WorkspaceCommandHelper {
         Ok(FilesetExpression::union_all(expressions))
     }
 
-    pub fn auto_tracking_matcher(&self) -> Result<Box<dyn Matcher>, CommandError> {
+    pub fn auto_tracking_matcher(&self, _ui: &Ui) -> Result<Box<dyn Matcher>, CommandError> {
         let pattern = self.settings().config().get_string("snapshot.auto-track")?;
         let expression = fileset::parse(
             &pattern,
@@ -1223,8 +1233,12 @@ impl WorkspaceCommandHelper {
 
     /// Resolve a revset to a single revision. Return an error if the revset is
     /// empty or has multiple revisions.
-    pub fn resolve_single_rev(&self, revision_arg: &RevisionArg) -> Result<Commit, CommandError> {
-        let expression = self.parse_revset(revision_arg)?;
+    pub fn resolve_single_rev(
+        &self,
+        ui: &Ui,
+        revision_arg: &RevisionArg,
+    ) -> Result<Commit, CommandError> {
+        let expression = self.parse_revset(ui, revision_arg)?;
         let should_hint_about_all_prefix = false;
         revset_util::evaluate_revset_to_single_commit(
             revision_arg.as_ref(),
@@ -1241,11 +1255,12 @@ impl WorkspaceCommandHelper {
     /// any number of revisions (including 0.)
     pub fn resolve_some_revsets_default_single(
         &self,
+        ui: &Ui,
         revision_args: &[RevisionArg],
     ) -> Result<IndexSet<Commit>, CommandError> {
         let mut all_commits = IndexSet::new();
         for revision_arg in revision_args {
-            let (expression, modifier) = self.parse_revset_with_modifier(revision_arg)?;
+            let (expression, modifier) = self.parse_revset_with_modifier(ui, revision_arg)?;
             let all = match modifier {
                 Some(RevsetModifier::All) => true,
                 None => self
@@ -1282,9 +1297,10 @@ impl WorkspaceCommandHelper {
 
     pub fn parse_revset(
         &self,
+        ui: &Ui,
         revision_arg: &RevisionArg,
     ) -> Result<RevsetExpressionEvaluator<'_>, CommandError> {
-        let (expression, modifier) = self.parse_revset_with_modifier(revision_arg)?;
+        let (expression, modifier) = self.parse_revset_with_modifier(ui, revision_arg)?;
         // Whether the caller accepts multiple revisions or not, "all:" should
         // be valid. For example, "all:@" is a valid single-rev expression.
         let (None | Some(RevsetModifier::All)) = modifier;
@@ -1293,6 +1309,7 @@ impl WorkspaceCommandHelper {
 
     fn parse_revset_with_modifier(
         &self,
+        _ui: &Ui,
         revision_arg: &RevisionArg,
     ) -> Result<(RevsetExpressionEvaluator<'_>, Option<RevsetModifier>), CommandError> {
         let context = self.revset_parse_context();
@@ -1303,6 +1320,7 @@ impl WorkspaceCommandHelper {
     /// Parses the given revset expressions and concatenates them all.
     pub fn parse_union_revsets(
         &self,
+        _ui: &Ui,
         revision_args: &[RevisionArg],
     ) -> Result<RevsetExpressionEvaluator<'_>, CommandError> {
         let context = self.revset_parse_context();
@@ -1347,11 +1365,13 @@ impl WorkspaceCommandHelper {
     /// be one of the `L::wrap_*()` functions.
     pub fn parse_template<'a, C: Clone + 'a, L: TemplateLanguage<'a> + ?Sized>(
         &self,
+        ui: &Ui,
         language: &L,
         template_text: &str,
         wrap_self: impl Fn(PropertyPlaceholder<C>) -> L::Property,
     ) -> TemplateParseResult<TemplateRenderer<'a, C>> {
-        self.env.parse_template(language, template_text, wrap_self)
+        self.env
+            .parse_template(ui, language, template_text, wrap_self)
     }
 
     /// Parses template that is validated by `Self::new()`.
@@ -1369,10 +1389,12 @@ impl WorkspaceCommandHelper {
     /// Parses commit template into evaluation tree.
     pub fn parse_commit_template(
         &self,
+        ui: &Ui,
         template_text: &str,
     ) -> TemplateParseResult<TemplateRenderer<'_, Commit>> {
         let language = self.commit_template_language();
         self.parse_template(
+            ui,
             &language,
             template_text,
             CommitTemplateLanguage::wrap_commit,
@@ -1382,10 +1404,12 @@ impl WorkspaceCommandHelper {
     /// Parses commit template into evaluation tree.
     pub fn parse_operation_template(
         &self,
+        ui: &Ui,
         template_text: &str,
     ) -> TemplateParseResult<TemplateRenderer<'_, Operation>> {
         let language = self.operation_template_language();
         self.parse_template(
+            ui,
             &language,
             template_text,
             OperationTemplateLanguage::wrap_operation,
@@ -1484,7 +1508,7 @@ impl WorkspaceCommandHelper {
             return Ok(());
         };
         let base_ignores = self.base_ignores()?;
-        let auto_tracking_matcher = self.auto_tracking_matcher()?;
+        let auto_tracking_matcher = self.auto_tracking_matcher(ui)?;
 
         // Compare working-copy tree and operation with repo's, and reload as needed.
         let fsmonitor_settings = self.settings().fsmonitor_settings()?;
@@ -2003,10 +2027,12 @@ impl WorkspaceCommandTransaction<'_> {
     /// Parses commit template with the current transaction state.
     pub fn parse_commit_template(
         &self,
+        ui: &Ui,
         template_text: &str,
     ) -> TemplateParseResult<TemplateRenderer<'_, Commit>> {
         let language = self.commit_template_language();
         self.helper.env.parse_template(
+            ui,
             &language,
             template_text,
             CommitTemplateLanguage::wrap_commit,

@@ -75,14 +75,14 @@ pub(crate) fn cmd_move(
     )?;
     let mut workspace_command = command.workspace_helper(ui)?;
     let source =
-        workspace_command.resolve_single_rev(args.from.as_ref().unwrap_or(&RevisionArg::AT))?;
+        workspace_command.resolve_single_rev(ui, args.from.as_ref().unwrap_or(&RevisionArg::AT))?;
     let destination =
-        workspace_command.resolve_single_rev(args.to.as_ref().unwrap_or(&RevisionArg::AT))?;
+        workspace_command.resolve_single_rev(ui, args.to.as_ref().unwrap_or(&RevisionArg::AT))?;
     if source.id() == destination.id() {
         return Err(user_error("Source and destination cannot be the same."));
     }
     let matcher = workspace_command
-        .parse_file_patterns(&args.paths)?
+        .parse_file_patterns(ui, &args.paths)?
         .to_matcher();
     let diff_selector =
         workspace_command.diff_selector(ui, args.tool.as_deref(), args.interactive)?;

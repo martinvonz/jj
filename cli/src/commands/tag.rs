@@ -72,7 +72,7 @@ fn cmd_tag_list(
             None => command.settings().config().get("templates.tag_list")?,
         };
         workspace_command
-            .parse_template(&language, &text, CommitTemplateLanguage::wrap_ref_name)?
+            .parse_template(ui, &language, &text, CommitTemplateLanguage::wrap_ref_name)?
             .labeled("tag_list")
     };
 

@@ -263,7 +263,7 @@ pub fn cmd_git_push(
         return Ok(());
     }
 
-    validate_commits_ready_to_push(&bookmark_updates, &remote, &tx, command, args)?;
+    validate_commits_ready_to_push(ui, &bookmark_updates, &remote, &tx, command, args)?;
     if let Some(mut formatter) = ui.status_formatter() {
         writeln!(formatter, "Changes to push to {remote}:")?;
         print_commits_ready_to_push(formatter.as_mut(), repo.as_ref(), &bookmark_updates)?;
@@ -305,6 +305,7 @@ pub fn cmd_git_push(
 /// Validates that the commits that will be pushed are ready (have authorship
 /// information, are not conflicted, etc.)
 fn validate_commits_ready_to_push(
+    ui: &Ui,
     bookmark_updates: &[(String, BookmarkPushUpdate)],
     remote: &str,
     tx: &WorkspaceCommandTransaction,
@@ -331,7 +332,7 @@ fn validate_commits_ready_to_push(
     let config = command.settings().config();
     let is_private = if let Ok(revset) = config.get_string("git.private-commits") {
         workspace_helper
-            .parse_revset(&RevisionArg::from(revset))?
+            .parse_revset(ui, &RevisionArg::from(revset))?
             .evaluate()?
             .containing_fn()
     } else {
@@ -528,7 +529,7 @@ fn update_change_bookmarks(
 
     let mut bookmark_names = Vec::new();
     let workspace_command = tx.base_workspace_helper();
-    let all_commits = workspace_command.resolve_some_revsets_default_single(changes)?;
+    let all_commits = workspace_command.resolve_some_revsets_default_single(ui, changes)?;
 
     for commit in all_commits {
         let workspace_command = tx.base_workspace_helper();
@@ -539,7 +540,7 @@ fn update_change_bookmarks(
             // A local bookmark with the full change ID doesn't exist already, so use the
             // short ID if it's not ambiguous (which it shouldn't be most of the time).
             if workspace_command
-                .resolve_single_rev(&RevisionArg::from(short_change_id.clone()))
+                .resolve_single_rev(ui, &RevisionArg::from(short_change_id.clone()))
                 .is_ok()
             {
                 // Short change ID is not ambiguous, so update the bookmark name to use it.
@@ -621,7 +622,7 @@ fn find_bookmarks_targeted_by_revisions<'a>(
         }
     }
     for rev_arg in revisions {
-        let mut expression = workspace_command.parse_revset(rev_arg)?;
+        let mut expression = workspace_command.parse_revset(ui, rev_arg)?;
         expression.intersect_with(&RevsetExpression::bookmarks(StringPattern::everything()));
         let mut commit_ids = expression.evaluate_to_commit_ids()?.peekable();
         if commit_ids.peek().is_none() {

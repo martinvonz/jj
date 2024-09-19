@@ -96,7 +96,7 @@ pub fn cmd_bookmark_list(
         }
         if !args.revisions.is_empty() {
             // Match against local targets only, which is consistent with "jj git push".
-            let mut expression = workspace_command.parse_union_revsets(&args.revisions)?;
+            let mut expression = workspace_command.parse_union_revsets(ui, &args.revisions)?;
             // Intersects with the set of local bookmark targets to minimize the lookup
             // space.
             expression.intersect_with(&RevsetExpression::bookmarks(StringPattern::everything()));
@@ -121,7 +121,7 @@ pub fn cmd_bookmark_list(
             None => command.settings().config().get("templates.bookmark_list")?,
         };
         workspace_command
-            .parse_template(&language, &text, CommitTemplateLanguage::wrap_ref_name)?
+            .parse_template(ui, &language, &text, CommitTemplateLanguage::wrap_ref_name)?
             .labeled("bookmark_list")
     };
 

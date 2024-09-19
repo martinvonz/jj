@@ -82,7 +82,7 @@ pub(crate) fn cmd_describe(
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
     let commits: Vec<_> = workspace_command
-        .parse_union_revsets(&args.revisions)?
+        .parse_union_revsets(ui, &args.revisions)?
         .evaluate_to_commits()?
         .try_collect()?; // in reverse topological order
     if commits.is_empty() {
@@ -145,7 +145,7 @@ pub(crate) fn cmd_describe(
             .try_collect()?;
 
         if let [(_, temp_commit)] = &*temp_commits {
-            let template = description_template(&tx, "", temp_commit)?;
+            let template = description_template(ui, &tx, "", temp_commit)?;
             let description =
                 edit_description(tx.base_workspace_helper(), &template, command.settings())?;
 
@@ -156,7 +156,7 @@ pub(crate) fn cmd_describe(
                 missing,
                 duplicates,
                 unexpected,
-            } = edit_multiple_descriptions(&tx, &temp_commits, command.settings())?;
+            } = edit_multiple_descriptions(ui, &tx, &temp_commits, command.settings())?;
             if !missing.is_empty() {
                 return Err(user_error(format!(
                     "The description for the following commits were not found in the edited \

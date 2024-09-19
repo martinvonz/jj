@@ -71,7 +71,7 @@ pub(crate) fn cmd_split(
     args: &SplitArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let commit = workspace_command.resolve_single_rev(&args.revision)?;
+    let commit = workspace_command.resolve_single_rev(ui, &args.revision)?;
     if commit.is_empty(workspace_command.repo().as_ref())? {
         return Err(user_error_with_hint(
             format!("Refusing to split empty commit {}.", commit.id().hex()),
@@ -81,7 +81,7 @@ pub(crate) fn cmd_split(
 
     workspace_command.check_rewritable([commit.id()])?;
     let matcher = workspace_command
-        .parse_file_patterns(&args.paths)?
+        .parse_file_patterns(ui, &args.paths)?
         .to_matcher();
     let diff_selector = workspace_command.diff_selector(
         ui,
@@ -136,6 +136,7 @@ the operation will be aborted.
         }
         let temp_commit = commit_builder.write_hidden()?;
         let template = description_template(
+            ui,
             &tx,
             "Enter a description for the first commit.",
             &temp_commit,
@@ -179,6 +180,7 @@ the operation will be aborted.
         } else {
             let temp_commit = commit_builder.write_hidden()?;
             let template = description_template(
+                ui,
                 &tx,
                 "Enter a description for the second commit.",
                 &temp_commit,

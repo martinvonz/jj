@@ -143,8 +143,8 @@ pub(crate) fn cmd_bench(
     match subcommand {
         BenchCommand::CommonAncestors(args) => {
             let workspace_command = command.workspace_helper(ui)?;
-            let commit1 = workspace_command.resolve_single_rev(&args.revision1)?;
-            let commit2 = workspace_command.resolve_single_rev(&args.revision2)?;
+            let commit1 = workspace_command.resolve_single_rev(ui, &args.revision1)?;
+            let commit2 = workspace_command.resolve_single_rev(ui, &args.revision2)?;
             let index = workspace_command.repo().index();
             let routine =
                 || index.common_ancestors(&[commit1.id().clone()], &[commit2.id().clone()]);
@@ -157,8 +157,8 @@ pub(crate) fn cmd_bench(
         }
         BenchCommand::IsAncestor(args) => {
             let workspace_command = command.workspace_helper(ui)?;
-            let ancestor_commit = workspace_command.resolve_single_rev(&args.ancestor)?;
-            let descendant_commit = workspace_command.resolve_single_rev(&args.descendant)?;
+            let ancestor_commit = workspace_command.resolve_single_rev(ui, &args.ancestor)?;
+            let descendant_commit = workspace_command.resolve_single_rev(ui, &args.descendant)?;
             let index = workspace_command.repo().index();
             let routine = || index.is_ancestor(ancestor_commit.id(), descendant_commit.id());
             run_bench(
@@ -213,7 +213,12 @@ fn bench_revset<M: Measurement>(
     revset: &RevisionArg,
 ) -> Result<(), CommandError> {
     writeln!(ui.status(), "----------Testing revset: {revset}----------")?;
-    let expression = revset::optimize(workspace_command.parse_revset(revset)?.expression().clone());
+    let expression = revset::optimize(
+        workspace_command
+            .parse_revset(ui, revset)?
+            .expression()
+            .clone(),
+    );
     // Time both evaluation and iteration.
     let routine = |workspace_command: &WorkspaceCommandHelper, expression: Rc<RevsetExpression>| {
         // Evaluate the expression without parsing/evaluating short-prefixes.

@@ -54,7 +54,7 @@ pub(crate) fn cmd_status(
         .map(|id| repo.store().get_commit(id))
         .transpose()?;
     let matcher = workspace_command
-        .parse_file_patterns(&args.paths)?
+        .parse_file_patterns(ui, &args.paths)?
         .to_matcher();
     ui.request_pager();
     let mut formatter = ui.stdout_formatter();

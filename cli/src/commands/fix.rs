@@ -142,17 +142,16 @@ pub(crate) fn cmd_fix(
     let mut workspace_command = command.workspace_helper(ui)?;
     let tools_config = get_tools_config(ui, command.settings().config())?;
     let root_commits: Vec<CommitId> = if args.source.is_empty() {
-        workspace_command.parse_revset(&RevisionArg::from(
-            command.settings().config().get_string("revsets.fix")?,
-        ))?
+        let revs = command.settings().config().get_string("revsets.fix")?;
+        workspace_command.parse_revset(ui, &RevisionArg::from(revs))?
     } else {
-        workspace_command.parse_union_revsets(&args.source)?
+        workspace_command.parse_union_revsets(ui, &args.source)?
     }
     .evaluate_to_commit_ids()?
     .collect();
     workspace_command.check_rewritable(root_commits.iter())?;
     let matcher = workspace_command
-        .parse_file_patterns(&args.paths)?
+        .parse_file_patterns(ui, &args.paths)?
         .to_matcher();
 
     let mut tx = workspace_command.start_transaction();

@@ -77,7 +77,7 @@ pub(crate) fn cmd_evolog(
 ) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
 
-    let start_commit = workspace_command.resolve_single_rev(&args.revision)?;
+    let start_commit = workspace_command.resolve_single_rev(ui, &args.revision)?;
 
     let diff_renderer = workspace_command.diff_renderer_for_log(&args.diff_format, args.patch)?;
     let graph_style = GraphStyle::from_settings(command.settings())?;
@@ -93,6 +93,7 @@ pub(crate) fn cmd_evolog(
         };
         template = workspace_command
             .parse_template(
+                ui,
                 &language,
                 &template_string,
                 CommitTemplateLanguage::wrap_commit,
@@ -100,6 +101,7 @@ pub(crate) fn cmd_evolog(
             .labeled("log");
         node_template = workspace_command
             .parse_template(
+                ui,
                 &language,
                 &get_node_template(graph_style, command.settings())?,
                 CommitTemplateLanguage::wrap_commit_opt,

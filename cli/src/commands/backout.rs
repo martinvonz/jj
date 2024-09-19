@@ -43,7 +43,7 @@ pub(crate) fn cmd_backout(
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
     let to_back_out: Vec<_> = workspace_command
-        .parse_union_revsets(&args.revisions)?
+        .parse_union_revsets(ui, &args.revisions)?
         .evaluate_to_commits()?
         .try_collect()?; // in reverse topological order
     if to_back_out.is_empty() {
@@ -52,7 +52,7 @@ pub(crate) fn cmd_backout(
     }
     let mut parents = vec![];
     for revision_str in &args.destination {
-        let destination = workspace_command.resolve_single_rev(revision_str)?;
+        let destination = workspace_command.resolve_single_rev(ui, revision_str)?;
         parents.push(destination);
     }
     let mut tx = workspace_command.start_transaction();

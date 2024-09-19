@@ -42,7 +42,7 @@ pub fn cmd_debug_copy_detection(
         writeln!(ui.stderr(), "Not a git backend.")?;
         return Ok(());
     };
-    let commit = ws.resolve_single_rev(&args.revision)?;
+    let commit = ws.resolve_single_rev(ui, &args.revision)?;
     for parent_id in commit.parent_ids() {
         for CopyRecord { target, source, .. } in
             block_on_stream(git.get_copy_records(None, parent_id, commit.id())?)

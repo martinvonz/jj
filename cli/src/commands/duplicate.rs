@@ -46,7 +46,7 @@ pub(crate) fn cmd_duplicate(
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
     let to_duplicate: Vec<CommitId> = workspace_command
-        .parse_union_revsets(&args.revisions)?
+        .parse_union_revsets(ui, &args.revisions)?
         .evaluate_to_commit_ids()?
         .collect(); // in reverse topological order
     if to_duplicate.is_empty() {

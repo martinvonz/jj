@@ -45,7 +45,7 @@ pub(crate) fn cmd_file_track(
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
     let matcher = workspace_command
-        .parse_file_patterns(&args.paths)?
+        .parse_file_patterns(ui, &args.paths)?
         .to_matcher();
 
     let mut tx = workspace_command.start_transaction().into_inner();
