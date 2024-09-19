@@ -91,6 +91,7 @@ pub struct CommitTemplateLanguage<'repo> {
     // are contained in RevsetParseContext for example.
     revset_parse_context: RevsetParseContext<'repo>,
     id_prefix_context: &'repo IdPrefixContext,
+    immutable_expression: Rc<RevsetExpression>,
     build_fn_table: CommitTemplateBuildFnTable<'repo>,
     keyword_cache: CommitKeywordCache<'repo>,
     cache_extensions: ExtensionsMap,
@@ -105,6 +106,7 @@ impl<'repo> CommitTemplateLanguage<'repo> {
         workspace_id: &WorkspaceId,
         revset_parse_context: RevsetParseContext<'repo>,
         id_prefix_context: &'repo IdPrefixContext,
+        immutable_expression: Rc<RevsetExpression>,
         extensions: &[impl AsRef<dyn CommitTemplateLanguageExtension>],
     ) -> Self {
         let mut build_fn_table = CommitTemplateBuildFnTable::builtin();
@@ -123,6 +125,7 @@ impl<'repo> CommitTemplateLanguage<'repo> {
             workspace_id: workspace_id.clone(),
             revset_parse_context,
             id_prefix_context,
+            immutable_expression,
             build_fn_table,
             keyword_cache: CommitKeywordCache::default(),
             cache_extensions,
@@ -477,8 +480,12 @@ impl<'repo> CommitKeywordCache<'repo> {
         language: &CommitTemplateLanguage<'repo>,
         span: pest::Span<'_>,
     ) -> TemplateParseResult<&Rc<RevsetContainingFn<'repo>>> {
+        // Alternatively, a negated (i.e. visible mutable) set could be computed.
+        // It's usually smaller than the immutable set. The revset engine can also
+        // optimize "::<recent_heads>" query to use bitset-based implementation.
         self.is_immutable_fn.get_or_try_init(|| {
-            let revset = evaluate_immutable_revset(language, span)?;
+            let expression = language.immutable_expression.clone();
+            let revset = evaluate_revset_expression(language, span, expression)?;
             Ok(revset.containing_fn().into())
         })
     }
@@ -783,21 +790,6 @@ fn evaluate_revset_expression<'repo>(
             TemplateParseError::expression("Failed to evaluate revset", span).with_source(err)
         })?;
     Ok(revset)
-}
-
-fn evaluate_immutable_revset<'repo>(
-    language: &CommitTemplateLanguage<'repo>,
-    span: pest::Span<'_>,
-) -> Result<Box<dyn Revset + 'repo>, TemplateParseError> {
-    // Alternatively, a negated (i.e. visible mutable) set could be computed.
-    // It's usually smaller than the immutable set. The revset engine can also
-    // optimize "::<recent_heads>" query to use bitset-based implementation.
-    let expression = revset_util::parse_immutable_expression(&language.revset_parse_context)
-        .map_err(|err| {
-            TemplateParseError::expression("Failed to parse revset", span).with_source(err)
-        })?;
-
-    evaluate_revset_expression(language, span, expression)
 }
 
 fn evaluate_user_revset<'repo>(

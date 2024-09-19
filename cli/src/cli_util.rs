@@ -595,6 +595,7 @@ pub struct WorkspaceCommandEnvironment {
     template_aliases_map: TemplateAliasesMap,
     path_converter: RepoPathUiConverter,
     workspace_id: WorkspaceId,
+    immutable_heads_expression: Rc<RevsetExpression>,
     short_prefixes_expression: Option<Rc<RevsetExpression>>,
 }
 
@@ -614,8 +615,10 @@ impl WorkspaceCommandEnvironment {
             template_aliases_map,
             path_converter,
             workspace_id: workspace.workspace_id().to_owned(),
+            immutable_heads_expression: RevsetExpression::root(),
             short_prefixes_expression: None,
         };
+        env.immutable_heads_expression = env.load_immutable_heads_expression()?;
         env.short_prefixes_expression = env.load_short_prefixes_expression()?;
         Ok(env)
     }
@@ -663,6 +666,23 @@ impl WorkspaceCommandEnvironment {
         }
     }
 
+    /// User-configured expression defining the immutable set.
+    pub fn immutable_expression(&self) -> Rc<RevsetExpression> {
+        // Negated ancestors expression `~::(<heads> | root())` is slightly
+        // easier to optimize than negated union `~(::<heads> | root())`.
+        self.immutable_heads_expression.ancestors()
+    }
+
+    /// User-configured expression defining the heads of the immutable set.
+    pub fn immutable_heads_expression(&self) -> &Rc<RevsetExpression> {
+        &self.immutable_heads_expression
+    }
+
+    fn load_immutable_heads_expression(&self) -> Result<Rc<RevsetExpression>, CommandError> {
+        revset_util::parse_immutable_heads_expression(&self.revset_parse_context())
+            .map_err(|e| config_error_with_message("Invalid `revset-aliases.immutable_heads()`", e))
+    }
+
     fn load_short_prefixes_expression(&self) -> Result<Option<Rc<RevsetExpression>>, CommandError> {
         let revset_string = self
             .settings()
@@ -704,15 +724,11 @@ impl WorkspaceCommandEnvironment {
         let id_prefix_context = IdPrefixContext::new(self.command.revset_extensions().clone());
         let to_rewrite_revset =
             RevsetExpression::commits(commits.into_iter().cloned().collect_vec());
-        let immutable = revset_util::parse_immutable_expression(&self.revset_parse_context())
-            .map_err(|e| {
-                config_error_with_message("Invalid `revset-aliases.immutable_heads()`", e)
-            })?;
         let mut expression = RevsetExpressionEvaluator::new(
             repo,
             self.command.revset_extensions().clone(),
             &id_prefix_context,
-            immutable,
+            self.immutable_expression(),
         );
         expression.intersect_with(&to_rewrite_revset);
 
@@ -766,6 +782,7 @@ impl WorkspaceCommandEnvironment {
             &self.workspace_id,
             self.revset_parse_context(),
             id_prefix_context,
+            self.immutable_expression(),
             &self.command.data.commit_template_extensions,
         )
     }

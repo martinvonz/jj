@@ -211,15 +211,6 @@ pub fn parse_immutable_heads_expression(
     Ok(heads.union(&RevsetExpression::root()))
 }
 
-/// Parses user-configured expression defining the immutable set.
-pub fn parse_immutable_expression(
-    context: &RevsetParseContext,
-) -> Result<Rc<RevsetExpression>, RevsetParseError> {
-    // Negated ancestors expression `~::(<heads> | root())` is slightly easier
-    // to optimize than negated union `~(::<heads> | root())`.
-    Ok(parse_immutable_heads_expression(context)?.ancestors())
-}
-
 pub(super) fn evaluate_revset_to_single_commit<'a>(
     revision_str: &str,
     expression: &RevsetExpressionEvaluator<'_>,

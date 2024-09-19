@@ -771,22 +771,16 @@ fn test_log_immutable() {
 
     test_env.add_config("revset-aliases.'immutable_heads()' = 'unknown_fn()'");
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r::", "-T", template]);
-    insta::assert_snapshot!(stderr, @r###"
-    Error: Failed to parse template: Failed to parse revset
-    Caused by:
-    1:  --> 5:10
-      |
-    5 |       if(immutable, "[immutable]"),
-      |          ^-------^
-      |
-      = Failed to parse revset
-    2:  --> 1:1
+    insta::assert_snapshot!(stderr, @r#"
+    Config error: Invalid `revset-aliases.immutable_heads()`
+    Caused by:  --> 1:1
       |
     1 | unknown_fn()
       | ^--------^
       |
       = Function "unknown_fn" doesn't exist
-    "###);
+    For help, see https://martinvonz.github.io/jj/latest/config/.
+    "#);
 
     test_env.add_config("revset-aliases.'immutable_heads()' = 'unknown_symbol'");
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r::", "-T", template]);
