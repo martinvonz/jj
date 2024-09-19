@@ -681,6 +681,64 @@ impl WorkspaceCommandEnvironment {
         }
     }
 
+    fn check_repo_rewritable<'a>(
+        &self,
+        repo: &dyn Repo,
+        commits: impl IntoIterator<Item = &'a CommitId>,
+    ) -> Result<(), CommandError> {
+        if self.command.global_args().ignore_immutable {
+            let root_id = repo.store().root_commit_id();
+            return if commits.into_iter().contains(root_id) {
+                Err(user_error(format!(
+                    "The root commit {} is immutable",
+                    short_commit_hash(root_id),
+                )))
+            } else {
+                Ok(())
+            };
+        }
+
+        // Not using self.id_prefix_context() because the disambiguation data
+        // must not be calculated and cached against arbitrary repo. It's also
+        // unlikely that the immutable expression contains short hashes.
+        let id_prefix_context = IdPrefixContext::new(self.command.revset_extensions().clone());
+        let to_rewrite_revset =
+            RevsetExpression::commits(commits.into_iter().cloned().collect_vec());
+        let immutable = revset_util::parse_immutable_expression(&self.revset_parse_context())
+            .map_err(|e| {
+                config_error_with_message("Invalid `revset-aliases.immutable_heads()`", e)
+            })?;
+        let mut expression = RevsetExpressionEvaluator::new(
+            repo,
+            self.command.revset_extensions().clone(),
+            &id_prefix_context,
+            immutable,
+        );
+        expression.intersect_with(&to_rewrite_revset);
+
+        let mut commit_id_iter = expression.evaluate_to_commit_ids().map_err(|e| {
+            config_error_with_message("Invalid `revset-aliases.immutable_heads()`", e)
+        })?;
+
+        if let Some(commit_id) = commit_id_iter.next() {
+            let error = if &commit_id == repo.store().root_commit_id() {
+                user_error(format!(
+                    "The root commit {} is immutable",
+                    short_commit_hash(&commit_id),
+                ))
+            } else {
+                user_error_with_hint(
+                    format!("Commit {} is immutable", short_commit_hash(&commit_id)),
+                    "Pass `--ignore-immutable` or configure the set of immutable commits via \
+                     `revset-aliases.immutable_heads()`.",
+                )
+            };
+            return Err(error);
+        }
+
+        Ok(())
+    }
+
     /// Parses template of the given language into evaluation tree.
     ///
     /// `wrap_self` specifies the type of the top-level property, which should
@@ -1361,69 +1419,12 @@ impl WorkspaceCommandHelper {
         self.commit_summary_template().format(commit, formatter)
     }
 
-    fn check_repo_rewritable<'a>(
-        &self,
-        repo: &dyn Repo,
-        commits: impl IntoIterator<Item = &'a CommitId>,
-    ) -> Result<(), CommandError> {
-        if self.env.command.global_args().ignore_immutable {
-            let root_id = self.repo().store().root_commit_id();
-            return if commits.into_iter().contains(root_id) {
-                Err(user_error(format!(
-                    "The root commit {} is immutable",
-                    short_commit_hash(root_id),
-                )))
-            } else {
-                Ok(())
-            };
-        }
-
-        // Not using self.id_prefix_context() because the disambiguation data
-        // must not be calculated and cached against arbitrary repo. It's also
-        // unlikely that the immutable expression contains short hashes.
-        let id_prefix_context = IdPrefixContext::new(self.env.command.revset_extensions().clone());
-        let to_rewrite_revset =
-            RevsetExpression::commits(commits.into_iter().cloned().collect_vec());
-        let immutable = revset_util::parse_immutable_expression(&self.revset_parse_context())
-            .map_err(|e| {
-                config_error_with_message("Invalid `revset-aliases.immutable_heads()`", e)
-            })?;
-        let mut expression = RevsetExpressionEvaluator::new(
-            repo,
-            self.env.command.revset_extensions().clone(),
-            &id_prefix_context,
-            immutable,
-        );
-        expression.intersect_with(&to_rewrite_revset);
-
-        let mut commit_id_iter = expression.evaluate_to_commit_ids().map_err(|e| {
-            config_error_with_message("Invalid `revset-aliases.immutable_heads()`", e)
-        })?;
-
-        if let Some(commit_id) = commit_id_iter.next() {
-            let error = if &commit_id == self.repo().store().root_commit_id() {
-                user_error(format!(
-                    "The root commit {} is immutable",
-                    short_commit_hash(&commit_id),
-                ))
-            } else {
-                user_error_with_hint(
-                    format!("Commit {} is immutable", short_commit_hash(&commit_id)),
-                    "Pass `--ignore-immutable` or configure the set of immutable commits via \
-                     `revset-aliases.immutable_heads()`.",
-                )
-            };
-            return Err(error);
-        }
-
-        Ok(())
-    }
-
     pub fn check_rewritable<'a>(
         &self,
         commits: impl IntoIterator<Item = &'a CommitId>,
     ) -> Result<(), CommandError> {
-        self.check_repo_rewritable(self.repo().as_ref(), commits)
+        self.env
+            .check_repo_rewritable(self.repo().as_ref(), commits)
     }
 
     #[instrument(skip_all)]
@@ -1609,6 +1610,7 @@ See https://martinvonz.github.io/jj/latest/working-copy/#stale-working-copy \
         //sorting otherwise non deterministic order (bad for tests)
         {
             if self
+                .env
                 .check_repo_rewritable(tx.repo(), [wc_commit_id])
                 .is_err()
             {
