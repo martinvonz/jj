@@ -25,6 +25,7 @@ use jj_lib::backend::CommitId;
 use jj_lib::backend::FileId;
 use jj_lib::backend::TreeValue;
 use jj_lib::fileset;
+use jj_lib::fileset::FilesetDiagnostics;
 use jj_lib::fileset::FilesetExpression;
 use jj_lib::matchers::EverythingMatcher;
 use jj_lib::matchers::Matcher;
@@ -46,6 +47,7 @@ use tracing::instrument;
 use crate::cli_util::CommandHelper;
 use crate::cli_util::RevisionArg;
 use crate::command_error::config_error;
+use crate::command_error::print_parse_diagnostics;
 use crate::command_error::CommandError;
 use crate::config::to_toml_value;
 use crate::config::CommandNameAndArgs;
@@ -473,25 +475,28 @@ fn get_tools_config(ui: &mut Ui, config: &config::Config) -> Result<ToolsConfig,
         let mut tools: Vec<ToolConfig> = tools_table
             .into_iter()
             .sorted_by(|a, b| a.0.cmp(&b.0))
-            .map(|(_name, value)| -> Result<ToolConfig, CommandError> {
+            .map(|(name, value)| -> Result<ToolConfig, CommandError> {
+                let mut diagnostics = FilesetDiagnostics::new();
                 let tool: RawToolConfig = value.try_deserialize()?;
+                let expression = FilesetExpression::union_all(
+                    tool.patterns
+                        .iter()
+                        .map(|arg| {
+                            fileset::parse(
+                                &mut diagnostics,
+                                arg,
+                                &RepoPathUiConverter::Fs {
+                                    cwd: "".into(),
+                                    base: "".into(),
+                                },
+                            )
+                        })
+                        .try_collect()?,
+                );
+                print_parse_diagnostics(ui, &format!("In `fix.tools.{name}`"), &diagnostics)?;
                 Ok(ToolConfig {
                     command: tool.command,
-                    matcher: FilesetExpression::union_all(
-                        tool.patterns
-                            .iter()
-                            .map(|arg| {
-                                fileset::parse(
-                                    arg,
-                                    &RepoPathUiConverter::Fs {
-                                        cwd: "".into(),
-                                        base: "".into(),
-                                    },
-                                )
-                            })
-                            .try_collect()?,
-                    )
-                    .to_matcher(),
+                    matcher: expression.to_matcher(),
                 })
             })
             .try_collect()?;

@@ -22,6 +22,7 @@ use std::sync::Arc;
 
 use itertools::Itertools as _;
 use jj_lib::backend::BackendError;
+use jj_lib::dsl_util::Diagnostics;
 use jj_lib::fileset::FilePatternParseError;
 use jj_lib::fileset::FilesetParseError;
 use jj_lib::fileset::FilesetParseErrorKind;
@@ -834,4 +835,21 @@ fn handle_clap_error(ui: &mut Ui, err: &clap::Error, hints: &[ErrorHint]) -> io:
     write!(ui.stderr(), "{clap_str}")?;
     print_error_hints(ui, hints)?;
     Ok(ExitCode::from(2))
+}
+
+/// Prints diagnostic messages emitted during parsing.
+pub fn print_parse_diagnostics<T: error::Error>(
+    ui: &Ui,
+    context_message: &str,
+    diagnostics: &Diagnostics<T>,
+) -> io::Result<()> {
+    for diag in diagnostics {
+        writeln!(ui.warning_default(), "{context_message}")?;
+        for err in iter::successors(Some(diag as &dyn error::Error), |err| err.source()) {
+            writeln!(ui.stderr(), "{err}")?;
+        }
+        // If we add support for multiple error diagnostics, we might have to do
+        // find_source_parse_error_hint() and print it here.
+    }
+    Ok(())
 }

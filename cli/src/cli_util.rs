@@ -58,6 +58,7 @@ use jj_lib::commit::Commit;
 use jj_lib::dag_walk;
 use jj_lib::file_util;
 use jj_lib::fileset;
+use jj_lib::fileset::FilesetDiagnostics;
 use jj_lib::fileset::FilesetExpression;
 use jj_lib::git;
 use jj_lib::git_backend::GitBackend;
@@ -131,6 +132,7 @@ use crate::command_error::config_error_with_message;
 use crate::command_error::handle_command_result;
 use crate::command_error::internal_error;
 use crate::command_error::internal_error_with_message;
+use crate::command_error::print_parse_diagnostics;
 use crate::command_error::user_error;
 use crate::command_error::user_error_with_hint;
 use crate::command_error::user_error_with_message;
@@ -1082,25 +1084,30 @@ impl WorkspaceCommandHelper {
     /// Parses the given fileset expressions and concatenates them all.
     pub fn parse_union_filesets(
         &self,
-        _ui: &Ui,
+        ui: &Ui,
         file_args: &[String], // TODO: introduce FileArg newtype?
     ) -> Result<FilesetExpression, CommandError> {
+        let mut diagnostics = FilesetDiagnostics::new();
         let expressions: Vec<_> = file_args
             .iter()
-            .map(|arg| fileset::parse_maybe_bare(arg, self.path_converter()))
+            .map(|arg| fileset::parse_maybe_bare(&mut diagnostics, arg, self.path_converter()))
             .try_collect()?;
+        print_parse_diagnostics(ui, "In fileset expression", &diagnostics)?;
         Ok(FilesetExpression::union_all(expressions))
     }
 
-    pub fn auto_tracking_matcher(&self, _ui: &Ui) -> Result<Box<dyn Matcher>, CommandError> {
+    pub fn auto_tracking_matcher(&self, ui: &Ui) -> Result<Box<dyn Matcher>, CommandError> {
+        let mut diagnostics = FilesetDiagnostics::new();
         let pattern = self.settings().config().get_string("snapshot.auto-track")?;
         let expression = fileset::parse(
+            &mut diagnostics,
             &pattern,
             &RepoPathUiConverter::Fs {
                 cwd: "".into(),
                 base: "".into(),
             },
         )?;
+        print_parse_diagnostics(ui, "In `snapshot.auto-track`", &diagnostics)?;
         Ok(expression.to_matcher())
     }
 

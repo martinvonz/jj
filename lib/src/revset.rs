@@ -36,6 +36,7 @@ use crate::dsl_util;
 use crate::dsl_util::collect_similar;
 use crate::dsl_util::AliasExpandError as _;
 use crate::fileset;
+use crate::fileset::FilesetDiagnostics;
 use crate::fileset::FilesetExpression;
 use crate::graph::GraphEdge;
 use crate::hex_util::to_forward_hex;
@@ -804,7 +805,8 @@ pub fn expect_fileset_expression(
     // substituted, but inner expressions `x & alias` aren't. If this seemed
     // weird, we can either transform AST or turn off revset aliases completely.
     revset_parser::expect_expression_with(node, |node| {
-        fileset::parse(node.span.as_str(), path_converter).map_err(|err| {
+        let mut inner_diagnostics = FilesetDiagnostics::new(); // TODO
+        fileset::parse(&mut inner_diagnostics, node.span.as_str(), path_converter).map_err(|err| {
             RevsetParseError::expression("In fileset expression", node.span).with_source(err)
         })
     })

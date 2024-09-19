@@ -28,6 +28,7 @@ use jj_lib::copies::CopiesTreeDiffEntry;
 use jj_lib::copies::CopyRecords;
 use jj_lib::extensions_map::ExtensionsMap;
 use jj_lib::fileset;
+use jj_lib::fileset::FilesetDiagnostics;
 use jj_lib::fileset::FilesetExpression;
 use jj_lib::git;
 use jj_lib::hex_util::to_reverse_hex;
@@ -767,7 +768,8 @@ fn expect_fileset_literal(
     path_converter: &RepoPathUiConverter,
 ) -> Result<FilesetExpression, TemplateParseError> {
     template_parser::expect_string_literal_with(node, |text, span| {
-        fileset::parse(text, path_converter).map_err(|err| {
+        let mut inner_diagnostics = FilesetDiagnostics::new(); // TODO
+        fileset::parse(&mut inner_diagnostics, text, path_converter).map_err(|err| {
             TemplateParseError::expression("In fileset expression", span).with_source(err)
         })
     })
