@@ -54,6 +54,7 @@ pub use crate::revset_parser::ExpressionKind;
 pub use crate::revset_parser::ExpressionNode;
 pub use crate::revset_parser::FunctionCallNode;
 pub use crate::revset_parser::RevsetAliasesMap;
+pub use crate::revset_parser::RevsetDiagnostics;
 pub use crate::revset_parser::RevsetParseError;
 pub use crate::revset_parser::RevsetParseErrorKind;
 pub use crate::revset_parser::UnaryOp;
@@ -565,104 +566,113 @@ impl ResolvedExpression {
     }
 }
 
-pub type RevsetFunction =
-    fn(&FunctionCallNode, &RevsetParseContext) -> Result<Rc<RevsetExpression>, RevsetParseError>;
+pub type RevsetFunction = fn(
+    &mut RevsetDiagnostics,
+    &FunctionCallNode,
+    &RevsetParseContext,
+) -> Result<Rc<RevsetExpression>, RevsetParseError>;
 
 static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy::new(|| {
     // Not using maplit::hashmap!{} or custom declarative macro here because
     // code completion inside macro is quite restricted.
     let mut map: HashMap<&'static str, RevsetFunction> = HashMap::new();
-    map.insert("parents", |function, context| {
+    map.insert("parents", |diagnostics, function, context| {
         let [arg] = function.expect_exact_arguments()?;
-        let expression = lower_expression(arg, context)?;
+        let expression = lower_expression(diagnostics, arg, context)?;
         Ok(expression.parents())
     });
-    map.insert("children", |function, context| {
+    map.insert("children", |diagnostics, function, context| {
         let [arg] = function.expect_exact_arguments()?;
-        let expression = lower_expression(arg, context)?;
+        let expression = lower_expression(diagnostics, arg, context)?;
         Ok(expression.children())
     });
-    map.insert("ancestors", |function, context| {
+    map.insert("ancestors", |diagnostics, function, context| {
         let ([heads_arg], [depth_opt_arg]) = function.expect_arguments()?;
-        let heads = lower_expression(heads_arg, context)?;
+        let heads = lower_expression(diagnostics, heads_arg, context)?;
         let generation = if let Some(depth_arg) = depth_opt_arg {
-            let depth = expect_literal("integer", depth_arg)?;
+            let depth = expect_literal(diagnostics, "integer", depth_arg)?;
             0..depth
         } else {
             GENERATION_RANGE_FULL
         };
         Ok(heads.ancestors_range(generation))
     });
-    map.insert("descendants", |function, context| {
+    map.insert("descendants", |diagnostics, function, context| {
         let ([roots_arg], [depth_opt_arg]) = function.expect_arguments()?;
-        let roots = lower_expression(roots_arg, context)?;
+        let roots = lower_expression(diagnostics, roots_arg, context)?;
         let generation = if let Some(depth_arg) = depth_opt_arg {
-            let depth = expect_literal("integer", depth_arg)?;
+            let depth = expect_literal(diagnostics, "integer", depth_arg)?;
             0..depth
         } else {
             GENERATION_RANGE_FULL
         };
         Ok(roots.descendants_range(generation))
     });
-    map.insert("connected", |function, context| {
+    map.insert("connected", |diagnostics, function, context| {
         let [arg] = function.expect_exact_arguments()?;
-        let candidates = lower_expression(arg, context)?;
+        let candidates = lower_expression(diagnostics, arg, context)?;
         Ok(candidates.connected())
     });
-    map.insert("reachable", |function, context| {
+    map.insert("reachable", |diagnostics, function, context| {
         let [source_arg, domain_arg] = function.expect_exact_arguments()?;
-        let sources = lower_expression(source_arg, context)?;
-        let domain = lower_expression(domain_arg, context)?;
+        let sources = lower_expression(diagnostics, source_arg, context)?;
+        let domain = lower_expression(diagnostics, domain_arg, context)?;
         Ok(sources.reachable(&domain))
     });
-    map.insert("none", |function, _context| {
+    map.insert("none", |_diagnostics, function, _context| {
         function.expect_no_arguments()?;
         Ok(RevsetExpression::none())
     });
-    map.insert("all", |function, _context| {
+    map.insert("all", |_diagnostics, function, _context| {
         function.expect_no_arguments()?;
         Ok(RevsetExpression::all())
     });
-    map.insert("working_copies", |function, _context| {
+    map.insert("working_copies", |_diagnostics, function, _context| {
         function.expect_no_arguments()?;
         Ok(RevsetExpression::working_copies())
     });
-    map.insert("heads", |function, context| {
+    map.insert("heads", |diagnostics, function, context| {
         let [arg] = function.expect_exact_arguments()?;
-        let candidates = lower_expression(arg, context)?;
+        let candidates = lower_expression(diagnostics, arg, context)?;
         Ok(candidates.heads())
     });
-    map.insert("roots", |function, context| {
+    map.insert("roots", |diagnostics, function, context| {
         let [arg] = function.expect_exact_arguments()?;
-        let candidates = lower_expression(arg, context)?;
+        let candidates = lower_expression(diagnostics, arg, context)?;
         Ok(candidates.roots())
     });
-    map.insert("visible_heads", |function, _context| {
+    map.insert("visible_heads", |_diagnostics, function, _context| {
         function.expect_no_arguments()?;
         Ok(RevsetExpression::visible_heads())
     });
-    map.insert("root", |function, _context| {
+    map.insert("root", |_diagnostics, function, _context| {
         function.expect_no_arguments()?;
         Ok(RevsetExpression::root())
     });
-    map.insert("bookmarks", |function, _context| {
+    map.insert("bookmarks", |diagnostics, function, _context| {
         let ([], [opt_arg]) = function.expect_arguments()?;
         let pattern = if let Some(arg) = opt_arg {
-            expect_string_pattern(arg)?
+            expect_string_pattern(diagnostics, arg)?
         } else {
             StringPattern::everything()
         };
         Ok(RevsetExpression::bookmarks(pattern))
     });
-    map.insert("remote_bookmarks", |function, _context| {
-        parse_remote_bookmarks_arguments(function, None)
+    map.insert("remote_bookmarks", |diagnostics, function, _context| {
+        parse_remote_bookmarks_arguments(diagnostics, function, None)
     });
-    map.insert("tracked_remote_bookmarks", |function, _context| {
-        parse_remote_bookmarks_arguments(function, Some(RemoteRefState::Tracking))
-    });
-    map.insert("untracked_remote_bookmarks", |function, _context| {
-        parse_remote_bookmarks_arguments(function, Some(RemoteRefState::New))
-    });
+    map.insert(
+        "tracked_remote_bookmarks",
+        |diagnostics, function, _context| {
+            parse_remote_bookmarks_arguments(diagnostics, function, Some(RemoteRefState::Tracking))
+        },
+    );
+    map.insert(
+        "untracked_remote_bookmarks",
+        |diagnostics, function, _context| {
+            parse_remote_bookmarks_arguments(diagnostics, function, Some(RemoteRefState::New))
+        },
+    );
 
     // TODO: Remove in jj 0.28+
     map.insert("branches", map["bookmarks"]);
@@ -673,56 +683,56 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
         map["untracked_remote_bookmarks"],
     );
 
-    map.insert("tags", |function, _context| {
+    map.insert("tags", |_diagnostics, function, _context| {
         function.expect_no_arguments()?;
         Ok(RevsetExpression::tags())
     });
-    map.insert("git_refs", |function, _context| {
+    map.insert("git_refs", |_diagnostics, function, _context| {
         function.expect_no_arguments()?;
         Ok(RevsetExpression::git_refs())
     });
-    map.insert("git_head", |function, _context| {
+    map.insert("git_head", |_diagnostics, function, _context| {
         function.expect_no_arguments()?;
         Ok(RevsetExpression::git_head())
     });
-    map.insert("latest", |function, context| {
+    map.insert("latest", |diagnostics, function, context| {
         let ([candidates_arg], [count_opt_arg]) = function.expect_arguments()?;
-        let candidates = lower_expression(candidates_arg, context)?;
+        let candidates = lower_expression(diagnostics, candidates_arg, context)?;
         let count = if let Some(count_arg) = count_opt_arg {
-            expect_literal("integer", count_arg)?
+            expect_literal(diagnostics, "integer", count_arg)?
         } else {
             1
         };
         Ok(candidates.latest(count))
     });
-    map.insert("merges", |function, _context| {
+    map.insert("merges", |_diagnostics, function, _context| {
         function.expect_no_arguments()?;
         Ok(RevsetExpression::filter(
             RevsetFilterPredicate::ParentCount(2..u32::MAX),
         ))
     });
-    map.insert("description", |function, _context| {
+    map.insert("description", |diagnostics, function, _context| {
         let [arg] = function.expect_exact_arguments()?;
-        let pattern = expect_string_pattern(arg)?;
+        let pattern = expect_string_pattern(diagnostics, arg)?;
         Ok(RevsetExpression::filter(
             RevsetFilterPredicate::Description(pattern),
         ))
     });
-    map.insert("author", |function, _context| {
+    map.insert("author", |diagnostics, function, _context| {
         let [arg] = function.expect_exact_arguments()?;
-        let pattern = expect_string_pattern(arg)?;
+        let pattern = expect_string_pattern(diagnostics, arg)?;
         Ok(RevsetExpression::filter(RevsetFilterPredicate::Author(
             pattern,
         )))
     });
-    map.insert("author_date", |function, context| {
+    map.insert("author_date", |diagnostics, function, context| {
         let [arg] = function.expect_exact_arguments()?;
-        let pattern = expect_date_pattern(arg, context.date_pattern_context())?;
+        let pattern = expect_date_pattern(diagnostics, arg, context.date_pattern_context())?;
         Ok(RevsetExpression::filter(RevsetFilterPredicate::AuthorDate(
             pattern,
         )))
     });
-    map.insert("mine", |function, context| {
+    map.insert("mine", |_diagnostics, function, context| {
         function.expect_no_arguments()?;
         // Email address domains are inherently case‐insensitive, and the local‐parts
         // are generally (although not universally) treated as case‐insensitive too, so
@@ -731,25 +741,25 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
             StringPattern::exact_i(&context.user_email),
         )))
     });
-    map.insert("committer", |function, _context| {
+    map.insert("committer", |diagnostics, function, _context| {
         let [arg] = function.expect_exact_arguments()?;
-        let pattern = expect_string_pattern(arg)?;
+        let pattern = expect_string_pattern(diagnostics, arg)?;
         Ok(RevsetExpression::filter(RevsetFilterPredicate::Committer(
             pattern,
         )))
     });
-    map.insert("committer_date", |function, context| {
+    map.insert("committer_date", |diagnostics, function, context| {
         let [arg] = function.expect_exact_arguments()?;
-        let pattern = expect_date_pattern(arg, context.date_pattern_context())?;
+        let pattern = expect_date_pattern(diagnostics, arg, context.date_pattern_context())?;
         Ok(RevsetExpression::filter(
             RevsetFilterPredicate::CommitterDate(pattern),
         ))
     });
-    map.insert("empty", |function, _context| {
+    map.insert("empty", |_diagnostics, function, _context| {
         function.expect_no_arguments()?;
         Ok(RevsetExpression::is_empty())
     });
-    map.insert("file", |function, context| {
+    map.insert("file", |diagnostics, function, context| {
         let ctx = context.workspace.as_ref().ok_or_else(|| {
             RevsetParseError::with_span(
                 RevsetParseErrorKind::FsPathWithoutWorkspace,
@@ -759,14 +769,14 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
         // TODO: emit deprecation warning if multiple arguments are passed
         let ([arg], args) = function.expect_some_arguments()?;
         let file_expressions = itertools::chain([arg], args)
-            .map(|arg| expect_fileset_expression(arg, ctx.path_converter))
+            .map(|arg| expect_fileset_expression(diagnostics, arg, ctx.path_converter))
             .try_collect()?;
         let expr = FilesetExpression::union_all(file_expressions);
         Ok(RevsetExpression::filter(RevsetFilterPredicate::File(expr)))
     });
-    map.insert("diff_contains", |function, context| {
+    map.insert("diff_contains", |diagnostics, function, context| {
         let ([text_arg], [files_opt_arg]) = function.expect_arguments()?;
-        let text = expect_string_pattern(text_arg)?;
+        let text = expect_string_pattern(diagnostics, text_arg)?;
         let files = if let Some(files_arg) = files_opt_arg {
             let ctx = context.workspace.as_ref().ok_or_else(|| {
                 RevsetParseError::with_span(
@@ -774,7 +784,7 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
                     files_arg.span,
                 )
             })?;
-            expect_fileset_expression(files_arg, ctx.path_converter)?
+            expect_fileset_expression(diagnostics, files_arg, ctx.path_converter)?
         } else {
             // TODO: defaults to CLI path arguments?
             // https://github.com/martinvonz/jj/issues/2933#issuecomment-1925870731
@@ -784,13 +794,13 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
             RevsetFilterPredicate::DiffContains { text, files },
         ))
     });
-    map.insert("conflict", |function, _context| {
+    map.insert("conflict", |_diagnostics, function, _context| {
         function.expect_no_arguments()?;
         Ok(RevsetExpression::filter(RevsetFilterPredicate::HasConflict))
     });
-    map.insert("present", |function, context| {
+    map.insert("present", |diagnostics, function, context| {
         let [arg] = function.expect_exact_arguments()?;
-        let expression = lower_expression(arg, context)?;
+        let expression = lower_expression(diagnostics, arg, context)?;
         Ok(Rc::new(RevsetExpression::Present(expression)))
     });
     map
@@ -798,55 +808,73 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
 
 /// Parses the given `node` as a fileset expression.
 pub fn expect_fileset_expression(
+    diagnostics: &mut RevsetDiagnostics,
     node: &ExpressionNode,
     path_converter: &RepoPathUiConverter,
 ) -> Result<FilesetExpression, RevsetParseError> {
     // Alias handling is a bit tricky. The outermost expression `alias` is
     // substituted, but inner expressions `x & alias` aren't. If this seemed
     // weird, we can either transform AST or turn off revset aliases completely.
-    revset_parser::expect_expression_with(node, |node| {
-        let mut inner_diagnostics = FilesetDiagnostics::new(); // TODO
-        fileset::parse(&mut inner_diagnostics, node.span.as_str(), path_converter).map_err(|err| {
-            RevsetParseError::expression("In fileset expression", node.span).with_source(err)
-        })
+    revset_parser::expect_expression_with(diagnostics, node, |diagnostics, node| {
+        let mut inner_diagnostics = FilesetDiagnostics::new();
+        let expression = fileset::parse(&mut inner_diagnostics, node.span.as_str(), path_converter)
+            .map_err(|err| {
+                RevsetParseError::expression("In fileset expression", node.span).with_source(err)
+            })?;
+        diagnostics.extend_with(inner_diagnostics, |diag| {
+            RevsetParseError::expression("In fileset expression", node.span).with_source(diag)
+        });
+        Ok(expression)
     })
 }
 
-pub fn expect_string_pattern(node: &ExpressionNode) -> Result<StringPattern, RevsetParseError> {
-    let parse_pattern = |value: &str, kind: Option<&str>| match kind {
-        Some(kind) => StringPattern::from_str_kind(value, kind),
-        None => Ok(StringPattern::Substring(value.to_owned())),
-    };
-    revset_parser::expect_pattern_with("string pattern", node, parse_pattern)
+pub fn expect_string_pattern(
+    diagnostics: &mut RevsetDiagnostics,
+    node: &ExpressionNode,
+) -> Result<StringPattern, RevsetParseError> {
+    revset_parser::expect_pattern_with(
+        diagnostics,
+        "string pattern",
+        node,
+        |_diagnostics, value, kind| match kind {
+            Some(kind) => StringPattern::from_str_kind(value, kind),
+            None => Ok(StringPattern::Substring(value.to_owned())),
+        },
+    )
 }
 
 pub fn expect_date_pattern(
+    diagnostics: &mut RevsetDiagnostics,
     node: &ExpressionNode,
     context: &DatePatternContext,
 ) -> Result<DatePattern, RevsetParseError> {
-    let parse_pattern =
-        |value: &str, kind: Option<&str>| -> Result<_, Box<dyn std::error::Error + Send + Sync>> {
+    revset_parser::expect_pattern_with(
+        diagnostics,
+        "date pattern",
+        node,
+        |_diagnostics, value, kind| -> Result<_, Box<dyn std::error::Error + Send + Sync>> {
             match kind {
                 None => Err("Date pattern must specify 'after' or 'before'".into()),
                 Some(kind) => Ok(context.parse_relative(value, kind)?),
             }
-        };
-    revset_parser::expect_pattern_with("date pattern", node, parse_pattern)
+        },
+    )
 }
 
 fn parse_remote_bookmarks_arguments(
+    diagnostics: &mut RevsetDiagnostics,
     function: &FunctionCallNode,
     remote_ref_state: Option<RemoteRefState>,
 ) -> Result<Rc<RevsetExpression>, RevsetParseError> {
     let ([], [bookmark_opt_arg, remote_opt_arg]) =
         function.expect_named_arguments(&["", "remote"])?;
     let bookmark_pattern = if let Some(bookmark_arg) = bookmark_opt_arg {
-        expect_string_pattern(bookmark_arg)?
+        expect_string_pattern(diagnostics, bookmark_arg)?
     } else {
         StringPattern::everything()
     };
     let remote_pattern = if let Some(remote_arg) = remote_opt_arg {
-        expect_string_pattern(remote_arg)?
+        expect_string_pattern(diagnostics, remote_arg)?
     } else {
         StringPattern::everything()
     };
@@ -859,12 +887,13 @@ fn parse_remote_bookmarks_arguments(
 
 /// Resolves function call by using the given function map.
 fn lower_function_call(
+    diagnostics: &mut RevsetDiagnostics,
     function: &FunctionCallNode,
     context: &RevsetParseContext,
 ) -> Result<Rc<RevsetExpression>, RevsetParseError> {
     let function_map = &context.extensions.function_map;
     if let Some(func) = function_map.get(function.name) {
-        func(function, context)
+        func(diagnostics, function, context)
     } else {
         Err(RevsetParseError::with_span(
             RevsetParseErrorKind::NoSuchFunction {
@@ -879,6 +908,7 @@ fn lower_function_call(
 /// Transforms the given AST `node` into expression that describes DAG
 /// operation. Function calls will be resolved at this stage.
 pub fn lower_expression(
+    diagnostics: &mut RevsetDiagnostics,
     node: &ExpressionNode,
     context: &RevsetParseContext,
 ) -> Result<Rc<RevsetExpression>, RevsetParseError> {
@@ -914,7 +944,7 @@ pub fn lower_expression(
             Ok(RevsetExpression::root().range(&RevsetExpression::visible_heads()))
         }
         ExpressionKind::Unary(op, arg_node) => {
-            let arg = lower_expression(arg_node, context)?;
+            let arg = lower_expression(diagnostics, arg_node, context)?;
             match op {
                 UnaryOp::Negate => Ok(arg.negated()),
                 UnaryOp::DagRangePre => Ok(arg.ancestors()),
@@ -926,8 +956,8 @@ pub fn lower_expression(
             }
         }
         ExpressionKind::Binary(op, lhs_node, rhs_node) => {
-            let lhs = lower_expression(lhs_node, context)?;
-            let rhs = lower_expression(rhs_node, context)?;
+            let lhs = lower_expression(diagnostics, lhs_node, context)?;
+            let rhs = lower_expression(diagnostics, rhs_node, context)?;
             match op {
                 BinaryOp::Intersection => Ok(lhs.intersection(&rhs)),
                 BinaryOp::Difference => Ok(lhs.minus(&rhs)),
@@ -938,11 +968,13 @@ pub fn lower_expression(
         ExpressionKind::UnionAll(nodes) => {
             let expressions: Vec<_> = nodes
                 .iter()
-                .map(|node| lower_expression(node, context))
+                .map(|node| lower_expression(diagnostics, node, context))
                 .try_collect()?;
             Ok(RevsetExpression::union_all(&expressions))
         }
-        ExpressionKind::FunctionCall(function) => lower_function_call(function, context),
+        ExpressionKind::FunctionCall(function) => {
+            lower_function_call(diagnostics, function, context)
+        }
         ExpressionKind::Modifier(modifier) => {
             let name = modifier.name;
             Err(RevsetParseError::expression(
@@ -951,31 +983,40 @@ pub fn lower_expression(
             ))
         }
         ExpressionKind::AliasExpanded(id, subst) => {
-            lower_expression(subst, context).map_err(|e| e.within_alias_expansion(*id, node.span))
+            let mut inner_diagnostics = RevsetDiagnostics::new();
+            let expression = lower_expression(&mut inner_diagnostics, subst, context)
+                .map_err(|e| e.within_alias_expansion(*id, node.span))?;
+            diagnostics.extend_with(inner_diagnostics, |diag| {
+                diag.within_alias_expansion(*id, node.span)
+            });
+            Ok(expression)
         }
     }
 }
 
 pub fn parse(
+    diagnostics: &mut RevsetDiagnostics,
     revset_str: &str,
     context: &RevsetParseContext,
 ) -> Result<Rc<RevsetExpression>, RevsetParseError> {
     let node = revset_parser::parse_program(revset_str)?;
     let node = dsl_util::expand_aliases(node, context.aliases_map)?;
-    lower_expression(&node, context)
+    lower_expression(diagnostics, &node, context)
         .map_err(|err| err.extend_function_candidates(context.aliases_map.function_names()))
 }
 
 pub fn parse_with_modifier(
+    diagnostics: &mut RevsetDiagnostics,
     revset_str: &str,
     context: &RevsetParseContext,
 ) -> Result<(Rc<RevsetExpression>, Option<RevsetModifier>), RevsetParseError> {
     let node = revset_parser::parse_program(revset_str)?;
     let node = dsl_util::expand_aliases(node, context.aliases_map)?;
     revset_parser::expect_program_with(
+        diagnostics,
         &node,
-        |node| lower_expression(node, context),
-        |name, span| match name {
+        |diagnostics, node| lower_expression(diagnostics, node, context),
+        |_diagnostics, name, span| match name {
             "all" => Ok(RevsetModifier::All),
             _ => Err(RevsetParseError::with_span(
                 RevsetParseErrorKind::NoSuchModifier(name.to_owned()),
@@ -2178,7 +2219,7 @@ mod tests {
             &extensions,
             None,
         );
-        super::parse(revset_str, &context)
+        super::parse(&mut RevsetDiagnostics::new(), revset_str, &context)
     }
 
     fn parse_with_aliases_and_workspace(
@@ -2207,7 +2248,7 @@ mod tests {
             &extensions,
             Some(workspace_ctx),
         );
-        super::parse(revset_str, &context)
+        super::parse(&mut RevsetDiagnostics::new(), revset_str, &context)
     }
 
     fn parse_with_modifier(
@@ -2232,7 +2273,7 @@ mod tests {
             &extensions,
             None,
         );
-        super::parse_with_modifier(revset_str, &context)
+        super::parse_with_modifier(&mut RevsetDiagnostics::new(), revset_str, &context)
     }
 
     fn insta_settings() -> insta::Settings {

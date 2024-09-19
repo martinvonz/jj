@@ -93,6 +93,7 @@ use jj_lib::repo_path::RepoPathUiConverter;
 use jj_lib::repo_path::UiPathParseError;
 use jj_lib::revset;
 use jj_lib::revset::RevsetAliasesMap;
+use jj_lib::revset::RevsetDiagnostics;
 use jj_lib::revset::RevsetExpression;
 use jj_lib::revset::RevsetExtensions;
 use jj_lib::revset::RevsetFilterPredicate;
@@ -682,15 +683,21 @@ impl WorkspaceCommandEnvironment {
 
     fn load_immutable_heads_expression(
         &self,
-        _ui: &Ui,
+        ui: &Ui,
     ) -> Result<Rc<RevsetExpression>, CommandError> {
-        revset_util::parse_immutable_heads_expression(&self.revset_parse_context())
-            .map_err(|e| config_error_with_message("Invalid `revset-aliases.immutable_heads()`", e))
+        let mut diagnostics = RevsetDiagnostics::new();
+        let expression = revset_util::parse_immutable_heads_expression(
+            &mut diagnostics,
+            &self.revset_parse_context(),
+        )
+        .map_err(|e| config_error_with_message("Invalid `revset-aliases.immutable_heads()`", e))?;
+        print_parse_diagnostics(ui, "In `revset-aliases.immutable_heads()`", &diagnostics)?;
+        Ok(expression)
     }
 
     fn load_short_prefixes_expression(
         &self,
-        _ui: &Ui,
+        ui: &Ui,
     ) -> Result<Option<Rc<RevsetExpression>>, CommandError> {
         let revset_string = self
             .settings()
@@ -700,10 +707,14 @@ impl WorkspaceCommandEnvironment {
         if revset_string.is_empty() {
             Ok(None)
         } else {
-            let (expression, modifier) =
-                revset::parse_with_modifier(&revset_string, &self.revset_parse_context()).map_err(
-                    |err| config_error_with_message("Invalid `revsets.short-prefixes`", err),
-                )?;
+            let mut diagnostics = RevsetDiagnostics::new();
+            let (expression, modifier) = revset::parse_with_modifier(
+                &mut diagnostics,
+                &revset_string,
+                &self.revset_parse_context(),
+            )
+            .map_err(|err| config_error_with_message("Invalid `revsets.short-prefixes`", err))?;
+            print_parse_diagnostics(ui, "In `revsets.short-prefixes`", &diagnostics)?;
             let (None | Some(RevsetModifier::All)) = modifier;
             Ok(Some(revset::optimize(expression)))
         }
@@ -1316,26 +1327,31 @@ impl WorkspaceCommandHelper {
 
     fn parse_revset_with_modifier(
         &self,
-        _ui: &Ui,
+        ui: &Ui,
         revision_arg: &RevisionArg,
     ) -> Result<(RevsetExpressionEvaluator<'_>, Option<RevsetModifier>), CommandError> {
+        let mut diagnostics = RevsetDiagnostics::new();
         let context = self.revset_parse_context();
-        let (expression, modifier) = revset::parse_with_modifier(revision_arg.as_ref(), &context)?;
+        let (expression, modifier) =
+            revset::parse_with_modifier(&mut diagnostics, revision_arg.as_ref(), &context)?;
+        print_parse_diagnostics(ui, "In revset expression", &diagnostics)?;
         Ok((self.attach_revset_evaluator(expression), modifier))
     }
 
     /// Parses the given revset expressions and concatenates them all.
     pub fn parse_union_revsets(
         &self,
-        _ui: &Ui,
+        ui: &Ui,
         revision_args: &[RevisionArg],
     ) -> Result<RevsetExpressionEvaluator<'_>, CommandError> {
+        let mut diagnostics = RevsetDiagnostics::new();
         let context = self.revset_parse_context();
         let expressions: Vec<_> = revision_args
             .iter()
-            .map(|arg| revset::parse_with_modifier(arg.as_ref(), &context))
+            .map(|arg| revset::parse_with_modifier(&mut diagnostics, arg.as_ref(), &context))
             .map_ok(|(expression, None | Some(RevsetModifier::All))| expression)
             .try_collect()?;
+        print_parse_diagnostics(ui, "In revset expression", &diagnostics)?;
         let expression = RevsetExpression::union_all(&expressions);
         Ok(self.attach_revset_evaluator(expression))
     }

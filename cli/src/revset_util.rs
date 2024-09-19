@@ -28,6 +28,7 @@ use jj_lib::revset::DefaultSymbolResolver;
 use jj_lib::revset::Revset;
 use jj_lib::revset::RevsetAliasesMap;
 use jj_lib::revset::RevsetCommitRef;
+use jj_lib::revset::RevsetDiagnostics;
 use jj_lib::revset::RevsetEvaluationError;
 use jj_lib::revset::RevsetExpression;
 use jj_lib::revset::RevsetExtensions;
@@ -201,13 +202,14 @@ pub fn default_symbol_resolver<'a>(
 /// Parses user-configured expression defining the heads of the immutable set.
 /// Includes the root commit.
 pub fn parse_immutable_heads_expression(
+    diagnostics: &mut RevsetDiagnostics,
     context: &RevsetParseContext,
 ) -> Result<Rc<RevsetExpression>, RevsetParseError> {
     let (_, _, immutable_heads_str) = context
         .aliases_map()
         .get_function(USER_IMMUTABLE_HEADS, 0)
         .unwrap();
-    let heads = revset::parse(immutable_heads_str, context)?;
+    let heads = revset::parse(diagnostics, immutable_heads_str, context)?;
     Ok(heads.union(&RevsetExpression::root()))
 }
 

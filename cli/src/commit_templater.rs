@@ -43,6 +43,7 @@ use jj_lib::repo::Repo;
 use jj_lib::repo_path::RepoPathUiConverter;
 use jj_lib::revset;
 use jj_lib::revset::Revset;
+use jj_lib::revset::RevsetDiagnostics;
 use jj_lib::revset::RevsetExpression;
 use jj_lib::revset::RevsetModifier;
 use jj_lib::revset::RevsetParseContext;
@@ -799,10 +800,13 @@ fn evaluate_user_revset<'repo>(
     span: pest::Span<'_>,
     revset: &str,
 ) -> Result<Box<dyn Revset + 'repo>, TemplateParseError> {
-    let (expression, modifier) =
-        revset::parse_with_modifier(revset, &language.revset_parse_context).map_err(|err| {
-            TemplateParseError::expression("In revset expression", span).with_source(err)
-        })?;
+    let mut inner_diagnostics = RevsetDiagnostics::new(); // TODO
+    let (expression, modifier) = revset::parse_with_modifier(
+        &mut inner_diagnostics,
+        revset,
+        &language.revset_parse_context,
+    )
+    .map_err(|err| TemplateParseError::expression("In revset expression", span).with_source(err))?;
     let (None | Some(RevsetModifier::All)) = modifier;
 
     evaluate_revset_expression(language, span, expression)

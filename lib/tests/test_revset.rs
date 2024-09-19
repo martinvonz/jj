@@ -43,6 +43,7 @@ use jj_lib::revset::FailingSymbolResolver;
 use jj_lib::revset::ResolvedExpression;
 use jj_lib::revset::Revset;
 use jj_lib::revset::RevsetAliasesMap;
+use jj_lib::revset::RevsetDiagnostics;
 use jj_lib::revset::RevsetExpression;
 use jj_lib::revset::RevsetExtensions;
 use jj_lib::revset::RevsetFilterPredicate;
@@ -70,7 +71,7 @@ fn resolve_symbol_with_extensions(
     let now = chrono::Local::now();
     let context =
         RevsetParseContext::new(&aliases_map, String::new(), now.into(), extensions, None);
-    let expression = parse(symbol, &context).unwrap();
+    let expression = parse(&mut RevsetDiagnostics::new(), symbol, &context).unwrap();
     assert_matches!(*expression, RevsetExpression::CommitRef(_));
     let symbol_resolver = DefaultSymbolResolver::new(repo, extensions.symbol_resolvers());
     match expression.resolve_user_expression(repo, &symbol_resolver)? {
@@ -211,7 +212,8 @@ fn test_resolve_symbol_commit_id() {
         None,
     );
     assert_matches!(
-        optimize(parse("present(04)", &context).unwrap()).resolve_user_expression(repo.as_ref(), &symbol_resolver),
+        optimize(parse(&mut RevsetDiagnostics::new(), "present(04)", &context).unwrap())
+            .resolve_user_expression(repo.as_ref(), &symbol_resolver),
         Err(RevsetResolutionError::AmbiguousCommitIdPrefix(s)) if s == "04"
     );
     assert_eq!(
@@ -880,7 +882,7 @@ fn resolve_commit_ids(repo: &dyn Repo, revset_str: &str) -> Vec<CommitId> {
         &revset_extensions,
         None,
     );
-    let expression = optimize(parse(revset_str, &context).unwrap());
+    let expression = optimize(parse(&mut RevsetDiagnostics::new(), revset_str, &context).unwrap());
     let symbol_resolver = DefaultSymbolResolver::new(repo, revset_extensions.symbol_resolvers());
     let expression = expression
         .resolve_user_expression(repo, &symbol_resolver)
@@ -912,7 +914,7 @@ fn resolve_commit_ids_in_workspace(
         &extensions,
         Some(workspace_ctx),
     );
-    let expression = optimize(parse(revset_str, &context).unwrap());
+    let expression = optimize(parse(&mut RevsetDiagnostics::new(), revset_str, &context).unwrap());
     let symbol_resolver =
         DefaultSymbolResolver::new(repo, &([] as [&Box<dyn SymbolResolverExtension>; 0]));
     let expression = expression

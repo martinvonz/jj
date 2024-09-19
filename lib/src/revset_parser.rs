@@ -39,6 +39,7 @@ use crate::dsl_util::AliasExpandError;
 use crate::dsl_util::AliasExpandableExpression;
 use crate::dsl_util::AliasId;
 use crate::dsl_util::AliasesMap;
+use crate::dsl_util::Diagnostics;
 use crate::dsl_util::ExpressionFolder;
 use crate::dsl_util::FoldableExpression;
 use crate::dsl_util::InvalidArguments;
@@ -125,6 +126,10 @@ impl Rule {
         }
     }
 }
+
+/// Manages diagnostic messages emitted during revset parsing and function-call
+/// resolution.
+pub type RevsetDiagnostics = Diagnostics<RevsetParseError>;
 
 #[derive(Debug, Error)]
 #[error("{pest_error}")]
@@ -764,32 +769,41 @@ impl AliasDefinitionParser for RevsetAliasParser {
 /// Applies the given functions to the top-level expression body node with an
 /// optional modifier. Alias expansion nodes are unwrapped accordingly.
 pub(super) fn expect_program_with<B, M>(
+    diagnostics: &mut RevsetDiagnostics,
     node: &ExpressionNode,
-    parse_body: impl FnOnce(&ExpressionNode) -> Result<B, RevsetParseError>,
-    parse_modifier: impl FnOnce(&str, pest::Span<'_>) -> Result<M, RevsetParseError>,
+    parse_body: impl FnOnce(&mut RevsetDiagnostics, &ExpressionNode) -> Result<B, RevsetParseError>,
+    parse_modifier: impl FnOnce(
+        &mut RevsetDiagnostics,
+        &str,
+        pest::Span<'_>,
+    ) -> Result<M, RevsetParseError>,
 ) -> Result<(B, Option<M>), RevsetParseError> {
-    expect_expression_with(node, |node| match &node.kind {
+    expect_expression_with(diagnostics, node, |diagnostics, node| match &node.kind {
         ExpressionKind::Modifier(modifier) => {
-            let parsed_modifier = parse_modifier(modifier.name, modifier.name_span)?;
-            Ok((parse_body(&modifier.body)?, Some(parsed_modifier)))
+            let parsed_modifier = parse_modifier(diagnostics, modifier.name, modifier.name_span)?;
+            let parsed_body = parse_body(diagnostics, &modifier.body)?;
+            Ok((parsed_body, Some(parsed_modifier)))
         }
-        _ => Ok((parse_body(node)?, None)),
+        _ => Ok((parse_body(diagnostics, node)?, None)),
     })
 }
 
 pub(super) fn expect_pattern_with<T, E: Into<Box<dyn error::Error + Send + Sync>>>(
+    diagnostics: &mut RevsetDiagnostics,
     type_name: &str,
     node: &ExpressionNode,
-    parse_pattern: impl FnOnce(&str, Option<&str>) -> Result<T, E>,
+    parse_pattern: impl FnOnce(&mut RevsetDiagnostics, &str, Option<&str>) -> Result<T, E>,
 ) -> Result<T, RevsetParseError> {
     let wrap_error = |err: E| {
         RevsetParseError::expression(format!("Invalid {type_name}"), node.span).with_source(err)
     };
-    expect_expression_with(node, |node| match &node.kind {
-        ExpressionKind::Identifier(name) => parse_pattern(name, None).map_err(wrap_error),
-        ExpressionKind::String(name) => parse_pattern(name, None).map_err(wrap_error),
+    expect_expression_with(diagnostics, node, |diagnostics, node| match &node.kind {
+        ExpressionKind::Identifier(name) => {
+            parse_pattern(diagnostics, name, None).map_err(wrap_error)
+        }
+        ExpressionKind::String(name) => parse_pattern(diagnostics, name, None).map_err(wrap_error),
         ExpressionKind::StringPattern { kind, value } => {
-            parse_pattern(value, Some(kind)).map_err(wrap_error)
+            parse_pattern(diagnostics, value, Some(kind)).map_err(wrap_error)
         }
         _ => Err(RevsetParseError::expression(
             format!("Expected expression of {type_name}"),
@@ -799,6 +813,7 @@ pub(super) fn expect_pattern_with<T, E: Into<Box<dyn error::Error + Send + Sync>
 }
 
 pub fn expect_literal<T: FromStr>(
+    diagnostics: &mut RevsetDiagnostics,
     type_name: &str,
     node: &ExpressionNode,
 ) -> Result<T, RevsetParseError> {
@@ -808,7 +823,7 @@ pub fn expect_literal<T: FromStr>(
             node.span,
         )
     };
-    expect_expression_with(node, |node| match &node.kind {
+    expect_expression_with(diagnostics, node, |_diagnostics, node| match &node.kind {
         ExpressionKind::Identifier(name) => name.parse().map_err(|_| make_error()),
         ExpressionKind::String(name) => name.parse().map_err(|_| make_error()),
         _ => Err(make_error()),
@@ -818,13 +833,20 @@ pub fn expect_literal<T: FromStr>(
 /// Applies the give function to the innermost `node` by unwrapping alias
 /// expansion nodes.
 pub(super) fn expect_expression_with<T>(
+    diagnostics: &mut RevsetDiagnostics,
     node: &ExpressionNode,
-    f: impl FnOnce(&ExpressionNode) -> Result<T, RevsetParseError>,
+    f: impl FnOnce(&mut RevsetDiagnostics, &ExpressionNode) -> Result<T, RevsetParseError>,
 ) -> Result<T, RevsetParseError> {
     if let ExpressionKind::AliasExpanded(id, subst) = &node.kind {
-        expect_expression_with(subst, f).map_err(|e| e.within_alias_expansion(*id, node.span))
+        let mut inner_diagnostics = RevsetDiagnostics::new();
+        let expression = expect_expression_with(&mut inner_diagnostics, subst, f)
+            .map_err(|e| e.within_alias_expansion(*id, node.span))?;
+        diagnostics.extend_with(inner_diagnostics, |diag| {
+            diag.within_alias_expansion(*id, node.span)
+        });
+        Ok(expression)
     } else {
-        f(node)
+        f(diagnostics, node)
     }
 }
 
