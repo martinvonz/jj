@@ -16,8 +16,10 @@ use std::fmt::Debug;
 use std::io::Write as _;
 
 use jj_lib::fileset;
+use jj_lib::fileset::FilesetDiagnostics;
 
 use crate::cli_util::CommandHelper;
+use crate::command_error::print_parse_diagnostics;
 use crate::command_error::CommandError;
 use crate::ui::Ui;
 
@@ -36,7 +38,9 @@ pub fn cmd_debug_fileset(
     let workspace_command = command.workspace_helper(ui)?;
     let path_converter = workspace_command.path_converter();
 
-    let expression = fileset::parse_maybe_bare(&args.path, path_converter)?;
+    let mut diagnostics = FilesetDiagnostics::new();
+    let expression = fileset::parse_maybe_bare(&mut diagnostics, &args.path, path_converter)?;
+    print_parse_diagnostics(ui, "In fileset expression", &diagnostics)?;
     writeln!(ui.stdout(), "-- Parsed:")?;
     writeln!(ui.stdout(), "{expression:#?}")?;
     writeln!(ui.stdout())?;

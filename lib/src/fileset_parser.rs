@@ -27,6 +27,7 @@ use pest_derive::Parser;
 use thiserror::Error;
 
 use crate::dsl_util;
+use crate::dsl_util::Diagnostics;
 use crate::dsl_util::InvalidArguments;
 use crate::dsl_util::StringLiteralParser;
 
@@ -73,6 +74,10 @@ impl Rule {
         }
     }
 }
+
+/// Manages diagnostic messages emitted during fileset parsing and name
+/// resolution.
+pub type FilesetDiagnostics = Diagnostics<FilesetParseError>;
 
 /// Result of fileset parsing and name resolution.
 pub type FilesetParseResult<T> = Result<T, FilesetParseError>;
