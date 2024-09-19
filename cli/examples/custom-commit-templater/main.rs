@@ -31,6 +31,7 @@ use jj_lib::object_id::ObjectId;
 use jj_lib::repo::Repo;
 use jj_lib::revset::FunctionCallNode;
 use jj_lib::revset::PartialSymbolResolver;
+use jj_lib::revset::RevsetDiagnostics;
 use jj_lib::revset::RevsetExpression;
 use jj_lib::revset::RevsetFilterExtension;
 use jj_lib::revset::RevsetFilterPredicate;
@@ -185,6 +186,7 @@ impl RevsetFilterExtension for EvenDigitsFilter {
 }
 
 fn even_digits(
+    _diagnostics: &mut RevsetDiagnostics,
     function: &FunctionCallNode,
     _context: &RevsetParseContext,
 ) -> Result<Rc<RevsetExpression>, RevsetParseError> {
