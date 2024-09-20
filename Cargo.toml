@@ -118,7 +118,7 @@ tracing-subscriber = { version = "0.3.18", default-features = false, features = 
     "env-filter",
     "fmt",
 ] }
-unicode-width = "0.1.13"
+unicode-width = "0.1.14"
 version_check = "0.9.5"
 watchman_client = { version = "0.9.0" }
 whoami = "1.5.2"
