@@ -23,7 +23,6 @@ use crate::diff_util::diff_formats_for_log;
 use crate::diff_util::DiffFormatArgs;
 use crate::diff_util::DiffRenderer;
 use crate::graphlog::GraphStyle;
-use crate::operation_templater::OperationTemplateLanguage;
 use crate::ui::Ui;
 
 /// Show changes to the repository in an operation
@@ -80,10 +79,9 @@ pub fn cmd_op_show(
 
     // TODO: Should we make this customizable via clap arg?
     let template = {
-        let language = workspace_command.operation_template_language();
         let text = command.settings().config().get_string("templates.op_log")?;
         workspace_command
-            .parse_template(&language, &text, OperationTemplateLanguage::wrap_operation)?
+            .parse_operation_template(&text)?
             .labeled("op_log")
     };
 
