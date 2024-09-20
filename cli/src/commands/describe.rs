@@ -156,7 +156,7 @@ pub(crate) fn cmd_describe(
                 missing,
                 duplicates,
                 unexpected,
-            } = edit_multiple_descriptions(&mut tx, &temp_commits, command.settings())?;
+            } = edit_multiple_descriptions(&tx, &temp_commits, command.settings())?;
             if !missing.is_empty() {
                 return Err(user_error(format!(
                     "The description for the following commits were not found in the edited \
