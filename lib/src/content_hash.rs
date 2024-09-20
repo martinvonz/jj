@@ -150,6 +150,8 @@ mod tests {
     use std::collections::BTreeMap;
     use std::collections::HashMap;
 
+    use crate::hex_util;
+
     use super::*;
 
     #[test]
@@ -215,7 +217,7 @@ mod tests {
             x: Vec<Option<i32>>,
             y: i64,
         }
-        let foo_hash = faster_hex::hex_string(&hash(&Foo {
+        let foo_hash = hex_util::encode_hex_string(&hash(&Foo {
             x: vec![None, Some(42)],
             y: 17,
         }));
@@ -231,7 +233,7 @@ mod tests {
             y: Y,
         }
         assert_eq!(
-            faster_hex::hex_string(&hash(&GenericFoo {
+            hex_util::encode_hex_string(&hash(&GenericFoo {
                 x: vec![None, Some(42)],
                 y: 17i64
             })),

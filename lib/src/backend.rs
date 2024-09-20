@@ -25,6 +25,7 @@ use futures::stream::BoxStream;
 use thiserror::Error;
 
 use crate::content_hash::ContentHash;
+use crate::hex_util;
 use crate::hex_util::to_reverse_hex_digit;
 use crate::index::Index;
 use crate::merge::Merge;
@@ -53,13 +54,7 @@ id_type!(pub ConflictId);
 
 impl ChangeId {
     pub fn reverse_hex(&self) -> String {
-        let mut buffer = vec![0; self.0.len() * 2];
-        faster_hex::hex_encode(&self.0, &mut buffer).unwrap();
-        buffer
-            .iter_mut()
-            .for_each(|b| *b = to_reverse_hex_digit(*b));
-
-        String::from_utf8(buffer).unwrap()
+        hex_util::encode_hex_string_reverse(&self.0)
     }
 }
 

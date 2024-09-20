@@ -44,6 +44,7 @@ use jj_lib::git::GitRefUpdate;
 use jj_lib::git::RefName;
 use jj_lib::git::SubmoduleConfig;
 use jj_lib::git_backend::GitBackend;
+use jj_lib::hex_util;
 use jj_lib::object_id::ObjectId;
 use jj_lib::op_store::BookmarkTarget;
 use jj_lib::op_store::RefTarget;
@@ -1381,8 +1382,8 @@ fn test_import_refs_missing_git_commit() {
 
     let commit1 = empty_git_commit(&git_repo, "refs/heads/main", &[]);
     let commit2 = empty_git_commit(&git_repo, "refs/heads/main", &[&commit1]);
-    let shard = faster_hex::hex_string(&commit1.id().as_bytes()[..1]);
-    let object_basename = faster_hex::hex_string(&commit1.id().as_bytes()[1..]);
+    let shard = hex_util::encode_hex_string(&commit1.id().as_bytes()[..1]);
+    let object_basename = hex_util::encode_hex_string(&commit1.id().as_bytes()[1..]);
     let object_store_path = git_repo.path().join("objects");
     let object_file = object_store_path.join(&shard).join(object_basename);
     let backup_object_file = object_store_path.join(&shard).join("backup");

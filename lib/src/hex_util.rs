@@ -81,6 +81,20 @@ pub fn common_hex_len(bytes_a: &[u8], bytes_b: &[u8]) -> usize {
         .unwrap_or_else(|| bytes_a.len().min(bytes_b.len()) * 2)
 }
 
+pub fn encode_hex_string_reverse(src: &[u8]) -> String {
+    let mut buffer = vec![0; src.len() * 2];
+    faster_hex::hex_encode(src, &mut buffer).unwrap();
+    buffer
+        .iter_mut()
+        .for_each(|b| *b = to_reverse_hex_digit(*b));
+
+    String::from_utf8(buffer).unwrap()
+}
+
+pub fn encode_hex_string(src: &[u8]) -> String {
+    faster_hex::hex_string(src)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

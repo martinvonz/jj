@@ -48,6 +48,7 @@ use crate::backend::ChangeId;
 use crate::backend::CommitId;
 use crate::commit::Commit;
 use crate::file_util::persist_content_addressed_temp_file;
+use crate::hex_util;
 use crate::index::AllHeadsForGcUnsupported;
 use crate::index::ChangeIdIndex;
 use crate::index::Index;
@@ -359,7 +360,7 @@ impl MutableIndexSegment {
         self.serialize_local_entries(&mut buf);
         let mut hasher = Blake2b512::new();
         hasher.update(&buf);
-        let index_file_id_hex = faster_hex::hex_string(&hasher.finalize());
+        let index_file_id_hex = hex_util::encode_hex_string(&hasher.finalize());
         let index_file_path = dir.join(&index_file_id_hex);
 
         let mut temp_file = NamedTempFile::new_in(dir)?;

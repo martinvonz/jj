@@ -1517,6 +1517,7 @@ mod tests {
 
     use super::*;
     use crate::content_hash::blake2b_hash;
+    use crate::hex_util;
 
     #[test_case(false; "legacy tree format")]
     #[test_case(true; "tree-level conflict format")]
@@ -2132,7 +2133,7 @@ mod tests {
         };
 
         let mut signer = |data: &_| {
-            let hash: String = faster_hex::hex_string(&blake2b_hash(data));
+            let hash: String = hex_util::encode_hex_string(&blake2b_hash(data));
             Ok(format!("test sig\n\n\nhash={hash}").into_bytes())
         };
 
