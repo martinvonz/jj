@@ -68,12 +68,10 @@ pub fn resolve_op_heads<E>(
 where
     E: From<OpHeadResolutionError> + From<OpStoreError>,
 {
+    // This can be empty if the OpHeadsStore doesn't support atomic updates.
+    // For example, all entries ahead of a readdir() pointer could be deleted by
+    // another concurrent process.
     let mut op_heads = op_heads_store.get_op_heads();
-
-    // TODO: De-duplicate this 'simple-resolution' code.
-    if op_heads.is_empty() {
-        return Err(OpHeadResolutionError::NoHeads.into());
-    }
 
     if op_heads.len() == 1 {
         let operation_id = op_heads.pop().unwrap();
@@ -81,14 +79,14 @@ where
         return Ok(Operation::new(op_store.clone(), operation_id, operation));
     }
 
-    // There are multiple heads. We take a lock, then check if there are still
-    // multiple heads (it's likely that another process was in the process of
-    // deleting on of them). If there are still multiple heads, we attempt to
-    // merge all the views into one. We then write that view and a corresponding
-    // operation to the op-store.
-    // Note that the locking isn't necessary for correctness; we take the lock
-    // only to prevent other concurrent processes from doing the same work (and
-    // producing another set of divergent heads).
+    // There are no/multiple heads. We take a lock, then check if there are
+    // still no/multiple heads (it's likely that another process was in the
+    // process of deleting on of them). If there are still multiple heads, we
+    // attempt to merge all the views into one. We then write that view and a
+    // corresponding operation to the op-store.
+    // Note that the locking isn't necessary for correctness of merge; we take
+    // the lock only to prevent other concurrent processes from doing the same
+    // work (and producing another set of divergent heads).
     let _lock = op_heads_store.lock();
     let op_head_ids = op_heads_store.get_op_heads();
 
