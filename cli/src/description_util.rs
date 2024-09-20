@@ -57,7 +57,7 @@ JJ: Lines starting with "JJ: " (like this one) will be removed.
 
 /// Edits the descriptions of the given commits in a single editor session.
 pub fn edit_multiple_descriptions(
-    tx: &mut WorkspaceCommandTransaction,
+    tx: &WorkspaceCommandTransaction,
     commits: &[(&CommitId, Commit)],
     settings: &UserSettings,
 ) -> Result<ParsedBulkEditMessage<CommitId>, CommandError> {
