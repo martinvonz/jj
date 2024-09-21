@@ -1013,6 +1013,15 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      Examples
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1874,6 +1883,15 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      Examples
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -2149,6 +2167,13 @@ function will be shadowed by name, and can't co-exist with aliases.</p>
 <span class="s1">)</span>
 <span class="s1">&#39;&#39;&#39;</span>
 <span class="s1">&#39;format_field(key, value)&#39;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;key ++ &quot;: &quot; ++ value ++ &quot;\n&quot;&#39;</span>
+</code></pre></div>
+<h2 id="examples">Examples<a class="headerlink" href="#examples" title="Permanent link">&para;</a></h2>
+<p>Get short commit IDs of the working-copy parents:</p>
+<div class="highlight"><pre><span></span><code>jj<span class="w"> </span>log<span class="w"> </span>--no-graph<span class="w"> </span>-r<span class="w"> </span>@<span class="w"> </span>-T<span class="w"> </span><span class="s1">&#39;parents.map(|c| c.commit_id().short()).join(&quot;,&quot;)&#39;</span>
+</code></pre></div>
+<p>Show machine-readable list of full commit and change IDs:</p>
+<div class="highlight"><pre><span></span><code>jj<span class="w"> </span>log<span class="w"> </span>--no-graph<span class="w"> </span>-T<span class="w"> </span><span class="s1">&#39;commit_id ++ &quot; &quot; ++ change_id ++ &quot;\n&quot;&#39;</span>
 </code></pre></div>
 
 
