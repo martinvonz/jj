@@ -56,6 +56,7 @@ This document contains the help content for the `jj` command-line program.
 * [`jj git remote remove`↴](#jj-git-remote-remove)
 * [`jj git remote rename`↴](#jj-git-remote-rename)
 * [`jj git remote set-url`↴](#jj-git-remote-set-url)
+* [`jj help`↴](#jj-help)
 * [`jj init`↴](#jj-init)
 * [`jj interdiff`↴](#jj-interdiff)
 * [`jj log`↴](#jj-log)
@@ -126,6 +127,7 @@ To get started, see the tutorial at https://martinvonz.github.io/jj/latest/tutor
 * `file` — File operations
 * `fix` — Update files with formatting fixes or other changes
 * `git` — Commands for working with Git remotes and the underlying Git repo
+* `help` — Print this message or the help of the given subcommand(s)
 * `init` — Create a new repo in the given directory
 * `interdiff` — Compare the changes of two commits
 * `log` — Show revision history
@@ -1161,6 +1163,18 @@ Set the URL of a Git remote
 
 * `<REMOTE>` — The remote's name
 * `<URL>` — The desired url for `remote`
+
+
+
+## `jj help`
+
+Print this message or the help of the given subcommand(s)
+
+**Usage:** `jj help [COMMAND]...`
+
+###### **Arguments:**
+
+* `<COMMAND>` — Print help for the subcommand(s)
 
 
 
