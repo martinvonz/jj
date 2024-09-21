@@ -30,6 +30,7 @@ mod evolog;
 mod file;
 mod fix;
 mod git;
+mod help;
 mod init;
 mod interdiff;
 mod log;
@@ -71,6 +72,7 @@ use crate::command_error::CommandError;
 use crate::ui::Ui;
 
 #[derive(clap::Parser, Clone, Debug)]
+#[command(disable_help_subcommand = true)]
 enum Command {
     Abandon(abandon::AbandonArgs),
     Backout(backout::BackoutArgs),
@@ -110,6 +112,7 @@ enum Command {
     Fix(fix::FixArgs),
     #[command(subcommand)]
     Git(git::GitCommand),
+    Help(help::HelpArgs),
     Init(init::InitArgs),
     Interdiff(interdiff::InterdiffArgs),
     Log(log::LogArgs),
@@ -217,6 +220,7 @@ pub fn run_command(ui: &mut Ui, command_helper: &CommandHelper) -> Result<(), Co
         }
         Command::Fix(args) => fix::cmd_fix(ui, command_helper, args),
         Command::Git(args) => git::cmd_git(ui, command_helper, args),
+        Command::Help(args) => help::cmd_help(ui, command_helper, args),
         Command::Init(args) => init::cmd_init(ui, command_helper, args),
         Command::Interdiff(args) => interdiff::cmd_interdiff(ui, command_helper, args),
         Command::Log(args) => log::cmd_log(ui, command_helper, args),

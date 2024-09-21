@@ -15,6 +15,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 * Evaluation error of `revsets.short-prefixes` configuration is now reported.
 
+* Help command doesn't work recursively anymore, i.e. `jj workspace help root`
+  doesn't work anymore.
+
 ### Deprecations
 
 ### New features
