@@ -709,8 +709,15 @@ impl<'input> Diff<'input> {
         diff
     }
 
+    /// Returns iterator over matching and different texts.
     pub fn hunks(&self) -> DiffHunkIterator<'_, 'input> {
-        DiffHunkIterator::new(self)
+        let ranges = self.hunk_ranges();
+        DiffHunkIterator { diff: self, ranges }
+    }
+
+    /// Returns iterator over matching and different ranges in bytes.
+    pub fn hunk_ranges(&self) -> DiffHunkRangeIterator<'_> {
+        DiffHunkRangeIterator::new(self)
     }
 
     /// Returns contents at the unchanged `range`.
@@ -795,6 +802,7 @@ impl<'input> Diff<'input> {
     }
 }
 
+/// Hunk texts.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DiffHunk<'input> {
     pub kind: DiffHunkKind,
@@ -830,46 +838,109 @@ pub enum DiffHunkKind {
 // Inline up to two sides
 pub type DiffHunkContentVec<'input> = SmallVec<[&'input BStr; 2]>;
 
+/// Iterator over matching and different texts.
 pub struct DiffHunkIterator<'diff, 'input> {
     diff: &'diff Diff<'input>,
-    previous: &'diff UnchangedRange,
-    unchanged_emitted: bool,
-    unchanged_iter: slice::Iter<'diff, UnchangedRange>,
-}
-
-impl<'diff, 'input> DiffHunkIterator<'diff, 'input> {
-    fn new(diff: &'diff Diff<'input>) -> Self {
-        let mut unchanged_iter = diff.unchanged_regions.iter();
-        let previous = unchanged_iter.next().unwrap();
-        DiffHunkIterator {
-            diff,
-            previous,
-            unchanged_emitted: previous.is_all_empty(),
-            unchanged_iter,
-        }
-    }
+    ranges: DiffHunkRangeIterator<'diff>,
 }
 
 impl<'input> Iterator for DiffHunkIterator<'_, 'input> {
     type Item = DiffHunk<'input>;
 
     fn next(&mut self) -> Option<Self::Item> {
+        self.ranges.next_with(
+            |previous| {
+                let contents = self.diff.hunk_at(previous).collect();
+                let kind = DiffHunkKind::Matching;
+                DiffHunk { kind, contents }
+            },
+            |previous, current| {
+                let contents: DiffHunkContentVec =
+                    self.diff.hunk_between(previous, current).collect();
+                debug_assert!(
+                    contents.iter().any(|content| !content.is_empty()),
+                    "unchanged regions should have been compacted"
+                );
+                let kind = DiffHunkKind::Different;
+                DiffHunk { kind, contents }
+            },
+        )
+    }
+}
+
+/// Hunk ranges in bytes.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DiffHunkRange {
+    pub kind: DiffHunkKind,
+    pub ranges: DiffHunkRangeVec,
+}
+
+// Inline up to two sides
+pub type DiffHunkRangeVec = SmallVec<[Range<usize>; 2]>;
+
+/// Iterator over matching and different ranges in bytes.
+#[derive(Clone, Debug)]
+pub struct DiffHunkRangeIterator<'diff> {
+    previous: &'diff UnchangedRange,
+    unchanged_emitted: bool,
+    unchanged_iter: slice::Iter<'diff, UnchangedRange>,
+}
+
+impl<'diff> DiffHunkRangeIterator<'diff> {
+    fn new(diff: &'diff Diff) -> Self {
+        let mut unchanged_iter = diff.unchanged_regions.iter();
+        let previous = unchanged_iter.next().unwrap();
+        DiffHunkRangeIterator {
+            previous,
+            unchanged_emitted: previous.is_all_empty(),
+            unchanged_iter,
+        }
+    }
+
+    fn next_with<T>(
+        &mut self,
+        hunk_at: impl FnOnce(&UnchangedRange) -> T,
+        hunk_between: impl FnOnce(&UnchangedRange, &UnchangedRange) -> T,
+    ) -> Option<T> {
         if !self.unchanged_emitted {
             self.unchanged_emitted = true;
-            let contents = self.diff.hunk_at(self.previous).collect();
-            let kind = DiffHunkKind::Matching;
-            return Some(DiffHunk { kind, contents });
+            return Some(hunk_at(self.previous));
         }
         let current = self.unchanged_iter.next()?;
-        let contents: DiffHunkContentVec = self.diff.hunk_between(self.previous, current).collect();
-        debug_assert!(
-            contents.iter().any(|content| !content.is_empty()),
-            "unchanged regions should have been compacted"
-        );
+        let hunk = hunk_between(self.previous, current);
         self.previous = current;
         self.unchanged_emitted = self.previous.is_all_empty();
-        let kind = DiffHunkKind::Different;
-        Some(DiffHunk { kind, contents })
+        Some(hunk)
+    }
+}
+
+impl Iterator for DiffHunkRangeIterator<'_> {
+    type Item = DiffHunkRange;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.next_with(
+            |previous| {
+                let ranges = itertools::chain(iter::once(&previous.base), &previous.others)
+                    .cloned()
+                    .collect();
+                let kind = DiffHunkKind::Matching;
+                DiffHunkRange { kind, ranges }
+            },
+            |previous, current| {
+                let ranges: DiffHunkRangeVec = itertools::chain(
+                    iter::once(previous.base.end..current.base.start),
+                    iter::zip(&previous.others, &current.others)
+                        .map(|(prev, cur)| prev.end..cur.start),
+                )
+                .collect();
+                debug_assert!(
+                    ranges.iter().any(|range| !range.is_empty()),
+                    "unchanged regions should have been compacted"
+                );
+                let kind = DiffHunkKind::Different;
+                DiffHunkRange { kind, ranges }
+            },
+        )
     }
 }
 
@@ -1413,6 +1484,41 @@ mod tests {
             vec![
                 DiffHunk::matching(["a\n", "a \n"]),
                 DiffHunk::different(["", "b"]),
+            ]
+        );
+    }
+
+    #[test]
+    fn test_diff_hunk_iterator() {
+        let diff = Diff::by_word(["a b c", "a XX c", "a b "]);
+        assert_eq!(
+            diff.hunks().collect_vec(),
+            vec![
+                DiffHunk::matching(["a "].repeat(3)),
+                DiffHunk::different(["b", "XX", "b"]),
+                DiffHunk::matching([" "].repeat(3)),
+                DiffHunk::different(["c", "c", ""]),
+            ]
+        );
+        assert_eq!(
+            diff.hunk_ranges().collect_vec(),
+            vec![
+                DiffHunkRange {
+                    kind: DiffHunkKind::Matching,
+                    ranges: smallvec![0..2, 0..2, 0..2],
+                },
+                DiffHunkRange {
+                    kind: DiffHunkKind::Different,
+                    ranges: smallvec![2..3, 2..4, 2..3],
+                },
+                DiffHunkRange {
+                    kind: DiffHunkKind::Matching,
+                    ranges: smallvec![3..4, 4..5, 3..4],
+                },
+                DiffHunkRange {
+                    kind: DiffHunkKind::Different,
+                    ranges: smallvec![4..5, 5..6, 4..4],
+                },
             ]
         );
     }
