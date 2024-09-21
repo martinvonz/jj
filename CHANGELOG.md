@@ -43,6 +43,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `--insert-before` options to customize the location of the duplicated
   revisions.
 
+* `jj log` now displays the working-copy branch first.
+
 * New `fork_point()` revset function can be used to obtain the fork point
   of multiple commits.
 

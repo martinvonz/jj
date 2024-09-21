@@ -503,26 +503,26 @@ fn test_log_evolog_divergence() {
         &["describe", "-m", "description 2", "--at-operation", "@-"],
     );
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["log"]);
-    insta::assert_snapshot!(stdout, @r###"
-    ○  qpvuntsm?? test.user@example.com 2001-02-03 08:05:10 6ba70e00
-    │  description 2
-    │ @  qpvuntsm?? test.user@example.com 2001-02-03 08:05:08 ff309c29
-    ├─╯  description 1
+    insta::assert_snapshot!(stdout, @r#"
+    @  qpvuntsm?? test.user@example.com 2001-02-03 08:05:08 ff309c29
+    │  description 1
+    │ ○  qpvuntsm?? test.user@example.com 2001-02-03 08:05:10 6ba70e00
+    ├─╯  description 2
     ◆  zzzzzzzz root() 00000000
-    "###);
+    "#);
     insta::assert_snapshot!(stderr, @r###"
     Concurrent modification detected, resolving automatically.
     "###);
 
     // Color
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "--color=always"]);
-    insta::assert_snapshot!(stdout, @r###"
-    ○  [1m[4m[38;5;1mq[0m[38;5;1mpvuntsm??[39m [38;5;3mtest.user@example.com[39m [38;5;6m2001-02-03 08:05:10[39m [1m[38;5;4m6[0m[38;5;8mba70e00[39m
-    │  description 2
-    │ [1m[38;5;2m@[0m  [1m[4m[38;5;1mq[24mpvuntsm[38;5;9m??[39m [38;5;3mtest.user@example.com[39m [38;5;14m2001-02-03 08:05:08[39m [38;5;12mf[38;5;8mf309c29[39m[0m
-    ├─╯  [1mdescription 1[0m
+    insta::assert_snapshot!(stdout, @r#"
+    [1m[38;5;2m@[0m  [1m[4m[38;5;1mq[24mpvuntsm[38;5;9m??[39m [38;5;3mtest.user@example.com[39m [38;5;14m2001-02-03 08:05:08[39m [38;5;12mf[38;5;8mf309c29[39m[0m
+    │  [1mdescription 1[0m
+    │ ○  [1m[4m[38;5;1mq[0m[38;5;1mpvuntsm??[39m [38;5;3mtest.user@example.com[39m [38;5;6m2001-02-03 08:05:10[39m [1m[38;5;4m6[0m[38;5;8mba70e00[39m
+    ├─╯  description 2
     [1m[38;5;14m◆[0m  [1m[38;5;5mz[0m[38;5;8mzzzzzzz[39m [38;5;2mroot()[39m [1m[38;5;4m0[0m[38;5;8m0000000[39m
-    "###);
+    "#);
 
     // Evolog and hidden divergent
     let stdout = test_env.jj_cmd_success(&repo_path, &["evolog"]);
@@ -599,45 +599,45 @@ fn test_log_bookmarks() {
 
     let template = r#"commit_id.short() ++ " " ++ if(bookmarks, bookmarks, "(no bookmarks)")"#;
     let output = test_env.jj_cmd_success(&workspace_root, &["log", "-T", template]);
-    insta::assert_snapshot!(output, @r###"
-    ○  fed794e2ba44 bookmark3?? bookmark3@origin
+    insta::assert_snapshot!(output, @r#"
+    @  a5b4d15489cc bookmark2* new-bookmark
+    ○  8476341eb395 bookmark2@origin unchanged
+    │ ○  fed794e2ba44 bookmark3?? bookmark3@origin
+    ├─╯
     │ ○  b1bb3766d584 bookmark3??
     ├─╯
     │ ○  4a7e4246fc4d bookmark1*
     ├─╯
-    │ @  a5b4d15489cc bookmark2* new-bookmark
-    │ ○  8476341eb395 bookmark2@origin unchanged
-    ├─╯
     ◆  000000000000 (no bookmarks)
-    "###);
+    "#);
 
     let template = r#"bookmarks.map(|b| separate("/", b.remote(), b.name())).join(", ")"#;
     let output = test_env.jj_cmd_success(&workspace_root, &["log", "-T", template]);
-    insta::assert_snapshot!(output, @r###"
-    ○  bookmark3, origin/bookmark3
+    insta::assert_snapshot!(output, @r#"
+    @  bookmark2, new-bookmark
+    ○  origin/bookmark2, unchanged
+    │ ○  bookmark3, origin/bookmark3
+    ├─╯
     │ ○  bookmark3
     ├─╯
     │ ○  bookmark1
     ├─╯
-    │ @  bookmark2, new-bookmark
-    │ ○  origin/bookmark2, unchanged
-    ├─╯
     ◆
-    "###);
+    "#);
 
     let template = r#"separate(" ", "L:", local_bookmarks, "R:", remote_bookmarks)"#;
     let output = test_env.jj_cmd_success(&workspace_root, &["log", "-T", template]);
-    insta::assert_snapshot!(output, @r###"
-    ○  L: bookmark3?? R: bookmark3@origin
+    insta::assert_snapshot!(output, @r#"
+    @  L: bookmark2* new-bookmark R:
+    ○  L: unchanged R: bookmark2@origin unchanged@origin
+    │ ○  L: bookmark3?? R: bookmark3@origin
+    ├─╯
     │ ○  L: bookmark3?? R:
     ├─╯
     │ ○  L: bookmark1* R:
     ├─╯
-    │ @  L: bookmark2* new-bookmark R:
-    │ ○  L: unchanged R: bookmark2@origin unchanged@origin
-    ├─╯
     ◆  L: R:
-    "###);
+    "#);
 
     let template = r#"
     remote_bookmarks.map(|ref| concat(

@@ -435,13 +435,13 @@ fn test_parallelize_multiple_heads_with_and_without_children() {
         &workspace_path,
         &["parallelize", "description(0)", "description(1)"],
     );
-    insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
-    ○  6270540ee067 1 parents:
-    │ @  97d7522f40e8 2 parents: 0
-    │ ○  745bea8029c1 0 parents:
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r#"
+    @  97d7522f40e8 2 parents: 0
+    ○  745bea8029c1 0 parents:
+    │ ○  6270540ee067 1 parents:
     ├─╯
     ◆  000000000000 parents:
-    "###);
+    "#);
 }
 
 #[test]

@@ -50,12 +50,12 @@ fn test_concurrent_operation_divergence() {
 
     // We should be informed about the concurrent modification
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["log", "-T", "description"]);
-    insta::assert_snapshot!(stdout, @r###"
-    ○  message 2
-    │ @  message 1
+    insta::assert_snapshot!(stdout, @r#"
+    @  message 1
+    │ ○  message 2
     ├─╯
     ◆
-    "###);
+    "#);
     insta::assert_snapshot!(stderr, @r###"
     Concurrent modification detected, resolving automatically.
     "###);

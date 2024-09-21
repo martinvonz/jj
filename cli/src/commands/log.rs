@@ -187,11 +187,21 @@ pub(crate) fn cmd_log(
         if !args.no_graph {
             let mut raw_output = formatter.raw()?;
             let mut graph = get_graphlog(graph_style, raw_output.as_mut());
-            let forward_iter = TopoGroupedGraphIterator::new(revset.iter_graph());
-            let iter: Box<dyn Iterator<Item = _>> = if args.reversed {
-                Box::new(ReverseGraphIterator::new(forward_iter)?)
-            } else {
-                Box::new(forward_iter)
+            let iter: Box<dyn Iterator<Item = _>> = {
+                let mut forward_iter = TopoGroupedGraphIterator::new(revset.iter_graph());
+                // Emit the working-copy branch first, which is usually most
+                // interesting. This also helps stabilize output order.
+                if let Some(id) = workspace_command.get_wc_commit_id() {
+                    let has_commit = revset.containing_fn();
+                    if has_commit(id)? {
+                        forward_iter.prioritize_branch(id.clone());
+                    }
+                }
+                if args.reversed {
+                    Box::new(ReverseGraphIterator::new(forward_iter)?)
+                } else {
+                    Box::new(forward_iter)
+                }
             };
             for node in iter.take(limit) {
                 let (commit_id, edges) = node?;
