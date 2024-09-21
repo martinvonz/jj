@@ -805,7 +805,7 @@ pub fn expect_fileset_expression(
     // weird, we can either transform AST or turn off revset aliases completely.
     revset_parser::expect_expression_with(node, |node| {
         fileset::parse(node.span.as_str(), path_converter).map_err(|err| {
-            RevsetParseError::expression("Invalid fileset expression", node.span).with_source(err)
+            RevsetParseError::expression("In fileset expression", node.span).with_source(err)
         })
     })
 }
@@ -2818,7 +2818,7 @@ mod tests {
         // Sub-expression alias cannot be substituted to modifier expression.
         insta::assert_debug_snapshot!(
             parse_with_aliases_and_modifier("A-", [("A", "all:a")]).unwrap_err().kind(),
-            @r###"BadAliasExpansion("A")"###);
+            @r#"InAliasExpansion("A")"#);
     }
 
     #[test]

@@ -120,10 +120,10 @@ pub enum TemplateParseErrorKind {
     RedefinedFunctionParameter,
     #[error("{0}")]
     Expression(String),
-    #[error(r#"Alias "{0}" cannot be expanded"#)]
-    BadAliasExpansion(String),
-    #[error(r#"Function parameter "{0}" cannot be expanded"#)]
-    BadParameterExpansion(String),
+    #[error(r#"In alias "{0}""#)]
+    InAliasExpansion(String),
+    #[error(r#"In function parameter "{0}""#)]
+    InParameterExpansion(String),
     #[error(r#"Alias "{0}" expanded recursively"#)]
     RecursiveAlias(String),
 }
@@ -233,9 +233,9 @@ impl AliasExpandError for TemplateParseError {
     fn within_alias_expansion(self, id: AliasId<'_>, span: pest::Span<'_>) -> Self {
         let kind = match id {
             AliasId::Symbol(_) | AliasId::Function(..) => {
-                TemplateParseErrorKind::BadAliasExpansion(id.to_string())
+                TemplateParseErrorKind::InAliasExpansion(id.to_string())
             }
-            AliasId::Parameter(_) => TemplateParseErrorKind::BadParameterExpansion(id.to_string()),
+            AliasId::Parameter(_) => TemplateParseErrorKind::InParameterExpansion(id.to_string()),
         };
         Self::with_span(kind, span).with_source(self)
     }
@@ -1149,20 +1149,20 @@ mod tests {
         // Infinite recursion, where the top-level error isn't of RecursiveAlias kind.
         assert_eq!(
             with_aliases([("A", "A")]).parse("A").unwrap_err().kind,
-            TemplateParseErrorKind::BadAliasExpansion("A".to_owned()),
+            TemplateParseErrorKind::InAliasExpansion("A".to_owned()),
         );
         assert_eq!(
             with_aliases([("A", "B"), ("B", "b ++ C"), ("C", "c ++ B")])
                 .parse("A")
                 .unwrap_err()
                 .kind,
-            TemplateParseErrorKind::BadAliasExpansion("A".to_owned()),
+            TemplateParseErrorKind::InAliasExpansion("A".to_owned()),
         );
 
         // Error in alias definition.
         assert_eq!(
             with_aliases([("A", "a(")]).parse("A").unwrap_err().kind,
-            TemplateParseErrorKind::BadAliasExpansion("A".to_owned()),
+            TemplateParseErrorKind::InAliasExpansion("A".to_owned()),
         );
     }
 
@@ -1257,14 +1257,14 @@ mod tests {
                 .parse("F(a)")
                 .unwrap_err()
                 .kind,
-            TemplateParseErrorKind::BadAliasExpansion("F(x)".to_owned()),
+            TemplateParseErrorKind::InAliasExpansion("F(x)".to_owned()),
         );
         assert_eq!(
             with_aliases([("F(x)", "F(x,b)"), ("F(x,y)", "F(x|y)")])
                 .parse("F(a)")
                 .unwrap_err()
                 .kind,
-            TemplateParseErrorKind::BadAliasExpansion("F(x)".to_owned())
+            TemplateParseErrorKind::InAliasExpansion("F(x)".to_owned())
         );
     }
 }

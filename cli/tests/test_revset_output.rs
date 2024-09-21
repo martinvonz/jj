@@ -141,33 +141,33 @@ fn test_bad_function_call() {
     "###);
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "file(not::a-fileset)"]);
-    insta::assert_snapshot!(stderr, @r###"
-    Error: Failed to parse revset: Invalid fileset expression
+    insta::assert_snapshot!(stderr, @r#"
+    Error: Failed to parse revset: In fileset expression
     Caused by:
     1:  --> 1:6
       |
     1 | file(not::a-fileset)
       |      ^------------^
       |
-      = Invalid fileset expression
+      = In fileset expression
     2:  --> 1:5
       |
     1 | not::a-fileset
       |     ^---
       |
       = expected <identifier>, <string_literal>, or <raw_string_literal>
-    "###);
+    "#);
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", r#"file(foo:"bar")"#]);
-    insta::assert_snapshot!(stderr, @r###"
-    Error: Failed to parse revset: Invalid fileset expression
+    insta::assert_snapshot!(stderr, @r#"
+    Error: Failed to parse revset: In fileset expression
     Caused by:
     1:  --> 1:6
       |
     1 | file(foo:"bar")
       |      ^-------^
       |
-      = Invalid fileset expression
+      = In fileset expression
     2:  --> 1:1
       |
     1 | foo:"bar"
@@ -175,18 +175,18 @@ fn test_bad_function_call() {
       |
       = Invalid file pattern
     3: Invalid file pattern kind "foo:"
-    "###);
+    "#);
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", r#"file(a, "../out")"#]);
-    insta::assert_snapshot!(stderr.replace('\\', "/"), @r###"
-    Error: Failed to parse revset: Invalid fileset expression
+    insta::assert_snapshot!(stderr.replace('\\', "/"), @r#"
+    Error: Failed to parse revset: In fileset expression
     Caused by:
     1:  --> 1:9
       |
     1 | file(a, "../out")
       |         ^------^
       |
-      = Invalid fileset expression
+      = In fileset expression
     2:  --> 1:1
       |
     1 | "../out"
@@ -195,7 +195,7 @@ fn test_bad_function_call() {
       = Invalid file pattern
     3: Path "../out" is not in the repo "."
     4: Invalid component ".." in repo-relative path "../out"
-    "###);
+    "#);
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "bookmarks(bad:pattern)"]);
     insta::assert_snapshot!(stderr, @r###"
@@ -328,15 +328,15 @@ fn test_function_name_hint() {
     Hint: Did you mean "author", "author_date", "my_author"?
     "###);
 
-    insta::assert_snapshot!(evaluate_err("my_bookmarks"), @r###"
-    Error: Failed to parse revset: Alias "my_bookmarks" cannot be expanded
+    insta::assert_snapshot!(evaluate_err("my_bookmarks"), @r#"
+    Error: Failed to parse revset: In alias "my_bookmarks"
     Caused by:
     1:  --> 1:1
       |
     1 | my_bookmarks
       | ^----------^
       |
-      = Alias "my_bookmarks" cannot be expanded
+      = In alias "my_bookmarks"
     2:  --> 1:1
       |
     1 | bookmark()
@@ -344,7 +344,7 @@ fn test_function_name_hint() {
       |
       = Function "bookmark" doesn't exist
     Hint: Did you mean "bookmarks", "remote_bookmarks"?
-    "###);
+    "#);
 }
 
 #[test]
@@ -377,22 +377,22 @@ fn test_alias() {
     "###);
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "root() & syntax-error"]);
-    insta::assert_snapshot!(stderr, @r###"
-    Error: Failed to parse revset: Alias "syntax-error" cannot be expanded
+    insta::assert_snapshot!(stderr, @r#"
+    Error: Failed to parse revset: In alias "syntax-error"
     Caused by:
     1:  --> 1:10
       |
     1 | root() & syntax-error
       |          ^----------^
       |
-      = Alias "syntax-error" cannot be expanded
+      = In alias "syntax-error"
     2:  --> 1:11
       |
     1 | whatever &
       |           ^---
       |
       = expected `::`, `..`, `~`, or <primary>
-    "###);
+    "#);
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "identity()"]);
     insta::assert_snapshot!(stderr, @r###"
@@ -406,58 +406,58 @@ fn test_alias() {
     "###);
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "my_author(none())"]);
-    insta::assert_snapshot!(stderr, @r###"
-    Error: Failed to parse revset: Alias "my_author(x)" cannot be expanded
+    insta::assert_snapshot!(stderr, @r#"
+    Error: Failed to parse revset: In alias "my_author(x)"
     Caused by:
     1:  --> 1:1
       |
     1 | my_author(none())
       | ^---------------^
       |
-      = Alias "my_author(x)" cannot be expanded
+      = In alias "my_author(x)"
     2:  --> 1:8
       |
     1 | author(x)
       |        ^
       |
-      = Function parameter "x" cannot be expanded
+      = In function parameter "x"
     3:  --> 1:11
       |
     1 | my_author(none())
       |           ^----^
       |
       = Expected expression of string pattern
-    "###);
+    "#);
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "root() & recurse"]);
-    insta::assert_snapshot!(stderr, @r###"
-    Error: Failed to parse revset: Alias "recurse" cannot be expanded
+    insta::assert_snapshot!(stderr, @r#"
+    Error: Failed to parse revset: In alias "recurse"
     Caused by:
     1:  --> 1:10
       |
     1 | root() & recurse
       |          ^-----^
       |
-      = Alias "recurse" cannot be expanded
+      = In alias "recurse"
     2:  --> 1:1
       |
     1 | recurse1
       | ^------^
       |
-      = Alias "recurse1" cannot be expanded
+      = In alias "recurse1"
     3:  --> 1:1
       |
     1 | recurse2()
       | ^--------^
       |
-      = Alias "recurse2()" cannot be expanded
+      = In alias "recurse2()"
     4:  --> 1:1
       |
     1 | recurse
       | ^-----^
       |
       = Alias "recurse" expanded recursively
-    "###);
+    "#);
 }
 
 #[test]
@@ -591,22 +591,22 @@ fn test_all_modifier() {
         &repo_path,
         &["new", "x..", "--config-toml=revset-aliases.x='all:@'"],
     );
-    insta::assert_snapshot!(stderr, @r###"
-    Error: Failed to parse revset: Alias "x" cannot be expanded
+    insta::assert_snapshot!(stderr, @r#"
+    Error: Failed to parse revset: In alias "x"
     Caused by:
     1:  --> 1:1
       |
     1 | x..
       | ^
       |
-      = Alias "x" cannot be expanded
+      = In alias "x"
     2:  --> 1:1
       |
     1 | all:@
       | ^-^
       |
       = Modifier "all:" is not allowed in sub expression
-    "###);
+    "#);
 
     // immutable_heads() alias may be parsed as a top-level expression, but
     // still, modifier shouldn't be allowed there.

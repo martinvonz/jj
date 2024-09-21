@@ -1744,20 +1744,20 @@ mod tests {
         "###);
         // Error in lambda alias
         env.add_alias("too_many_params", "|x, y| x");
-        insta::assert_snapshot!(env.parse_err(r#""a".lines().map(too_many_params)"#), @r###"
+        insta::assert_snapshot!(env.parse_err(r#""a".lines().map(too_many_params)"#), @r#"
          --> 1:17
           |
         1 | "a".lines().map(too_many_params)
           |                 ^-------------^
           |
-          = Alias "too_many_params" cannot be expanded
+          = In alias "too_many_params"
          --> 1:2
           |
         1 | |x, y| x
           |  ^--^
           |
           = Expected 1 lambda parameters
-        "###);
+        "#);
     }
 
     #[test]
@@ -1994,20 +1994,20 @@ mod tests {
         env.add_alias("time_format", r#""%Y-%m-%d""#);
         env.add_alias("bad_time_format", r#""%_""#);
         insta::assert_snapshot!(env.render_ok(r#"t0.format(time_format)"#), @"1970-01-01");
-        insta::assert_snapshot!(env.parse_err(r#"t0.format(bad_time_format)"#), @r###"
+        insta::assert_snapshot!(env.parse_err(r#"t0.format(bad_time_format)"#), @r#"
          --> 1:11
           |
         1 | t0.format(bad_time_format)
           |           ^-------------^
           |
-          = Alias "bad_time_format" cannot be expanded
+          = In alias "bad_time_format"
          --> 1:1
           |
         1 | "%_"
           | ^--^
           |
           = Invalid time format
-        "###);
+        "#);
     }
 
     #[test]
