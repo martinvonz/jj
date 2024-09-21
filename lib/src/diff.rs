@@ -839,6 +839,7 @@ pub enum DiffHunkKind {
 pub type DiffHunkContentVec<'input> = SmallVec<[&'input BStr; 2]>;
 
 /// Iterator over matching and different texts.
+#[derive(Clone, Debug)]
 pub struct DiffHunkIterator<'diff, 'input> {
     diff: &'diff Diff<'input>,
     ranges: DiffHunkRangeIterator<'diff>,
