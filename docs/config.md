@@ -769,6 +769,27 @@ command = ["head", "-n", "10"]
 patterns = ["numbers.txt"]
 ```
 
+### Disabling and enabling tools
+
+Tools can be disabled and enabled with the optional `enabled` config. This
+allows you to define tools globally but enable them only for specific
+repositories.
+
+In the user configuration, define a disabled tool for running rustfmt:
+
+```toml
+[fix.tools.rustfmt]
+enabled = false
+command = ["rustfmt", "--emit", "stdout"]
+patterns = ["glob:'**/*.rs'"]
+```
+
+Then to use the tool in a specific repository, set the `enabled` config:
+
+```shell
+$ jj config set --repo fix.tools.rustfmt.enabled true
+```
+
 ## Commit Signing
 
 `jj` can be configured to sign and verify the commits it creates using either

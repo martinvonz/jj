@@ -82,6 +82,9 @@ use crate::ui::Ui;
 ///    empty, no files will be affected by the tool. If there are multiple
 ///    patterns, the tool is applied only once to each file in the union of the
 ///    patterns.
+///  - `enabled`: Enables or disables the tool. If omitted, the tool is enabled.
+///    This is useful for defining disabled tools in user configuration that can
+///    be enabled in individual repositories with one config setting.
 ///
 /// For example, the following configuration defines how two code formatters
 /// (`clang-format` and `black`) will apply to three different file extensions
@@ -431,6 +434,12 @@ struct ToolsConfig {
 struct RawToolConfig {
     command: CommandNameAndArgs,
     patterns: Vec<String>,
+    #[serde(default = "default_tool_enabled")]
+    enabled: bool,
+}
+
+fn default_tool_enabled() -> bool {
+    true
 }
 
 /// Parses the `fix.tools` config table.
@@ -473,8 +482,10 @@ fn get_tools_config(ui: &mut Ui, config: &config::Config) -> Result<ToolsConfig,
         let mut tools: Vec<ToolConfig> = tools_table
             .into_iter()
             .sorted_by(|a, b| a.0.cmp(&b.0))
-            .map(|(_name, value)| -> Result<ToolConfig, CommandError> {
-                let tool: RawToolConfig = value.try_deserialize()?;
+            .map(|(_name, value): (_, _)| value.try_deserialize::<RawToolConfig>())
+            .filter_ok(|tool| tool.enabled)
+            .map(|tool| -> Result<ToolConfig, CommandError> {
+                let tool = tool?;
                 Ok(ToolConfig {
                     command: tool.command,
                     matcher: FilesetExpression::union_all(

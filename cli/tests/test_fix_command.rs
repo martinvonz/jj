@@ -193,6 +193,48 @@ fn test_config_multiple_tools_with_same_name() {
 }
 
 #[test]
+fn test_config_disabled_tools() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+    let formatter_path = assert_cmd::cargo::cargo_bin("fake-formatter");
+    assert!(formatter_path.is_file());
+    let escaped_formatter_path = formatter_path.to_str().unwrap().replace('\\', r"\\");
+    test_env.add_config(&format!(
+        r###"
+        [fix.tools.tool-1]
+        # default is enabled
+        command = ["{formatter}", "--uppercase"]
+        patterns = ["foo"]
+
+        [fix.tools.tool-2]
+        enabled = true
+        command = ["{formatter}", "--lowercase"]
+        patterns = ["bar"]
+
+        [fix.tools.tool-3]
+        enabled = false
+        command = ["{formatter}", "--lowercase"]
+        patterns = ["baz"]
+        "###,
+        formatter = escaped_formatter_path.as_str()
+    ));
+
+    std::fs::write(repo_path.join("foo"), "Foo\n").unwrap();
+    std::fs::write(repo_path.join("bar"), "Bar\n").unwrap();
+    std::fs::write(repo_path.join("baz"), "Baz\n").unwrap();
+
+    let (_stdout, _stderr) = test_env.jj_cmd_ok(&repo_path, &["fix"]);
+
+    let content = test_env.jj_cmd_success(&repo_path, &["file", "show", "foo", "-r", "@"]);
+    insta::assert_snapshot!(content, @"FOO\n");
+    let content = test_env.jj_cmd_success(&repo_path, &["file", "show", "bar", "-r", "@"]);
+    insta::assert_snapshot!(content, @"bar\n");
+    let content = test_env.jj_cmd_success(&repo_path, &["file", "show", "baz", "-r", "@"]);
+    insta::assert_snapshot!(content, @"Baz\n");
+}
+
+#[test]
 fn test_config_tables_overlapping_patterns() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
