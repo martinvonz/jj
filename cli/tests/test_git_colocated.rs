@@ -554,8 +554,8 @@ fn test_git_colocated_fetch_deleted_or_moved_bookmark() {
     // "original C" and "B_to_delete" are abandoned, as the corresponding bookmarks
     // were deleted or moved on the remote (#864)
     insta::assert_snapshot!(get_log_output(&test_env, &clone_path), @r#"
-    ○  4f3d13296f978cbc351c46a43b4619c91b888475 C_to_move moved C
-    │ @  9c2de797c3c299a40173c5af724329012b77cbdd
+    @  9c2de797c3c299a40173c5af724329012b77cbdd
+    │ ○  4f3d13296f978cbc351c46a43b4619c91b888475 C_to_move moved C
     ├─╯
     ◆  a7e4cec4256b7995129b9d1e1bda7e1df6e60678 A git_head() A
     ◆  0000000000000000000000000000000000000000

@@ -121,9 +121,10 @@ impl<N> Iterator for ReverseGraphIterator<N> {
 /// branches will be visited. At merge point, the second (or the last) ancestor
 /// branch will be visited first. This is practically [the same as Git][Git].
 ///
-/// The branch containing the first commit in the input iterator will be emitted
-/// first. It is often the working-copy ancestor branch. The other head branches
-/// won't be enqueued eagerly, and will be emitted as late as possible.
+/// If no branches are prioritized, the branch containing the first commit in
+/// the input iterator will be emitted first. It is often the working-copy
+/// ancestor branch. The other head branches won't be enqueued eagerly, and will
+/// be emitted as late as possible.
 ///
 /// [Git]: https://github.blog/2022-08-30-gits-database-internals-ii-commit-history-queries/#topological-sorting
 #[derive(Clone, Debug)]
@@ -133,7 +134,8 @@ pub struct TopoGroupedGraphIterator<N, I> {
     nodes: HashMap<N, TopoGroupedGraphNode<N>>,
     /// Stack of graph nodes to be emitted.
     emittable_ids: Vec<N>,
-    /// List of new head nodes found while processing unpopulated nodes.
+    /// List of new head nodes found while processing unpopulated nodes, or
+    /// prioritized branch nodes added by caller.
     new_head_ids: VecDeque<N>,
     /// Set of nodes which may be ancestors of `new_head_ids`.
     blocked_ids: HashSet<N>,
@@ -171,6 +173,22 @@ where
             new_head_ids: VecDeque::new(),
             blocked_ids: HashSet::new(),
         }
+    }
+
+    /// Makes the branch containing the specified node be emitted earlier than
+    /// the others.
+    ///
+    /// The `id` usually points to a head node, but this isn't a requirement.
+    /// If the specified node isn't a head, all preceding nodes will be queued.
+    ///
+    /// The specified node must exist in the input iterator. If it didn't, the
+    /// iterator would panic.
+    pub fn prioritize_branch(&mut self, id: N) {
+        // Mark existence of unpopulated node
+        self.nodes.entry(id.clone()).or_default();
+        // Push to non-emitting list so the prioritized heads wouldn't be
+        // interleaved
+        self.new_head_ids.push_back(id);
     }
 
     fn populate_one(&mut self) -> Result<Option<()>, E> {
@@ -278,7 +296,8 @@ where
                 }
                 let Some(edges) = current_node.edges.take() else {
                     // Not yet populated
-                    self.populate_one()?.expect("parent node should exist");
+                    self.populate_one()?
+                        .expect("parent or prioritized node should exist");
                     continue;
                 };
                 // The second (or the last) parent will be visited first
@@ -1530,6 +1549,296 @@ mod tests {
         A
 
         "###);
+    }
+
+    #[test]
+    fn test_topo_grouped_prioritized_branches_trivial_fork() {
+        // The same setup as test_topo_grouped_trivial_fork()
+        let graph = [
+            ('E', vec![direct('B')]),
+            ('D', vec![direct('A')]),
+            ('C', vec![direct('B')]),
+            ('B', vec![direct('A')]),
+            ('A', vec![]),
+        ]
+        .map(Ok);
+        insta::assert_snapshot!(format_graph(graph.iter().cloned()), @r"
+        E  direct(B)
+        │
+        │ D  direct(A)
+        │ │
+        │ │ C  direct(B)
+        ├───╯
+        B │  direct(A)
+        ├─╯
+        A
+        ");
+
+        // Emit the branch C first
+        let mut iter = topo_grouped(graph.iter().cloned());
+        iter.prioritize_branch('C');
+        insta::assert_snapshot!(format_graph(iter), @r"
+        C  direct(B)
+        │
+        │ E  direct(B)
+        ├─╯
+        B  direct(A)
+        │
+        │ D  direct(A)
+        ├─╯
+        A
+        ");
+
+        // Emit the branch D first
+        let mut iter = topo_grouped(graph.iter().cloned());
+        iter.prioritize_branch('D');
+        insta::assert_snapshot!(format_graph(iter), @r"
+        D  direct(A)
+        │
+        │ E  direct(B)
+        │ │
+        │ │ C  direct(B)
+        │ ├─╯
+        │ B  direct(A)
+        ├─╯
+        A
+        ");
+
+        // Emit the branch C first, then D. E is emitted earlier than D because
+        // E belongs to the branch C compared to the branch D.
+        let mut iter = topo_grouped(graph.iter().cloned());
+        iter.prioritize_branch('C');
+        iter.prioritize_branch('D');
+        insta::assert_snapshot!(format_graph(iter), @r"
+        C  direct(B)
+        │
+        │ E  direct(B)
+        ├─╯
+        B  direct(A)
+        │
+        │ D  direct(A)
+        ├─╯
+        A
+        ");
+
+        // Non-head node can be prioritized
+        let mut iter = topo_grouped(graph.iter().cloned());
+        iter.prioritize_branch('B');
+        insta::assert_snapshot!(format_graph(iter), @r"
+        E  direct(B)
+        │
+        │ C  direct(B)
+        ├─╯
+        B  direct(A)
+        │
+        │ D  direct(A)
+        ├─╯
+        A
+        ");
+
+        // Root node can be prioritized
+        let mut iter = topo_grouped(graph.iter().cloned());
+        iter.prioritize_branch('A');
+        insta::assert_snapshot!(format_graph(iter), @r"
+        D  direct(A)
+        │
+        │ E  direct(B)
+        │ │
+        │ │ C  direct(B)
+        │ ├─╯
+        │ B  direct(A)
+        ├─╯
+        A
+        ");
+    }
+
+    #[test]
+    fn test_topo_grouped_prioritized_branches_fork_multiple_heads() {
+        // The same setup as test_topo_grouped_fork_multiple_heads()
+        let graph = [
+            ('I', vec![direct('E')]),
+            ('H', vec![direct('C')]),
+            ('G', vec![direct('A')]),
+            ('F', vec![direct('E')]),
+            ('E', vec![direct('C')]),
+            ('D', vec![direct('C')]),
+            ('C', vec![direct('A')]),
+            ('B', vec![direct('A')]),
+            ('A', vec![]),
+        ]
+        .map(Ok);
+        insta::assert_snapshot!(format_graph(graph.iter().cloned()), @r"
+        I  direct(E)
+        │
+        │ H  direct(C)
+        │ │
+        │ │ G  direct(A)
+        │ │ │
+        │ │ │ F  direct(E)
+        ├─────╯
+        E │ │  direct(C)
+        ├─╯ │
+        │ D │  direct(C)
+        ├─╯ │
+        C   │  direct(A)
+        ├───╯
+        │ B  direct(A)
+        ├─╯
+        A
+        ");
+
+        // Emit B, G, then remainders
+        let mut iter = topo_grouped(graph.iter().cloned());
+        iter.prioritize_branch('B');
+        iter.prioritize_branch('G');
+        insta::assert_snapshot!(format_graph(iter), @r"
+        B  direct(A)
+        │
+        │ G  direct(A)
+        ├─╯
+        │ I  direct(E)
+        │ │
+        │ │ F  direct(E)
+        │ ├─╯
+        │ E  direct(C)
+        │ │
+        │ │ H  direct(C)
+        │ ├─╯
+        │ │ D  direct(C)
+        │ ├─╯
+        │ C  direct(A)
+        ├─╯
+        A
+        ");
+
+        // Emit D, H, then descendants of C. The order of B and G is not
+        // respected because G can be found earlier through C->A->G. At this
+        // point, B is not populated yet, so A is blocked only by {G}. This is
+        // a limitation of the current node reordering logic.
+        let mut iter = topo_grouped(graph.iter().cloned());
+        iter.prioritize_branch('D');
+        iter.prioritize_branch('H');
+        iter.prioritize_branch('B');
+        iter.prioritize_branch('G');
+        insta::assert_snapshot!(format_graph(iter), @r"
+        D  direct(C)
+        │
+        │ H  direct(C)
+        ├─╯
+        │ I  direct(E)
+        │ │
+        │ │ F  direct(E)
+        │ ├─╯
+        │ E  direct(C)
+        ├─╯
+        C  direct(A)
+        │
+        │ G  direct(A)
+        ├─╯
+        │ B  direct(A)
+        ├─╯
+        A
+        ");
+    }
+
+    #[test]
+    fn test_topo_grouped_prioritized_branches_fork_parallel() {
+        // The same setup as test_topo_grouped_fork_parallel()
+        let graph = [
+            // Pull all sub graphs in reverse order:
+            ('I', vec![direct('A')]),
+            ('H', vec![direct('C')]),
+            ('G', vec![direct('E')]),
+            // Orphan sub graph G,F-E:
+            ('F', vec![direct('E')]),
+            ('E', vec![missing('Y')]),
+            // Orphan sub graph H,D-C:
+            ('D', vec![direct('C')]),
+            ('C', vec![missing('X')]),
+            // Orphan sub graph I,B-A:
+            ('B', vec![direct('A')]),
+            ('A', vec![]),
+        ]
+        .map(Ok);
+        insta::assert_snapshot!(format_graph(graph.iter().cloned()), @r"
+        I  direct(A)
+        │
+        │ H  direct(C)
+        │ │
+        │ │ G  direct(E)
+        │ │ │
+        │ │ │ F  direct(E)
+        │ │ ├─╯
+        │ │ E  missing(Y)
+        │ │ │
+        │ │ ~
+        │ │
+        │ │ D  direct(C)
+        │ ├─╯
+        │ C  missing(X)
+        │ │
+        │ ~
+        │
+        │ B  direct(A)
+        ├─╯
+        A
+        ");
+
+        // Emit the sub graph G first
+        let mut iter = topo_grouped(graph.iter().cloned());
+        iter.prioritize_branch('G');
+        insta::assert_snapshot!(format_graph(iter), @r"
+        G  direct(E)
+        │
+        │ F  direct(E)
+        ├─╯
+        E  missing(Y)
+        │
+        ~
+
+        I  direct(A)
+        │
+        │ B  direct(A)
+        ├─╯
+        A
+
+        H  direct(C)
+        │
+        │ D  direct(C)
+        ├─╯
+        C  missing(X)
+        │
+        ~
+        ");
+
+        // Emit sub graphs in reverse order by selecting roots
+        let mut iter = topo_grouped(graph.iter().cloned());
+        iter.prioritize_branch('E');
+        iter.prioritize_branch('C');
+        iter.prioritize_branch('A');
+        insta::assert_snapshot!(format_graph(iter), @r"
+        G  direct(E)
+        │
+        │ F  direct(E)
+        ├─╯
+        E  missing(Y)
+        │
+        ~
+
+        H  direct(C)
+        │
+        │ D  direct(C)
+        ├─╯
+        C  missing(X)
+        │
+        ~
+
+        I  direct(A)
+        │
+        │ B  direct(A)
+        ├─╯
+        A
+        ");
     }
 
     #[test]

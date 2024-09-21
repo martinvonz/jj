@@ -561,12 +561,12 @@ fn test_rebase_multiple_revisions() {
     Parent commit      : kmkuslsw d1bfda8c f | f
     Added 0 files, modified 0 files, removed 2 files
     "###);
-    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    ○  h: g
-    ○  g: f
-    │ ○  e: d
-    │ ○  d: i
-    │ @  i: f
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r#"
+    ○  e: d
+    ○  d: i
+    @  i: f
+    │ ○  h: g
+    │ ○  g: f
     ├─╯
     ○    f: c a
     ├─╮
@@ -575,7 +575,7 @@ fn test_rebase_multiple_revisions() {
     ├─╯
     ○  a
     ◆
-    "###);
+    "#);
 }
 
 #[test]
@@ -837,7 +837,7 @@ fn test_rebase_with_descendants() {
     Parent commit      : rlvkpnrz 2443ea76 a | a
     Added 0 files, modified 0 files, removed 2 files
     "#);
-    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r#"
     @  d: a
     │ ○  c: a b
     ╭─┤
@@ -845,7 +845,7 @@ fn test_rebase_with_descendants() {
     ├─╯
     ○  a
     ◆
-    "###);
+    "#);
 
     // Same test as above, but with multiple commits per argument
     test_env.jj_cmd_ok(&repo_path, &["undo"]);
@@ -865,7 +865,7 @@ fn test_rebase_with_descendants() {
     Parent commit      : rlvkpnrz 2443ea76 a | a
     Added 0 files, modified 0 files, removed 2 files
     "#);
-    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r#"
     @  d: a
     │ ○  c: a b
     ╭─┤
@@ -873,7 +873,7 @@ fn test_rebase_with_descendants() {
     ├─╯
     ○  a
     ◆
-    "###);
+    "#);
 }
 
 #[test]
@@ -1539,23 +1539,23 @@ fn test_rebase_after() {
     Parent commit      : nkmrtpmo 0d7e4ce9 e | e
     Added 0 files, modified 0 files, removed 3 files
     "###);
-    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    ○    d: b1 b3
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r#"
+    ○    c: b2 b4
     ├─╮
-    │ │ ○    c: b2 b4
-    │ │ ├─╮
-    │ │ │ ○  b4: f
-    │ │ ○ │  b2: f
-    │ │ ├─╯
-    │ │ @  f: e
-    │ │ ○  e: b1 b3
+    │ ○  b4: f
+    ○ │  b2: f
+    ├─╯
+    @  f: e
+    ○    e: b1 b3
+    ├─╮
+    │ │ ○  d: b1 b3
     ╭─┬─╯
     │ ○  b3: a
     ○ │  b1: a
     ├─╯
     ○  a
     ◆
-    "###);
+    "#);
     test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
 
     // Rebase a subgraph with four commits after one of the commits itself.

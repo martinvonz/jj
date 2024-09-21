@@ -607,14 +607,14 @@ fn test_squash_from_to_partial() {
     insta::assert_snapshot!(stderr, @r###"
     Rebased 1 descendant commits
     "###);
-    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    ○  d2a587ae205d c
-    ○  a53394306362 b
-    │ @  e0dac715116f d
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r#"
+    @  e0dac715116f d
+    │ ○  d2a587ae205d c
+    │ ○  a53394306362 b
     ├─╯
     ○  b7b767179c44 a
     ◆  000000000000 (empty)
-    "###);
+    "#);
     // The selected change from the source has been applied
     let stdout = test_env.jj_cmd_success(&repo_path, &["file", "show", "file1", "-r", "b"]);
     insta::assert_snapshot!(stdout, @r###"

@@ -1151,15 +1151,15 @@ fn test_git_push_deleted() {
       Delete bookmark bookmark1 from d13ecdbda2a2
     "#);
     let stdout = test_env.jj_cmd_success(&workspace_root, &["log", "-rall()"]);
-    insta::assert_snapshot!(stdout, @r###"
-    ○  rlzusymt test.user@example.com 2001-02-03 08:05:10 bookmark2 8476341e
-    │  (empty) description 2
+    insta::assert_snapshot!(stdout, @r#"
+    @  yqosqzyt test.user@example.com 2001-02-03 08:05:13 5b36783c
+    │  (empty) (no description set)
+    │ ○  rlzusymt test.user@example.com 2001-02-03 08:05:10 bookmark2 8476341e
+    ├─╯  (empty) description 2
     │ ○  xtvrqkyv test.user@example.com 2001-02-03 08:05:08 d13ecdbd
     ├─╯  (empty) description 1
-    │ @  yqosqzyt test.user@example.com 2001-02-03 08:05:13 5b36783c
-    ├─╯  (empty) (no description set)
     ◆  zzzzzzzz root() 00000000
-    "###);
+    "#);
     let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push", "--deleted"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
