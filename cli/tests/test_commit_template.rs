@@ -861,36 +861,36 @@ fn test_log_contained_in() {
         &repo_path,
         &["log", "-r::", "-T", &template_for_revset("unknown_fn()")],
     );
-    insta::assert_snapshot!(stderr, @r###"
-    Error: Failed to parse template: Failed to parse revset
+    insta::assert_snapshot!(stderr, @r#"
+    Error: Failed to parse template: In revset expression
     Caused by:
     1:  --> 5:28
       |
     5 |       if(self.contained_in("unknown_fn()"), "[contained_in]"),
       |                            ^------------^
       |
-      = Failed to parse revset
+      = In revset expression
     2:  --> 1:1
       |
     1 | unknown_fn()
       | ^--------^
       |
       = Function "unknown_fn" doesn't exist
-    "###);
+    "#);
 
     let stderr = test_env.jj_cmd_failure(
         &repo_path,
         &["log", "-r::", "-T", &template_for_revset("author(x:'y')")],
     );
-    insta::assert_snapshot!(stderr, @r###"
-    Error: Failed to parse template: Failed to parse revset
+    insta::assert_snapshot!(stderr, @r#"
+    Error: Failed to parse template: In revset expression
     Caused by:
     1:  --> 5:28
       |
     5 |       if(self.contained_in("author(x:'y')"), "[contained_in]"),
       |                            ^-------------^
       |
-      = Failed to parse revset
+      = In revset expression
     2:  --> 1:8
       |
     1 | author(x:'y')
@@ -899,7 +899,7 @@ fn test_log_contained_in() {
       = Invalid string pattern
     3: Invalid string pattern kind "x:"
     Hint: Try prefixing with one of `exact:`, `glob:`, `regex:`, or `substring:`
-    "###);
+    "#);
 
     let stderr = test_env.jj_cmd_failure(
         &repo_path,

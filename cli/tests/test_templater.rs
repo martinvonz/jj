@@ -83,15 +83,15 @@ fn test_templater_parse_error() {
       = Keyword "se" doesn't exist
     Hint: Did you mean "s", "self"?
     "###);
-    insta::assert_snapshot!(render_err(r#"format_id(commit_id)"#), @r###"
-    Error: Failed to parse template: Alias "format_id(id)" cannot be expanded
+    insta::assert_snapshot!(render_err(r#"format_id(commit_id)"#), @r#"
+    Error: Failed to parse template: In alias "format_id(id)"
     Caused by:
     1:  --> 1:1
       |
     1 | format_id(commit_id)
       | ^------------------^
       |
-      = Alias "format_id(id)" cannot be expanded
+      = In alias "format_id(id)"
     2:  --> 1:4
       |
     1 | id.sort()
@@ -99,7 +99,7 @@ fn test_templater_parse_error() {
       |
       = Method "sort" doesn't exist for type "CommitOrChangeId"
     Hint: Did you mean "short", "shortest"?
-    "###);
+    "#);
 
     // -Tbuiltin shows the predefined builtin_* aliases. This isn't 100%
     // guaranteed, but is nice.
@@ -156,103 +156,103 @@ fn test_templater_alias() {
     insta::assert_snapshot!(render("my_commit_id"), @"000000000000");
     insta::assert_snapshot!(render("identity(my_commit_id)"), @"000000000000");
 
-    insta::assert_snapshot!(render_err("commit_id ++ syntax_error"), @r###"
-    Error: Failed to parse template: Alias "syntax_error" cannot be expanded
+    insta::assert_snapshot!(render_err("commit_id ++ syntax_error"), @r#"
+    Error: Failed to parse template: In alias "syntax_error"
     Caused by:
     1:  --> 1:14
       |
     1 | commit_id ++ syntax_error
       |              ^----------^
       |
-      = Alias "syntax_error" cannot be expanded
+      = In alias "syntax_error"
     2:  --> 1:5
       |
     1 | foo.
       |     ^---
       |
       = expected <identifier>
-    "###);
+    "#);
 
-    insta::assert_snapshot!(render_err("commit_id ++ name_error"), @r###"
-    Error: Failed to parse template: Alias "name_error" cannot be expanded
+    insta::assert_snapshot!(render_err("commit_id ++ name_error"), @r#"
+    Error: Failed to parse template: In alias "name_error"
     Caused by:
     1:  --> 1:14
       |
     1 | commit_id ++ name_error
       |              ^--------^
       |
-      = Alias "name_error" cannot be expanded
+      = In alias "name_error"
     2:  --> 1:1
       |
     1 | unknown_id
       | ^--------^
       |
       = Keyword "unknown_id" doesn't exist
-    "###);
+    "#);
 
-    insta::assert_snapshot!(render_err(r#"identity(identity(commit_id.short("")))"#), @r###"
-    Error: Failed to parse template: Alias "identity(x)" cannot be expanded
+    insta::assert_snapshot!(render_err(r#"identity(identity(commit_id.short("")))"#), @r#"
+    Error: Failed to parse template: In alias "identity(x)"
     Caused by:
     1:  --> 1:1
       |
     1 | identity(identity(commit_id.short("")))
       | ^-------------------------------------^
       |
-      = Alias "identity(x)" cannot be expanded
+      = In alias "identity(x)"
     2:  --> 1:1
       |
     1 | x
       | ^
       |
-      = Function parameter "x" cannot be expanded
+      = In function parameter "x"
     3:  --> 1:10
       |
     1 | identity(identity(commit_id.short("")))
       |          ^---------------------------^
       |
-      = Alias "identity(x)" cannot be expanded
+      = In alias "identity(x)"
     4:  --> 1:1
       |
     1 | x
       | ^
       |
-      = Function parameter "x" cannot be expanded
+      = In function parameter "x"
     5:  --> 1:35
       |
     1 | identity(identity(commit_id.short("")))
       |                                   ^^
       |
       = Expected expression of type "Integer", but actual type is "String"
-    "###);
+    "#);
 
-    insta::assert_snapshot!(render_err("commit_id ++ recurse"), @r###"
-    Error: Failed to parse template: Alias "recurse" cannot be expanded
+    insta::assert_snapshot!(render_err("commit_id ++ recurse"), @r#"
+    Error: Failed to parse template: In alias "recurse"
     Caused by:
     1:  --> 1:14
       |
     1 | commit_id ++ recurse
       |              ^-----^
       |
-      = Alias "recurse" cannot be expanded
+      = In alias "recurse"
     2:  --> 1:1
       |
     1 | recurse1
       | ^------^
       |
-      = Alias "recurse1" cannot be expanded
+      = In alias "recurse1"
     3:  --> 1:1
       |
     1 | recurse2()
       | ^--------^
       |
-      = Alias "recurse2()" cannot be expanded
+      = In alias "recurse2()"
     4:  --> 1:1
       |
     1 | recurse
       | ^-----^
       |
       = Alias "recurse" expanded recursively
-    "###);
+    "#);
 
     insta::assert_snapshot!(render_err("identity()"), @r###"
     Error: Failed to parse template: Function "identity": Expected 1 arguments
@@ -273,45 +273,45 @@ fn test_templater_alias() {
       = Function "identity": Expected 1 arguments
     "###);
 
-    insta::assert_snapshot!(render_err(r#"coalesce(label("x", "not boolean"), "")"#), @r###"
-    Error: Failed to parse template: Alias "coalesce(x, y)" cannot be expanded
+    insta::assert_snapshot!(render_err(r#"coalesce(label("x", "not boolean"), "")"#), @r#"
+    Error: Failed to parse template: In alias "coalesce(x, y)"
     Caused by:
     1:  --> 1:1
       |
     1 | coalesce(label("x", "not boolean"), "")
       | ^-------------------------------------^
       |
-      = Alias "coalesce(x, y)" cannot be expanded
+      = In alias "coalesce(x, y)"
     2:  --> 1:4
       |
     1 | if(x, x, y)
       |    ^
       |
-      = Function parameter "x" cannot be expanded
+      = In function parameter "x"
     3:  --> 1:10
       |
     1 | coalesce(label("x", "not boolean"), "")
       |          ^-----------------------^
       |
       = Expected expression of type "Boolean", but actual type is "Template"
-    "###);
+    "#);
 
-    insta::assert_snapshot!(render_err("(-my_commit_id)"), @r###"
-    Error: Failed to parse template: Alias "my_commit_id" cannot be expanded
+    insta::assert_snapshot!(render_err("(-my_commit_id)"), @r#"
+    Error: Failed to parse template: In alias "my_commit_id"
     Caused by:
     1:  --> 1:3
       |
     1 | (-my_commit_id)
       |   ^----------^
       |
-      = Alias "my_commit_id" cannot be expanded
+      = In alias "my_commit_id"
     2:  --> 1:1
       |
     1 | commit_id.short()
       | ^---------------^
       |
       = Expected expression of type "Integer", but actual type is "String"
-    "###);
+    "#);
 }
 
 #[test]

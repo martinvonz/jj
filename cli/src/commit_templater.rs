@@ -768,7 +768,7 @@ fn expect_fileset_literal(
 ) -> Result<FilesetExpression, TemplateParseError> {
     template_parser::expect_string_literal_with(node, |text, span| {
         fileset::parse(text, path_converter).map_err(|err| {
-            TemplateParseError::expression("Failed to parse fileset", span).with_source(err)
+            TemplateParseError::expression("In fileset expression", span).with_source(err)
         })
     })
 }
@@ -799,7 +799,7 @@ fn evaluate_user_revset<'repo>(
 ) -> Result<Box<dyn Revset + 'repo>, TemplateParseError> {
     let (expression, modifier) =
         revset::parse_with_modifier(revset, &language.revset_parse_context).map_err(|err| {
-            TemplateParseError::expression("Failed to parse revset", span).with_source(err)
+            TemplateParseError::expression("In revset expression", span).with_source(err)
         })?;
     let (None | Some(RevsetModifier::All)) = modifier;
 
