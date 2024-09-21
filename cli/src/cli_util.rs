@@ -1715,8 +1715,10 @@ See https://martinvonz.github.io/jj/latest/working-copy/#stale-working-copy \
         }
 
         self.user_repo = ReadonlyUserRepo::new(tx.commit(description));
-        self.report_repo_changes(ui, &old_repo)?;
 
+        // Update working copy before reporting repo changes, so that
+        // potential errors while reporting changes (broken pipe, etc)
+        // don't leave the working copy in a stale state.
         if self.may_update_working_copy {
             if let Some(new_commit) = &maybe_new_wc_commit {
                 self.update_working_copy(ui, maybe_old_wc_commit.as_ref(), new_commit)?;
@@ -1725,6 +1727,8 @@ See https://martinvonz.github.io/jj/latest/working-copy/#stale-working-copy \
                 // update it.
             }
         }
+
+        self.report_repo_changes(ui, &old_repo)?;
 
         let settings = self.settings();
         if settings.user_name().is_empty() || settings.user_email().is_empty() {

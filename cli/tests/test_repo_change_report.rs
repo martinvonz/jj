@@ -30,8 +30,13 @@ fn test_report_conflicts() {
     let (stdout, stderr) =
         test_env.jj_cmd_ok(&repo_path, &["rebase", "-s=description(B)", "-d=root()"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r#"
+    insta::assert_snapshot!(stderr, @r###"
     Rebased 3 commits
+    Working copy now at: zsuskuln aa73e2ae (conflict) (empty) (no description set)
+    Parent commit      : kkmpptxz 64bdec0c (conflict) C
+    Added 0 files, modified 1 files, removed 0 files
+    There are unresolved conflicts at these paths:
+    file    2-sided conflict including 1 deletion
     New conflicts appeared in these commits:
       kkmpptxz 64bdec0c (conflict) C
       rlvkpnrz 10a5fd45 (conflict) B
@@ -40,23 +45,18 @@ fn test_report_conflicts() {
     Then use `jj resolve`, or edit the conflict markers in the file directly.
     Once the conflicts are resolved, you may want to inspect the result with `jj diff`.
     Then run `jj squash` to move the resolution into the conflicted commit.
-    Working copy now at: zsuskuln aa73e2ae (conflict) (empty) (no description set)
-    Parent commit      : kkmpptxz 64bdec0c (conflict) C
-    Added 0 files, modified 1 files, removed 0 files
-    There are unresolved conflicts at these paths:
-    file    2-sided conflict including 1 deletion
-    "#);
+    "###);
 
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-d=description(A)"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Rebased 3 commits
-    Existing conflicts were resolved or abandoned from these commits:
-      kkmpptxz hidden 64bdec0c (conflict) C
-      rlvkpnrz hidden 10a5fd45 (conflict) B
     Working copy now at: zsuskuln d70c003d (empty) (no description set)
     Parent commit      : kkmpptxz 43e94449 C
     Added 0 files, modified 1 files, removed 0 files
+    Existing conflicts were resolved or abandoned from these commits:
+      kkmpptxz hidden 64bdec0c (conflict) C
+      rlvkpnrz hidden 10a5fd45 (conflict) B
     "###);
 
     // Can get hint about multiple root commits
@@ -66,6 +66,11 @@ fn test_report_conflicts() {
     insta::assert_snapshot!(stderr, @r###"
     Rebased 1 commits onto destination
     Rebased 2 descendant commits
+    Working copy now at: zsuskuln 99fb9018 (conflict) (empty) (no description set)
+    Parent commit      : kkmpptxz 17c72220 (conflict) C
+    Added 0 files, modified 1 files, removed 0 files
+    There are unresolved conflicts at these paths:
+    file    2-sided conflict
     New conflicts appeared in these commits:
       kkmpptxz 17c72220 (conflict) C
       rlvkpnrz eb93a73d (conflict) B
@@ -75,11 +80,6 @@ fn test_report_conflicts() {
     Then use `jj resolve`, or edit the conflict markers in the file directly.
     Once the conflicts are resolved, you may want to inspect the result with `jj diff`.
     Then run `jj squash` to move the resolution into the conflicted commit.
-    Working copy now at: zsuskuln 99fb9018 (conflict) (empty) (no description set)
-    Parent commit      : kkmpptxz 17c72220 (conflict) C
-    Added 0 files, modified 1 files, removed 0 files
-    There are unresolved conflicts at these paths:
-    file    2-sided conflict
     "###);
 
     // Resolve one of the conflicts by (mostly) following the instructions
@@ -96,10 +96,10 @@ fn test_report_conflicts() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["squash"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Existing conflicts were resolved or abandoned from these commits:
-      rlvkpnrz hidden eb93a73d (conflict) B
     Working copy now at: yostqsxw f5a0cf8c (empty) (no description set)
     Parent commit      : rlvkpnrz 87370844 B
+    Existing conflicts were resolved or abandoned from these commits:
+      rlvkpnrz hidden eb93a73d (conflict) B
     "###);
 }
 
@@ -121,9 +121,14 @@ fn test_report_conflicts_with_divergent_commits() {
     let (stdout, stderr) =
         test_env.jj_cmd_ok(&repo_path, &["rebase", "-s=description(B)", "-d=root()"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r#"
+    insta::assert_snapshot!(stderr, @r###"
     Concurrent modification detected, resolving automatically.
     Rebased 3 commits
+    Working copy now at: zsuskuln?? 97ce1783 (conflict) C2
+    Parent commit      : kkmpptxz eb93a73d (conflict) B
+    Added 0 files, modified 1 files, removed 0 files
+    There are unresolved conflicts at these paths:
+    file    2-sided conflict including 1 deletion
     New conflicts appeared in these commits:
       zsuskuln?? b535189c (conflict) C3
       zsuskuln?? 97ce1783 (conflict) C2
@@ -133,32 +138,32 @@ fn test_report_conflicts_with_divergent_commits() {
     Then use `jj resolve`, or edit the conflict markers in the file directly.
     Once the conflicts are resolved, you may want to inspect the result with `jj diff`.
     Then run `jj squash` to move the resolution into the conflicted commit.
-    Working copy now at: zsuskuln?? 97ce1783 (conflict) C2
-    Parent commit      : kkmpptxz eb93a73d (conflict) B
-    Added 0 files, modified 1 files, removed 0 files
-    There are unresolved conflicts at these paths:
-    file    2-sided conflict including 1 deletion
-    "#);
+    "###);
 
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-d=description(A)"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Rebased 3 commits
+    Working copy now at: zsuskuln?? f2d7a228 C2
+    Parent commit      : kkmpptxz db069a22 B
+    Added 0 files, modified 1 files, removed 0 files
     Existing conflicts were resolved or abandoned from these commits:
       zsuskuln hidden b535189c (conflict) C3
       zsuskuln hidden 97ce1783 (conflict) C2
       kkmpptxz hidden eb93a73d (conflict) B
-    Working copy now at: zsuskuln?? f2d7a228 C2
-    Parent commit      : kkmpptxz db069a22 B
-    Added 0 files, modified 1 files, removed 0 files
     "###);
 
     // Same thing when rebasing the divergent commits one at a time
     let (stdout, stderr) =
         test_env.jj_cmd_ok(&repo_path, &["rebase", "-s=description(C2)", "-d=root()"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r#"
+    insta::assert_snapshot!(stderr, @r###"
     Rebased 1 commits
+    Working copy now at: zsuskuln?? b15416ac (conflict) C2
+    Parent commit      : zzzzzzzz 00000000 (empty) (no description set)
+    Added 0 files, modified 1 files, removed 0 files
+    There are unresolved conflicts at these paths:
+    file    2-sided conflict including 1 deletion
     New conflicts appeared in these commits:
       zsuskuln?? b15416ac (conflict) C2
     To resolve the conflicts, start by updating to it:
@@ -166,12 +171,7 @@ fn test_report_conflicts_with_divergent_commits() {
     Then use `jj resolve`, or edit the conflict markers in the file directly.
     Once the conflicts are resolved, you may want to inspect the result with `jj diff`.
     Then run `jj squash` to move the resolution into the conflicted commit.
-    Working copy now at: zsuskuln?? b15416ac (conflict) C2
-    Parent commit      : zzzzzzzz 00000000 (empty) (no description set)
-    Added 0 files, modified 1 files, removed 0 files
-    There are unresolved conflicts at these paths:
-    file    2-sided conflict including 1 deletion
-    "#);
+    "###);
 
     let (stdout, stderr) =
         test_env.jj_cmd_ok(&repo_path, &["rebase", "-s=description(C3)", "-d=root()"]);
@@ -194,11 +194,11 @@ fn test_report_conflicts_with_divergent_commits() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Rebased 1 commits
-    Existing conflicts were resolved or abandoned from these commits:
-      zsuskuln hidden b15416ac (conflict) C2
     Working copy now at: zsuskuln?? 1f9680bd C2
     Parent commit      : kkmpptxz db069a22 B
     Added 0 files, modified 1 files, removed 0 files
+    Existing conflicts were resolved or abandoned from these commits:
+      zsuskuln hidden b15416ac (conflict) C2
     "###);
 
     let (stdout, stderr) = test_env.jj_cmd_ok(

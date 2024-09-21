@@ -11,6 +11,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Breaking changes
 
+* Fixing #4239 means the ordering of some messages have changed.
+
 * Invalid `ui.graph.style` configuration is now an error.
 
 * The builtin template `branch_list` has been renamed to `bookmark_list` as part
@@ -68,6 +70,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   author of given commit.
 
 ### Fixed bugs
+
+ * Update working copy before reporting changes. This prevents errors during reporting
+   from leaving the working copy in a stale state.
 
  * `jj git fetch -b <remote-git-branch-name>` will now warn if the branch(es)
    can not be found in any of the specified/configured remotes.
