@@ -303,3 +303,17 @@ concat(
 '''
 'format_field(key, value)' = 'key ++ ": " ++ value ++ "\n"'
 ```
+
+## Examples
+
+Get short commit IDs of the working-copy parents:
+
+```sh
+jj log --no-graph -r @ -T 'parents.map(|c| c.commit_id().short()).join(",")'
+```
+
+Show machine-readable list of full commit and change IDs:
+
+```sh
+jj log --no-graph -T 'commit_id ++ " " ++ change_id ++ "\n"'
+```
