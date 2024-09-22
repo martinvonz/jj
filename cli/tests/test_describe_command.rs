@@ -568,7 +568,7 @@ fn test_describe_author() {
     insta::assert_snapshot!(
         std::fs::read_to_string(test_env.env_root().join("editor")).unwrap(), @r#"
 
-    JJ: Author: Super Seeder <super.seeder@example.com> (2001-02-03 08:05:10)
+    JJ: Author: Super Seeder <super.seeder@example.com> (2001-02-03 08:05:12)
     JJ: Committer: Test User <test.user@example.com> (2001-02-03 08:05:12)
 
     JJ: 0 files changed, 0 insertions(+), 0 deletions(-)
