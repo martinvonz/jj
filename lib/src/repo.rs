@@ -1314,6 +1314,11 @@ impl MutableRepo {
         result
     }
 
+    /// Rebase descendants of the rewritten commits.
+    ///
+    /// The descendants of the commits registered in `self.parent_mappings` will
+    /// be recursively rebased onto the new version of their parents.
+    /// Returns the number of rebased descendants.
     pub fn rebase_descendants(&mut self, settings: &UserSettings) -> BackendResult<usize> {
         let roots = self.parent_mapping.keys().cloned().collect_vec();
         let mut num_rebased = 0;
