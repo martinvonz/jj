@@ -249,17 +249,11 @@ fn unchanged_ranges_lcs(
         let left_occurrences = &left_histogram.word_to_positions[uncommon_shared_word];
         let right_occurrences = &right_histogram.word_to_positions[uncommon_shared_word];
         assert_eq!(left_occurrences.len(), right_occurrences.len());
-        for occurrence in 0..left_occurrences.len() {
-            left_positions.push((
-                left_occurrences[occurrence],
-                uncommon_shared_word,
-                occurrence,
-            ));
-            right_positions.push((
-                right_occurrences[occurrence],
-                uncommon_shared_word,
-                occurrence,
-            ));
+        for (occurrence, (&left_pos, &right_pos)) in
+            iter::zip(left_occurrences, right_occurrences).enumerate()
+        {
+            left_positions.push((left_pos, uncommon_shared_word, occurrence));
+            right_positions.push((right_pos, uncommon_shared_word, occurrence));
         }
     }
     left_positions.sort();
@@ -448,6 +442,7 @@ impl<'input> Diff<'input> {
         base_token_ranges: &[Range<usize>],
         other_token_ranges: &[Vec<Range<usize>>],
     ) -> Self {
+        assert_eq!(other_inputs.len(), other_token_ranges.len());
         // Look for unchanged regions. Initially consider the whole range of the base
         // input as unchanged (compared to itself). Then diff each other input
         // against the base. Intersect the previously found ranges with the
@@ -456,10 +451,10 @@ impl<'input> Diff<'input> {
             base_range: 0..base_input.len(),
             offsets: vec![],
         }];
-        for (i, other_token_ranges) in other_token_ranges.iter().enumerate() {
+        for (other_input, other_token_ranges) in iter::zip(&other_inputs, other_token_ranges) {
             let unchanged_diff_ranges = unchanged_ranges(
                 base_input,
-                other_inputs[i],
+                other_input,
                 base_token_ranges,
                 other_token_ranges,
             );
@@ -551,10 +546,8 @@ impl<'input> Diff<'input> {
             {
                 let new_base_start = base_range.start + previous.base_range.end;
                 let new_base_end = base_range.end + previous.base_range.end;
-                let offsets = offsets
-                    .into_iter()
-                    .enumerate()
-                    .map(|(i, offset)| offset + previous.offsets[i])
+                let offsets = iter::zip(offsets, &previous.offsets)
+                    .map(|(refi, prev)| refi + prev)
                     .collect_vec();
                 new_unchanged_ranges.push(UnchangedRange {
                     base_range: new_base_start..new_base_end,
