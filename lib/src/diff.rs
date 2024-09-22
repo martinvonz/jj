@@ -343,7 +343,7 @@ fn intersect_unchanged_words(
 #[derive(Clone, PartialEq, Eq, Debug)]
 struct UnchangedRange {
     base: Range<usize>,
-    offsets: Vec<isize>,
+    others: Vec<Range<usize>>,
 }
 
 impl UnchangedRange {
@@ -356,22 +356,10 @@ impl UnchangedRange {
     ) -> Self {
         assert_eq!(other_sources.len(), other_positions.len());
         let base = base_source.range_at(base_position);
-        let offsets = iter::zip(other_sources, other_positions)
-            .map(|(source, pos)| {
-                let other_range = source.range_at(*pos);
-                assert_eq!(base.len(), other_range.len());
-                other_range.start.wrapping_sub(base.start) as isize
-            })
+        let others = iter::zip(other_sources, other_positions)
+            .map(|(source, pos)| source.range_at(*pos))
             .collect();
-        UnchangedRange { base, offsets }
-    }
-
-    fn start(&self, side: usize) -> usize {
-        self.base.start.wrapping_add(self.offsets[side] as usize)
-    }
-
-    fn end(&self, side: usize) -> usize {
-        self.base.end.wrapping_add(self.offsets[side] as usize)
+        UnchangedRange { base, others }
     }
 }
 
@@ -396,9 +384,6 @@ impl Ord for UnchangedRange {
 pub struct Diff<'input> {
     base_input: &'input BStr,
     other_inputs: Vec<&'input BStr>,
-    // The key is a range in the base input. The value is the start of each non-base region
-    // relative to the base region's start. By making them relative, they don't need to change
-    // when the base range changes.
     unchanged_regions: Vec<UnchangedRange>,
 }
 
@@ -450,7 +435,7 @@ impl<'input> Diff<'input> {
             [] => {
                 let whole_range = UnchangedRange {
                     base: 0..base_source.text.len(),
-                    offsets: vec![],
+                    others: vec![],
                 };
                 vec![whole_range]
             }
@@ -499,13 +484,12 @@ impl<'input> Diff<'input> {
             }
         };
         // Add an empty range at the end to make life easier for hunks().
-        let offsets = other_inputs
-            .iter()
-            .map(|input| input.len().wrapping_sub(base_input.len()) as isize)
-            .collect_vec();
         unchanged_regions.push(UnchangedRange {
             base: base_input.len()..base_input.len(),
-            offsets,
+            others: other_inputs
+                .iter()
+                .map(|input| input.len()..input.len())
+                .collect(),
         });
 
         let mut diff = Self {
@@ -543,12 +527,11 @@ impl<'input> Diff<'input> {
     }
 
     pub fn hunks<'diff>(&'diff self) -> DiffHunkIterator<'diff, 'input> {
-        let previous_offsets = vec![0; self.other_inputs.len()];
         DiffHunkIterator {
             diff: self,
             previous: UnchangedRange {
                 base: 0..0,
-                offsets: previous_offsets,
+                others: vec![0..0; self.other_inputs.len()],
             },
             unchanged_emitted: true,
             unchanged_iter: self.unchanged_regions.iter(),
@@ -563,10 +546,8 @@ impl<'input> Diff<'input> {
     ) -> impl Iterator<Item = &'input BStr> + 'a {
         itertools::chain(
             iter::once(&self.base_input[previous.base.end..current.base.start]),
-            (0..current.offsets.len()).map(|i| {
-                let changed_range = previous.end(i)..current.start(i);
-                &self.other_inputs[i][changed_range]
-            }),
+            itertools::izip!(&self.other_inputs, &previous.others, &current.others)
+                .map(|(input, prev, cur)| &input[prev.end..cur.start]),
         )
     }
 
@@ -575,7 +556,7 @@ impl<'input> Diff<'input> {
     pub fn refine_changed_regions(&mut self, tokenizer: impl Fn(&[u8]) -> Vec<Range<usize>>) {
         let mut previous = UnchangedRange {
             base: 0..0,
-            offsets: vec![0; self.other_inputs.len()],
+            others: vec![0..0; self.other_inputs.len()],
         };
         let mut new_unchanged_ranges = vec![];
         for current in self.unchanged_regions.iter() {
@@ -585,15 +566,15 @@ impl<'input> Diff<'input> {
             // (`self`).
             let refined_diff =
                 Diff::for_tokenizer(self.hunk_between(&previous, current), &tokenizer);
-            for refined in refined_diff.unchanged_regions {
+            for refined in &refined_diff.unchanged_regions {
                 let new_base_start = refined.base.start + previous.base.end;
                 let new_base_end = refined.base.end + previous.base.end;
-                let offsets = iter::zip(refined.offsets, &previous.offsets)
-                    .map(|(refi, prev)| refi + prev)
-                    .collect_vec();
+                let new_others = iter::zip(&refined.others, &previous.others)
+                    .map(|(refi, prev)| (refi.start + prev.end)..(refi.end + prev.end))
+                    .collect();
                 new_unchanged_ranges.push(UnchangedRange {
                     base: new_base_start..new_base_end,
-                    offsets,
+                    others: new_others,
                 });
             }
             previous = current.clone();
@@ -612,10 +593,15 @@ impl<'input> Diff<'input> {
         let mut maybe_previous: Option<UnchangedRange> = None;
         for current in self.unchanged_regions.iter() {
             if let Some(previous) = maybe_previous {
-                if previous.base.end == current.base.start && previous.offsets == *current.offsets {
+                if previous.base.end == current.base.start
+                    && iter::zip(&previous.others, &current.others)
+                        .all(|(prev, cur)| prev.end == cur.start)
+                {
                     maybe_previous = Some(UnchangedRange {
                         base: previous.base.start..current.base.end,
-                        offsets: current.offsets.clone(),
+                        others: iter::zip(&previous.others, &current.others)
+                            .map(|(prev, cur)| prev.start..cur.end)
+                            .collect(),
                     });
                     continue;
                 }
