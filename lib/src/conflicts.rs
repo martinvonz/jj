@@ -40,6 +40,7 @@ use crate::copies::CopiesTreeDiffEntry;
 use crate::copies::CopiesTreeDiffEntryPath;
 use crate::diff::Diff;
 use crate::diff::DiffHunk;
+use crate::diff::DiffHunkKind;
 use crate::files;
 use crate::files::MergeResult;
 use crate::merge::Merge;
@@ -73,19 +74,20 @@ static CONFLICT_MARKER_REGEX: once_cell::sync::Lazy<Regex> = once_cell::sync::La
 
 fn write_diff_hunks(hunks: &[DiffHunk], file: &mut dyn Write) -> std::io::Result<()> {
     for hunk in hunks {
-        match hunk {
-            DiffHunk::Matching(content) => {
-                for line in content.split_inclusive(|b| *b == b'\n') {
+        match hunk.kind {
+            DiffHunkKind::Matching => {
+                debug_assert!(hunk.contents.iter().all_equal());
+                for line in hunk.contents[0].split_inclusive(|b| *b == b'\n') {
                     file.write_all(b" ")?;
                     file.write_all(line)?;
                 }
             }
-            DiffHunk::Different(content) => {
-                for line in content[0].split_inclusive(|b| *b == b'\n') {
+            DiffHunkKind::Different => {
+                for line in hunk.contents[0].split_inclusive(|b| *b == b'\n') {
                     file.write_all(b"-")?;
                     file.write_all(line)?;
                 }
-                for line in content[1].split_inclusive(|b| *b == b'\n') {
+                for line in hunk.contents[1].split_inclusive(|b| *b == b'\n') {
                     file.write_all(b"+")?;
                     file.write_all(line)?;
                 }
@@ -333,9 +335,9 @@ pub fn materialize_merge_result(
 fn diff_size(hunks: &[DiffHunk]) -> usize {
     hunks
         .iter()
-        .map(|hunk| match hunk {
-            DiffHunk::Matching(_) => 0,
-            DiffHunk::Different(slices) => slices.iter().map(|slice| slice.len()).sum(),
+        .map(|hunk| match hunk.kind {
+            DiffHunkKind::Matching => 0,
+            DiffHunkKind::Different => hunk.contents.iter().map(|content| content.len()).sum(),
         })
         .sum()
 }

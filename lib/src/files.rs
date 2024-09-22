@@ -21,9 +21,11 @@ use std::mem;
 
 use bstr::BStr;
 use bstr::BString;
+use itertools::Itertools as _;
 
 use crate::diff::Diff;
 use crate::diff::DiffHunk;
+use crate::diff::DiffHunkKind;
 use crate::merge::trivial_merge;
 use crate::merge::Merge;
 
@@ -130,8 +132,12 @@ where
             let Some(hunk) = self.diff_hunks.next() else {
                 break;
             };
-            match hunk.borrow() {
-                DiffHunk::Matching(text) => {
+            let hunk = hunk.borrow();
+            match hunk.kind {
+                DiffHunkKind::Matching => {
+                    // TODO: add support for unmatched contexts?
+                    debug_assert!(hunk.contents.iter().all_equal());
+                    let text = hunk.contents[0];
                     let lines = text.split_inclusive(|b| *b == b'\n').map(BStr::new);
                     for line in lines {
                         self.current_line.hunks.push((DiffLineHunkSide::Both, line));
@@ -142,8 +148,8 @@ where
                         }
                     }
                 }
-                DiffHunk::Different(contents) => {
-                    let [left_text, right_text] = contents[..]
+                DiffHunkKind::Different => {
+                    let [left_text, right_text] = hunk.contents[..]
                         .try_into()
                         .expect("hunk should have exactly two inputs");
                     let left_lines = left_text.split_inclusive(|b| *b == b'\n').map(BStr::new);
@@ -201,11 +207,13 @@ fn merge_hunks(diff: &Diff, num_diffs: usize) -> MergeResult {
     let mut resolved_hunk = BString::new(vec![]);
     let mut merge_hunks: Vec<Merge<BString>> = vec![];
     for diff_hunk in diff.hunks() {
-        match diff_hunk {
-            DiffHunk::Matching(content) => {
-                resolved_hunk.extend_from_slice(content);
+        match diff_hunk.kind {
+            DiffHunkKind::Matching => {
+                debug_assert!(diff_hunk.contents.iter().all_equal());
+                resolved_hunk.extend_from_slice(diff_hunk.contents[0]);
             }
-            DiffHunk::Different(parts) => {
+            DiffHunkKind::Different => {
+                let parts = &diff_hunk.contents;
                 if let Some(resolved) = trivial_merge(&parts[..num_diffs], &parts[num_diffs..]) {
                     resolved_hunk.extend_from_slice(resolved);
                 } else {
