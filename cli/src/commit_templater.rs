@@ -1506,6 +1506,9 @@ fn builtin_tree_diff_methods<'repo>() -> CommitTemplateBuildMethodFnMap<'repo, T
                     // TODO: load defaults from UserSettings?
                     let options = diff_util::ColorWordsDiffOptions {
                         context: context.unwrap_or(diff_util::DEFAULT_CONTEXT_LINES),
+                        line_diff: diff_util::LineDiffOptions {
+                            compare_mode: diff_util::LineCompareMode::Exact,
+                        },
                         max_inline_alternation: Some(3),
                     };
                     diff.into_formatted(move |formatter, store, tree_diff| {
@@ -1540,6 +1543,9 @@ fn builtin_tree_diff_methods<'repo>() -> CommitTemplateBuildMethodFnMap<'repo, T
                 .map(|(diff, context)| {
                     let options = diff_util::UnifiedDiffOptions {
                         context: context.unwrap_or(diff_util::DEFAULT_CONTEXT_LINES),
+                        line_diff: diff_util::LineDiffOptions {
+                            compare_mode: diff_util::LineCompareMode::Exact,
+                        },
                     };
                     diff.into_formatted(move |formatter, store, tree_diff| {
                         diff_util::show_git_diff(formatter, store, tree_diff, &options)
@@ -1562,7 +1568,11 @@ fn builtin_tree_diff_methods<'repo>() -> CommitTemplateBuildMethodFnMap<'repo, T
             let path_converter = language.path_converter;
             let template = (self_property, width_property)
                 .map(move |(diff, width)| {
-                    let options = diff_util::DiffStatOptions {};
+                    let options = diff_util::DiffStatOptions {
+                        line_diff: diff_util::LineDiffOptions {
+                            compare_mode: diff_util::LineCompareMode::Exact,
+                        },
+                    };
                     diff.into_formatted(move |formatter, store, tree_diff| {
                         diff_util::show_diff_stat(
                             formatter,

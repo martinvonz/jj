@@ -38,6 +38,8 @@ use crate::ui::Ui;
 /// commit. For example, `jj diff --from main` shows the changes from "main"
 /// (perhaps a bookmark name) to the working-copy commit.
 #[derive(clap::Args, Clone, Debug)]
+#[command(mut_arg("ignore_all_space", |a| a.short('w')))]
+#[command(mut_arg("ignore_space_change", |a| a.short('b')))]
 pub(crate) struct DiffArgs {
     /// Show changes in this revision, compared to its parent(s)
     ///

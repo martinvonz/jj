@@ -1522,6 +1522,110 @@ fn test_color_words_diff_missing_newline() {
 }
 
 #[test]
+fn test_diff_ignore_whitespace() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    std::fs::write(
+        repo_path.join("file1"),
+        indoc! {"
+            foo {
+                bar;
+            }
+            baz {}
+        "},
+    )
+    .unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["new", "-mindent + whitespace insertion"]);
+    std::fs::write(
+        repo_path.join("file1"),
+        indoc! {"
+            {
+                foo {
+                    bar;
+                }
+            }
+            baz {  }
+        "},
+    )
+    .unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["status"]);
+
+    // Git diff as reference output
+    let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "--git", "--ignore-all-space"]);
+    insta::assert_snapshot!(stdout, @r#"
+    diff --git a/file1 b/file1
+    index f532aa68ad..033c4a6168 100644
+    --- a/file1
+    +++ b/file1
+    @@ -1,4 +1,6 @@
+    +{
+         foo {
+             bar;
+         }
+    +}
+     baz {  }
+    "#);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "--git", "--ignore-space-change"]);
+    insta::assert_snapshot!(stdout, @r#"
+    diff --git a/file1 b/file1
+    index f532aa68ad..033c4a6168 100644
+    --- a/file1
+    +++ b/file1
+    @@ -1,4 +1,6 @@
+    -foo {
+    +{
+    +    foo {
+             bar;
+    +    }
+     }
+    -baz {}
+    +baz {  }
+    "#);
+
+    // Diff-stat should respects the whitespace options
+    let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "--stat", "--ignore-all-space"]);
+    insta::assert_snapshot!(stdout, @r#"
+    file1 | 2 ++
+    1 file changed, 2 insertions(+), 0 deletions(-)
+    "#);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "--stat", "--ignore-space-change"]);
+    insta::assert_snapshot!(stdout, @r#"
+    file1 | 6 ++++--
+    1 file changed, 4 insertions(+), 2 deletions(-)
+    "#);
+
+    // Word-level changes are still highlighted
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &["diff", "--color=always", "--ignore-all-space"],
+    );
+    insta::assert_snapshot!(stdout, @r#"
+    [38;5;3mModified regular file file1:[39m
+         [38;5;2m   1[39m: [4m[38;5;2m{[24m[39m
+    [38;5;1m   1[39m [38;5;2m   2[39m:     foo {
+    [38;5;1m   2[39m [38;5;2m   3[39m:         bar;
+    [38;5;1m   3[39m [38;5;2m   4[39m:     }
+         [38;5;2m   5[39m: [4m[38;5;2m}[24m[39m
+    [38;5;1m   4[39m [38;5;2m   6[39m: baz {  }
+    "#);
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &["diff", "--color=always", "--ignore-space-change"],
+    );
+    insta::assert_snapshot!(stdout, @r#"
+    [38;5;3mModified regular file file1:[39m
+         [38;5;2m   1[39m: [4m[38;5;2m{[24m[39m
+    [38;5;1m   1[39m [38;5;2m   2[39m: [4m[38;5;2m    [24m[39mfoo {
+    [38;5;1m   2[39m [38;5;2m   3[39m:         bar;
+         [38;5;2m   4[39m: [4m[38;5;2m    }[24m[39m
+    [38;5;1m   3[39m [38;5;2m   5[39m: }
+    [38;5;1m   4[39m [38;5;2m   6[39m: baz {[4m[38;5;2m  [24m[39m}
+    "#);
+}
+
+#[test]
 fn test_diff_skipped_context() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);

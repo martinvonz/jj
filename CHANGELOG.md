@@ -17,6 +17,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### New features
 
+* Added diff options to ignore whitespace when comparing lines. Whitespace
+  changes are still highlighted.
+
 ### Fixed bugs
 
 
