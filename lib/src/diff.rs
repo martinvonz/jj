@@ -342,7 +342,7 @@ fn intersect_unchanged_words(
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 struct UnchangedRange {
-    base_range: Range<usize>,
+    base: Range<usize>,
     offsets: Vec<isize>,
 }
 
@@ -355,30 +355,23 @@ impl UnchangedRange {
         other_positions: &[WordPosition],
     ) -> Self {
         assert_eq!(other_sources.len(), other_positions.len());
-        let base_range = base_source.range_at(base_position);
+        let base = base_source.range_at(base_position);
         let offsets = iter::zip(other_sources, other_positions)
             .map(|(source, pos)| {
                 let other_range = source.range_at(*pos);
-                assert_eq!(base_range.len(), other_range.len());
-                other_range.start.wrapping_sub(base_range.start) as isize
+                assert_eq!(base.len(), other_range.len());
+                other_range.start.wrapping_sub(base.start) as isize
             })
             .collect();
-        UnchangedRange {
-            base_range,
-            offsets,
-        }
+        UnchangedRange { base, offsets }
     }
 
     fn start(&self, side: usize) -> usize {
-        self.base_range
-            .start
-            .wrapping_add(self.offsets[side] as usize)
+        self.base.start.wrapping_add(self.offsets[side] as usize)
     }
 
     fn end(&self, side: usize) -> usize {
-        self.base_range
-            .end
-            .wrapping_add(self.offsets[side] as usize)
+        self.base.end.wrapping_add(self.offsets[side] as usize)
     }
 }
 
@@ -390,10 +383,10 @@ impl PartialOrd for UnchangedRange {
 
 impl Ord for UnchangedRange {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.base_range
+        self.base
             .start
-            .cmp(&other.base_range.start)
-            .then_with(|| self.base_range.end.cmp(&other.base_range.end))
+            .cmp(&other.base.start)
+            .then_with(|| self.base.end.cmp(&other.base.end))
     }
 }
 
@@ -456,7 +449,7 @@ impl<'input> Diff<'input> {
             // to itself.
             [] => {
                 let whole_range = UnchangedRange {
-                    base_range: 0..base_source.text.len(),
+                    base: 0..base_source.text.len(),
                     offsets: vec![],
                 };
                 vec![whole_range]
@@ -511,7 +504,7 @@ impl<'input> Diff<'input> {
             .map(|input| input.len().wrapping_sub(base_input.len()) as isize)
             .collect_vec();
         unchanged_regions.push(UnchangedRange {
-            base_range: base_input.len()..base_input.len(),
+            base: base_input.len()..base_input.len(),
             offsets,
         });
 
@@ -554,7 +547,7 @@ impl<'input> Diff<'input> {
         DiffHunkIterator {
             diff: self,
             previous: UnchangedRange {
-                base_range: 0..0,
+                base: 0..0,
                 offsets: previous_offsets,
             },
             unchanged_emitted: true,
@@ -566,7 +559,7 @@ impl<'input> Diff<'input> {
     /// regions. Then tries to finds unchanged regions among them.
     pub fn refine_changed_regions(&mut self, tokenizer: impl Fn(&[u8]) -> Vec<Range<usize>>) {
         let mut previous = UnchangedRange {
-            base_range: 0..0,
+            base: 0..0,
             offsets: vec![0; self.other_inputs.len()],
         };
         let mut new_unchanged_ranges = vec![];
@@ -575,8 +568,7 @@ impl<'input> Diff<'input> {
             // create a new Diff instance. Then adjust the start positions and
             // offsets to be valid in the context of the larger Diff instance
             // (`self`).
-            let mut slices =
-                vec![&self.base_input[previous.base_range.end..current.base_range.start]];
+            let mut slices = vec![&self.base_input[previous.base.end..current.base.start]];
             for i in 0..current.offsets.len() {
                 let changed_range = previous.end(i)..current.start(i);
                 slices.push(&self.other_inputs[i][changed_range]);
@@ -584,18 +576,14 @@ impl<'input> Diff<'input> {
 
             let refined_diff = Diff::for_tokenizer(slices, &tokenizer);
 
-            for UnchangedRange {
-                base_range,
-                offsets,
-            } in refined_diff.unchanged_regions
-            {
-                let new_base_start = base_range.start + previous.base_range.end;
-                let new_base_end = base_range.end + previous.base_range.end;
-                let offsets = iter::zip(offsets, &previous.offsets)
+            for refined in refined_diff.unchanged_regions {
+                let new_base_start = refined.base.start + previous.base.end;
+                let new_base_end = refined.base.end + previous.base.end;
+                let offsets = iter::zip(refined.offsets, &previous.offsets)
                     .map(|(refi, prev)| refi + prev)
                     .collect_vec();
                 new_unchanged_ranges.push(UnchangedRange {
-                    base_range: new_base_start..new_base_end,
+                    base: new_base_start..new_base_end,
                     offsets,
                 });
             }
@@ -615,11 +603,9 @@ impl<'input> Diff<'input> {
         let mut maybe_previous: Option<UnchangedRange> = None;
         for current in self.unchanged_regions.iter() {
             if let Some(previous) = maybe_previous {
-                if previous.base_range.end == current.base_range.start
-                    && previous.offsets == *current.offsets
-                {
+                if previous.base.end == current.base.start && previous.offsets == *current.offsets {
                     maybe_previous = Some(UnchangedRange {
-                        base_range: previous.base_range.start..current.base_range.end,
+                        base: previous.base.start..current.base.end,
                         offsets: current.offsets.clone(),
                     });
                     continue;
@@ -667,16 +653,15 @@ impl<'diff, 'input> Iterator for DiffHunkIterator<'diff, 'input> {
         loop {
             if !self.unchanged_emitted {
                 self.unchanged_emitted = true;
-                if !self.previous.base_range.is_empty() {
+                if !self.previous.base.is_empty() {
                     return Some(DiffHunk::Matching(
-                        &self.diff.base_input[self.previous.base_range.clone()],
+                        &self.diff.base_input[self.previous.base.clone()],
                     ));
                 }
             }
             if let Some(current) = self.unchanged_iter.next() {
-                let mut slices = vec![
-                    &self.diff.base_input[self.previous.base_range.end..current.base_range.start],
-                ];
+                let mut slices =
+                    vec![&self.diff.base_input[self.previous.base.end..current.base.start]];
                 for (i, input) in self.diff.other_inputs.iter().enumerate() {
                     slices.push(&input[self.previous.end(i)..current.start(i)]);
                 }
