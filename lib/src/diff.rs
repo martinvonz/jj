@@ -17,6 +17,10 @@
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
+use std::hash::BuildHasher;
+use std::hash::Hash;
+use std::hash::Hasher;
+use std::hash::RandomState;
 use std::iter;
 use std::ops::Range;
 use std::slice;
@@ -69,6 +73,84 @@ pub fn find_nonword_ranges(text: &[u8]) -> Vec<Range<usize>> {
         .positions(|b| !is_word_byte(*b))
         .map(|i| i..i + 1)
         .collect()
+}
+
+/// Compares byte sequences based on a certain equivalence property.
+///
+/// This isn't a newtype `Wrapper<'a>(&'a [u8])` but an external comparison
+/// object for the following reasons:
+///
+/// a. If it were newtype, a generic `wrap` function would be needed. It
+///    couldn't be expressed as a simple closure:
+///    `for<'a> Fn(&'a [u8]) -> ???<'a>`
+/// b. Dynamic comparison object can be implemented intuitively. For example,
+///    `pattern: &Regex` would have to be copied to all newtype instances if it
+///    were newtype.
+/// c. Hash values can be cached if hashing is controlled externally.
+pub trait CompareBytes {
+    /// Returns true if `left` and `right` are equivalent.
+    fn eq(&self, left: &[u8], right: &[u8]) -> bool;
+
+    /// Generates hash which respects the following property:
+    /// `eq(left, right) => hash(left) == hash(right)`
+    fn hash<H: Hasher>(&self, text: &[u8], state: &mut H);
+}
+
+// An instance might have e.g. Regex pattern, which can't be trivially copied.
+// Such comparison object can be passed by reference.
+impl<C: CompareBytes + ?Sized> CompareBytes for &C {
+    fn eq(&self, left: &[u8], right: &[u8]) -> bool {
+        <C as CompareBytes>::eq(self, left, right)
+    }
+
+    fn hash<H: Hasher>(&self, text: &[u8], state: &mut H) {
+        <C as CompareBytes>::hash(self, text, state);
+    }
+}
+
+/// Compares byte sequences literally.
+#[derive(Clone, Debug, Default)]
+pub struct CompareBytesExactly;
+
+impl CompareBytes for CompareBytesExactly {
+    fn eq(&self, left: &[u8], right: &[u8]) -> bool {
+        left == right
+    }
+
+    fn hash<H: Hasher>(&self, text: &[u8], state: &mut H) {
+        text.hash(state);
+    }
+}
+
+/// Compares words (or tokens) under a certain hasher configuration.
+#[derive(Clone, Debug, Default)]
+struct WordComparator<C, S> {
+    compare: C,
+    hash_builder: S,
+}
+
+#[allow(unused)] // TODO
+impl<C: CompareBytes> WordComparator<C, RandomState> {
+    fn new(compare: C) -> Self {
+        WordComparator {
+            compare,
+            // TODO: switch to ahash for better performance?
+            hash_builder: RandomState::new(),
+        }
+    }
+}
+
+#[allow(unused)] // TODO
+impl<C: CompareBytes, S: BuildHasher> WordComparator<C, S> {
+    fn eq(&self, left: &[u8], right: &[u8]) -> bool {
+        self.compare.eq(left, right)
+    }
+
+    fn hash_one(&self, text: &[u8]) -> u64 {
+        let mut state = self.hash_builder.build_hasher();
+        self.compare.hash(text, &mut state);
+        state.finish()
+    }
 }
 
 /// Index in a list of word (or token) ranges.
