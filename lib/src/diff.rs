@@ -256,8 +256,8 @@ fn unchanged_ranges_lcs(
             right_positions.push((right_pos, uncommon_shared_word, occurrence));
         }
     }
-    left_positions.sort();
-    right_positions.sort();
+    left_positions.sort_unstable_by_key(|(pos, _word, _occurence)| *pos);
+    right_positions.sort_unstable_by_key(|(pos, _word, _occurence)| *pos);
     let mut left_position_map = HashMap::new();
     for (i, (_pos, word, occurrence)) in left_positions.iter().enumerate() {
         left_position_map.insert((*word, *occurrence), i);
