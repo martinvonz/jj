@@ -30,6 +30,8 @@ use crate::ui::Ui;
 /// versions, consider `jj evolog -p` instead.
 #[derive(clap::Args, Clone, Debug)]
 #[command(group(ArgGroup::new("to_diff").args(&["from", "to"]).multiple(true).required(true)))]
+#[command(mut_arg("ignore_all_space", |a| a.short('w')))]
+#[command(mut_arg("ignore_space_change", |a| a.short('b')))]
 pub(crate) struct InterdiffArgs {
     /// Show changes from this revision
     #[arg(long)]

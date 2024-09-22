@@ -39,6 +39,10 @@ use jj_lib::conflicts::MaterializedTreeValue;
 use jj_lib::copies::CopiesTreeDiffEntry;
 use jj_lib::copies::CopyOperation;
 use jj_lib::copies::CopyRecords;
+use jj_lib::diff::find_line_ranges;
+use jj_lib::diff::CompareBytesExactly;
+use jj_lib::diff::CompareBytesIgnoreAllWhitespace;
+use jj_lib::diff::CompareBytesIgnoreWhitespaceAmount;
 use jj_lib::diff::Diff;
 use jj_lib::diff::DiffHunk;
 use jj_lib::diff::DiffHunkKind;
@@ -113,6 +117,14 @@ pub struct DiffFormatArgs {
     /// Number of lines of context to show
     #[arg(long)]
     context: Option<usize>,
+
+    // Short flags are set by command to avoid future conflicts.
+    /// Ignore whitespace when comparing lines.
+    #[arg(long)] // short = 'w'
+    ignore_all_space: bool,
+    /// Ignore changes in amount of whitespace when comparing lines.
+    #[arg(long, conflicts_with = "ignore_all_space")] // short = 'b'
+    ignore_space_change: bool,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -431,9 +443,62 @@ pub fn get_copy_records<'a>(
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+pub struct LineDiffOptions {
+    /// How equivalence of lines is tested.
+    pub compare_mode: LineCompareMode,
+    // TODO: add --ignore-blank-lines, etc. which aren't mutually exclusive.
+}
+
+impl LineDiffOptions {
+    fn from_args(args: &DiffFormatArgs) -> Self {
+        let compare_mode = if args.ignore_all_space {
+            LineCompareMode::IgnoreAllSpace
+        } else if args.ignore_space_change {
+            LineCompareMode::IgnoreSpaceChange
+        } else {
+            LineCompareMode::Exact
+        };
+        LineDiffOptions { compare_mode }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum LineCompareMode {
+    /// Compares lines literally.
+    Exact,
+    /// Compares lines ignoring any whitespace occurrences.
+    IgnoreAllSpace,
+    /// Compares lines ignoring changes in whitespace amount.
+    IgnoreSpaceChange,
+}
+
+fn diff_by_line<'input, T: AsRef<[u8]> + ?Sized + 'input>(
+    inputs: impl IntoIterator<Item = &'input T>,
+    options: &LineDiffOptions,
+) -> Diff<'input> {
+    // TODO: If we add --ignore-blank-lines, its tokenizer will have to attach
+    // blank lines to the preceding range. Maybe it can also be implemented as a
+    // post-process (similar to refine_changed_regions()) that expands unchanged
+    // regions across blank lines.
+    match options.compare_mode {
+        LineCompareMode::Exact => {
+            Diff::for_tokenizer(inputs, find_line_ranges, CompareBytesExactly)
+        }
+        LineCompareMode::IgnoreAllSpace => {
+            Diff::for_tokenizer(inputs, find_line_ranges, CompareBytesIgnoreAllWhitespace)
+        }
+        LineCompareMode::IgnoreSpaceChange => {
+            Diff::for_tokenizer(inputs, find_line_ranges, CompareBytesIgnoreWhitespaceAmount)
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ColorWordsDiffOptions {
     /// Number of context lines to show.
     pub context: usize,
+    /// How lines are tokenized and compared.
+    pub line_diff: LineDiffOptions,
     /// Maximum number of removed/added word alternation to inline.
     pub max_inline_alternation: Option<usize>,
 }
@@ -455,6 +520,7 @@ impl ColorWordsDiffOptions {
         };
         Ok(ColorWordsDiffOptions {
             context: args.context.unwrap_or(DEFAULT_CONTEXT_LINES),
+            line_diff: LineDiffOptions::from_args(args),
             max_inline_alternation,
         })
     }
@@ -466,7 +532,7 @@ fn show_color_words_diff_hunks(
     right: &[u8],
     options: &ColorWordsDiffOptions,
 ) -> io::Result<()> {
-    let line_diff = Diff::by_line([left, right]);
+    let line_diff = diff_by_line([left, right], &options.line_diff);
     let mut line_number = DiffLineNumber { left: 1, right: 1 };
     // Matching entries shouldn't appear consecutively in diff of two inputs.
     // However, if the inputs have conflicts, there may be a hunk that can be
@@ -477,9 +543,13 @@ fn show_color_words_diff_hunks(
     for hunk in line_diff.hunks() {
         match hunk.kind {
             DiffHunkKind::Matching => {
-                // TODO: add support for unmatched contexts
-                debug_assert!(hunk.contents.iter().all_equal());
-                contexts.push(hunk.contents[0]);
+                // TODO: better handling of unmatched contexts
+                debug_assert!(hunk
+                    .contents
+                    .iter()
+                    .map(|content| content.split_inclusive(|b| *b == b'\n').count())
+                    .all_equal());
+                contexts.push(hunk.contents[1]);
             }
             DiffHunkKind::Different => {
                 let num_after = if emitted { options.context } else { 0 };
@@ -1097,12 +1167,15 @@ fn git_diff_part(
 pub struct UnifiedDiffOptions {
     /// Number of context lines to show.
     pub context: usize,
+    /// How lines are tokenized and compared.
+    pub line_diff: LineDiffOptions,
 }
 
 impl UnifiedDiffOptions {
     fn from_args(args: &DiffFormatArgs) -> Self {
         UnifiedDiffOptions {
             context: args.context.unwrap_or(DEFAULT_CONTEXT_LINES),
+            line_diff: LineDiffOptions::from_args(args),
         }
     }
 }
@@ -1165,14 +1238,16 @@ fn unified_diff_hunks<'content>(
         right_line_range: 1..1,
         lines: vec![],
     };
-    let diff = Diff::by_line([left_content, right_content]);
+    let diff = diff_by_line([left_content, right_content], &options.line_diff);
     let mut diff_hunks = diff.hunks().peekable();
     while let Some(hunk) = diff_hunks.next() {
         match hunk.kind {
             DiffHunkKind::Matching => {
-                // TODO: add support for unmatched contexts
-                debug_assert!(hunk.contents.iter().all_equal());
-                let mut lines = hunk.contents[0].split_inclusive(|b| *b == b'\n').fuse();
+                // Just use the right (i.e. new) content. We could count the
+                // number of skipped lines separately, but the number of the
+                // context lines should match the displayed content.
+                let [_, right] = hunk.contents.try_into().unwrap();
+                let mut lines = right.split_inclusive(|b| *b == b'\n').fuse();
                 if !current_hunk.lines.is_empty() {
                     // The previous hunk line should be either removed/added.
                     current_hunk.extend_context_lines(lines.by_ref().take(options.context));
@@ -1448,11 +1523,16 @@ pub fn show_diff_summary(
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct DiffStatOptions {}
+pub struct DiffStatOptions {
+    /// How lines are tokenized and compared.
+    pub line_diff: LineDiffOptions,
+}
 
 impl DiffStatOptions {
-    fn from_args(_args: &DiffFormatArgs) -> Self {
-        DiffStatOptions {}
+    fn from_args(args: &DiffFormatArgs) -> Self {
+        DiffStatOptions {
+            line_diff: LineDiffOptions::from_args(args),
+        }
     }
 }
 
@@ -1467,12 +1547,15 @@ fn get_diff_stat(
     path: String,
     left_content: &FileContent,
     right_content: &FileContent,
-    _options: &DiffStatOptions,
+    options: &DiffStatOptions,
 ) -> DiffStat {
     // TODO: this matches git's behavior, which is to count the number of newlines
     // in the file. but that behavior seems unhelpful; no one really cares how
     // many `0x0a` characters are in an image.
-    let diff = Diff::by_line([&left_content.contents, &right_content.contents]);
+    let diff = diff_by_line(
+        [&left_content.contents, &right_content.contents],
+        &options.line_diff,
+    );
     let mut added = 0;
     let mut removed = 0;
     for hunk in diff.hunks() {
