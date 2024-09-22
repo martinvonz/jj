@@ -1897,6 +1897,7 @@ dependencies = [
  "gix",
  "gix-filter",
  "glob",
+ "hashbrown 0.15.0",
  "hex",
  "ignore",
  "indexmap",
