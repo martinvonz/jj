@@ -721,6 +721,14 @@ impl<'input> Diff<'input> {
         }
     }
 
+    /// Returns contents at the unchanged `range`.
+    fn hunk_at<'a>(&'a self, range: &'a UnchangedRange) -> impl Iterator<Item = &'input BStr> + 'a {
+        itertools::chain(
+            iter::once(&self.base_input[range.base.clone()]),
+            iter::zip(&self.other_inputs, &range.others).map(|(input, r)| &input[r.clone()]),
+        )
+    }
+
     /// Returns contents between the `previous` ends and the `current` starts.
     fn hunk_between<'a>(
         &'a self,
@@ -803,22 +811,36 @@ impl<'input> Diff<'input> {
     }
 }
 
-#[derive(PartialEq, Eq, Clone, Debug)]
-pub enum DiffHunk<'input> {
-    Matching(&'input BStr),
-    Different(Vec<&'input BStr>),
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DiffHunk<'input> {
+    pub kind: DiffHunkKind,
+    pub contents: Vec<&'input BStr>,
 }
 
 impl<'input> DiffHunk<'input> {
-    pub fn matching<T: AsRef<[u8]> + ?Sized>(content: &'input T) -> Self {
-        DiffHunk::Matching(BStr::new(content))
+    pub fn matching<T: AsRef<[u8]> + ?Sized + 'input>(
+        contents: impl IntoIterator<Item = &'input T>,
+    ) -> Self {
+        DiffHunk {
+            kind: DiffHunkKind::Matching,
+            contents: contents.into_iter().map(BStr::new).collect(),
+        }
     }
 
     pub fn different<T: AsRef<[u8]> + ?Sized + 'input>(
         contents: impl IntoIterator<Item = &'input T>,
     ) -> Self {
-        DiffHunk::Different(contents.into_iter().map(BStr::new).collect())
+        DiffHunk {
+            kind: DiffHunkKind::Different,
+            contents: contents.into_iter().map(BStr::new).collect(),
+        }
     }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum DiffHunkKind {
+    Matching,
+    Different,
 }
 
 pub struct DiffHunkIterator<'diff, 'input> {
@@ -835,21 +857,22 @@ impl<'diff, 'input> Iterator for DiffHunkIterator<'diff, 'input> {
         loop {
             if !self.unchanged_emitted {
                 self.unchanged_emitted = true;
-                if !self.previous.base.is_empty() {
-                    return Some(DiffHunk::Matching(
-                        &self.diff.base_input[self.previous.base.clone()],
-                    ));
+                let contents = self.diff.hunk_at(&self.previous).collect_vec();
+                if contents.iter().any(|content| !content.is_empty()) {
+                    let kind = DiffHunkKind::Matching;
+                    return Some(DiffHunk { kind, contents });
                 }
             }
             if let Some(current) = self.unchanged_iter.next() {
-                let slices = self
+                let contents = self
                     .diff
                     .hunk_between(&self.previous, current)
                     .collect_vec();
                 self.previous = current.clone();
                 self.unchanged_emitted = false;
-                if slices.iter().any(|slice| !slice.is_empty()) {
-                    return Some(DiffHunk::Different(slices));
+                if contents.iter().any(|content| !content.is_empty()) {
+                    let kind = DiffHunkKind::Different;
+                    return Some(DiffHunk { kind, contents });
                 }
             } else {
                 break;
@@ -1188,7 +1211,7 @@ mod tests {
 
     #[test]
     fn test_diff_single_input() {
-        assert_eq!(diff(["abc"]), vec![DiffHunk::matching("abc")]);
+        assert_eq!(diff(["abc"]), vec![DiffHunk::matching(["abc"])]);
     }
 
     #[test]
@@ -1228,9 +1251,9 @@ mod tests {
         assert_eq!(
             diff(["a b c", "a X c"]),
             vec![
-                DiffHunk::matching("a "),
+                DiffHunk::matching(["a "].repeat(2)),
                 DiffHunk::different(["b", "X"]),
-                DiffHunk::matching(" c"),
+                DiffHunk::matching([" c"].repeat(2)),
             ]
         );
     }
@@ -1240,9 +1263,9 @@ mod tests {
         assert_eq!(
             diff(["a b c", "a X c", "a b c"]),
             vec![
-                DiffHunk::matching("a "),
+                DiffHunk::matching(["a "].repeat(3)),
                 DiffHunk::different(["b", "X", "b"]),
-                DiffHunk::matching(" c"),
+                DiffHunk::matching([" c"].repeat(3)),
             ]
         );
     }
@@ -1252,9 +1275,9 @@ mod tests {
         assert_eq!(
             diff(["a b c", "a X c", "a c X"]),
             vec![
-                DiffHunk::matching("a "),
+                DiffHunk::matching(["a "].repeat(3)),
                 DiffHunk::different(["b ", "X ", ""]),
-                DiffHunk::matching("c"),
+                DiffHunk::matching(["c"].repeat(3)),
                 DiffHunk::different(["", "", " X"]),
             ]
         );
@@ -1271,9 +1294,9 @@ mod tests {
         assert_eq!(
             diff.hunks().collect_vec(),
             vec![
-                DiffHunk::matching("a\nb\nc\n"),
+                DiffHunk::matching(["a\nb\nc\n"].repeat(2)),
                 DiffHunk::different(["d\n", "X\n"]),
-                DiffHunk::matching("e\nf\ng"),
+                DiffHunk::matching(["e\nf\ng"].repeat(2)),
             ]
         );
     }
@@ -1291,9 +1314,9 @@ mod tests {
         assert_eq!(
             diff(["a z", "a S z"]),
             vec![
-                DiffHunk::matching("a "),
+                DiffHunk::matching(["a "].repeat(2)),
                 DiffHunk::different(["", "S "]),
-                DiffHunk::matching("z"),
+                DiffHunk::matching(["z"].repeat(2)),
             ]
         );
     }
@@ -1303,11 +1326,11 @@ mod tests {
         assert_eq!(
             diff(["a R R S S z", "a S S R R z"]),
             vec![
-                DiffHunk::matching("a "),
+                DiffHunk::matching(["a "].repeat(2)),
                 DiffHunk::different(["R R ", ""]),
-                DiffHunk::matching("S S "),
+                DiffHunk::matching(["S S "].repeat(2)),
                 DiffHunk::different(["", "R R "]),
-                DiffHunk::matching("z")
+                DiffHunk::matching(["z"].repeat(2))
             ],
         );
     }
@@ -1320,19 +1343,19 @@ mod tests {
                 "a r r x q y z q b y q x r r c",
             ]),
             vec![
-                DiffHunk::matching("a "),
+                DiffHunk::matching(["a "].repeat(2)),
                 DiffHunk::different(["q", "r"]),
-                DiffHunk::matching(" "),
+                DiffHunk::matching([" "].repeat(2)),
                 DiffHunk::different(["", "r "]),
-                DiffHunk::matching("x q y "),
+                DiffHunk::matching(["x q y "].repeat(2)),
                 DiffHunk::different(["q ", ""]),
-                DiffHunk::matching("z q b "),
+                DiffHunk::matching(["z q b "].repeat(2)),
                 DiffHunk::different(["q ", ""]),
-                DiffHunk::matching("y q x "),
+                DiffHunk::matching(["y q x "].repeat(2)),
                 DiffHunk::different(["q", "r"]),
-                DiffHunk::matching(" "),
+                DiffHunk::matching([" "].repeat(2)),
                 DiffHunk::different(["", "r "]),
-                DiffHunk::matching("c"),
+                DiffHunk::matching(["c"].repeat(2)),
             ]
         );
     }
@@ -1346,17 +1369,23 @@ mod tests {
         }
 
         assert_eq!(diff(["", "\n"]), vec![DiffHunk::different(["", "\n"])]);
-        assert_eq!(diff(["a\n", " a\r\n"]), vec![DiffHunk::matching("a\n")]);
+        assert_eq!(
+            diff(["a\n", " a\r\n"]),
+            vec![DiffHunk::matching(["a\n", " a\r\n"])]
+        );
         assert_eq!(
             diff(["a\n", " a\nb"]),
-            vec![DiffHunk::matching("a\n"), DiffHunk::different(["", "b"])]
+            vec![
+                DiffHunk::matching(["a\n", " a\n"]),
+                DiffHunk::different(["", "b"]),
+            ]
         );
 
         // No LCS matches, so trim leading/trailing common lines
         assert_eq!(
             diff(["a\nc\n", " a\n a\n"]),
             vec![
-                DiffHunk::matching("a\n"),
+                DiffHunk::matching(["a\n", " a\n"]),
                 DiffHunk::different(["c\n", " a\n"]),
             ]
         );
@@ -1364,7 +1393,7 @@ mod tests {
             diff(["c\na\n", " a\n a\n"]),
             vec![
                 DiffHunk::different(["c\n", " a\n"]),
-                DiffHunk::matching("a\n"),
+                DiffHunk::matching(["a\n", " a\n"]),
             ]
         );
     }
@@ -1379,7 +1408,10 @@ mod tests {
 
         assert_eq!(diff(["", "\n"]), vec![DiffHunk::different(["", "\n"])]);
         // whitespace at line end is ignored
-        assert_eq!(diff(["a\n", "a\r\n"]), vec![DiffHunk::matching("a\n")]);
+        assert_eq!(
+            diff(["a\n", "a\r\n"]),
+            vec![DiffHunk::matching(["a\n", "a\r\n"])]
+        );
         // but whitespace at line start isn't
         assert_eq!(
             diff(["a\n", " a\n"]),
@@ -1387,7 +1419,10 @@ mod tests {
         );
         assert_eq!(
             diff(["a\n", "a \nb"]),
-            vec![DiffHunk::matching("a\n"), DiffHunk::different(["", "b"])]
+            vec![
+                DiffHunk::matching(["a\n", "a \n"]),
+                DiffHunk::different(["", "b"]),
+            ]
         );
     }
 
@@ -1405,11 +1440,11 @@ mod tests {
                 "    pub fn write_fmt(&mut self, fmt: fmt::Arguments<\'_>) -> io::Result<()> {\n        self.styler().write_fmt(fmt)\n"
             ]),
             vec![
-                DiffHunk::matching("    pub fn write_fmt(&mut self, fmt: fmt::Arguments<\'_>) "),
+                DiffHunk::matching(["    pub fn write_fmt(&mut self, fmt: fmt::Arguments<\'_>) "].repeat(2)),
                 DiffHunk::different(["", "-> io::Result<()> "]),
-                DiffHunk::matching("{\n        self.styler().write_fmt(fmt)"),
+                DiffHunk::matching(["{\n        self.styler().write_fmt(fmt)"].repeat(2)),
                 DiffHunk::different([".unwrap()", ""]),
-                DiffHunk::matching("\n")
+                DiffHunk::matching(["\n"].repeat(2))
             ]
         );
     }
@@ -1560,19 +1595,19 @@ int main(int argc, char **argv)
 "##,
             ]),
             vec![
-               DiffHunk::matching("/*\n * GIT - The information manager from hell\n *\n * Copyright (C) Linus Torvalds, 2005\n */\n#include \"#cache.h\"\n\n"),
+               DiffHunk::matching(["/*\n * GIT - The information manager from hell\n *\n * Copyright (C) Linus Torvalds, 2005\n */\n#include \"#cache.h\"\n\n"].repeat(2)),
                DiffHunk::different(["", "static void create_directories(const char *path)\n{\n\tint len = strlen(path);\n\tchar *buf = malloc(len + 1);\n\tconst char *slash = path;\n\n\twhile ((slash = strchr(slash+1, \'/\')) != NULL) {\n\t\tlen = slash - path;\n\t\tmemcpy(buf, path, len);\n\t\tbuf[len] = 0;\n\t\tmkdir(buf, 0700);\n\t}\n}\n\nstatic int create_file(const char *path)\n{\n\tint fd = open(path, O_WRONLY | O_TRUNC | O_CREAT, 0600);\n\tif (fd < 0) {\n\t\tif (errno == ENOENT) {\n\t\t\tcreate_directories(path);\n\t\t\tfd = open(path, O_WRONLY | O_TRUNC | O_CREAT, 0600);\n\t\t}\n\t}\n\treturn fd;\n}\n\n"]),
-               DiffHunk::matching("static int unpack(unsigned char *sha1)\n{\n\tvoid *buffer;\n\tunsigned long size;\n\tchar type[20];\n\n\tbuffer = read_sha1_file(sha1, type, &size);\n\tif (!buffer)\n\t\tusage(\"unable to read sha1 file\");\n\tif (strcmp(type, \"tree\"))\n\t\tusage(\"expected a \'tree\' node\");\n\twhile (size) {\n\t\tint len = strlen(buffer)+1;\n\t\tunsigned char *sha1 = buffer + len;\n\t\tchar *path = strchr(buffer, \' \')+1;\n"),
+               DiffHunk::matching(["static int unpack(unsigned char *sha1)\n{\n\tvoid *buffer;\n\tunsigned long size;\n\tchar type[20];\n\n\tbuffer = read_sha1_file(sha1, type, &size);\n\tif (!buffer)\n\t\tusage(\"unable to read sha1 file\");\n\tif (strcmp(type, \"tree\"))\n\t\tusage(\"expected a \'tree\' node\");\n\twhile (size) {\n\t\tint len = strlen(buffer)+1;\n\t\tunsigned char *sha1 = buffer + len;\n\t\tchar *path = strchr(buffer, \' \')+1;\n"].repeat(2)),
                DiffHunk::different(["", "\t\tchar *data;\n\t\tunsigned long filesize;\n"]),
-               DiffHunk::matching("\t\tunsigned int mode;\n"),
+               DiffHunk::matching(["\t\tunsigned int mode;\n"].repeat(2)),
                DiffHunk::different(["", "\t\tint fd;\n\n"]),
-               DiffHunk::matching("\t\tif (size < len + 20 || sscanf(buffer, \"%o\", &mode) != 1)\n\t\t\tusage(\"corrupt \'tree\' file\");\n\t\tbuffer = sha1 + 20;\n\t\tsize -= len + 20;\n\t\t"),
+               DiffHunk::matching(["\t\tif (size < len + 20 || sscanf(buffer, \"%o\", &mode) != 1)\n\t\t\tusage(\"corrupt \'tree\' file\");\n\t\tbuffer = sha1 + 20;\n\t\tsize -= len + 20;\n\t\t"].repeat(2)),
                DiffHunk::different(["printf(\"%o %s (%s)\\n\", mode, path,", "data ="]),
-               DiffHunk::matching(" "),
+               DiffHunk::matching([" "].repeat(2)),
                DiffHunk::different(["sha1_to_hex", "read_sha1_file"]),
-               DiffHunk::matching("(sha1"),
+               DiffHunk::matching(["(sha1"].repeat(2)),
                DiffHunk::different([")", ", type, &filesize);\n\t\tif (!data || strcmp(type, \"blob\"))\n\t\t\tusage(\"tree file refers to bad file data\");\n\t\tfd = create_file(path);\n\t\tif (fd < 0)\n\t\t\tusage(\"unable to create file\");\n\t\tif (write(fd, data, filesize) != filesize)\n\t\t\tusage(\"unable to write file\");\n\t\tfchmod(fd, mode);\n\t\tclose(fd);\n\t\tfree(data"]),
-               DiffHunk::matching(");\n\t}\n\treturn 0;\n}\n\nint main(int argc, char **argv)\n{\n\tint fd;\n\tunsigned char sha1[20];\n\n\tif (argc != 2)\n\t\tusage(\"read-tree <key>\");\n\tif (get_sha1_hex(argv[1], sha1) < 0)\n\t\tusage(\"read-tree <key>\");\n\tsha1_file_directory = getenv(DB_ENVIRONMENT);\n\tif (!sha1_file_directory)\n\t\tsha1_file_directory = DEFAULT_DB_ENVIRONMENT;\n\tif (unpack(sha1) < 0)\n\t\tusage(\"unpack failed\");\n\treturn 0;\n}\n"),
+               DiffHunk::matching([");\n\t}\n\treturn 0;\n}\n\nint main(int argc, char **argv)\n{\n\tint fd;\n\tunsigned char sha1[20];\n\n\tif (argc != 2)\n\t\tusage(\"read-tree <key>\");\n\tif (get_sha1_hex(argv[1], sha1) < 0)\n\t\tusage(\"read-tree <key>\");\n\tsha1_file_directory = getenv(DB_ENVIRONMENT);\n\tif (!sha1_file_directory)\n\t\tsha1_file_directory = DEFAULT_DB_ENVIRONMENT;\n\tif (unpack(sha1) < 0)\n\t\tusage(\"unpack failed\");\n\treturn 0;\n}\n"].repeat(2)),
             ]
         );
     }

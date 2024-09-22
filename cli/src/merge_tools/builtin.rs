@@ -16,7 +16,7 @@ use jj_lib::conflicts::materialize_merge_result;
 use jj_lib::conflicts::materialize_tree_value;
 use jj_lib::conflicts::MaterializedTreeValue;
 use jj_lib::diff::Diff;
-use jj_lib::diff::DiffHunk;
+use jj_lib::diff::DiffHunkKind;
 use jj_lib::files;
 use jj_lib::files::MergeResult;
 use jj_lib::matchers::Matcher;
@@ -253,8 +253,10 @@ fn make_diff_sections(
     let diff = Diff::by_line([left_contents.as_bytes(), right_contents.as_bytes()]);
     let mut sections = Vec::new();
     for hunk in diff.hunks() {
-        match hunk {
-            DiffHunk::Matching(text) => {
+        match hunk.kind {
+            DiffHunkKind::Matching => {
+                debug_assert!(hunk.contents.iter().all_equal());
+                let text = hunk.contents[0];
                 let text =
                     std::str::from_utf8(text).map_err(|err| BuiltinToolError::DecodeUtf8 {
                         source: err,
@@ -267,7 +269,8 @@ fn make_diff_sections(
                         .collect(),
                 });
             }
-            DiffHunk::Different(sides) => {
+            DiffHunkKind::Different => {
+                let sides = &hunk.contents;
                 assert_eq!(sides.len(), 2, "only two inputs were provided to the diff");
                 let left_side =
                     std::str::from_utf8(sides[0]).map_err(|err| BuiltinToolError::DecodeUtf8 {

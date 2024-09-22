@@ -41,6 +41,7 @@ use jj_lib::copies::CopyOperation;
 use jj_lib::copies::CopyRecords;
 use jj_lib::diff::Diff;
 use jj_lib::diff::DiffHunk;
+use jj_lib::diff::DiffHunkKind;
 use jj_lib::files::DiffLineHunkSide;
 use jj_lib::files::DiffLineIterator;
 use jj_lib::files::DiffLineNumber;
@@ -469,9 +470,13 @@ fn show_color_words_diff_hunks(
     let mut emitted = false;
 
     for hunk in line_diff.hunks() {
-        match hunk {
-            DiffHunk::Matching(content) => contexts.push(content),
-            DiffHunk::Different(contents) => {
+        match hunk.kind {
+            DiffHunkKind::Matching => {
+                // TODO: add support for unmatched contexts
+                debug_assert!(hunk.contents.iter().all_equal());
+                contexts.push(hunk.contents[0]);
+            }
+            DiffHunkKind::Different => {
                 let num_after = if emitted { options.context } else { 0 };
                 line_number = show_color_words_context_lines(
                     formatter,
@@ -483,7 +488,7 @@ fn show_color_words_diff_hunks(
                 contexts.clear();
                 emitted = true;
                 line_number =
-                    show_color_words_diff_lines(formatter, &contents, line_number, options)?;
+                    show_color_words_diff_lines(formatter, &hunk.contents, line_number, options)?;
             }
         }
     }
@@ -656,9 +661,9 @@ fn show_color_words_single_sided_line(
 fn count_diff_alternation(diff_hunks: &[DiffHunk]) -> usize {
     diff_hunks
         .iter()
-        .filter_map(|hunk| match hunk {
-            DiffHunk::Matching(_) => None,
-            DiffHunk::Different(contents) => Some(contents),
+        .filter_map(|hunk| match hunk.kind {
+            DiffHunkKind::Matching => None,
+            DiffHunkKind::Different => Some(&hunk.contents),
         })
         // Map non-empty diff side to index (0: left, 1: right)
         .flat_map(|contents| contents.iter().positions(|content| !content.is_empty()))
@@ -671,9 +676,9 @@ fn count_diff_alternation(diff_hunks: &[DiffHunk]) -> usize {
 fn split_diff_hunks_by_matching_newline<'a, 'b>(
     diff_hunks: &'a [DiffHunk<'b>],
 ) -> impl Iterator<Item = &'a [DiffHunk<'b>]> {
-    diff_hunks.split_inclusive(|hunk| match hunk {
-        DiffHunk::Matching(content) => content.contains(&b'\n'),
-        DiffHunk::Different(_) => false,
+    diff_hunks.split_inclusive(|hunk| match hunk.kind {
+        DiffHunkKind::Matching => hunk.contents.iter().all(|content| content.contains(&b'\n')),
+        DiffHunkKind::Different => false,
     })
 }
 
@@ -1144,9 +1149,11 @@ fn unified_diff_hunks<'content>(
     let diff = Diff::by_line([left_content, right_content]);
     let mut diff_hunks = diff.hunks().peekable();
     while let Some(hunk) = diff_hunks.next() {
-        match hunk {
-            DiffHunk::Matching(content) => {
-                let mut lines = content.split_inclusive(|b| *b == b'\n').fuse();
+        match hunk.kind {
+            DiffHunkKind::Matching => {
+                // TODO: add support for unmatched contexts
+                debug_assert!(hunk.contents.iter().all_equal());
+                let mut lines = hunk.contents[0].split_inclusive(|b| *b == b'\n').fuse();
                 if !current_hunk.lines.is_empty() {
                     // The previous hunk line should be either removed/added.
                     current_hunk.extend_context_lines(lines.by_ref().take(num_context_lines));
@@ -1172,9 +1179,9 @@ fn unified_diff_hunks<'content>(
                 // The next hunk should be of DiffHunk::Different type if any.
                 current_hunk.extend_context_lines(before_lines.into_iter().rev());
             }
-            DiffHunk::Different(contents) => {
+            DiffHunkKind::Different => {
                 let (left_lines, right_lines) =
-                    unzip_diff_hunks_to_lines(Diff::by_word(contents).hunks());
+                    unzip_diff_hunks_to_lines(Diff::by_word(hunk.contents).hunks());
                 current_hunk.extend_removed_lines(left_lines);
                 current_hunk.extend_added_lines(right_lines);
             }
@@ -1200,9 +1207,12 @@ where
     let mut right_tokens: DiffTokenVec<'content> = vec![];
 
     for hunk in diff_hunks {
-        match hunk.borrow() {
-            DiffHunk::Matching(content) => {
-                for token in content.split_inclusive(|b| *b == b'\n') {
+        let hunk = hunk.borrow();
+        match hunk.kind {
+            DiffHunkKind::Matching => {
+                // TODO: add support for unmatched contexts
+                debug_assert!(hunk.contents.iter().all_equal());
+                for token in hunk.contents[0].split_inclusive(|b| *b == b'\n') {
                     left_tokens.push((DiffTokenType::Matching, token));
                     right_tokens.push((DiffTokenType::Matching, token));
                     if token.ends_with(b"\n") {
@@ -1211,8 +1221,8 @@ where
                     }
                 }
             }
-            DiffHunk::Different(contents) => {
-                let [left, right] = contents[..]
+            DiffHunkKind::Different => {
+                let [left, right] = hunk.contents[..]
                     .try_into()
                     .expect("hunk should have exactly two inputs");
                 for token in left.split_inclusive(|b| *b == b'\n') {
@@ -1437,10 +1447,10 @@ fn get_diff_stat(
     let mut added = 0;
     let mut removed = 0;
     for hunk in diff.hunks() {
-        match hunk {
-            DiffHunk::Matching(_) => {}
-            DiffHunk::Different(contents) => {
-                let [left, right] = contents.try_into().unwrap();
+        match hunk.kind {
+            DiffHunkKind::Matching => {}
+            DiffHunkKind::Different => {
+                let [left, right] = hunk.contents.try_into().unwrap();
                 removed += left.split_inclusive(|b| *b == b'\n').count();
                 added += right.split_inclusive(|b| *b == b'\n').count();
             }
