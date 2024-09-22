@@ -489,14 +489,34 @@ fn test_describe_default_description() {
 
 #[test]
 fn test_describe_author() {
-    let test_env = TestEnvironment::default();
+    let mut test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
 
-    test_env.add_config(
-        r#"[template-aliases]
-'format_signature(signature)' = 'signature.name() ++ " " ++ signature.email() ++ " " ++ signature.timestamp()'"#,
-    );
+    let edit_script = test_env.set_up_fake_editor();
+    std::fs::write(edit_script, ["dump editor"].join("\0")).unwrap();
+
+    test_env.add_config(indoc! {r#"
+        [template-aliases]
+        'format_signature(signature)' = 'signature.name() ++ " " ++ signature.email() ++ " " ++ signature.timestamp()'
+
+        [templates]
+        draft_commit_description = '''
+        concat(
+          description,
+          "\n",
+          indent(
+            "JJ: ",
+            concat(
+              "Author: " ++ format_detailed_signature(author) ++ "\n",
+              "Committer: " ++ format_detailed_signature(committer)  ++ "\n",
+              "\n",
+              diff.stat(76),
+            ),
+          ),
+        )
+        '''
+    "#});
     let get_signatures = || {
         test_env.jj_cmd_success(
             &repo_path,
@@ -530,7 +550,6 @@ fn test_describe_author() {
         &repo_path,
         &[
             "describe",
-            "--no-edit",
             "--author",
             "Super Seeder <super.seeder@example.com>",
         ],
@@ -545,6 +564,16 @@ fn test_describe_author() {
     ○  Test User test.user@example.com 2001-02-03 04:05:07.000 +07:00
     │  Test User test.user@example.com 2001-02-03 04:05:07.000 +07:00
     ~
+    "#);
+    insta::assert_snapshot!(
+        std::fs::read_to_string(test_env.env_root().join("editor")).unwrap(), @r#"
+
+    JJ: Author: Super Seeder <super.seeder@example.com> (2001-02-03 08:05:10)
+    JJ: Committer: Test User <test.user@example.com> (2001-02-03 08:05:12)
+
+    JJ: 0 files changed, 0 insertions(+), 0 deletions(-)
+
+    JJ: Lines starting with "JJ: " (like this one) will be removed.
     "#);
 
     // Change the author for multiple commits (the committer is always reset)
@@ -605,7 +634,6 @@ fn test_describe_author() {
             "--config-toml",
             r#"user.name = "Ove Ridder"
             user.email = "ove.ridder@example.com""#,
-            "--no-edit",
             "--reset-author",
         ],
     );
@@ -619,6 +647,29 @@ fn test_describe_author() {
     ○  Ove Ridder ove.ridder@example.com 2001-02-03 04:05:18.000 +07:00
     │  Ove Ridder ove.ridder@example.com 2001-02-03 04:05:18.000 +07:00
     ~
+    "#);
+    insta::assert_snapshot!(
+        std::fs::read_to_string(test_env.env_root().join("editor")).unwrap(), @r#"
+    JJ: Enter or edit commit descriptions after the `JJ: describe` lines.
+    JJ: Warning:
+    JJ: - The text you enter will be lost on a syntax error.
+    JJ: - The syntax of the separator lines may change in the future.
+
+    JJ: describe eae86afaa20c -------
+
+    JJ: Author: Ove Ridder <ove.ridder@example.com> (2001-02-03 08:05:18)
+    JJ: Committer: Ove Ridder <ove.ridder@example.com> (2001-02-03 08:05:18)
+
+    JJ: 0 files changed, 0 insertions(+), 0 deletions(-)
+
+    JJ: describe ba485659f76a -------
+
+    JJ: Author: Ove Ridder <ove.ridder@example.com> (2001-02-03 08:05:18)
+    JJ: Committer: Ove Ridder <ove.ridder@example.com> (2001-02-03 08:05:18)
+
+    JJ: 0 files changed, 0 insertions(+), 0 deletions(-)
+
+    JJ: Lines starting with "JJ: " (like this one) will be removed.
     "#);
 }
 
