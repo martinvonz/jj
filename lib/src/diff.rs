@@ -75,6 +75,38 @@ pub fn find_nonword_ranges(text: &[u8]) -> Vec<Range<usize>> {
         .collect()
 }
 
+fn bytes_ignore_all_whitespace(text: &[u8]) -> impl Iterator<Item = u8> + '_ {
+    text.iter().copied().filter(|b| !b.is_ascii_whitespace())
+}
+
+fn bytes_ignore_whitespace_amount(text: &[u8]) -> impl Iterator<Item = u8> + '_ {
+    let mut prev_was_space = false;
+    text.iter().filter_map(move |&b| {
+        let was_space = prev_was_space;
+        let is_space = b.is_ascii_whitespace();
+        prev_was_space = is_space;
+        match (was_space, is_space) {
+            (_, false) => Some(b),
+            (false, true) => Some(b' '),
+            (true, true) => None,
+        }
+    })
+}
+
+fn hash_with_length_suffix<I, H>(data: I, state: &mut H)
+where
+    I: IntoIterator,
+    I::Item: Hash,
+    H: Hasher,
+{
+    let mut len: usize = 0;
+    for d in data {
+        d.hash(state);
+        len += 1;
+    }
+    state.write_usize(len);
+}
+
 /// Compares byte sequences based on a certain equivalence property.
 ///
 /// This isn't a newtype `Wrapper<'a>(&'a [u8])` but an external comparison
@@ -119,6 +151,34 @@ impl CompareBytes for CompareBytesExactly {
 
     fn hash<H: Hasher>(&self, text: &[u8], state: &mut H) {
         text.hash(state);
+    }
+}
+
+/// Compares byte sequences ignoring any whitespace occurrences.
+#[derive(Clone, Debug, Default)]
+pub struct CompareBytesIgnoreAllWhitespace;
+
+impl CompareBytes for CompareBytesIgnoreAllWhitespace {
+    fn eq(&self, left: &[u8], right: &[u8]) -> bool {
+        bytes_ignore_all_whitespace(left).eq(bytes_ignore_all_whitespace(right))
+    }
+
+    fn hash<H: Hasher>(&self, text: &[u8], state: &mut H) {
+        hash_with_length_suffix(bytes_ignore_all_whitespace(text), state);
+    }
+}
+
+/// Compares byte sequences ignoring changes in whitespace amount.
+#[derive(Clone, Debug, Default)]
+pub struct CompareBytesIgnoreWhitespaceAmount;
+
+impl CompareBytes for CompareBytesIgnoreWhitespaceAmount {
+    fn eq(&self, left: &[u8], right: &[u8]) -> bool {
+        bytes_ignore_whitespace_amount(left).eq(bytes_ignore_whitespace_amount(right))
+    }
+
+    fn hash<H: Hasher>(&self, text: &[u8], state: &mut H) {
+        hash_with_length_suffix(bytes_ignore_whitespace_amount(text), state);
     }
 }
 
@@ -889,6 +949,55 @@ mod tests {
             find_word_ranges(b"fn find_words(text: &[u8])"),
             vec![0..2, 3..13, 14..18, 22..24]
         );
+    }
+
+    #[test]
+    fn test_compare_bytes_ignore_all_whitespace() {
+        let comp = WordComparator::new(CompareBytesIgnoreAllWhitespace);
+        let hash = |data: &[u8]| comp.hash_one(data);
+
+        assert!(comp.eq(b"", b""));
+        assert!(comp.eq(b"", b" "));
+        assert!(comp.eq(b"\t", b"\r"));
+        assert_eq!(hash(b""), hash(b""));
+        assert_eq!(hash(b""), hash(b" "));
+        assert_eq!(hash(b""), hash(b"\t"));
+        assert_eq!(hash(b""), hash(b"\r"));
+
+        assert!(comp.eq(b"ab", b" a  b\t"));
+        assert_eq!(hash(b"ab"), hash(b" a  b\t"));
+
+        assert!(!comp.eq(b"a", b""));
+        assert!(!comp.eq(b"a", b" "));
+        assert!(!comp.eq(b"a", b"ab"));
+        assert!(!comp.eq(b"ab", b"ba"));
+    }
+
+    #[test]
+    fn test_compare_bytes_ignore_whitespace_amount() {
+        let comp = WordComparator::new(CompareBytesIgnoreWhitespaceAmount);
+        let hash = |data: &[u8]| comp.hash_one(data);
+
+        assert!(comp.eq(b"", b""));
+        assert!(comp.eq(b"\n", b" \n"));
+        assert!(comp.eq(b"\t", b"\r"));
+        assert_eq!(hash(b""), hash(b""));
+        assert_eq!(hash(b" "), hash(b"\n"));
+        assert_eq!(hash(b" "), hash(b" \n"));
+        assert_eq!(hash(b" "), hash(b"\t"));
+        assert_eq!(hash(b" "), hash(b"\r"));
+
+        assert!(comp.eq(b"a b c\n", b"a  b\tc\r\n"));
+        assert_eq!(hash(b"a b c\n"), hash(b"a  b\tc\r\n"));
+
+        assert!(!comp.eq(b"", b" "));
+        assert!(!comp.eq(b"a", b""));
+        assert!(!comp.eq(b"a", b" "));
+        assert!(!comp.eq(b"a", b"a "));
+        assert!(!comp.eq(b"a", b" a"));
+        assert!(!comp.eq(b"a", b"ab"));
+        assert!(!comp.eq(b"ab", b"ba"));
+        assert!(!comp.eq(b"ab", b"a b"));
     }
 
     fn unchanged_ranges(
