@@ -6310,6 +6310,10 @@ does not match the <code>jj help</code> output exactly.</p>
 <p>You can use it in combination with the JJ_USER and JJ_EMAIL environment variables to set a different author:</p>
 <p>$ JJ_USER='Foo Bar' JJ_EMAIL=foo@bar.com jj commit --reset-author</p>
 </li>
+<li>
+<p><code>--author &lt;AUTHOR&gt;</code> — Set author to the provided string</p>
+<p>This changes author name and email while retaining author timestamp for non-discardable commits.</p>
+</li>
 </ul>
 <h2 id="jj-config"><code>jj config</code><a class="headerlink" href="#jj-config" title="Permanent link">&para;</a></h2>
 <p>Manage config options</p>
@@ -6423,6 +6427,10 @@ Martin von Zweigbergk</p>
 <p>This resets the author name, email, and timestamp.</p>
 <p>You can use it in combination with the JJ_USER and JJ_EMAIL environment variables to set a different author:</p>
 <p>$ JJ_USER='Foo Bar' JJ_EMAIL=foo@bar.com jj describe --reset-author</p>
+</li>
+<li>
+<p><code>--author &lt;AUTHOR&gt;</code> — Set author to the provided string</p>
+<p>This changes author name and email while retaining author timestamp for non-discardable commits.</p>
 </li>
 </ul>
 <h2 id="jj-diff"><code>jj diff</code><a class="headerlink" href="#jj-diff" title="Permanent link">&para;</a></h2>
