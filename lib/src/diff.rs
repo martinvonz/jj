@@ -73,27 +73,46 @@ pub fn find_nonword_ranges(text: &[u8]) -> Vec<Range<usize>> {
         .collect()
 }
 
+#[derive(Clone, Debug)]
+struct DiffSource<'input, 'aux> {
+    text: &'input BStr,
+    ranges: &'aux [Range<usize>],
+}
+
+impl<'input, 'aux> DiffSource<'input, 'aux> {
+    fn new<T: AsRef<[u8]> + ?Sized>(text: &'input T, ranges: &'aux [Range<usize>]) -> Self {
+        DiffSource {
+            text: BStr::new(text),
+            ranges,
+        }
+    }
+
+    fn narrowed(&self, positions: Range<usize>) -> Self {
+        DiffSource {
+            text: self.text,
+            ranges: &self.ranges[positions],
+        }
+    }
+}
+
 struct Histogram<'a> {
-    word_to_positions: HashMap<&'a [u8], Vec<usize>>,
-    count_to_words: BTreeMap<usize, Vec<&'a [u8]>>,
+    word_to_positions: HashMap<&'a BStr, Vec<usize>>,
+    count_to_words: BTreeMap<usize, Vec<&'a BStr>>,
 }
 
 impl Histogram<'_> {
-    fn calculate<'a>(
-        text: &'a [u8],
-        ranges: &[Range<usize>],
-        max_occurrences: usize,
-    ) -> Histogram<'a> {
-        let mut word_to_positions: HashMap<&[u8], Vec<usize>> = HashMap::new();
-        for (i, range) in ranges.iter().enumerate() {
-            let positions = word_to_positions.entry(&text[range.clone()]).or_default();
+    fn calculate<'a>(source: &DiffSource<'a, '_>, max_occurrences: usize) -> Histogram<'a> {
+        let mut word_to_positions: HashMap<&BStr, Vec<usize>> = HashMap::new();
+        for (i, range) in source.ranges.iter().enumerate() {
+            let word = &source.text[range.clone()];
+            let positions = word_to_positions.entry(word).or_default();
             // Allow one more than max_occurrences, so we can later skip those with more
             // than max_occurrences
             if positions.len() <= max_occurrences {
                 positions.push(i);
             }
         }
-        let mut count_to_words: BTreeMap<usize, Vec<&[u8]>> = BTreeMap::new();
+        let mut count_to_words: BTreeMap<usize, Vec<&BStr>> = BTreeMap::new();
         for (word, ranges) in &word_to_positions {
             count_to_words.entry(ranges.len()).or_default().push(word);
         }
@@ -162,32 +181,27 @@ fn find_lcs(input: &[usize]) -> Vec<(usize, usize)> {
 
 /// Finds unchanged ranges among the ones given as arguments. The data between
 /// those ranges is ignored.
-pub(crate) fn unchanged_ranges(
-    left: &[u8],
-    right: &[u8],
-    left_ranges: &[Range<usize>],
-    right_ranges: &[Range<usize>],
-) -> Vec<(Range<usize>, Range<usize>)> {
-    if left_ranges.is_empty() || right_ranges.is_empty() {
+fn unchanged_ranges(left: &DiffSource, right: &DiffSource) -> Vec<(Range<usize>, Range<usize>)> {
+    if left.ranges.is_empty() || right.ranges.is_empty() {
         return vec![];
     }
 
     // Prioritize LCS-based algorithm than leading/trailing matches
-    let result = unchanged_ranges_lcs(left, right, left_ranges, right_ranges);
+    let result = unchanged_ranges_lcs(left, right);
     if !result.is_empty() {
         return result;
     }
 
     // Trim leading common ranges (i.e. grow previous unchanged region)
-    let common_leading_len = iter::zip(left_ranges, right_ranges)
-        .take_while(|&(l, r)| left[l.clone()] == right[r.clone()])
+    let common_leading_len = iter::zip(left.ranges, right.ranges)
+        .take_while(|&(l, r)| left.text[l.clone()] == right.text[r.clone()])
         .count();
-    let (left_leading_ranges, left_ranges) = left_ranges.split_at(common_leading_len);
-    let (right_leading_ranges, right_ranges) = right_ranges.split_at(common_leading_len);
+    let (left_leading_ranges, left_ranges) = left.ranges.split_at(common_leading_len);
+    let (right_leading_ranges, right_ranges) = right.ranges.split_at(common_leading_len);
 
     // Trim trailing common ranges (i.e. grow next unchanged region)
     let common_trailing_len = iter::zip(left_ranges.iter().rev(), right_ranges.iter().rev())
-        .take_while(|&(l, r)| left[l.clone()] == right[r.clone()])
+        .take_while(|&(l, r)| left.text[l.clone()] == right.text[r.clone()])
         .count();
     let left_trailing_ranges = &left_ranges[(left_ranges.len() - common_trailing_len)..];
     let right_trailing_ranges = &right_ranges[(right_ranges.len() - common_trailing_len)..];
@@ -206,25 +220,23 @@ pub(crate) fn unchanged_ranges(
 }
 
 fn unchanged_ranges_lcs(
-    left: &[u8],
-    right: &[u8],
-    left_ranges: &[Range<usize>],
-    right_ranges: &[Range<usize>],
+    left: &DiffSource,
+    right: &DiffSource,
 ) -> Vec<(Range<usize>, Range<usize>)> {
     let max_occurrences = 100;
-    let left_histogram = Histogram::calculate(left, left_ranges, max_occurrences);
+    let left_histogram = Histogram::calculate(left, max_occurrences);
     if *left_histogram.count_to_words.keys().next().unwrap() > max_occurrences {
         // If there are very many occurrences of all words, then we just give up.
         return vec![];
     }
-    let right_histogram = Histogram::calculate(right, right_ranges, max_occurrences);
+    let right_histogram = Histogram::calculate(right, max_occurrences);
     // Look for words with few occurrences in `left` (could equally well have picked
     // `right`?). If any of them also occur in `right`, then we add the words to
     // the LCS.
     let Some(uncommon_shared_words) = left_histogram
         .count_to_words
         .iter()
-        .map(|(left_count, left_words)| -> Vec<&[u8]> {
+        .map(|(left_count, left_words)| -> Vec<&BStr> {
             left_words
                 .iter()
                 .copied()
@@ -281,30 +293,26 @@ fn unchanged_ranges_lcs(
         let skipped_right_positions = previous_right_position..right_position;
         if !skipped_left_positions.is_empty() || !skipped_right_positions.is_empty() {
             for unchanged_nested_range in unchanged_ranges(
-                left,
-                right,
-                &left_ranges[skipped_left_positions.clone()],
-                &right_ranges[skipped_right_positions.clone()],
+                &left.narrowed(skipped_left_positions.clone()),
+                &right.narrowed(skipped_right_positions.clone()),
             ) {
                 result.push(unchanged_nested_range);
             }
         }
         result.push((
-            left_ranges[left_position].clone(),
-            right_ranges[right_position].clone(),
+            left.ranges[left_position].clone(),
+            right.ranges[right_position].clone(),
         ));
         previous_left_position = left_position + 1;
         previous_right_position = right_position + 1;
     }
     // Also recurse into range at end (after common ranges).
-    let skipped_left_positions = previous_left_position..left_ranges.len();
-    let skipped_right_positions = previous_right_position..right_ranges.len();
+    let skipped_left_positions = previous_left_position..left.ranges.len();
+    let skipped_right_positions = previous_right_position..right.ranges.len();
     if !skipped_left_positions.is_empty() || !skipped_right_positions.is_empty() {
         for unchanged_nested_range in unchanged_ranges(
-            left,
-            right,
-            &left_ranges[skipped_left_positions],
-            &right_ranges[skipped_right_positions],
+            &left.narrowed(skipped_left_positions),
+            &right.narrowed(skipped_right_positions),
         ) {
             result.push(unchanged_nested_range);
         }
@@ -447,17 +455,14 @@ impl<'input> Diff<'input> {
         // input as unchanged (compared to itself). Then diff each other input
         // against the base. Intersect the previously found ranges with the
         // unchanged ranges in the diff.
+        let base_source = DiffSource::new(base_input, base_token_ranges);
         let mut unchanged_regions = vec![UnchangedRange {
             base_range: 0..base_input.len(),
             offsets: vec![],
         }];
         for (other_input, other_token_ranges) in iter::zip(&other_inputs, other_token_ranges) {
-            let unchanged_diff_ranges = unchanged_ranges(
-                base_input,
-                other_input,
-                base_token_ranges,
-                other_token_ranges,
-            );
+            let other_source = DiffSource::new(other_input, other_token_ranges);
+            let unchanged_diff_ranges = unchanged_ranges(&base_source, &other_source);
             unchanged_regions = intersect_regions(unchanged_regions, &unchanged_diff_ranges);
         }
         // Add an empty range at the end to make life easier for hunks().
@@ -787,10 +792,8 @@ mod tests {
     fn test_unchanged_ranges_insert_in_middle() {
         assert_eq!(
             unchanged_ranges(
-                b"a b b c",
-                b"a b X b c",
-                &[0..1, 2..3, 4..5, 6..7],
-                &[0..1, 2..3, 4..5, 6..7, 8..9],
+                &DiffSource::new(b"a b b c", &[0..1, 2..3, 4..5, 6..7]),
+                &DiffSource::new(b"a b X b c", &[0..1, 2..3, 4..5, 6..7, 8..9]),
             ),
             vec![(0..1, 0..1), (2..3, 2..3), (4..5, 6..7), (6..7, 8..9)]
         );
@@ -802,37 +805,29 @@ mod tests {
         // "a"s in the second input. We no longer do.
         assert_eq!(
             unchanged_ranges(
-                b"a a a a",
-                b"a b a c",
-                &[0..1, 2..3, 4..5, 6..7],
-                &[0..1, 2..3, 4..5, 6..7],
+                &DiffSource::new(b"a a a a", &[0..1, 2..3, 4..5, 6..7]),
+                &DiffSource::new(b"a b a c", &[0..1, 2..3, 4..5, 6..7]),
             ),
             vec![(0..1, 0..1)]
         );
         assert_eq!(
             unchanged_ranges(
-                b"a a a a",
-                b"b a c a",
-                &[0..1, 2..3, 4..5, 6..7],
-                &[0..1, 2..3, 4..5, 6..7],
+                &DiffSource::new(b"a a a a", &[0..1, 2..3, 4..5, 6..7]),
+                &DiffSource::new(b"b a c a", &[0..1, 2..3, 4..5, 6..7]),
             ),
             vec![(6..7, 6..7)]
         );
         assert_eq!(
             unchanged_ranges(
-                b"a a a a",
-                b"b a a c",
-                &[0..1, 2..3, 4..5, 6..7],
-                &[0..1, 2..3, 4..5, 6..7],
+                &DiffSource::new(b"a a a a", &[0..1, 2..3, 4..5, 6..7]),
+                &DiffSource::new(b"b a a c", &[0..1, 2..3, 4..5, 6..7]),
             ),
             vec![]
         );
         assert_eq!(
             unchanged_ranges(
-                b"a a a a",
-                b"a b c a",
-                &[0..1, 2..3, 4..5, 6..7],
-                &[0..1, 2..3, 4..5, 6..7],
+                &DiffSource::new(b"a a a a", &[0..1, 2..3, 4..5, 6..7]),
+                &DiffSource::new(b"a b c a", &[0..1, 2..3, 4..5, 6..7]),
             ),
             vec![(0..1, 0..1), (6..7, 6..7)]
         );
@@ -844,37 +839,29 @@ mod tests {
         // "a"s in the second input. We no longer do.
         assert_eq!(
             unchanged_ranges(
-                b"a b a c",
-                b"a a a a",
-                &[0..1, 2..3, 4..5, 6..7],
-                &[0..1, 2..3, 4..5, 6..7],
+                &DiffSource::new(b"a b a c", &[0..1, 2..3, 4..5, 6..7]),
+                &DiffSource::new(b"a a a a", &[0..1, 2..3, 4..5, 6..7]),
             ),
             vec![(0..1, 0..1)]
         );
         assert_eq!(
             unchanged_ranges(
-                b"b a c a",
-                b"a a a a",
-                &[0..1, 2..3, 4..5, 6..7],
-                &[0..1, 2..3, 4..5, 6..7],
+                &DiffSource::new(b"b a c a", &[0..1, 2..3, 4..5, 6..7]),
+                &DiffSource::new(b"a a a a", &[0..1, 2..3, 4..5, 6..7]),
             ),
             vec![(6..7, 6..7)]
         );
         assert_eq!(
             unchanged_ranges(
-                b"b a a c",
-                b"a a a a",
-                &[0..1, 2..3, 4..5, 6..7],
-                &[0..1, 2..3, 4..5, 6..7],
+                &DiffSource::new(b"b a a c", &[0..1, 2..3, 4..5, 6..7]),
+                &DiffSource::new(b"a a a a", &[0..1, 2..3, 4..5, 6..7]),
             ),
             vec![]
         );
         assert_eq!(
             unchanged_ranges(
-                b"a b c a",
-                b"a a a a",
-                &[0..1, 2..3, 4..5, 6..7],
-                &[0..1, 2..3, 4..5, 6..7],
+                &DiffSource::new(b"a b c a", &[0..1, 2..3, 4..5, 6..7]),
+                &DiffSource::new(b"a a a a", &[0..1, 2..3, 4..5, 6..7]),
             ),
             vec![(0..1, 0..1), (6..7, 6..7)]
         );
