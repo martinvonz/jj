@@ -542,21 +542,14 @@ fn show_color_words_diff_hunks(
 
     for hunk in line_diff.hunks() {
         match hunk.kind {
-            DiffHunkKind::Matching => {
-                // TODO: better handling of unmatched contexts
-                debug_assert!(hunk
-                    .contents
-                    .iter()
-                    .map(|content| content.split_inclusive(|b| *b == b'\n').count())
-                    .all_equal());
-                contexts.push(hunk.contents[1]);
-            }
+            DiffHunkKind::Matching => contexts.push(hunk.contents),
             DiffHunkKind::Different => {
                 let num_after = if emitted { options.context } else { 0 };
                 line_number = show_color_words_context_lines(
                     formatter,
                     &contexts,
                     line_number,
+                    options,
                     num_after,
                     options.context,
                 )?;
@@ -569,7 +562,14 @@ fn show_color_words_diff_hunks(
     }
 
     if emitted {
-        show_color_words_context_lines(formatter, &contexts, line_number, options.context, 0)?;
+        show_color_words_context_lines(
+            formatter,
+            &contexts,
+            line_number,
+            options,
+            options.context,
+            0,
+        )?;
     }
     Ok(())
 }
@@ -577,46 +577,73 @@ fn show_color_words_diff_hunks(
 /// Prints `num_after` lines, ellipsis, and `num_before` lines.
 fn show_color_words_context_lines(
     formatter: &mut dyn Formatter,
-    contents: &[&BStr],
+    contexts: &[Vec<&BStr>],
     mut line_number: DiffLineNumber,
+    options: &ColorWordsDiffOptions,
     num_after: usize,
     num_before: usize,
 ) -> io::Result<DiffLineNumber> {
     const SKIPPED_CONTEXT_LINE: &str = "    ...\n";
-    let extract = || -> (Vec<&[u8]>, Vec<&[u8]>, u32) {
-        let mut lines = contents
+    let extract = |side: usize| -> (Vec<&[u8]>, Vec<&[u8]>, u32) {
+        let mut lines = contexts
             .iter()
-            .flat_map(|content| content.split_inclusive(|b| *b == b'\n'))
+            .flat_map(|contents| contents[side].split_inclusive(|b| *b == b'\n'))
             .fuse();
         let after_lines = lines.by_ref().take(num_after).collect();
         let before_lines = lines.by_ref().rev().take(num_before + 1).collect();
         let num_skipped: u32 = lines.count().try_into().unwrap();
         (after_lines, before_lines, num_skipped)
     };
-    let show = |formatter: &mut dyn Formatter, lines: &[&[u8]], mut line_number: DiffLineNumber| {
-        for line in lines {
-            show_color_words_line_number(
+    let show = |formatter: &mut dyn Formatter,
+                left_lines: &[&[u8]],
+                right_lines: &[&[u8]],
+                mut line_number: DiffLineNumber| {
+        if left_lines == right_lines {
+            for line in left_lines {
+                show_color_words_line_number(
+                    formatter,
+                    Some(line_number.left),
+                    Some(line_number.right),
+                )?;
+                show_color_words_inline_hunks(
+                    formatter,
+                    &[(DiffLineHunkSide::Both, line.as_ref())],
+                )?;
+                line_number.left += 1;
+                line_number.right += 1;
+            }
+            Ok(line_number)
+        } else {
+            let left = left_lines.concat();
+            let right = right_lines.concat();
+            show_color_words_diff_lines(
                 formatter,
-                Some(line_number.left),
-                Some(line_number.right),
-            )?;
-            show_color_words_inline_hunks(formatter, &[(DiffLineHunkSide::Both, line.as_ref())])?;
-            line_number.left += 1;
-            line_number.right += 1;
+                &[BStr::new(&left), BStr::new(&right)],
+                line_number,
+                options,
+            )
         }
-        io::Result::Ok(line_number)
     };
 
-    let (after_lines, mut before_lines, num_skipped) = extract();
-    line_number = show(formatter, &after_lines, line_number)?;
-    if num_skipped > 0 {
+    let (left_after, mut left_before, num_left_skipped) = extract(0);
+    let (right_after, mut right_before, num_right_skipped) = extract(1);
+    line_number = show(formatter, &left_after, &right_after, line_number)?;
+    if num_left_skipped > 0 || num_right_skipped > 0 {
         write!(formatter, "{SKIPPED_CONTEXT_LINE}")?;
-        before_lines.pop();
-        line_number.left += num_skipped + 1;
-        line_number.right += num_skipped + 1;
+        line_number.left += num_left_skipped;
+        line_number.right += num_right_skipped;
+        if left_before.len() > num_before {
+            left_before.pop();
+            line_number.left += 1;
+        }
+        if right_before.len() > num_before {
+            right_before.pop();
+            line_number.right += 1;
+        }
     }
-    before_lines.reverse();
-    line_number = show(formatter, &before_lines, line_number)?;
+    left_before.reverse();
+    right_before.reverse();
+    line_number = show(formatter, &left_before, &right_before, line_number)?;
     Ok(line_number)
 }
 
