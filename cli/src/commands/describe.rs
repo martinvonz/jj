@@ -263,10 +263,10 @@ pub(crate) fn cmd_describe(
         },
     )?;
     if num_described > 1 {
-        writeln!(ui.status(), "Updated {} commits", num_described)?;
+        writeln!(ui.status(), "Updated {num_described} commits")?;
     }
     if num_rebased > 0 {
-        writeln!(ui.status(), "Rebased {} descendant commits", num_rebased)?;
+        writeln!(ui.status(), "Rebased {num_rebased} descendant commits")?;
     }
     tx.finish(ui, tx_description)?;
     Ok(())
