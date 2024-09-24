@@ -1784,6 +1784,7 @@ See `jj diffedit` if you'd like to restore portions of files rather than entire 
    This undoes the changes that can be seen with `jj diff -r REVISION`. If `REVISION` only has a single parent, this option is equivalent to `jj restore --to REVISION --from REVISION-`.
 
    The default behavior of `jj restore` is equivalent to `jj restore --changes-in @`.
+* `--restore-descendants` — Preserve the content (not the diff) when rebasing descendants
 
 
 
