@@ -6473,7 +6473,7 @@ Martin von Zweigbergk</p>
 <p>Touch up the content changes in a revision with a diff editor</p>
 <p>With the <code>-r</code> option, which is the default, starts a <a href="https://martinvonz.github.io/jj/latest/config/#editing-diffs">diff editor</a> on the changes in the revision.</p>
 <p>With the <code>--from</code> and/or <code>--to</code> options, starts a <a href="https://martinvonz.github.io/jj/latest/config/#editing-diffs">diff editor</a> comparing the "from" revision to the "to" revision.</p>
-<p>Edit the right side of the diff until it looks the way you want. Once you close the editor, the revision specified with <code>-r</code> or <code>--to</code> will be updated. Descendants will be rebased on top as usual, which may result in conflicts.</p>
+<p>Edit the right side of the diff until it looks the way you want. Once you close the editor, the revision specified with <code>-r</code> or <code>--to</code> will be updated. Unless <code>--restore-descendants</code> is used, descendants will be rebased on top as usual, which may result in conflicts.</p>
 <p>See <code>jj restore</code> if you want to move entire files from one revision to another. See <code>jj squash -i</code> or <code>jj unsquash -i</code> if you instead want to move changes into or out of the parent revision.</p>
 <p><strong>Usage:</strong> <code>jj diffedit [OPTIONS]</code></p>
 <h6 id="options_14"><strong>Options:</strong><a class="headerlink" href="#options_14" title="Permanent link">&para;</a></h6>
@@ -6492,6 +6492,10 @@ Martin von Zweigbergk</p>
 </li>
 <li>
 <p><code>--tool &lt;NAME&gt;</code> — Specify diff editor to be used</p>
+</li>
+<li>
+<p><code>--restore-descendants</code> — Preserve the content (not the diff) when rebasing descendants</p>
+<p>When rebasing a descendant on top of the rewritten revision, its diff compared to its parent(s) is normally preserved, i.e. the same way that descendants are always rebased. This flag makes it so the content/state is preserved instead of preserving the diff.</p>
 </li>
 </ul>
 <h2 id="jj-duplicate"><code>jj duplicate</code><a class="headerlink" href="#jj-duplicate" title="Permanent link">&para;</a></h2>
