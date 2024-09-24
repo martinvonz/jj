@@ -1874,7 +1874,7 @@ given <a href="#string-patterns">string pattern</a>.</p>
   user modifications and <code>root()</code>.</p>
 </li>
 <li>
-<p><code>file(expression)</code>: Commits modifying paths matching the given <a href="../filesets/">fileset
+<p><code>files(expression)</code>: Commits modifying paths matching the given <a href="../filesets/">fileset
   expression</a>.</p>
 <p>Paths are relative to the directory <code>jj</code> was invoked from. A directory name
 will match all files in that directory and its subdirectories.</p>
@@ -1893,7 +1893,7 @@ respect the command line path arguments.</p>
 is added to or removed from files under "src".</p>
 </li>
 <li>
-<p><code>conflict()</code>: Commits with conflicts.</p>
+<p><code>conflicts()</code>: Commits with conflicts.</p>
 </li>
 <li>
 <p><code>present(x)</code>: Same as <code>x</code>, but evaluated to <code>none()</code> if any of the commits
