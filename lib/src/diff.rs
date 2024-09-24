@@ -289,30 +289,22 @@ fn unchanged_ranges_lcs(
     for (left_index, right_index) in lcs {
         let (left_position, _) = left_positions[left_index];
         let (right_position, _) = right_positions[right_index];
-        let skipped_left_positions = previous_left_position..left_position;
-        let skipped_right_positions = previous_right_position..right_position;
-        if !skipped_left_positions.is_empty() || !skipped_right_positions.is_empty() {
-            for unchanged_nested_range in unchanged_ranges(
-                &left.narrowed(skipped_left_positions.clone()),
-                &right.narrowed(skipped_right_positions.clone()),
-            ) {
-                result.push(unchanged_nested_range);
-            }
+        for unchanged_nested_range in unchanged_ranges(
+            &left.narrowed(previous_left_position..left_position),
+            &right.narrowed(previous_right_position..right_position),
+        ) {
+            result.push(unchanged_nested_range);
         }
         result.push((left.range_at(left_position), right.range_at(right_position)));
         previous_left_position = WordPosition(left_position.0 + 1);
         previous_right_position = WordPosition(right_position.0 + 1);
     }
     // Also recurse into range at end (after common ranges).
-    let skipped_left_positions = previous_left_position..WordPosition(left.ranges.len());
-    let skipped_right_positions = previous_right_position..WordPosition(right.ranges.len());
-    if !skipped_left_positions.is_empty() || !skipped_right_positions.is_empty() {
-        for unchanged_nested_range in unchanged_ranges(
-            &left.narrowed(skipped_left_positions),
-            &right.narrowed(skipped_right_positions),
-        ) {
-            result.push(unchanged_nested_range);
-        }
+    for unchanged_nested_range in unchanged_ranges(
+        &left.narrowed(previous_left_position..WordPosition(left.ranges.len())),
+        &right.narrowed(previous_right_position..WordPosition(right.ranges.len())),
+    ) {
+        result.push(unchanged_nested_range);
     }
 
     result
