@@ -190,15 +190,20 @@ fn find_lcs(input: &[usize]) -> Vec<(usize, usize)> {
 
 /// Finds unchanged ranges among the ones given as arguments. The data between
 /// those ranges is ignored.
-fn unchanged_ranges(left: &DiffSource, right: &DiffSource) -> Vec<(Range<usize>, Range<usize>)> {
+fn collect_unchanged_ranges(
+    found_ranges: &mut Vec<(Range<usize>, Range<usize>)>,
+    left: &DiffSource,
+    right: &DiffSource,
+) {
     if left.ranges.is_empty() || right.ranges.is_empty() {
-        return vec![];
+        return;
     }
 
     // Prioritize LCS-based algorithm than leading/trailing matches
-    let result = unchanged_ranges_lcs(left, right);
-    if !result.is_empty() {
-        return result;
+    let old_len = found_ranges.len();
+    collect_unchanged_ranges_lcs(found_ranges, left, right);
+    if found_ranges.len() != old_len {
+        return;
     }
 
     // Trim leading common ranges (i.e. grow previous unchanged region)
@@ -215,7 +220,7 @@ fn unchanged_ranges(left: &DiffSource, right: &DiffSource) -> Vec<(Range<usize>,
     let left_trailing_ranges = &left_ranges[(left_ranges.len() - common_trailing_len)..];
     let right_trailing_ranges = &right_ranges[(right_ranges.len() - common_trailing_len)..];
 
-    itertools::chain(
+    found_ranges.extend(itertools::chain(
         iter::zip(
             left_leading_ranges.iter().cloned(),
             right_leading_ranges.iter().cloned(),
@@ -224,20 +229,20 @@ fn unchanged_ranges(left: &DiffSource, right: &DiffSource) -> Vec<(Range<usize>,
             left_trailing_ranges.iter().cloned(),
             right_trailing_ranges.iter().cloned(),
         ),
-    )
-    .collect()
+    ));
 }
 
-fn unchanged_ranges_lcs(
+fn collect_unchanged_ranges_lcs(
+    found_ranges: &mut Vec<(Range<usize>, Range<usize>)>,
     left: &DiffSource,
     right: &DiffSource,
-) -> Vec<(Range<usize>, Range<usize>)> {
+) {
     let max_occurrences = 100;
     let left_histogram = Histogram::calculate(left, max_occurrences);
     let left_count_to_entries = left_histogram.build_count_to_entries();
     if *left_count_to_entries.keys().next().unwrap() > max_occurrences {
         // If there are very many occurrences of all words, then we just give up.
-        return vec![];
+        return;
     }
     let right_histogram = Histogram::calculate(right, max_occurrences);
     // Look for words with few occurrences in `left` (could equally well have picked
@@ -256,7 +261,7 @@ fn unchanged_ranges_lcs(
             both_positions.peek().is_some().then_some(both_positions)
         })
     else {
-        return vec![];
+        return;
     };
 
     // [(index into ranges, serial to identify {word, occurrence #})]
@@ -283,31 +288,26 @@ fn unchanged_ranges_lcs(
 
     // Produce output ranges, recursing into the modified areas between the elements
     // in the LCS.
-    let mut result = vec![];
     let mut previous_left_position = WordPosition(0);
     let mut previous_right_position = WordPosition(0);
     for (left_index, right_index) in lcs {
         let (left_position, _) = left_positions[left_index];
         let (right_position, _) = right_positions[right_index];
-        for unchanged_nested_range in unchanged_ranges(
+        collect_unchanged_ranges(
+            found_ranges,
             &left.narrowed(previous_left_position..left_position),
             &right.narrowed(previous_right_position..right_position),
-        ) {
-            result.push(unchanged_nested_range);
-        }
-        result.push((left.range_at(left_position), right.range_at(right_position)));
+        );
+        found_ranges.push((left.range_at(left_position), right.range_at(right_position)));
         previous_left_position = WordPosition(left_position.0 + 1);
         previous_right_position = WordPosition(right_position.0 + 1);
     }
     // Also recurse into range at end (after common ranges).
-    for unchanged_nested_range in unchanged_ranges(
+    collect_unchanged_ranges(
+        found_ranges,
         &left.narrowed(previous_left_position..WordPosition(left.ranges.len())),
         &right.narrowed(previous_right_position..WordPosition(right.ranges.len())),
-    ) {
-        result.push(unchanged_nested_range);
-    }
-
-    result
+    );
 }
 
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -451,8 +451,9 @@ impl<'input> Diff<'input> {
         }];
         for (other_input, other_token_ranges) in iter::zip(&other_inputs, other_token_ranges) {
             let other_source = DiffSource::new(other_input, other_token_ranges);
-            let unchanged_diff_ranges = unchanged_ranges(&base_source, &other_source);
-            unchanged_regions = intersect_regions(unchanged_regions, &unchanged_diff_ranges);
+            let mut new_ranges = Vec::new();
+            collect_unchanged_ranges(&mut new_ranges, &base_source, &other_source);
+            unchanged_regions = intersect_regions(unchanged_regions, &new_ranges);
         }
         // Add an empty range at the end to make life easier for hunks().
         let offsets = other_inputs
@@ -775,6 +776,15 @@ mod tests {
             find_word_ranges(b"fn find_words(text: &[u8])"),
             vec![0..2, 3..13, 14..18, 22..24]
         );
+    }
+
+    fn unchanged_ranges(
+        left: &DiffSource,
+        right: &DiffSource,
+    ) -> Vec<(Range<usize>, Range<usize>)> {
+        let mut found_ranges = Vec::new();
+        collect_unchanged_ranges(&mut found_ranges, left, right);
+        found_ranges
     }
 
     #[test]
