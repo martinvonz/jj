@@ -951,6 +951,38 @@ snapshots on filestem changes by setting
 You can check whether Watchman is enabled and whether it is installed correctly
 using `jj debug watchman status`.
 
+## Ignore the executable bit
+
+Whether to ignore changes to the executable bit for files on Unix. This option
+is unused on Windows.
+
+`core.ignore-executable-bit = true | false`
+
+On Unix systems, files have permission bits for whether they are executable as
+scripts or binary code. Jujutsu stores this executable bit within each commit
+and will update it for files as you operate on a repository. If you update your
+working copy to a commit where a file is recorded as executable or not, `jj`
+will adjust the permission of that file. If you change a file's executable bit
+through the filesystem, `jj` will record that change in the working-copy commit
+on the next snapshot.
+
+Setting this to `true` will make Jujutsu ignore the executable bit on the
+filesystem and only store the executable bit in the commit itself. In addition,
+`jj` will not attempt to modify a file's executable bit and will add new files
+as "not executable." This is already the behavior on Windows, and having the
+option to enable this behavior is especially useful for Unix users dual-booting
+Windows, Windows users accessing files from WSL, or anyone experimenting with
+nonstandard filesystems.
+
+On Unix, Jujutsu will try to detect whether the filesystem supports executable
+bits to choose a default value, but a configured value will always override the
+default. On Windows systems there is no executable bit, and this option is not
+used.
+
+You can always use `jj file chmod` to update the recorded executable bit for a
+file in the commit manually. If this option is not set, `jj` will attempt to
+propagate that change to the filesystem.
+
 ## Snapshot settings
 
 ### Maximum size for new files

@@ -69,6 +69,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * `jj commit` and `jj describe` now accept `--author` option allowing to quickly change
   author of given commit.
 
+* Updated how we handle executable bits in the working copy to allow Unix to
+  ignore executable bit changes when using a nonstandard filesystem. We try to
+  detect the filesystem's behavior on Unix by default, but it can be overridden
+  manually by setting `core.ignore-executable-bit = true`.
+
 ### Fixed bugs
 
  * Update working copy before reporting changes. This prevents errors during reporting

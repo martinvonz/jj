@@ -178,6 +178,10 @@
                         "description": "Whether to use triggers to monitor for changes in the background."
                       }
                     }
+                },
+                "ignore-executable-bit": {
+                    "type": "boolean",
+                    "description": "Whether to ignore changes to the executable bit for files on Unix. This is always true on Windows"
                 }
             }
         },

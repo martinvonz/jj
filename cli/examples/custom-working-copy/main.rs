@@ -119,6 +119,7 @@ impl ConflictsWorkingCopy {
         state_path: PathBuf,
         operation_id: OperationId,
         workspace_id: WorkspaceId,
+        settings: &UserSettings,
     ) -> Result<Self, WorkingCopyStateError> {
         let inner = LocalWorkingCopy::init(
             store,
@@ -126,6 +127,7 @@ impl ConflictsWorkingCopy {
             state_path,
             operation_id,
             workspace_id,
+            settings,
         )?;
         Ok(ConflictsWorkingCopy {
             inner: Box::new(inner),
@@ -133,8 +135,13 @@ impl ConflictsWorkingCopy {
         })
     }
 
-    fn load(store: Arc<Store>, working_copy_path: PathBuf, state_path: PathBuf) -> Self {
-        let inner = LocalWorkingCopy::load(store, working_copy_path.clone(), state_path);
+    fn load(
+        store: Arc<Store>,
+        working_copy_path: PathBuf,
+        state_path: PathBuf,
+        settings: &UserSettings,
+    ) -> Self {
+        let inner = LocalWorkingCopy::load(store, working_copy_path.clone(), state_path, settings);
         ConflictsWorkingCopy {
             inner: Box::new(inner),
             working_copy_path,
@@ -186,6 +193,7 @@ impl WorkingCopyFactory for ConflictsWorkingCopyFactory {
         state_path: PathBuf,
         operation_id: OperationId,
         workspace_id: WorkspaceId,
+        settings: &UserSettings,
     ) -> Result<Box<dyn WorkingCopy>, WorkingCopyStateError> {
         Ok(Box::new(ConflictsWorkingCopy::init(
             store,
@@ -193,6 +201,7 @@ impl WorkingCopyFactory for ConflictsWorkingCopyFactory {
             state_path,
             operation_id,
             workspace_id,
+            settings,
         )?))
     }
 
@@ -201,11 +210,13 @@ impl WorkingCopyFactory for ConflictsWorkingCopyFactory {
         store: Arc<Store>,
         working_copy_path: PathBuf,
         state_path: PathBuf,
+        settings: &UserSettings,
     ) -> Result<Box<dyn WorkingCopy>, WorkingCopyStateError> {
         Ok(Box::new(ConflictsWorkingCopy::load(
             store,
             working_copy_path,
             state_path,
+            settings,
         )))
     }
 }
