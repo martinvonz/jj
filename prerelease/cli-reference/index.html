@@ -7418,6 +7418,9 @@ commit. This is true in general; it is not specific to this command.</p>
 <p>This undoes the changes that can be seen with <code>jj diff -r REVISION</code>. If <code>REVISION</code> only has a single parent, this option is equivalent to <code>jj restore --to REVISION --from REVISION-</code>.</p>
 <p>The default behavior of <code>jj restore</code> is equivalent to <code>jj restore --changes-in @</code>.</p>
 </li>
+<li>
+<p><code>--restore-descendants</code> — Preserve the content (not the diff) when rebasing descendants</p>
+</li>
 </ul>
 <h2 id="jj-root"><code>jj root</code><a class="headerlink" href="#jj-root" title="Permanent link">&para;</a></h2>
 <p>Show the current workspace root directory</p>
