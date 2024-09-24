@@ -73,6 +73,10 @@ pub fn find_nonword_ranges(text: &[u8]) -> Vec<Range<usize>> {
         .collect()
 }
 
+/// Index in a list of word (or token) ranges.
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+struct WordPosition(usize);
+
 #[derive(Clone, Debug)]
 struct DiffSource<'input, 'aux> {
     text: &'input BStr,
@@ -87,29 +91,33 @@ impl<'input, 'aux> DiffSource<'input, 'aux> {
         }
     }
 
-    fn narrowed(&self, positions: Range<usize>) -> Self {
+    fn narrowed(&self, positions: Range<WordPosition>) -> Self {
         DiffSource {
             text: self.text,
-            ranges: &self.ranges[positions],
+            ranges: &self.ranges[positions.start.0..positions.end.0],
         }
+    }
+
+    fn range_at(&self, position: WordPosition) -> Range<usize> {
+        self.ranges[position.0].clone()
     }
 }
 
 struct Histogram<'a> {
-    word_to_positions: HashMap<&'a BStr, Vec<usize>>,
+    word_to_positions: HashMap<&'a BStr, Vec<WordPosition>>,
     count_to_words: BTreeMap<usize, Vec<&'a BStr>>,
 }
 
 impl Histogram<'_> {
     fn calculate<'a>(source: &DiffSource<'a, '_>, max_occurrences: usize) -> Histogram<'a> {
-        let mut word_to_positions: HashMap<&BStr, Vec<usize>> = HashMap::new();
+        let mut word_to_positions: HashMap<&BStr, Vec<WordPosition>> = HashMap::new();
         for (i, range) in source.ranges.iter().enumerate() {
             let word = &source.text[range.clone()];
             let positions = word_to_positions.entry(word).or_default();
             // Allow one more than max_occurrences, so we can later skip those with more
             // than max_occurrences
             if positions.len() <= max_occurrences {
-                positions.push(i);
+                positions.push(WordPosition(i));
             }
         }
         let mut count_to_words: BTreeMap<usize, Vec<&BStr>> = BTreeMap::new();
@@ -284,8 +292,8 @@ fn unchanged_ranges_lcs(
     // Produce output ranges, recursing into the modified areas between the elements
     // in the LCS.
     let mut result = vec![];
-    let mut previous_left_position = 0;
-    let mut previous_right_position = 0;
+    let mut previous_left_position = WordPosition(0);
+    let mut previous_right_position = WordPosition(0);
     for (left_index, right_index) in lcs {
         let left_position = left_positions[left_index].0;
         let right_position = right_positions[right_index].0;
@@ -299,16 +307,13 @@ fn unchanged_ranges_lcs(
                 result.push(unchanged_nested_range);
             }
         }
-        result.push((
-            left.ranges[left_position].clone(),
-            right.ranges[right_position].clone(),
-        ));
-        previous_left_position = left_position + 1;
-        previous_right_position = right_position + 1;
+        result.push((left.range_at(left_position), right.range_at(right_position)));
+        previous_left_position = WordPosition(left_position.0 + 1);
+        previous_right_position = WordPosition(right_position.0 + 1);
     }
     // Also recurse into range at end (after common ranges).
-    let skipped_left_positions = previous_left_position..left.ranges.len();
-    let skipped_right_positions = previous_right_position..right.ranges.len();
+    let skipped_left_positions = previous_left_position..WordPosition(left.ranges.len());
+    let skipped_right_positions = previous_right_position..WordPosition(right.ranges.len());
     if !skipped_left_positions.is_empty() || !skipped_right_positions.is_empty() {
         for unchanged_nested_range in unchanged_ranges(
             &left.narrowed(skipped_left_positions),
