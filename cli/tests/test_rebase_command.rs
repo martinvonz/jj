@@ -680,12 +680,13 @@ fn test_rebase_revision_onto_descendant() {
     // Now, let's rebase onto the descendant merge
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
+    insta::assert_snapshot!(stderr, @r#"
+    Restored to operation 0957966a18b4 2001-02-03 04:05:15.000 +07:00 - 2001-02-03 04:05:15.000 +07:00 create bookmark merge pointing to commit b05964d109522cd06e48f1a2661e1a0f58be0984
     Working copy now at: vruxwmqv b05964d1 merge | merge
     Parent commit      : royxmykx cea87a87 b | b
     Parent commit      : zsuskuln 2c5b7858 a | a
     Added 1 files, modified 0 files, removed 0 files
-    "###);
+    "#);
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-r", "base", "-d", "merge"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
