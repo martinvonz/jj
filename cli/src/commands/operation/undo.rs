@@ -68,14 +68,13 @@ pub fn cmd_op_undo(
         &args.what,
     );
     tx.repo_mut().set_view(new_view);
-    tx.finish(ui, format!("undo operation {}", bad_op.id().hex()))?;
-
     if let Some(mut formatter) = ui.status_formatter() {
         write!(formatter, "Undid operation ")?;
-        let template = workspace_command.operation_summary_template();
-        template.format(&bad_op, &mut *formatter)?;
+        let template = tx.base_workspace_helper().operation_summary_template();
+        template.format(&bad_op, formatter.as_mut())?;
         writeln!(formatter)?;
     }
+    tx.finish(ui, format!("undo operation {}", bad_op.id().hex()))?;
 
     Ok(())
 }
