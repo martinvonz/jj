@@ -555,6 +555,21 @@ impl<'input> Diff<'input> {
         }
     }
 
+    /// Returns contents between the `previous` ends and the `current` starts.
+    fn hunk_between<'a>(
+        &'a self,
+        previous: &'a UnchangedRange,
+        current: &'a UnchangedRange,
+    ) -> impl Iterator<Item = &'input BStr> + 'a {
+        itertools::chain(
+            iter::once(&self.base_input[previous.base.end..current.base.start]),
+            (0..current.offsets.len()).map(|i| {
+                let changed_range = previous.end(i)..current.start(i);
+                &self.other_inputs[i][changed_range]
+            }),
+        )
+    }
+
     /// Uses the given tokenizer to split the changed regions into smaller
     /// regions. Then tries to finds unchanged regions among them.
     pub fn refine_changed_regions(&mut self, tokenizer: impl Fn(&[u8]) -> Vec<Range<usize>>) {
@@ -568,14 +583,8 @@ impl<'input> Diff<'input> {
             // create a new Diff instance. Then adjust the start positions and
             // offsets to be valid in the context of the larger Diff instance
             // (`self`).
-            let mut slices = vec![&self.base_input[previous.base.end..current.base.start]];
-            for i in 0..current.offsets.len() {
-                let changed_range = previous.end(i)..current.start(i);
-                slices.push(&self.other_inputs[i][changed_range]);
-            }
-
-            let refined_diff = Diff::for_tokenizer(slices, &tokenizer);
-
+            let refined_diff =
+                Diff::for_tokenizer(self.hunk_between(&previous, current), &tokenizer);
             for refined in refined_diff.unchanged_regions {
                 let new_base_start = refined.base.start + previous.base.end;
                 let new_base_end = refined.base.end + previous.base.end;
@@ -660,11 +669,10 @@ impl<'diff, 'input> Iterator for DiffHunkIterator<'diff, 'input> {
                 }
             }
             if let Some(current) = self.unchanged_iter.next() {
-                let mut slices =
-                    vec![&self.diff.base_input[self.previous.base.end..current.base.start]];
-                for (i, input) in self.diff.other_inputs.iter().enumerate() {
-                    slices.push(&input[self.previous.end(i)..current.start(i)]);
-                }
+                let slices = self
+                    .diff
+                    .hunk_between(&self.previous, current)
+                    .collect_vec();
                 self.previous = current.clone();
                 self.unchanged_emitted = false;
                 if slices.iter().any(|slice| !slice.is_empty()) {
