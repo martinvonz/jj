@@ -566,8 +566,6 @@ impl Ui {
                 .unwrap_or(false)
     }
 
-    #[allow(unknown_lints)] // XXX FIXME (aseipp): nightly bogons; re-test this occasionally
-    #[allow(clippy::assigning_clones)]
     pub fn prompt(&self, prompt: &str) -> io::Result<String> {
         if !Self::can_prompt() {
             return Err(io::Error::new(
@@ -580,15 +578,16 @@ impl Ui {
         let mut buf = String::new();
         io::stdin().read_line(&mut buf)?;
 
-        if let Some(trimmed) = buf.strip_suffix('\n') {
-            buf = trimmed.to_owned();
-        } else if buf.is_empty() {
+        if buf.is_empty() {
             return Err(io::Error::new(
                 io::ErrorKind::UnexpectedEof,
                 "Prompt cancelled by EOF",
             ));
         }
 
+        if let Some(trimmed) = buf.strip_suffix('\n') {
+            buf.truncate(trimmed.len());
+        }
         Ok(buf)
     }
 
