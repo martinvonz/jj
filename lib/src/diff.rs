@@ -219,16 +219,18 @@ impl<C: CompareBytes, S: BuildHasher> WordComparator<C, S> {
     }
 }
 
-/// Index in a list of word (or token) ranges.
+/// Index in a list of word (or token) ranges in `DiffSource`.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 struct WordPosition(usize);
+
+/// Index in a list of word (or token) ranges in `LocalDiffSource`.
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+struct LocalWordPosition(usize);
 
 #[derive(Clone, Debug)]
 struct DiffSource<'input, 'aux> {
     text: &'input BStr,
     ranges: &'aux [Range<usize>],
-    /// The number of preceding word ranges excluded from the self `ranges`.
-    global_offset: WordPosition,
 }
 
 impl<'input, 'aux> DiffSource<'input, 'aux> {
@@ -236,23 +238,40 @@ impl<'input, 'aux> DiffSource<'input, 'aux> {
         DiffSource {
             text: BStr::new(text),
             ranges,
-            global_offset: WordPosition(0),
         }
     }
 
-    fn narrowed(&self, positions: Range<WordPosition>) -> Self {
-        DiffSource {
+    fn local(&self) -> LocalDiffSource<'input, '_> {
+        LocalDiffSource {
             text: self.text,
-            ranges: &self.ranges[positions.start.0..positions.end.0],
-            global_offset: self.map_to_global(positions.start),
+            ranges: self.ranges,
+            global_offset: WordPosition(0),
         }
     }
 
     fn range_at(&self, position: WordPosition) -> Range<usize> {
         self.ranges[position.0].clone()
     }
+}
 
-    fn map_to_global(&self, position: WordPosition) -> WordPosition {
+#[derive(Clone, Debug)]
+struct LocalDiffSource<'input, 'aux> {
+    text: &'input BStr,
+    ranges: &'aux [Range<usize>],
+    /// The number of preceding word ranges excluded from the self `ranges`.
+    global_offset: WordPosition,
+}
+
+impl LocalDiffSource<'_, '_> {
+    fn narrowed(&self, positions: Range<LocalWordPosition>) -> Self {
+        LocalDiffSource {
+            text: self.text,
+            ranges: &self.ranges[positions.start.0..positions.end.0],
+            global_offset: self.map_to_global(positions.start),
+        }
+    }
+
+    fn map_to_global(&self, position: LocalWordPosition) -> WordPosition {
         WordPosition(self.global_offset.0 + position.0)
     }
 }
@@ -261,11 +280,11 @@ struct Histogram<'input> {
     word_to_positions: HashTable<HistogramEntry<'input>>,
 }
 
-type HistogramEntry<'input> = (HashedWord<'input>, Vec<WordPosition>);
+type HistogramEntry<'input> = (HashedWord<'input>, Vec<LocalWordPosition>);
 
 impl<'input> Histogram<'input> {
     fn calculate<C: CompareBytes, S: BuildHasher>(
-        source: &DiffSource<'input, '_>,
+        source: &LocalDiffSource<'input, '_>,
         comp: &WordComparator<C, S>,
         max_occurrences: usize,
     ) -> Self {
@@ -285,7 +304,7 @@ impl<'input> Histogram<'input> {
             // Allow one more than max_occurrences, so we can later skip those with more
             // than max_occurrences
             if positions.len() <= max_occurrences {
-                positions.push(WordPosition(i));
+                positions.push(LocalWordPosition(i));
             }
         }
         Histogram { word_to_positions }
@@ -305,7 +324,7 @@ impl<'input> Histogram<'input> {
         &self,
         word: HashedWord<'input>,
         comp: &WordComparator<C, S>,
-    ) -> Option<&[WordPosition]> {
+    ) -> Option<&[LocalWordPosition]> {
         let (_, positions) = self
             .word_to_positions
             .find(word.hash, |(w, _)| comp.eq(w.text, word.text))?;
@@ -373,8 +392,8 @@ fn find_lcs(input: &[usize]) -> Vec<(usize, usize)> {
 /// arguments. The data between those words is ignored.
 fn collect_unchanged_words<C: CompareBytes, S: BuildHasher>(
     found_positions: &mut Vec<(WordPosition, WordPosition)>,
-    left: &DiffSource,
-    right: &DiffSource,
+    left: &LocalDiffSource,
+    right: &LocalDiffSource,
     comp: &WordComparator<C, S>,
 ) {
     if left.ranges.is_empty() || right.ranges.is_empty() {
@@ -403,14 +422,14 @@ fn collect_unchanged_words<C: CompareBytes, S: BuildHasher>(
     found_positions.extend(itertools::chain(
         (0..common_leading_len).map(|i| {
             (
-                left.map_to_global(WordPosition(i)),
-                right.map_to_global(WordPosition(i)),
+                left.map_to_global(LocalWordPosition(i)),
+                right.map_to_global(LocalWordPosition(i)),
             )
         }),
         (1..=common_trailing_len).rev().map(|i| {
             (
-                left.map_to_global(WordPosition(left.ranges.len() - i)),
-                right.map_to_global(WordPosition(right.ranges.len() - i)),
+                left.map_to_global(LocalWordPosition(left.ranges.len() - i)),
+                right.map_to_global(LocalWordPosition(right.ranges.len() - i)),
             )
         }),
     ));
@@ -418,8 +437,8 @@ fn collect_unchanged_words<C: CompareBytes, S: BuildHasher>(
 
 fn collect_unchanged_words_lcs<C: CompareBytes, S: BuildHasher>(
     found_positions: &mut Vec<(WordPosition, WordPosition)>,
-    left: &DiffSource,
-    right: &DiffSource,
+    left: &LocalDiffSource,
+    right: &LocalDiffSource,
     comp: &WordComparator<C, S>,
 ) {
     let max_occurrences = 100;
@@ -473,8 +492,8 @@ fn collect_unchanged_words_lcs<C: CompareBytes, S: BuildHasher>(
 
     // Produce output word positions, recursing into the modified areas between
     // the elements in the LCS.
-    let mut previous_left_position = WordPosition(0);
-    let mut previous_right_position = WordPosition(0);
+    let mut previous_left_position = LocalWordPosition(0);
+    let mut previous_right_position = LocalWordPosition(0);
     for (left_index, right_index) in lcs {
         let (left_position, _) = left_positions[left_index];
         let (right_position, _) = right_positions[right_index];
@@ -488,14 +507,14 @@ fn collect_unchanged_words_lcs<C: CompareBytes, S: BuildHasher>(
             left.map_to_global(left_position),
             right.map_to_global(right_position),
         ));
-        previous_left_position = WordPosition(left_position.0 + 1);
-        previous_right_position = WordPosition(right_position.0 + 1);
+        previous_left_position = LocalWordPosition(left_position.0 + 1);
+        previous_right_position = LocalWordPosition(right_position.0 + 1);
     }
     // Also recurse into range at end (after common ranges).
     collect_unchanged_words(
         found_positions,
-        &left.narrowed(previous_left_position..WordPosition(left.ranges.len())),
-        &right.narrowed(previous_right_position..WordPosition(right.ranges.len())),
+        &left.narrowed(previous_left_position..LocalWordPosition(left.ranges.len())),
+        &right.narrowed(previous_right_position..LocalWordPosition(right.ranges.len())),
         comp,
     );
 }
@@ -630,8 +649,8 @@ impl<'input> Diff<'input> {
                 let mut first_positions = Vec::new();
                 collect_unchanged_words(
                     &mut first_positions,
-                    &base_source,
-                    first_other_source,
+                    &base_source.local(),
+                    &first_other_source.local(),
                     &comp,
                 );
                 if tail_other_sources.is_empty() {
@@ -656,8 +675,8 @@ impl<'input> Diff<'input> {
                             let mut new_positions = Vec::new();
                             collect_unchanged_words(
                                 &mut new_positions,
-                                &base_source,
-                                other_source,
+                                &base_source.local(),
+                                &other_source.local(),
                                 &comp,
                             );
                             intersect_unchanged_words(current_positions, &new_positions)
@@ -1148,7 +1167,7 @@ mod tests {
     ) -> Vec<(Range<usize>, Range<usize>)> {
         let comp = WordComparator::new(CompareBytesExactly);
         let mut positions = Vec::new();
-        collect_unchanged_words(&mut positions, left, right, &comp);
+        collect_unchanged_words(&mut positions, &left.local(), &right.local(), &comp);
         positions
             .into_iter()
             .map(|(left_pos, right_pos)| (left.range_at(left_pos), right.range_at(right_pos)))
