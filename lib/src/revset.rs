@@ -843,7 +843,7 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
         // TODO: Remove in jj 0.28+
         if function.name != "conflicts" {
             diagnostics.add_warning(RevsetParseError::expression(
-                "file() is deprecated; use files() instead",
+                "conflict() is deprecated; use conflicts() instead",
                 function.name_span,
             ));
         }
