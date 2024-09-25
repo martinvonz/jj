@@ -34,6 +34,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * The `git.push-branch-prefix` config has been deprecated in favor of
   `git.push-bookmark-prefix`.
 
+* `conflict()` and `file()` revsets have been renamed to `conflicts()` and `files()`
+  respectively. The old names are still around and will be removed in a future
+  release.
+
 ### New features
 
 * The new config option `snapshot.auto-track` lets you automatically track only
@@ -93,10 +97,6 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * `next/prev` will no longer infer when to go into edit mode when moving from
   commit to commit. It now either follows the flags `--edit|--no-edit` or it
   gets the mode from `ui.movement.edit`.
-
-* `conflict()` and `file()` revsets have been renamed to `conflicts()` and `files()`
-  respectively. With this, all revsets that could potentially return multiple
-  results are named in the plural.
 
 ### Deprecations
 
