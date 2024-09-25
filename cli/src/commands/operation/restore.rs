@@ -55,6 +55,12 @@ pub fn cmd_op_restore(
         &args.what,
     );
     tx.repo_mut().set_view(new_view);
+    if let Some(mut formatter) = ui.status_formatter() {
+        write!(formatter, "Restored to operation ")?;
+        let template = tx.base_workspace_helper().operation_summary_template();
+        template.format(&target_op, formatter.as_mut())?;
+        writeln!(formatter)?;
+    }
     tx.finish(ui, format!("restore to operation {}", target_op.id().hex()))?;
 
     Ok(())

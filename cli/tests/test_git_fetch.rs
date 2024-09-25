@@ -1017,7 +1017,9 @@ fn test_fetch_undo_what() {
         &["op", "restore", "--what", "repo", &base_operation_id],
     );
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(stderr, @r#"
+    Restored to operation b51416386f26 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00 add workspace 'default'
+    "#);
     insta::assert_snapshot!(get_bookmark_output(&test_env, &repo_path), @r###"
     b (deleted)
       @origin: vpupmnsl hidden c7d4bdcb descr_for_b
@@ -1044,7 +1046,9 @@ fn test_fetch_undo_what() {
         ],
     );
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(stderr, @r#"
+    Restored to operation b51416386f26 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00 add workspace 'default'
+    "#);
     insta::assert_snapshot!(get_bookmark_output(&test_env, &repo_path), @r###"
     newbookmark: qpvuntsm 230dd059 (empty) (no description set)
     "###);

@@ -161,7 +161,9 @@ fn test_git_import_undo() {
     // "git import" can be undone by default.
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["op", "restore", &base_operation_id]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(stderr, @r#"
+    Restored to operation b51416386f26 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00 add workspace 'default'
+    "#);
     insta::assert_snapshot!(get_bookmark_output(&test_env, &repo_path), @"");
     // Try "git import" again, which should re-import the bookmark "a".
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["git", "import"]);
@@ -225,10 +227,11 @@ fn test_git_import_move_export_with_default_undo() {
     // repo stay where they were.
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["op", "restore", &base_operation_id]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
+    insta::assert_snapshot!(stderr, @r#"
+    Restored to operation b51416386f26 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00 add workspace 'default'
     Working copy now at: qpvuntsm 230dd059 (empty) (no description set)
     Parent commit      : zzzzzzzz 00000000 (empty) (no description set)
-    "###);
+    "#);
     insta::assert_snapshot!(get_bookmark_output(&test_env, &repo_path), @"");
     insta::assert_debug_snapshot!(get_git_repo_refs(&git_repo), @r###"
     [
