@@ -29,6 +29,7 @@ use jj_lib::settings::ConfigResultExt as _;
 use regex::Captures;
 use regex::Regex;
 use thiserror::Error;
+use toml_edit::TableLike;
 use tracing::instrument;
 
 use crate::command_error::user_error;
@@ -580,6 +581,58 @@ fn read_config_path(config_path: &Path) -> Result<config::Config, config::Config
             )
         })
         .build()
+}
+
+pub fn remove_config_value_from_file(
+    key: &ConfigNamePathBuf,
+    path: &Path,
+) -> Result<(), CommandError> {
+    // Read config
+    let config_toml = std::fs::read_to_string(path).or_else(|err| {
+        match err.kind() {
+            // If config doesn't exist yet, read as empty and we'll write one.
+            std::io::ErrorKind::NotFound => Ok("".to_string()),
+            _ => Err(user_error_with_message(
+                format!("Failed to read file {path}", path = path.display()),
+                err,
+            )),
+        }
+    })?;
+    let mut doc: toml_edit::Document = config_toml.parse().map_err(|err| {
+        user_error_with_message(
+            format!("Failed to parse file {path}", path = path.display()),
+            err,
+        )
+    })?;
+
+    let mut key_iter = key.components();
+    let last_key = key_iter.next_back().expect("key must not be empty");
+    let root: &mut dyn TableLike = doc.as_table_mut();
+    let target_table = key_iter.try_fold(root, |table, key| {
+        table
+            .get_mut(key)
+            .ok_or(config::ConfigError::NotFound(key.to_string()))
+            .and_then(|table| {
+                table
+                    .as_table_like_mut()
+                    .ok_or(config::ConfigError::Message(format!(
+                        "{key} is not a table",
+                    )))
+            })
+    })?;
+
+    // Remove config value
+    target_table
+        .remove(last_key)
+        .ok_or(config::ConfigError::NotFound(key.to_string()))?;
+
+    // Write config back
+    std::fs::write(path, doc.to_string()).map_err(|err| {
+        user_error_with_message(
+            format!("Failed to write file {path}", path = path.display()),
+            err,
+        )
+    })
 }
 
 pub fn write_config_value_to_file(
