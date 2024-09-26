@@ -103,13 +103,12 @@ impl<'input, 'aux> DiffSource<'input, 'aux> {
     }
 }
 
-struct Histogram<'a> {
-    word_to_positions: HashMap<&'a BStr, Vec<WordPosition>>,
-    count_to_words: BTreeMap<usize, Vec<&'a BStr>>,
+struct Histogram<'input> {
+    word_to_positions: HashMap<&'input BStr, Vec<WordPosition>>,
 }
 
-impl Histogram<'_> {
-    fn calculate<'a>(source: &DiffSource<'a, '_>, max_occurrences: usize) -> Histogram<'a> {
+impl<'input> Histogram<'input> {
+    fn calculate(source: &DiffSource<'input, '_>, max_occurrences: usize) -> Self {
         let mut word_to_positions: HashMap<&BStr, Vec<WordPosition>> = HashMap::new();
         for (i, range) in source.ranges.iter().enumerate() {
             let word = &source.text[range.clone()];
@@ -120,14 +119,15 @@ impl Histogram<'_> {
                 positions.push(WordPosition(i));
             }
         }
+        Histogram { word_to_positions }
+    }
+
+    fn build_count_to_words(&self) -> BTreeMap<usize, Vec<&'input BStr>> {
         let mut count_to_words: BTreeMap<usize, Vec<&BStr>> = BTreeMap::new();
-        for (word, ranges) in &word_to_positions {
+        for (word, ranges) in &self.word_to_positions {
             count_to_words.entry(ranges.len()).or_default().push(word);
         }
-        Histogram {
-            word_to_positions,
-            count_to_words,
-        }
+        count_to_words
     }
 }
 
@@ -233,7 +233,8 @@ fn unchanged_ranges_lcs(
 ) -> Vec<(Range<usize>, Range<usize>)> {
     let max_occurrences = 100;
     let left_histogram = Histogram::calculate(left, max_occurrences);
-    if *left_histogram.count_to_words.keys().next().unwrap() > max_occurrences {
+    let left_count_to_words = left_histogram.build_count_to_words();
+    if *left_count_to_words.keys().next().unwrap() > max_occurrences {
         // If there are very many occurrences of all words, then we just give up.
         return vec![];
     }
@@ -241,8 +242,7 @@ fn unchanged_ranges_lcs(
     // Look for words with few occurrences in `left` (could equally well have picked
     // `right`?). If any of them also occur in `right`, then we add the words to
     // the LCS.
-    let Some(uncommon_shared_words) = left_histogram
-        .count_to_words
+    let Some(uncommon_shared_words) = left_count_to_words
         .iter()
         .map(|(left_count, left_words)| -> Vec<&BStr> {
             left_words
