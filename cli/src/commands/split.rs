@@ -99,8 +99,7 @@ You are splitting a commit into two: {}
 The diff initially shows the changes in the commit you're splitting.
 
 Adjust the right side until it shows the contents you want for the first commit.
-The remainder will be in the second commit. If you don't make any changes, then
-the operation will be aborted.
+The remainder will be in the second commit.
 ",
             tx.format_commit_summary(&commit)
         )
@@ -109,12 +108,13 @@ the operation will be aborted.
     // Prompt the user to select the changes they want for the first commit.
     let selected_tree_id =
         diff_selector.select(&base_tree, &end_tree, matcher.as_ref(), format_instructions)?;
-    if &selected_tree_id == commit.tree_id() && diff_selector.is_interactive() {
+    if &selected_tree_id == commit.tree_id() {
         // The user selected everything from the original commit.
-        writeln!(ui.status(), "Nothing changed.")?;
-        return Ok(());
-    }
-    if selected_tree_id == base_tree.id() {
+        writeln!(
+            ui.warning_default(),
+            "All changes have been selected, so the second commit will be empty"
+        )?;
+    } else if selected_tree_id == base_tree.id() {
         // The user selected nothing, so the first commit will be empty.
         writeln!(
             ui.warning_default(),

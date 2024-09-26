@@ -102,13 +102,14 @@ fn test_split_by_paths() {
     test_env.set_up_fake_editor();
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["split", "-r", "@-", "."]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
+    insta::assert_snapshot!(stderr, @r#"
+    Warning: All changes have been selected, so the second commit will be empty
     Rebased 1 descendant commits
     First part: qpvuntsm 9da0eea0 (no description set)
     Second part: znkkpsqq 5b5714a3 (empty) (no description set)
     Working copy now at: zsuskuln 0c798ee7 (no description set)
     Parent commit      : znkkpsqq 5b5714a3 (empty) (no description set)
-    "###);
+    "#);
 
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  zsuskulnrvyr false
@@ -576,15 +577,14 @@ fn test_split_interactive() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_path, &["split"]);
 
     insta::assert_snapshot!(
-        std::fs::read_to_string(test_env.env_root().join("instrs")).unwrap(), @r###"
+        std::fs::read_to_string(test_env.env_root().join("instrs")).unwrap(), @r#"
     You are splitting a commit into two: qpvuntsm 44af2155 (no description set)
 
     The diff initially shows the changes in the commit you're splitting.
 
     Adjust the right side until it shows the contents you want for the first commit.
-    The remainder will be in the second commit. If you don't make any changes, then
-    the operation will be aborted.
-    "###);
+    The remainder will be in the second commit.
+    "#);
 
     insta::assert_snapshot!(
         std::fs::read_to_string(test_env.env_root().join("editor")).unwrap(), @r###"

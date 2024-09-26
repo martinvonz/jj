@@ -91,6 +91,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * `jj git fetch -b <remote-git-branch-name>` will now warn if the branch(es)
    can not be found in any of the specified/configured remotes.
 
+* `jj split` now lets the user select all changes in interactive mode. This may be used
+  to keeping all changes into the first commit while keeping the current commit
+  description for the second commit (the newly created empty one).
+
 ### Fixed bugs
 
 * Update working copy before reporting changes. This prevents errors during reporting
