@@ -16,7 +16,6 @@
 
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
-use std::collections::HashMap;
 use std::hash::BuildHasher;
 use std::hash::Hash;
 use std::hash::Hasher;
@@ -26,6 +25,7 @@ use std::ops::Range;
 use std::slice;
 
 use bstr::BStr;
+use hashbrown::HashTable;
 use itertools::Itertools;
 
 pub fn find_line_ranges(text: &[u8]) -> Vec<Range<usize>> {
@@ -189,7 +189,6 @@ struct WordComparator<C, S> {
     hash_builder: S,
 }
 
-#[allow(unused)] // TODO
 impl<C: CompareBytes> WordComparator<C, RandomState> {
     fn new(compare: C) -> Self {
         WordComparator {
@@ -200,7 +199,6 @@ impl<C: CompareBytes> WordComparator<C, RandomState> {
     }
 }
 
-#[allow(unused)] // TODO
 impl<C: CompareBytes, S: BuildHasher> WordComparator<C, S> {
     fn eq(&self, left: &[u8], right: &[u8]) -> bool {
         self.compare.eq(left, right)
@@ -252,15 +250,25 @@ impl<'input, 'aux> DiffSource<'input, 'aux> {
 }
 
 struct Histogram<'input> {
-    word_to_positions: HashMap<&'input BStr, Vec<WordPosition>>,
+    word_to_positions: HashTable<HistogramEntry<'input>>,
 }
 
+type HistogramEntry<'input> = (&'input BStr, Vec<WordPosition>);
+
 impl<'input> Histogram<'input> {
-    fn calculate(source: &DiffSource<'input, '_>, max_occurrences: usize) -> Self {
-        let mut word_to_positions: HashMap<&BStr, Vec<WordPosition>> = HashMap::new();
+    fn calculate<C: CompareBytes, S: BuildHasher>(
+        source: &DiffSource<'input, '_>,
+        comp: &WordComparator<C, S>,
+        max_occurrences: usize,
+    ) -> Self {
+        let mut word_to_positions: HashTable<HistogramEntry> = HashTable::new();
         for (i, range) in source.ranges.iter().enumerate() {
             let word = &source.text[range.clone()];
-            let positions = word_to_positions.entry(word).or_default();
+            let hash = comp.hash_one(word);
+            let (_, positions) = word_to_positions
+                .entry(hash, |(w, _)| comp.eq(w, word), |(w, _)| comp.hash_one(w))
+                .or_insert_with(|| (word, vec![]))
+                .into_mut();
             // Allow one more than max_occurrences, so we can later skip those with more
             // than max_occurrences
             if positions.len() <= max_occurrences {
@@ -270,13 +278,26 @@ impl<'input> Histogram<'input> {
         Histogram { word_to_positions }
     }
 
-    fn build_count_to_entries(&self) -> BTreeMap<usize, Vec<(&'input BStr, &Vec<WordPosition>)>> {
+    fn build_count_to_entries(&self) -> BTreeMap<usize, Vec<&HistogramEntry<'input>>> {
         let mut count_to_entries: BTreeMap<usize, Vec<_>> = BTreeMap::new();
-        for (word, positions) in &self.word_to_positions {
+        for entry in &self.word_to_positions {
+            let (_, positions) = entry;
             let entries = count_to_entries.entry(positions.len()).or_default();
-            entries.push((*word, positions));
+            entries.push(entry);
         }
         count_to_entries
+    }
+
+    fn positions_by_word<C: CompareBytes, S: BuildHasher>(
+        &self,
+        word: &BStr,
+        comp: &WordComparator<C, S>,
+    ) -> Option<&[WordPosition]> {
+        let hash = comp.hash_one(word);
+        let (_, positions) = self
+            .word_to_positions
+            .find(hash, |(w, _)| comp.eq(w, word))?;
+        Some(positions)
     }
 }
 
@@ -338,10 +359,11 @@ fn find_lcs(input: &[usize]) -> Vec<(usize, usize)> {
 
 /// Finds unchanged word (or token) positions among the ones given as
 /// arguments. The data between those words is ignored.
-fn collect_unchanged_words(
+fn collect_unchanged_words<C: CompareBytes, S: BuildHasher>(
     found_positions: &mut Vec<(WordPosition, WordPosition)>,
     left: &DiffSource,
     right: &DiffSource,
+    comp: &WordComparator<C, S>,
 ) {
     if left.ranges.is_empty() || right.ranges.is_empty() {
         return;
@@ -349,21 +371,21 @@ fn collect_unchanged_words(
 
     // Prioritize LCS-based algorithm than leading/trailing matches
     let old_len = found_positions.len();
-    collect_unchanged_words_lcs(found_positions, left, right);
+    collect_unchanged_words_lcs(found_positions, left, right, comp);
     if found_positions.len() != old_len {
         return;
     }
 
     // Trim leading common ranges (i.e. grow previous unchanged region)
     let common_leading_len = iter::zip(left.ranges, right.ranges)
-        .take_while(|&(l, r)| left.text[l.clone()] == right.text[r.clone()])
+        .take_while(|&(l, r)| comp.eq(&left.text[l.clone()], &right.text[r.clone()]))
         .count();
     let left_ranges = &left.ranges[common_leading_len..];
     let right_ranges = &right.ranges[common_leading_len..];
 
     // Trim trailing common ranges (i.e. grow next unchanged region)
     let common_trailing_len = iter::zip(left_ranges.iter().rev(), right_ranges.iter().rev())
-        .take_while(|&(l, r)| left.text[l.clone()] == right.text[r.clone()])
+        .take_while(|&(l, r)| comp.eq(&left.text[l.clone()], &right.text[r.clone()]))
         .count();
 
     found_positions.extend(itertools::chain(
@@ -382,19 +404,20 @@ fn collect_unchanged_words(
     ));
 }
 
-fn collect_unchanged_words_lcs(
+fn collect_unchanged_words_lcs<C: CompareBytes, S: BuildHasher>(
     found_positions: &mut Vec<(WordPosition, WordPosition)>,
     left: &DiffSource,
     right: &DiffSource,
+    comp: &WordComparator<C, S>,
 ) {
     let max_occurrences = 100;
-    let left_histogram = Histogram::calculate(left, max_occurrences);
+    let left_histogram = Histogram::calculate(left, comp, max_occurrences);
     let left_count_to_entries = left_histogram.build_count_to_entries();
     if *left_count_to_entries.keys().next().unwrap() > max_occurrences {
         // If there are very many occurrences of all words, then we just give up.
         return;
     }
-    let right_histogram = Histogram::calculate(right, max_occurrences);
+    let right_histogram = Histogram::calculate(right, comp, max_occurrences);
     // Look for words with few occurrences in `left` (could equally well have picked
     // `right`?). If any of them also occur in `right`, then we add the words to
     // the LCS.
@@ -403,7 +426,7 @@ fn collect_unchanged_words_lcs(
             let mut both_positions = left_entries
                 .iter()
                 .filter_map(|&(word, left_positions)| {
-                    let right_positions = right_histogram.word_to_positions.get(word)?;
+                    let right_positions = right_histogram.positions_by_word(word, comp)?;
                     (left_positions.len() == right_positions.len())
                         .then_some((left_positions, right_positions))
                 })
@@ -447,6 +470,7 @@ fn collect_unchanged_words_lcs(
             found_positions,
             &left.narrowed(previous_left_position..left_position),
             &right.narrowed(previous_right_position..right_position),
+            comp,
         );
         found_positions.push((
             left.map_to_global(left_position),
@@ -460,6 +484,7 @@ fn collect_unchanged_words_lcs(
         found_positions,
         &left.narrowed(previous_left_position..WordPosition(left.ranges.len())),
         &right.narrowed(previous_right_position..WordPosition(right.ranges.len())),
+        comp,
     );
 }
 
@@ -533,6 +558,7 @@ impl<'input> Diff<'input> {
     pub fn for_tokenizer<T: AsRef<[u8]> + ?Sized + 'input>(
         inputs: impl IntoIterator<Item = &'input T>,
         tokenizer: impl Fn(&[u8]) -> Vec<Range<usize>>,
+        compare: impl CompareBytes,
     ) -> Self {
         let mut inputs = inputs.into_iter().map(BStr::new);
         let base_input = inputs.next().expect("inputs must not be empty");
@@ -541,7 +567,9 @@ impl<'input> Diff<'input> {
         let base_token_ranges: Vec<Range<usize>>;
         let other_token_ranges: Vec<Vec<Range<usize>>>;
         // No need to tokenize if one of the inputs is empty. Non-empty inputs
-        // are all different.
+        // are all different as long as the tokenizer emits non-empty ranges.
+        // This means "" and " " are different even if the compare function is
+        // ignore-whitespace. They are tokenized as [] and [" "] respectively.
         if base_input.is_empty() || other_inputs.iter().any(|input| input.is_empty()) {
             base_token_ranges = vec![];
             other_token_ranges = iter::repeat(vec![]).take(other_inputs.len()).collect();
@@ -557,6 +585,7 @@ impl<'input> Diff<'input> {
             other_inputs,
             &base_token_ranges,
             &other_token_ranges,
+            compare,
         )
     }
 
@@ -565,8 +594,10 @@ impl<'input> Diff<'input> {
         other_inputs: Vec<&'input BStr>,
         base_token_ranges: &[Range<usize>],
         other_token_ranges: &[Vec<Range<usize>>],
+        compare: impl CompareBytes,
     ) -> Self {
         assert_eq!(other_inputs.len(), other_token_ranges.len());
+        let comp = WordComparator::new(compare);
         let base_source = DiffSource::new(base_input, base_token_ranges);
         let other_sources = iter::zip(&other_inputs, other_token_ranges)
             .map(|(input, token_ranges)| DiffSource::new(input, token_ranges))
@@ -585,7 +616,12 @@ impl<'input> Diff<'input> {
             // found ranges with the ranges in the diff.
             [first_other_source, tail_other_sources @ ..] => {
                 let mut first_positions = Vec::new();
-                collect_unchanged_words(&mut first_positions, &base_source, first_other_source);
+                collect_unchanged_words(
+                    &mut first_positions,
+                    &base_source,
+                    first_other_source,
+                    &comp,
+                );
                 if tail_other_sources.is_empty() {
                     first_positions
                         .iter()
@@ -607,7 +643,12 @@ impl<'input> Diff<'input> {
                         first_positions,
                         |current_positions, other_source| {
                             let mut new_positions = Vec::new();
-                            collect_unchanged_words(&mut new_positions, &base_source, other_source);
+                            collect_unchanged_words(
+                                &mut new_positions,
+                                &base_source,
+                                other_source,
+                                &comp,
+                            );
                             intersect_unchanged_words(current_positions, &new_positions)
                         },
                     );
@@ -646,14 +687,14 @@ impl<'input> Diff<'input> {
     pub fn unrefined<T: AsRef<[u8]> + ?Sized + 'input>(
         inputs: impl IntoIterator<Item = &'input T>,
     ) -> Self {
-        Diff::for_tokenizer(inputs, |_| vec![])
+        Diff::for_tokenizer(inputs, |_| vec![], CompareBytesExactly)
     }
 
     /// Compares `inputs` line by line.
     pub fn by_line<T: AsRef<[u8]> + ?Sized + 'input>(
         inputs: impl IntoIterator<Item = &'input T>,
     ) -> Self {
-        Diff::for_tokenizer(inputs, find_line_ranges)
+        Diff::for_tokenizer(inputs, find_line_ranges, CompareBytesExactly)
     }
 
     /// Compares `inputs` word by word.
@@ -663,8 +704,8 @@ impl<'input> Diff<'input> {
     pub fn by_word<T: AsRef<[u8]> + ?Sized + 'input>(
         inputs: impl IntoIterator<Item = &'input T>,
     ) -> Self {
-        let mut diff = Diff::for_tokenizer(inputs, find_word_ranges);
-        diff.refine_changed_regions(find_nonword_ranges);
+        let mut diff = Diff::for_tokenizer(inputs, find_word_ranges, CompareBytesExactly);
+        diff.refine_changed_regions(find_nonword_ranges, CompareBytesExactly);
         diff
     }
 
@@ -695,7 +736,11 @@ impl<'input> Diff<'input> {
 
     /// Uses the given tokenizer to split the changed regions into smaller
     /// regions. Then tries to finds unchanged regions among them.
-    pub fn refine_changed_regions(&mut self, tokenizer: impl Fn(&[u8]) -> Vec<Range<usize>>) {
+    pub fn refine_changed_regions(
+        &mut self,
+        tokenizer: impl Fn(&[u8]) -> Vec<Range<usize>>,
+        compare: impl CompareBytes,
+    ) {
         let mut previous = UnchangedRange {
             base: 0..0,
             others: vec![0..0; self.other_inputs.len()],
@@ -707,7 +752,7 @@ impl<'input> Diff<'input> {
             // offsets to be valid in the context of the larger Diff instance
             // (`self`).
             let refined_diff =
-                Diff::for_tokenizer(self.hunk_between(&previous, current), &tokenizer);
+                Diff::for_tokenizer(self.hunk_between(&previous, current), &tokenizer, &compare);
             for refined in &refined_diff.unchanged_regions {
                 let new_base_start = refined.base.start + previous.base.end;
                 let new_base_end = refined.base.end + previous.base.end;
@@ -824,9 +869,9 @@ impl<'diff, 'input> Iterator for DiffHunkIterator<'diff, 'input> {
 pub fn diff<'a, T: AsRef<[u8]> + ?Sized + 'a>(
     inputs: impl IntoIterator<Item = &'a T>,
 ) -> Vec<DiffHunk<'a>> {
-    let mut diff = Diff::for_tokenizer(inputs, find_line_ranges);
-    diff.refine_changed_regions(find_word_ranges);
-    diff.refine_changed_regions(find_nonword_ranges);
+    let mut diff = Diff::for_tokenizer(inputs, find_line_ranges, CompareBytesExactly);
+    diff.refine_changed_regions(find_word_ranges, CompareBytesExactly);
+    diff.refine_changed_regions(find_nonword_ranges, CompareBytesExactly);
     diff.hunks().collect()
 }
 
@@ -1004,8 +1049,9 @@ mod tests {
         left: &DiffSource,
         right: &DiffSource,
     ) -> Vec<(Range<usize>, Range<usize>)> {
+        let comp = WordComparator::new(CompareBytesExactly);
         let mut positions = Vec::new();
-        collect_unchanged_words(&mut positions, left, right);
+        collect_unchanged_words(&mut positions, left, right, &comp);
         positions
             .into_iter()
             .map(|(left_pos, right_pos)| (left.range_at(left_pos), right.range_at(right_pos)))
@@ -1220,6 +1266,7 @@ mod tests {
         let diff = Diff::for_tokenizer(
             ["a\nb\nc\nd\ne\nf\ng", "a\nb\nc\nX\ne\nf\ng"],
             find_line_ranges,
+            CompareBytesExactly,
         );
         assert_eq!(
             diff.hunks().collect_vec(),
@@ -1287,6 +1334,60 @@ mod tests {
                 DiffHunk::different(["", "r "]),
                 DiffHunk::matching("c"),
             ]
+        );
+    }
+
+    #[test]
+    fn test_diff_ignore_all_whitespace() {
+        fn diff(inputs: [&str; 2]) -> Vec<DiffHunk<'_>> {
+            let diff =
+                Diff::for_tokenizer(inputs, find_line_ranges, CompareBytesIgnoreAllWhitespace);
+            diff.hunks().collect()
+        }
+
+        assert_eq!(diff(["", "\n"]), vec![DiffHunk::different(["", "\n"])]);
+        assert_eq!(diff(["a\n", " a\r\n"]), vec![DiffHunk::matching("a\n")]);
+        assert_eq!(
+            diff(["a\n", " a\nb"]),
+            vec![DiffHunk::matching("a\n"), DiffHunk::different(["", "b"])]
+        );
+
+        // No LCS matches, so trim leading/trailing common lines
+        assert_eq!(
+            diff(["a\nc\n", " a\n a\n"]),
+            vec![
+                DiffHunk::matching("a\n"),
+                DiffHunk::different(["c\n", " a\n"]),
+            ]
+        );
+        assert_eq!(
+            diff(["c\na\n", " a\n a\n"]),
+            vec![
+                DiffHunk::different(["c\n", " a\n"]),
+                DiffHunk::matching("a\n"),
+            ]
+        );
+    }
+
+    #[test]
+    fn test_diff_ignore_whitespace_amount() {
+        fn diff(inputs: [&str; 2]) -> Vec<DiffHunk<'_>> {
+            let diff =
+                Diff::for_tokenizer(inputs, find_line_ranges, CompareBytesIgnoreWhitespaceAmount);
+            diff.hunks().collect()
+        }
+
+        assert_eq!(diff(["", "\n"]), vec![DiffHunk::different(["", "\n"])]);
+        // whitespace at line end is ignored
+        assert_eq!(diff(["a\n", "a\r\n"]), vec![DiffHunk::matching("a\n")]);
+        // but whitespace at line start isn't
+        assert_eq!(
+            diff(["a\n", " a\n"]),
+            vec![DiffHunk::different(["a\n", " a\n"])]
+        );
+        assert_eq!(
+            diff(["a\n", "a \nb"]),
+            vec![DiffHunk::matching("a\n"), DiffHunk::different(["", "b"])]
         );
     }
 
