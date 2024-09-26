@@ -150,9 +150,8 @@ mod tests {
     use std::collections::BTreeMap;
     use std::collections::HashMap;
 
-    use crate::hex_util;
-
     use super::*;
+    use crate::hex_util;
 
     #[test]
     fn test_string_sanity() {

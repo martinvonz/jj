@@ -14,27 +14,23 @@
 
 #![allow(missing_docs)]
 
-pub fn to_reverse_hex_digit(b: u8) -> u8 {
-    let offset = match b {
-        b'0'..=b'9' => b - b'0',
-        b'A'..=b'F' => b - b'A' + 10,
-        b'a'..=b'f' => b - b'a' + 10,
-        b => return b,
-    };
-    b'z' - offset
+use std::iter;
+
+/// Converts a hexadecimal ASCII character to a 0-based index.
+fn hex_to_relative(b: u8) -> Option<u8> {
+    match b {
+        b'0'..=b'9' => Some(b - b'0'),
+        b'A'..=b'F' => Some(b - b'A' + 10),
+        b'a'..=b'f' => Some(b - b'a' + 10),
+        _ => None,
+    }
 }
 
-fn to_reverse_hex_digit_checked(b: u8) -> Option<u8> {
-    let value = match b {
-        b'0'..=b'9' => b - b'0',
-        b'A'..=b'F' => b - b'A' + 10,
-        b'a'..=b'f' => b - b'a' + 10,
-        _ => return None,
-    };
-    Some(b'z' - value)
+fn to_reverse_hex_digit(b: u8) -> Option<u8> {
+    Some(b'z' - hex_to_relative(b)?)
 }
 
-fn to_forward_hex_digit_checked(b: u8) -> Option<u8> {
+fn to_forward_hex_digit(b: u8) -> Option<u8> {
     let value = match b {
         b'k'..=b'z' => b'z' - b,
         b'K'..=b'Z' => b'Z' - b,
@@ -47,25 +43,39 @@ fn to_forward_hex_digit_checked(b: u8) -> Option<u8> {
     }
 }
 
+/// Transforms a reverse hex into a forward hex.
+///
+/// If the reverse hex string contains non reverse hex characters the function
+/// will return None.
 pub fn to_forward_hex(reverse_hex: &str) -> Option<String> {
     reverse_hex
         .bytes()
-        .map(|b| to_forward_hex_digit_checked(b).map(char::from))
+        .map(|b| to_forward_hex_digit(b).map(char::from))
         .collect()
 }
 
+/// Transforms a forward hex into a reverse hex.
+///
+/// If the forward hex string contains non forward hex characters the function
+/// will return None.
 pub fn to_reverse_hex(forward_hex: &str) -> Option<String> {
     forward_hex
         .bytes()
-        .map(|b| to_reverse_hex_digit_checked(b).map(char::from))
+        .map(|b| to_reverse_hex_digit(b).map(char::from))
         .collect()
 }
 
-pub fn decode_hex_string(hex: &str) -> Option<Vec<u8>> {
-    let mut dst = vec![0; hex.len() / 2];
-    faster_hex::hex_decode(hex.as_bytes(), &mut dst)
-        .ok()
-        .map(|()| dst)
+pub fn decode_hex_string(src: &str) -> Option<Vec<u8>> {
+    if src.len() % 2 != 0 {
+        return None;
+    }
+    let mut dst = vec![0; src.len() / 2];
+    for (slot, bytes) in iter::zip(&mut dst, src.as_bytes().chunks_exact(2)) {
+        let a = hex_to_relative(bytes[0])? << 4;
+        let b = hex_to_relative(bytes[1])?;
+        *slot = a | b;
+    }
+    Some(dst)
 }
 
 /// Calculates common prefix length of two byte sequences. The length
@@ -82,22 +92,79 @@ pub fn common_hex_len(bytes_a: &[u8], bytes_b: &[u8]) -> usize {
 }
 
 pub fn encode_hex_string_reverse(src: &[u8]) -> String {
-    let mut buffer = vec![0; src.len() * 2];
-    faster_hex::hex_encode(src, &mut buffer).unwrap();
-    buffer
-        .iter_mut()
-        .for_each(|b| *b = to_reverse_hex_digit(*b));
+    let mut dst = vec![0; src.len() * 2];
+    for (&src, dst) in src.iter().zip(dst.chunks_exact_mut(2)) {
+        dst[0] = hex_lower_reverse((src >> 4) & 0xf);
+        dst[1] = hex_lower_reverse(src & 0xf);
+    }
+    String::from_utf8(dst).expect("hex_lower_reverse emits ascii character bytes")
+}
 
-    String::from_utf8(buffer).unwrap()
+fn hex_lower_reverse(byte: u8) -> u8 {
+    static TABLE: &[u8] = b"zyxwvutsrqponmlk";
+    TABLE[byte as usize]
 }
 
 pub fn encode_hex_string(src: &[u8]) -> String {
-    faster_hex::hex_string(src)
+    let mut dst = vec![0; src.len() * 2];
+    for (&src, dst) in src.iter().zip(dst.chunks_exact_mut(2)) {
+        dst[0] = hex_lower((src >> 4) & 0xf);
+        dst[1] = hex_lower(src & 0xf);
+    }
+    String::from_utf8(dst).expect("hex_lower emits ascii character bytes")
+}
+
+fn hex_lower(byte: u8) -> u8 {
+    static TABLE: &[u8] = b"0123456789abcdef";
+    TABLE[byte as usize]
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_common_hex_len() {
+        assert_eq!(common_hex_len(b"", b""), 0);
+        assert_eq!(common_hex_len(b"abc", b"abc"), 6);
+
+        assert_eq!(common_hex_len(b"aaa", b"bbb"), 1);
+        assert_eq!(common_hex_len(b"aab", b"aac"), 5);
+    }
+
+    #[test]
+    fn test_encode_hex_string() {
+        assert_eq!(&encode_hex_string(b""), "");
+        assert_eq!(&encode_hex_string(b"012"), "303132");
+        assert_eq!(&encode_hex_string(b"0123"), "30313233");
+        assert_eq!(&encode_hex_string(b"abdz"), "6162647a");
+    }
+
+    #[test]
+    fn test_encode_hex_string_reverse() {
+        assert_eq!(&encode_hex_string_reverse(b""), "");
+        assert_eq!(&encode_hex_string_reverse(b"012"), "wzwywx");
+        assert_eq!(&encode_hex_string_reverse(b"0123"), "wzwywxww");
+        assert_eq!(&encode_hex_string_reverse(b"abdz"), "tytxtvsp");
+    }
+
+    #[test]
+    fn test_decode_hex_string() {
+        // Empty string
+        assert_eq!(decode_hex_string(""), Some(vec![]));
+
+        // Odd number of digits
+        assert_eq!(decode_hex_string("0"), None);
+
+        // Invalid digit
+        assert_eq!(decode_hex_string("g0"), None);
+        assert_eq!(decode_hex_string("0g"), None);
+
+        assert_eq!(
+            decode_hex_string("0123456789abcdefABCDEF"),
+            Some(b"\x01\x23\x45\x67\x89\xab\xcd\xef\xAB\xCD\xEF".to_vec())
+        );
+    }
 
     #[test]
     fn test_reverse_hex() {

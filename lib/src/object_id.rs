@@ -66,9 +66,8 @@ macro_rules! impl_id_type {
             }
 
             /// Parses the given hex string into an ObjectId.
-            pub fn try_from_hex(hex: &str) -> Result<Self, faster_hex::Error> {
-                let mut dst = vec![0; hex.len() / 2];
-                faster_hex::hex_decode(hex.as_bytes(), &mut dst).map(|()| Self(dst))
+            pub fn try_from_hex(hex: &str) -> Option<Self> {
+                $crate::hex_util::decode_hex_string(hex).map(Self)
             }
         }
 
@@ -96,7 +95,7 @@ macro_rules! impl_id_type {
             }
 
             fn hex(&self) -> String {
-                faster_hex::hex_string(&self.0)
+                $crate::hex_util::encode_hex_string(&self.0)
             }
         }
     };
@@ -105,7 +104,8 @@ macro_rules! impl_id_type {
 pub(crate) use id_type;
 pub(crate) use impl_id_type;
 
-use crate::hex_util::{self, decode_hex_string};
+use crate::hex_util::decode_hex_string;
+use crate::hex_util::{self};
 
 /// An identifier prefix (typically from a type implementing the [`ObjectId`]
 /// trait) with facilities for converting between bytes and a hex string.

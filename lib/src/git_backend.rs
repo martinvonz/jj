@@ -500,7 +500,7 @@ fn root_tree_from_header(git_commit: &CommitRef) -> Result<Option<MergedTreeId>,
         if *key == JJ_TREES_COMMIT_HEADER {
             let mut tree_ids = SmallVec::new();
             for hex in str::from_utf8(value.as_ref()).or(Err(()))?.split(' ') {
-                let tree_id = TreeId::try_from_hex(hex).or(Err(()))?;
+                let tree_id = TreeId::try_from_hex(hex).ok_or(())?;
                 if tree_id.as_bytes().len() != HASH_LENGTH {
                     return Err(());
                 }

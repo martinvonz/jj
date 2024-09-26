@@ -26,7 +26,6 @@ use thiserror::Error;
 
 use crate::content_hash::ContentHash;
 use crate::hex_util;
-use crate::hex_util::to_reverse_hex_digit;
 use crate::index::Index;
 use crate::merge::Merge;
 use crate::object_id::id_type;

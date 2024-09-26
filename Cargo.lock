@@ -1881,7 +1881,6 @@ dependencies = [
  "digest",
  "either",
  "esl01-renderdag",
- "faster-hex",
  "futures 0.3.30",
  "git2",
  "gix",
