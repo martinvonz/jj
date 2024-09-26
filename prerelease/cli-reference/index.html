@@ -2561,30 +2561,6 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#jj-unsquash" class="md-nav__link">
-    <span class="md-ellipsis">
-      jj unsquash
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="jj unsquash">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#options_44" class="md-nav__link">
-    <span class="md-ellipsis">
-      Options:
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#jj-version" class="md-nav__link">
     <span class="md-ellipsis">
       jj version
@@ -2637,7 +2613,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#options_45" class="md-nav__link">
+  <a href="#options_44" class="md-nav__link">
     <span class="md-ellipsis">
       Options:
     </span>
@@ -5746,30 +5722,6 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#jj-unsquash" class="md-nav__link">
-    <span class="md-ellipsis">
-      jj unsquash
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="jj unsquash">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#options_44" class="md-nav__link">
-    <span class="md-ellipsis">
-      Options:
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#jj-version" class="md-nav__link">
     <span class="md-ellipsis">
       jj version
@@ -5822,7 +5774,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#options_45" class="md-nav__link">
+  <a href="#options_44" class="md-nav__link">
     <span class="md-ellipsis">
       Options:
     </span>
@@ -6025,7 +5977,6 @@ does not match the <code>jj help</code> output exactly.</p>
 <li><a href="#jj-util-markdown-help"><code>jj util markdown-help</code>↴</a></li>
 <li><a href="#jj-util-config-schema"><code>jj util config-schema</code>↴</a></li>
 <li><a href="#jj-undo"><code>jj undo</code>↴</a></li>
-<li><a href="#jj-unsquash"><code>jj unsquash</code>↴</a></li>
 <li><a href="#jj-version"><code>jj version</code>↴</a></li>
 <li><a href="#jj-workspace"><code>jj workspace</code>↴</a></li>
 <li><a href="#jj-workspace-add"><code>jj workspace add</code>↴</a></li>
@@ -6075,7 +6026,6 @@ does not match the <code>jj help</code> output exactly.</p>
 <li><code>tag</code> — Manage tags</li>
 <li><code>util</code> — Infrequently used commands such as for generating shell completions</li>
 <li><code>undo</code> — Undo an operation (shortcut for <code>jj op undo</code>)</li>
-<li><code>unsquash</code> — Move changes from a revision's parent into the revision</li>
 <li><code>version</code> — Display version information</li>
 <li><code>workspace</code> — Commands for working with workspaces</li>
 </ul>
@@ -6475,7 +6425,7 @@ Martin von Zweigbergk</p>
 <p>With the <code>-r</code> option, which is the default, starts a <a href="https://martinvonz.github.io/jj/latest/config/#editing-diffs">diff editor</a> on the changes in the revision.</p>
 <p>With the <code>--from</code> and/or <code>--to</code> options, starts a <a href="https://martinvonz.github.io/jj/latest/config/#editing-diffs">diff editor</a> comparing the "from" revision to the "to" revision.</p>
 <p>Edit the right side of the diff until it looks the way you want. Once you close the editor, the revision specified with <code>-r</code> or <code>--to</code> will be updated. Unless <code>--restore-descendants</code> is used, descendants will be rebased on top as usual, which may result in conflicts.</p>
-<p>See <code>jj restore</code> if you want to move entire files from one revision to another. See <code>jj squash -i</code> or <code>jj unsquash -i</code> if you instead want to move changes into or out of the parent revision.</p>
+<p>See <code>jj restore</code> if you want to move entire files from one revision to another. For moving changes between revisions, see <code>jj squash -i</code>.</p>
 <p><strong>Usage:</strong> <code>jj diffedit [OPTIONS]</code></p>
 <h6 id="options_14"><strong>Options:</strong><a class="headerlink" href="#options_14" title="Permanent link">&para;</a></h6>
 <ul>
@@ -7652,23 +7602,6 @@ compinit
 </ul>
 </li>
 </ul>
-<h2 id="jj-unsquash"><code>jj unsquash</code><a class="headerlink" href="#jj-unsquash" title="Permanent link">&para;</a></h2>
-<p>Move changes from a revision's parent into the revision</p>
-<p>After moving the changes out of the parent, the child revision will have the same content state as before. If moving the change out of the parent change made it empty compared to its parent, it will be abandoned. Without <code>--interactive</code>, the parent change will always become empty.</p>
-<p>If the source became empty and both the source and destination had a non-empty description, you will be asked for the combined description. If either was empty, then the other one will be used.</p>
-<p>If a working-copy commit gets abandoned, it will be given a new, empty commit. This is true in general; it is not specific to this command.</p>
-<p><strong>Usage:</strong> <code>jj unsquash [OPTIONS]</code></p>
-<h6 id="options_44"><strong>Options:</strong><a class="headerlink" href="#options_44" title="Permanent link">&para;</a></h6>
-<ul>
-<li>
-<p><code>-r</code>, <code>--revision &lt;REVISION&gt;</code></p>
-<p>Default value: <code>@</code></p>
-</li>
-<li>
-<p><code>-i</code>, <code>--interactive</code> — Interactively choose which parts to unsquash</p>
-</li>
-<li><code>--tool &lt;NAME&gt;</code> — Specify diff editor to be used (implies --interactive)</li>
-</ul>
 <h2 id="jj-version"><code>jj version</code><a class="headerlink" href="#jj-version" title="Permanent link">&para;</a></h2>
 <p>Display version information</p>
 <p><strong>Usage:</strong> <code>jj version</code></p>
@@ -7695,7 +7628,7 @@ compinit
 <ul>
 <li><code>&lt;DESTINATION&gt;</code> — Where to create the new workspace</li>
 </ul>
-<h6 id="options_45"><strong>Options:</strong><a class="headerlink" href="#options_45" title="Permanent link">&para;</a></h6>
+<h6 id="options_44"><strong>Options:</strong><a class="headerlink" href="#options_44" title="Permanent link">&para;</a></h6>
 <ul>
 <li>
 <p><code>--name &lt;NAME&gt;</code> — A name for the workspace</p>
