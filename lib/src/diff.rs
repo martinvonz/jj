@@ -262,30 +262,30 @@ fn unchanged_ranges_lcs(
         return vec![];
     };
 
-    // [(index into left_ranges, word, occurrence #)]
-    let mut left_positions = vec![];
-    let mut right_positions = vec![];
-    for uncommon_shared_word in uncommon_shared_words {
-        let left_occurrences = &left_histogram.word_to_positions[uncommon_shared_word];
-        let right_occurrences = &right_histogram.word_to_positions[uncommon_shared_word];
-        assert_eq!(left_occurrences.len(), right_occurrences.len());
-        for (occurrence, (&left_pos, &right_pos)) in
-            iter::zip(left_occurrences, right_occurrences).enumerate()
-        {
-            left_positions.push((left_pos, uncommon_shared_word, occurrence));
-            right_positions.push((right_pos, uncommon_shared_word, occurrence));
+    // [(index into ranges, serial to identify {word, occurrence #})]
+    let (mut left_positions, mut right_positions): (Vec<_>, Vec<_>) = uncommon_shared_words
+        .iter()
+        .flat_map(|word| {
+            let left_occurrences = &left_histogram.word_to_positions[word];
+            let right_occurrences = &right_histogram.word_to_positions[word];
+            assert_eq!(left_occurrences.len(), right_occurrences.len());
+            iter::zip(left_occurrences, right_occurrences)
+        })
+        .enumerate()
+        .map(|(serial, (&left_pos, &right_pos))| ((left_pos, serial), (right_pos, serial)))
+        .unzip();
+    left_positions.sort_unstable_by_key(|&(pos, _serial)| pos);
+    right_positions.sort_unstable_by_key(|&(pos, _serial)| pos);
+    let left_index_by_right_index: Vec<usize> = {
+        let mut left_index_map = vec![0; left_positions.len()];
+        for (i, &(_pos, serial)) in left_positions.iter().enumerate() {
+            left_index_map[serial] = i;
         }
-    }
-    left_positions.sort_unstable_by_key(|(pos, _word, _occurence)| *pos);
-    right_positions.sort_unstable_by_key(|(pos, _word, _occurence)| *pos);
-    let mut left_position_map = HashMap::new();
-    for (i, (_pos, word, occurrence)) in left_positions.iter().enumerate() {
-        left_position_map.insert((*word, *occurrence), i);
-    }
-    let mut left_index_by_right_index = vec![];
-    for (_pos, word, occurrence) in &right_positions {
-        left_index_by_right_index.push(*left_position_map.get(&(*word, *occurrence)).unwrap());
-    }
+        right_positions
+            .iter()
+            .map(|&(_pos, serial)| left_index_map[serial])
+            .collect()
+    };
 
     let lcs = find_lcs(&left_index_by_right_index);
 
@@ -295,8 +295,8 @@ fn unchanged_ranges_lcs(
     let mut previous_left_position = WordPosition(0);
     let mut previous_right_position = WordPosition(0);
     for (left_index, right_index) in lcs {
-        let left_position = left_positions[left_index].0;
-        let right_position = right_positions[right_index].0;
+        let (left_position, _) = left_positions[left_index];
+        let (right_position, _) = right_positions[right_index];
         let skipped_left_positions = previous_left_position..left_position;
         let skipped_right_positions = previous_right_position..right_position;
         if !skipped_left_positions.is_empty() || !skipped_right_positions.is_empty() {
