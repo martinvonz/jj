@@ -78,6 +78,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 * Add a new template alias `bultin_log_compact_full_description()`.
 
+* New command `jj config unset` that unsets config values. For example,
+  `jj config unset --user user.name`.
+
 ### Fixed bugs
 
 * Error on `trunk()` revset resolution is now handled gracefully.

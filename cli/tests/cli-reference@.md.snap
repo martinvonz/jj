@@ -30,6 +30,7 @@ This document contains the help content for the `jj` command-line program.
 * [`jj config list`↴](#jj-config-list)
 * [`jj config path`↴](#jj-config-path)
 * [`jj config set`↴](#jj-config-set)
+* [`jj config unset`↴](#jj-config-unset)
 * [`jj describe`↴](#jj-describe)
 * [`jj diff`↴](#jj-diff)
 * [`jj diffedit`↴](#jj-diffedit)
@@ -479,6 +480,7 @@ For file locations, supported config options, and other details about jj config,
 * `list` — List variables set in config file, along with their values
 * `path` — Print the path to the config file
 * `set` — Update config file to set the given option to a given value
+* `unset` — Update config file to unset the given option
 
 
 
@@ -572,6 +574,23 @@ Update config file to set the given option to a given value
 
 * `<NAME>`
 * `<VALUE>`
+
+###### **Options:**
+
+* `--user` — Target the user-level config
+* `--repo` — Target the repo-level config
+
+
+
+## `jj config unset`
+
+Update config file to unset the given option
+
+**Usage:** `jj config unset <--user|--repo> <NAME>`
+
+###### **Arguments:**
+
+* `<NAME>`
 
 ###### **Options:**
 
