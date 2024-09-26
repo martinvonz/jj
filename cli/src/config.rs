@@ -582,6 +582,71 @@ fn read_config_path(config_path: &Path) -> Result<config::Config, config::Config
         .build()
 }
 
+pub fn remove_config_value_from_file(
+    key: &ConfigNamePathBuf,
+    path: &Path,
+) -> Result<(), CommandError> {
+    // Read config
+    let config_toml = std::fs::read_to_string(path).or_else(|err| {
+        match err.kind() {
+            // If config doesn't exist yet, read as empty and we'll write one.
+            std::io::ErrorKind::NotFound => Ok("".to_string()),
+            _ => Err(user_error_with_message(
+                format!("Failed to read file {path}", path = path.display()),
+                err,
+            )),
+        }
+    })?;
+    let mut doc: toml_edit::Document = config_toml.parse().map_err(|err| {
+        user_error_with_message(
+            format!("Failed to parse file {path}", path = path.display()),
+            err,
+        )
+    })?;
+
+    let mut key_iter = key.components();
+    let last_key = key_iter.next_back().expect("key must not be empty");
+    let table_key = key_iter.next_back();
+    let target_table = match table_key {
+        Some(table_key) => doc
+            .get_mut(table_key)
+            .expect("table must exist")
+            .as_table_mut()
+            .expect("must be table"),
+        None => doc.as_table_mut(),
+    };
+
+    // Remove config value
+    if target_table.remove(&last_key).is_none() {
+        // TODO(pylbrecht): use proper error type
+        return Err(user_error(format!(
+            "configuration property \"{key}\" not found",
+            key = key
+        )));
+    }
+
+    // Remove empty tables
+    if table_key.is_some() && target_table.is_empty() {
+        let parent_table = match key_iter.next_back() {
+            Some(parent_key) => doc
+                .get_mut(parent_key)
+                .expect("table must exist")
+                .as_table_mut()
+                .expect("must be table"),
+            None => doc.as_table_mut(),
+        };
+        parent_table.remove(table_key.unwrap());
+    }
+
+    // Write config back
+    std::fs::write(path, doc.to_string()).map_err(|err| {
+        user_error_with_message(
+            format!("Failed to write file {path}", path = path.display()),
+            err,
+        )
+    })
+}
+
 pub fn write_config_value_to_file(
     key: &ConfigNamePathBuf,
     value: toml_edit::Value,
