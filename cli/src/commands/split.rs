@@ -118,8 +118,7 @@ the operation will be aborted.
         // The user selected nothing, so the first commit will be empty.
         writeln!(
             ui.warning_default(),
-            "The given paths do not match any file: {}",
-            args.paths.join(" ")
+            "No changes have been selected, so the first commit will be empty"
         )?;
     }
 

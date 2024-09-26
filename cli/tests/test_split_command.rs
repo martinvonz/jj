@@ -129,14 +129,14 @@ fn test_split_by_paths() {
     test_env.set_up_fake_editor();
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["split", "-r", "@-", "nonexistent"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
-    Warning: The given paths do not match any file: nonexistent
+    insta::assert_snapshot!(stderr, @r#"
+    Warning: No changes have been selected, so the first commit will be empty
     Rebased 1 descendant commits
     First part: qpvuntsm bd42f95a (empty) (no description set)
     Second part: lylxulpl ed55c86b (no description set)
     Working copy now at: zsuskuln 1e1ed741 (no description set)
     Parent commit      : lylxulpl ed55c86b (no description set)
-    "###);
+    "#);
 
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  zsuskulnrvyr false
