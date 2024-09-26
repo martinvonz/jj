@@ -88,13 +88,13 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   flag. When used, descendants of the edited or deleted commits will keep their original
   content.
 
+ * `jj git fetch -b <remote-git-branch-name>` will now warn if the branch(es)
+   can not be found in any of the specified/configured remotes.
+
 ### Fixed bugs
 
  * Update working copy before reporting changes. This prevents errors during reporting
    from leaving the working copy in a stale state.
-
- * `jj git fetch -b <remote-git-branch-name>` will now warn if the branch(es)
-   can not be found in any of the specified/configured remotes.
 
  * Fixed panic when parsing invalid conflict markers of a particular form.
    ([#2611](https://github.com/martinvonz/jj/pull/2611))
