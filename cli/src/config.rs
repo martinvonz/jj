@@ -648,6 +648,34 @@ pub fn write_config_value_to_file(
     write_config(path, &doc)
 }
 
+pub fn remove_config_value_from_file(
+    key: &ConfigNamePathBuf,
+    path: &Path,
+) -> Result<(), CommandError> {
+    let mut doc = read_config(path)?;
+
+    // Find target table
+    let mut key_iter = key.components();
+    let last_key = key_iter.next_back().expect("key must not be empty");
+    let target_table = key_iter.try_fold(doc.as_table_mut(), |table, key| {
+        table
+            .get_mut(key)
+            .ok_or_else(|| config::ConfigError::NotFound(key.to_string()))
+            .and_then(|table| {
+                table.as_table_mut().ok_or_else(|| {
+                    config::ConfigError::Message(format!(r#""{key}" is not a table"#))
+                })
+            })
+    })?;
+
+    // Remove config value
+    target_table
+        .remove(last_key)
+        .ok_or_else(|| config::ConfigError::NotFound(key.to_string()))?;
+
+    write_config(path, &doc)
+}
+
 /// Command name and arguments specified by config.
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize)]
 #[serde(untagged)]
