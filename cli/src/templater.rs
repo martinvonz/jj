@@ -28,6 +28,16 @@ use crate::formatter::LabeledWriter;
 use crate::formatter::PlainTextFormatter;
 use crate::time_util;
 
+macro_rules! write_labeled_ {
+    ($formatter:expr, $label:expr, $($arg:tt)*) => {
+        write!(
+            $formatter.labeled($label),
+            $($arg)*
+        )
+    };
+}
+pub(crate) use write_labeled_ as write_labeled;
+
 /// Represents printable type or compiled template containing placeholder value.
 pub trait Template {
     fn format(&self, formatter: &mut TemplateFormatter) -> io::Result<()>;
@@ -68,13 +78,13 @@ impl<T: Template> Template for Option<T> {
 
 impl Template for Signature {
     fn format(&self, formatter: &mut TemplateFormatter) -> io::Result<()> {
-        write!(formatter.labeled("name"), "{}", self.name)?;
+        write_labeled!(formatter, "name", "{}", self.name)?;
         if !self.name.is_empty() && !self.email.is_empty() {
             write!(formatter, " ")?;
         }
         if !self.email.is_empty() {
             write!(formatter, "<")?;
-            write!(formatter.labeled("email"), "{}", self.email)?;
+            write_labeled!(formatter, "email", "{}", self.email)?;
             write!(formatter, ">")?;
         }
         Ok(())
@@ -797,7 +807,7 @@ fn format_property_error_inline(
     let TemplatePropertyError(err) = &err;
     formatter.with_label("error", |formatter| {
         write!(formatter, "<")?;
-        write!(formatter.labeled("heading"), "Error: ")?;
+        write_labeled!(formatter, "heading", "Error: ")?;
         write!(formatter, "{err}")?;
         for err in iter::successors(err.source(), |err| err.source()) {
             write!(formatter, ": {err}")?;

@@ -24,6 +24,7 @@ use crate::cli_util::CommandHelper;
 use crate::command_error::CommandError;
 use crate::diff_util::get_copy_records;
 use crate::diff_util::DiffFormat;
+use crate::templater::write_labeled;
 use crate::ui::Ui;
 
 /// Show high-level repo status
@@ -158,7 +159,7 @@ pub(crate) fn cmd_status(
         )?;
         for bookmark_name in conflicted_local_bookmarks {
             write!(formatter, "  ")?;
-            write!(formatter.labeled("bookmark"), "{bookmark_name}")?;
+            write_labeled!(formatter, "bookmark", "{bookmark_name}")?;
             writeln!(formatter)?;
         }
         writeln!(

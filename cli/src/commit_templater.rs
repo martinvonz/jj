@@ -68,6 +68,7 @@ use crate::template_parser::TemplateDiagnostics;
 use crate::template_parser::TemplateParseError;
 use crate::template_parser::TemplateParseResult;
 use crate::templater;
+use crate::templater::write_labeled;
 use crate::templater::PlainTextFormattedProperty;
 use crate::templater::SizeHint;
 use crate::templater::Template;
@@ -1043,10 +1044,10 @@ impl RefName {
 // If wrapping with Rc<T> becomes common, add generic impl for Rc<T>.
 impl Template for Rc<RefName> {
     fn format(&self, formatter: &mut TemplateFormatter) -> io::Result<()> {
-        write!(formatter.labeled("name"), "{}", self.name)?;
+        write_labeled!(formatter, "name", "{}", self.name)?;
         if let Some(remote) = &self.remote {
             write!(formatter, "@")?;
-            write!(formatter.labeled("remote"), "{remote}")?;
+            write_labeled!(formatter, "remote", "{remote}")?;
         }
         // Don't show both conflict and unsynced sigils as conflicted ref wouldn't
         // be pushed.
@@ -1357,8 +1358,8 @@ pub struct ShortestIdPrefix {
 
 impl Template for ShortestIdPrefix {
     fn format(&self, formatter: &mut TemplateFormatter) -> io::Result<()> {
-        write!(formatter.labeled("prefix"), "{}", self.prefix)?;
-        write!(formatter.labeled("rest"), "{}", self.rest)?;
+        write_labeled!(formatter, "prefix", "{}", self.prefix)?;
+        write_labeled!(formatter, "rest", "{}", self.rest)?;
         Ok(())
     }
 }

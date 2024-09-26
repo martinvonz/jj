@@ -30,6 +30,8 @@ use crossterm::style::SetBackgroundColor;
 use crossterm::style::SetForegroundColor;
 use itertools::Itertools;
 
+use crate::templater::write_labeled;
+
 // Lets the caller label strings and translates the labels to colors
 pub trait Formatter: Write {
     /// Returns the backing `Write`. This is useful for writing data that is
@@ -125,7 +127,7 @@ where
     pub fn write_fmt(&mut self, args: fmt::Arguments<'_>) -> io::Result<()> {
         self.writer.with_labeled(|formatter| {
             if let Some(heading) = self.heading.take() {
-                write!(formatter.labeled("heading"), "{heading}")?;
+                write_labeled!(formatter, "heading", "{heading}")?;
             }
             formatter.write_fmt(args)
         })

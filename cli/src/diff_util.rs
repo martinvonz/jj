@@ -69,6 +69,7 @@ use crate::merge_tools::new_utf8_temp_dir;
 use crate::merge_tools::DiffGenerateError;
 use crate::merge_tools::DiffToolMode;
 use crate::merge_tools::ExternalMergeTool;
+use crate::templater::write_labeled;
 use crate::text_util;
 use crate::ui::Ui;
 
@@ -584,7 +585,7 @@ fn show_color_words_line_number(
 ) -> io::Result<()> {
     if let Some(line_number) = left_line_number {
         formatter.with_label("removed", |formatter| {
-            write!(formatter.labeled("line_number"), "{line_number:>4}")
+            write_labeled!(formatter, "line_number", "{line_number:>4}")
         })?;
         write!(formatter, " ")?;
     } else {
@@ -592,7 +593,7 @@ fn show_color_words_line_number(
     }
     if let Some(line_number) = right_line_number {
         formatter.with_label("added", |formatter| {
-            write!(formatter.labeled("line_number"), "{line_number:>4}",)
+            write_labeled!(formatter, "line_number", "{line_number:>4}",)
         })?;
         write!(formatter, ": ")?;
     } else {
@@ -1527,7 +1528,7 @@ pub fn show_diff_stat(
             stat.added + stat.removed,
             if bar_added + bar_removed > 0 { " " } else { "" },
         )?;
-        write!(formatter.labeled("added"), "{}", "+".repeat(bar_added))?;
+        write_labeled!(formatter, "added", "{}", "+".repeat(bar_added))?;
         writeln!(formatter.labeled("removed"), "{}", "-".repeat(bar_removed))?;
     }
     writeln!(

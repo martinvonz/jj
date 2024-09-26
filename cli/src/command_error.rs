@@ -65,6 +65,7 @@ use crate::merge_tools::MergeToolConfigError;
 use crate::revset_util::UserRevsetEvaluationError;
 use crate::template_parser::TemplateParseError;
 use crate::template_parser::TemplateParseErrorKind;
+use crate::templater::write_labeled;
 use crate::ui::Ui;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -775,12 +776,12 @@ fn print_error_sources(ui: &Ui, source: Option<&dyn error::Error>) -> io::Result
     ui.stderr_formatter()
         .with_label("error_source", |formatter| {
             if err.source().is_none() {
-                write!(formatter.labeled("heading"), "Caused by: ")?;
+                write_labeled!(formatter, "heading", "Caused by: ")?;
                 writeln!(formatter, "{err}")?;
             } else {
                 writeln!(formatter.labeled("heading"), "Caused by:")?;
                 for (i, err) in iter::successors(Some(err), |err| err.source()).enumerate() {
-                    write!(formatter.labeled("heading"), "{}: ", i + 1)?;
+                    write_labeled!(formatter, "heading", "{}: ", i + 1)?;
                     writeln!(formatter, "{err}")?;
                 }
             }
@@ -791,7 +792,7 @@ fn print_error_sources(ui: &Ui, source: Option<&dyn error::Error>) -> io::Result
 fn print_error_hints(ui: &Ui, hints: &[ErrorHint]) -> io::Result<()> {
     for hint in hints {
         ui.stderr_formatter().with_label("hint", |formatter| {
-            write!(formatter.labeled("heading"), "Hint: ")?;
+            write_labeled!(formatter, "heading", "Hint: ")?;
             match hint {
                 ErrorHint::PlainText(message) => {
                     writeln!(formatter, "{message}")?;

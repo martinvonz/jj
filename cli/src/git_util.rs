@@ -42,6 +42,7 @@ use crate::command_error::user_error;
 use crate::command_error::CommandError;
 use crate::formatter::Formatter;
 use crate::progress::Progress;
+use crate::templater::write_labeled;
 use crate::ui::Ui;
 
 pub fn get_git_repo(store: &Store) -> Result<git2::Repository, CommandError> {
@@ -381,7 +382,7 @@ impl RefStatus {
         };
 
         write!(out, "{ref_kind}")?;
-        write!(out.labeled("bookmark"), "{padded_ref_name}")?;
+        write_labeled!(out, "bookmark", "{padded_ref_name}")?;
         writeln!(out, " [{import_status}] {tracking_status}")
     }
 }
@@ -412,7 +413,7 @@ pub fn print_failed_git_export(
         let mut formatter = ui.stderr_formatter();
         for FailedRefExport { name, reason } in failed_refs {
             write!(formatter, "  ")?;
-            write!(formatter.labeled("bookmark"), "{name}")?;
+            write_labeled!(formatter, "bookmark", "{name}")?;
             for err in iter::successors(Some(reason as &dyn error::Error), |err| err.source()) {
                 write!(formatter, ": {err}")?;
             }

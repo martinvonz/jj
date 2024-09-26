@@ -47,6 +47,7 @@ use crate::formatter::Formatter;
 use crate::graphlog::get_graphlog;
 use crate::graphlog::Edge;
 use crate::graphlog::GraphStyle;
+use crate::templater::write_labeled;
 use crate::templater::TemplateRenderer;
 use crate::ui::Ui;
 
@@ -384,14 +385,14 @@ fn write_modified_change_summary(
 ) -> Result<(), std::io::Error> {
     writeln!(formatter, "Change {}", short_change_hash(change_id))?;
     for commit in modified_change.added_commits.iter() {
-        formatter.with_label("diff", |formatter| write!(formatter.labeled("added"), "+"))?;
+        formatter.with_label("diff", |formatter| write_labeled!(formatter, "added", "+"))?;
         write!(formatter, " ")?;
         commit_summary_template.format(commit, formatter)?;
         writeln!(formatter)?;
     }
     for commit in modified_change.removed_commits.iter() {
         formatter.with_label("diff", |formatter| {
-            write!(formatter.labeled("removed"), "-")
+            write_labeled!(formatter, "removed", "-")
         })?;
         write!(formatter, " ")?;
         commit_summary_template.format(commit, formatter)?;
