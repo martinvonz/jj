@@ -183,6 +183,13 @@ impl CompareBytes for CompareBytesIgnoreWhitespaceAmount {
     }
 }
 
+// Not implementing Eq because the text should be compared by WordComparator.
+#[derive(Clone, Copy, Debug)]
+struct HashedWord<'input> {
+    hash: u64,
+    text: &'input BStr,
+}
+
 /// Compares words (or tokens) under a certain hasher configuration.
 #[derive(Clone, Debug, Default)]
 struct WordComparator<C, S> {
@@ -254,7 +261,7 @@ struct Histogram<'input> {
     word_to_positions: HashTable<HistogramEntry<'input>>,
 }
 
-type HistogramEntry<'input> = (&'input BStr, Vec<WordPosition>);
+type HistogramEntry<'input> = (HashedWord<'input>, Vec<WordPosition>);
 
 impl<'input> Histogram<'input> {
     fn calculate<C: CompareBytes, S: BuildHasher>(
@@ -264,10 +271,15 @@ impl<'input> Histogram<'input> {
     ) -> Self {
         let mut word_to_positions: HashTable<HistogramEntry> = HashTable::new();
         for (i, range) in source.ranges.iter().enumerate() {
-            let word = &source.text[range.clone()];
-            let hash = comp.hash_one(word);
+            let text = &source.text[range.clone()];
+            let hash = comp.hash_one(text);
+            let word = HashedWord { text, hash };
             let (_, positions) = word_to_positions
-                .entry(hash, |(w, _)| comp.eq(w, word), |(w, _)| comp.hash_one(w))
+                .entry(
+                    word.hash,
+                    |(w, _)| comp.eq(w.text, word.text),
+                    |(w, _)| w.hash,
+                )
                 .or_insert_with(|| (word, vec![]))
                 .into_mut();
             // Allow one more than max_occurrences, so we can later skip those with more
@@ -291,13 +303,12 @@ impl<'input> Histogram<'input> {
 
     fn positions_by_word<C: CompareBytes, S: BuildHasher>(
         &self,
-        word: &BStr,
+        word: HashedWord<'input>,
         comp: &WordComparator<C, S>,
     ) -> Option<&[WordPosition]> {
-        let hash = comp.hash_one(word);
         let (_, positions) = self
             .word_to_positions
-            .find(hash, |(w, _)| comp.eq(w, word))?;
+            .find(word.hash, |(w, _)| comp.eq(w.text, word.text))?;
         Some(positions)
     }
 }
@@ -427,7 +438,7 @@ fn collect_unchanged_words_lcs<C: CompareBytes, S: BuildHasher>(
             let mut both_positions = left_entries
                 .iter()
                 .filter_map(|&(word, left_positions)| {
-                    let right_positions = right_histogram.positions_by_word(word, comp)?;
+                    let right_positions = right_histogram.positions_by_word(*word, comp)?;
                     (left_positions.len() == right_positions.len())
                         .then_some((left_positions, right_positions))
                 })
