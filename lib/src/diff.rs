@@ -122,12 +122,13 @@ impl<'input> Histogram<'input> {
         Histogram { word_to_positions }
     }
 
-    fn build_count_to_words(&self) -> BTreeMap<usize, Vec<&'input BStr>> {
-        let mut count_to_words: BTreeMap<usize, Vec<&BStr>> = BTreeMap::new();
-        for (word, ranges) in &self.word_to_positions {
-            count_to_words.entry(ranges.len()).or_default().push(word);
+    fn build_count_to_entries(&self) -> BTreeMap<usize, Vec<(&'input BStr, &Vec<WordPosition>)>> {
+        let mut count_to_entries: BTreeMap<usize, Vec<_>> = BTreeMap::new();
+        for (word, positions) in &self.word_to_positions {
+            let entries = count_to_entries.entry(positions.len()).or_default();
+            entries.push((*word, positions));
         }
-        count_to_words
+        count_to_entries
     }
 }
 
@@ -233,8 +234,8 @@ fn unchanged_ranges_lcs(
 ) -> Vec<(Range<usize>, Range<usize>)> {
     let max_occurrences = 100;
     let left_histogram = Histogram::calculate(left, max_occurrences);
-    let left_count_to_words = left_histogram.build_count_to_words();
-    if *left_count_to_words.keys().next().unwrap() > max_occurrences {
+    let left_count_to_entries = left_histogram.build_count_to_entries();
+    if *left_count_to_entries.keys().next().unwrap() > max_occurrences {
         // If there are very many occurrences of all words, then we just give up.
         return vec![];
     }
@@ -242,38 +243,29 @@ fn unchanged_ranges_lcs(
     // Look for words with few occurrences in `left` (could equally well have picked
     // `right`?). If any of them also occur in `right`, then we add the words to
     // the LCS.
-    let Some(uncommon_shared_words) = left_count_to_words
-        .iter()
-        .map(|(left_count, left_words)| -> Vec<&BStr> {
-            left_words
+    let Some(uncommon_shared_word_positions) =
+        left_count_to_entries.values().find_map(|left_entries| {
+            let mut both_positions = left_entries
                 .iter()
-                .copied()
-                .filter(|left_word| {
-                    let right_count = right_histogram
-                        .word_to_positions
-                        .get(left_word)
-                        .map_or(0, |right_positions| right_positions.len());
-                    *left_count == right_count
+                .filter_map(|&(word, left_positions)| {
+                    let right_positions = right_histogram.word_to_positions.get(word)?;
+                    (left_positions.len() == right_positions.len())
+                        .then_some((left_positions, right_positions))
                 })
-                .collect()
+                .peekable();
+            both_positions.peek().is_some().then_some(both_positions)
         })
-        .find(|words| !words.is_empty())
     else {
         return vec![];
     };
 
     // [(index into ranges, serial to identify {word, occurrence #})]
-    let (mut left_positions, mut right_positions): (Vec<_>, Vec<_>) = uncommon_shared_words
-        .iter()
-        .flat_map(|word| {
-            let left_occurrences = &left_histogram.word_to_positions[word];
-            let right_occurrences = &right_histogram.word_to_positions[word];
-            assert_eq!(left_occurrences.len(), right_occurrences.len());
-            iter::zip(left_occurrences, right_occurrences)
-        })
-        .enumerate()
-        .map(|(serial, (&left_pos, &right_pos))| ((left_pos, serial), (right_pos, serial)))
-        .unzip();
+    let (mut left_positions, mut right_positions): (Vec<_>, Vec<_>) =
+        uncommon_shared_word_positions
+            .flat_map(|(lefts, rights)| iter::zip(lefts, rights))
+            .enumerate()
+            .map(|(serial, (&left_pos, &right_pos))| ((left_pos, serial), (right_pos, serial)))
+            .unzip();
     left_positions.sort_unstable_by_key(|&(pos, _serial)| pos);
     right_positions.sort_unstable_by_key(|&(pos, _serial)| pos);
     let left_index_by_right_index: Vec<usize> = {
