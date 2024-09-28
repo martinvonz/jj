@@ -949,6 +949,13 @@ fn test_resolve_symbol_git_refs() {
 }
 
 fn resolve_commit_ids(repo: &dyn Repo, revset_str: &str) -> Vec<CommitId> {
+    try_resolve_commit_ids(repo, revset_str).unwrap()
+}
+
+fn try_resolve_commit_ids(
+    repo: &dyn Repo,
+    revset_str: &str,
+) -> Result<Vec<CommitId>, RevsetResolutionError> {
     let settings = testutils::user_settings();
     let aliases_map = RevsetAliasesMap::default();
     let revset_extensions = RevsetExtensions::default();
@@ -961,10 +968,8 @@ fn resolve_commit_ids(repo: &dyn Repo, revset_str: &str) -> Vec<CommitId> {
     );
     let expression = optimize(parse(&mut RevsetDiagnostics::new(), revset_str, &context).unwrap());
     let symbol_resolver = DefaultSymbolResolver::new(repo, revset_extensions.symbol_resolvers());
-    let expression = expression
-        .resolve_user_expression(repo, &symbol_resolver)
-        .unwrap();
-    expression.evaluate(repo).unwrap().iter().collect()
+    let expression = expression.resolve_user_expression(repo, &symbol_resolver)?;
+    Ok(expression.evaluate(repo).unwrap().iter().collect())
 }
 
 fn resolve_commit_ids_in_workspace(
@@ -2891,6 +2896,136 @@ fn test_evaluate_expression_committer() {
     assert_eq!(
         resolve_commit_ids(mut_repo, "visible_heads() & committer(\"name2\")"),
         vec![]
+    );
+}
+
+#[test]
+fn test_evaluate_expression_at_operation() {
+    let settings = testutils::user_settings();
+    let test_repo = TestRepo::init();
+    let repo0 = &test_repo.repo;
+    let root_commit = repo0.store().root_commit();
+
+    let mut tx = repo0.start_transaction(&settings);
+    let commit1_op1 = create_random_commit(tx.repo_mut(), &settings)
+        .set_description("commit1@op1")
+        .write()
+        .unwrap();
+    let commit2_op1 = create_random_commit(tx.repo_mut(), &settings)
+        .set_description("commit2@op1")
+        .write()
+        .unwrap();
+    tx.repo_mut()
+        .set_local_bookmark_target("commit1_ref", RefTarget::normal(commit1_op1.id().clone()));
+    let repo1 = tx.commit("test");
+
+    let mut tx = repo1.start_transaction(&settings);
+    let commit1_op2 = tx
+        .repo_mut()
+        .rewrite_commit(&settings, &commit1_op1)
+        .set_description("commit1@op2")
+        .write()
+        .unwrap();
+    let commit3_op2 = create_random_commit(tx.repo_mut(), &settings)
+        .set_description("commit3@op2")
+        .write()
+        .unwrap();
+    tx.repo_mut().rebase_descendants(&settings).unwrap();
+    let repo2 = tx.commit("test");
+
+    let mut tx = repo2.start_transaction(&settings);
+    let _commit4_op3 = create_random_commit(tx.repo_mut(), &settings)
+        .set_description("commit4@op3")
+        .write()
+        .unwrap();
+
+    // Symbol resolution:
+    assert_eq!(
+        resolve_commit_ids(repo2.as_ref(), "at_operation(@, commit1_ref)"),
+        vec![commit1_op2.id().clone()]
+    );
+    assert_eq!(
+        resolve_commit_ids(repo2.as_ref(), "at_operation(@-, commit1_ref)"),
+        vec![commit1_op1.id().clone()]
+    );
+    assert_matches!(
+        try_resolve_commit_ids(repo2.as_ref(), "at_operation(@--, commit1_ref)"),
+        Err(RevsetResolutionError::NoSuchRevision { .. })
+    );
+    assert_eq!(
+        resolve_commit_ids(repo2.as_ref(), "present(at_operation(@--, commit1_ref))"),
+        vec![]
+    );
+
+    // Visibility resolution:
+    assert_eq!(
+        resolve_commit_ids(repo2.as_ref(), "at_operation(@, all())"),
+        vec![
+            commit3_op2.id().clone(),
+            commit1_op2.id().clone(),
+            commit2_op1.id().clone(),
+            root_commit.id().clone(),
+        ]
+    );
+    assert_eq!(
+        resolve_commit_ids(repo2.as_ref(), "at_operation(@-, all())"),
+        vec![
+            commit2_op1.id().clone(),
+            commit1_op1.id().clone(),
+            root_commit.id().clone(),
+        ]
+    );
+
+    // Operation is resolved relative to the outer ReadonlyRepo.
+    assert_eq!(
+        resolve_commit_ids(repo2.as_ref(), "at_operation(@-, at_operation(@-, all()))"),
+        resolve_commit_ids(repo2.as_ref(), "at_operation(@--, all())")
+    );
+
+    // TODO: It might make more sense to resolve "@" to the current MutableRepo
+    // state. However, doing that isn't easy because there's no Operation object
+    // representing a MutableRepo state. For now, "@" is resolved to the base
+    // operation.
+    assert_eq!(
+        resolve_commit_ids(tx.repo(), "at_operation(@, all())"),
+        vec![
+            commit3_op2.id().clone(),
+            commit1_op2.id().clone(),
+            commit2_op1.id().clone(),
+            root_commit.id().clone(),
+        ]
+    );
+
+    // Filter should be evaluated within the at-op repo. Note that this can
+    // populate hidden commits without explicitly referring them by commit refs.
+    // It might be better to intersect inner results again with the outer repo.
+    assert_eq!(
+        resolve_commit_ids(repo2.as_ref(), "at_operation(@-, description('commit'))"),
+        vec![commit2_op1.id().clone(), commit1_op1.id().clone()]
+    );
+    // For the same reason, commit1_op1 isn't filtered out. The following query
+    // is effectively evaluated as "description('commit1') & commit1_op1".
+    assert_eq!(
+        resolve_commit_ids(
+            repo2.as_ref(),
+            "description('commit1') & at_operation(@-, description('commit'))"
+        ),
+        vec![commit1_op1.id().clone()]
+    );
+    // If we have an explicit ::visible_heads(), commit1_op1 is filtered out.
+    assert_eq!(
+        resolve_commit_ids(
+            repo2.as_ref(),
+            "::visible_heads() & description('commit1') & at_operation(@-, description('commit'))"
+        ),
+        vec![]
+    );
+
+    // Bad operation:
+    // TODO: should we suppress NoSuchOperation error by present()?
+    assert_matches!(
+        try_resolve_commit_ids(repo2.as_ref(), "at_operation(000000000000-, all())"),
+        Err(RevsetResolutionError::Other(_))
     );
 }
 

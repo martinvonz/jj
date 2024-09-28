@@ -24,6 +24,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 * New command `jj simplify-parents` will remove redundant parent edges.
 
+* New `at_operation(op, expr)` revset can be used in order to query revisions
+  based on historical state.
+
 ### Fixed bugs
 
 * Error on `trunk()` revset resolution is now handled gracefully.
