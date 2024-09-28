@@ -1538,9 +1538,11 @@ fn builtin_tree_diff_methods<'repo>() -> CommitTemplateBuildMethodFnMap<'repo, T
                 .transpose()?;
             let template = (self_property, context_property)
                 .map(|(diff, context)| {
-                    let context = context.unwrap_or(diff_util::DEFAULT_CONTEXT_LINES);
+                    let options = diff_util::UnifiedDiffOptions {
+                        context: context.unwrap_or(diff_util::DEFAULT_CONTEXT_LINES),
+                    };
                     diff.into_formatted(move |formatter, store, tree_diff| {
-                        diff_util::show_git_diff(formatter, store, tree_diff, context)
+                        diff_util::show_git_diff(formatter, store, tree_diff, &options)
                     })
                 })
                 .into_template();
@@ -1560,12 +1562,14 @@ fn builtin_tree_diff_methods<'repo>() -> CommitTemplateBuildMethodFnMap<'repo, T
             let path_converter = language.path_converter;
             let template = (self_property, width_property)
                 .map(move |(diff, width)| {
+                    let options = diff_util::DiffStatOptions {};
                     diff.into_formatted(move |formatter, store, tree_diff| {
                         diff_util::show_diff_stat(
                             formatter,
                             store,
                             tree_diff,
                             path_converter,
+                            &options,
                             width,
                         )
                     })
