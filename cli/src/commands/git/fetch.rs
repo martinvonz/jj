@@ -78,6 +78,7 @@ pub fn cmd_git_fetch(
                 &args.branch,
                 cb,
                 &command.settings().git_settings(),
+                None,
             )
         })
         .map_err(|err| match err {

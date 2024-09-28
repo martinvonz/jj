@@ -15,6 +15,7 @@
 use std::collections::BTreeMap;
 use std::collections::HashSet;
 use std::fs;
+use std::io::Write;
 use std::iter;
 use std::path::Path;
 use std::path::PathBuf;
@@ -2269,6 +2270,7 @@ fn test_fetch_empty_repo() {
         &[StringPattern::everything()],
         git::RemoteCallbacks::default(),
         &git_settings,
+        None,
     )
     .unwrap();
     // No default bookmark and no refs
@@ -2295,6 +2297,7 @@ fn test_fetch_initial_commit() {
         &[StringPattern::everything()],
         git::RemoteCallbacks::default(),
         &git_settings,
+        None,
     )
     .unwrap();
     // No default bookmark because the origin repo's HEAD wasn't set
@@ -2345,6 +2348,7 @@ fn test_fetch_success() {
         &[StringPattern::everything()],
         git::RemoteCallbacks::default(),
         &git_settings,
+        None,
     )
     .unwrap();
     test_data.repo = tx.commit("test");
@@ -2368,6 +2372,7 @@ fn test_fetch_success() {
         &[StringPattern::everything()],
         git::RemoteCallbacks::default(),
         &git_settings,
+        None,
     )
     .unwrap();
     // The default bookmark is "main"
@@ -2425,6 +2430,7 @@ fn test_fetch_prune_deleted_ref() {
         &[StringPattern::everything()],
         git::RemoteCallbacks::default(),
         &git_settings,
+        None,
     )
     .unwrap();
     // Test the setup
@@ -2448,6 +2454,7 @@ fn test_fetch_prune_deleted_ref() {
         &[StringPattern::everything()],
         git::RemoteCallbacks::default(),
         &git_settings,
+        None,
     )
     .unwrap();
     assert_eq!(stats.import_stats.abandoned_commits, vec![jj_id(&commit)]);
@@ -2475,6 +2482,7 @@ fn test_fetch_no_default_branch() {
         &[StringPattern::everything()],
         git::RemoteCallbacks::default(),
         &git_settings,
+        None,
     )
     .unwrap();
 
@@ -2498,6 +2506,7 @@ fn test_fetch_no_default_branch() {
         &[StringPattern::everything()],
         git::RemoteCallbacks::default(),
         &git_settings,
+        None,
     )
     .unwrap();
     // There is no default bookmark
@@ -2519,6 +2528,7 @@ fn test_fetch_empty_refspecs() {
         &[],
         git::RemoteCallbacks::default(),
         &git_settings,
+        None,
     )
     .unwrap();
     assert!(tx
@@ -2545,6 +2555,7 @@ fn test_fetch_no_such_remote() {
         &[StringPattern::everything()],
         git::RemoteCallbacks::default(),
         &git_settings,
+        None,
     );
     assert!(matches!(result, Err(GitFetchError::NoSuchRemote(_))));
 }
@@ -3467,4 +3478,96 @@ ignoreThisSection = foo
     };
 
     assert_eq!(result, expected);
+}
+
+#[test]
+fn test_shallow_commits_lack_parents() {
+    let settings = testutils::user_settings();
+    let test_repo = TestRepo::init_with_backend(TestRepoBackend::Git);
+    let repo = &test_repo.repo;
+    let git_repo = get_git_repo(repo);
+
+    // D   E (`main`)
+    // |   |
+    // B   C // shallow boundary
+    // | /
+    // A
+    // |
+    // git_root
+    let git_root = empty_git_commit(&git_repo, "refs/heads/main", &[]);
+
+    let a = empty_git_commit(&git_repo, "refs/heads/main", &[&git_root]);
+
+    let b = empty_git_commit(&git_repo, "refs/heads/feature", &[&a]);
+    let c = empty_git_commit(&git_repo, "refs/heads/main", &[&a]);
+
+    let d = empty_git_commit(&git_repo, "refs/heads/feature", &[&b]);
+    let e = empty_git_commit(&git_repo, "refs/heads/main", &[&c]);
+
+    git_repo.set_head("refs/heads/main").unwrap();
+
+    let make_shallow = |repo, mut shallow_commits: Vec<_>| {
+        let shallow_file = get_git_backend(repo).git_repo().shallow_file();
+        shallow_commits.sort();
+        let mut buf = Vec::<u8>::new();
+        for commit in shallow_commits {
+            writeln!(buf, "{commit}").unwrap();
+        }
+        fs::write(&shallow_file, buf).unwrap();
+    };
+    make_shallow(repo, vec![b.id(), c.id()]);
+
+    let mut tx = repo.start_transaction(&settings);
+    git::import_refs(tx.repo_mut(), &GitSettings::default()).unwrap();
+    let repo = tx.commit("import");
+    let store = repo.store();
+    let root = store.root_commit_id();
+
+    let expected_heads = hashset! {
+        jj_id(&d),
+        jj_id(&e),
+    };
+    assert_eq!(*repo.view().heads(), expected_heads);
+
+    let parents = |store: &Arc<jj_lib::store::Store>, commit| {
+        let commit = store.get_commit(&jj_id(commit)).unwrap();
+        commit.parent_ids().to_vec()
+    };
+
+    assert_eq!(
+        parents(store, &b),
+        vec![root.clone()],
+        "shallow commits have the root commit as a parent"
+    );
+    assert_eq!(
+        parents(store, &c),
+        vec![root.clone()],
+        "shallow commits have the root commit as a parent"
+    );
+
+    // deepen the shallow clone
+    make_shallow(&repo, vec![a.id()]);
+
+    let mut tx = repo.start_transaction(&settings);
+    git::import_refs(tx.repo_mut(), &GitSettings::default()).unwrap();
+    let repo = tx.commit("import");
+    let store = repo.store();
+    let root = store.root_commit_id();
+
+    assert_eq!(
+        parents(store, &a),
+        vec![root.clone()],
+        "shallow commits have the root commit as a parent"
+    );
+    // TODO: These should be assert_eq!
+    assert_ne!(
+        parents(store, &b),
+        vec![jj_id(&a)],
+        "unshallowed commits have parents"
+    );
+    assert_ne!(
+        parents(store, &c),
+        vec![jj_id(&a)],
+        "unshallowed commits have correct parents"
+    );
 }
