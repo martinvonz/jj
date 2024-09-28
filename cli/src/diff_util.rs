@@ -119,10 +119,10 @@ pub struct DiffFormatArgs {
 pub enum DiffFormat {
     // Non-trivial parameters are boxed in order to keep the variants small
     Summary,
-    Stat,
+    Stat(Box<DiffStatOptions>),
     Types,
     NameOnly,
-    Git { context: usize },
+    Git(Box<UnifiedDiffOptions>),
     ColorWords(Box<ColorWordsDiffOptions>),
     Tool(Box<ExternalMergeTool>),
 }
@@ -171,15 +171,16 @@ fn diff_formats_from_args(
         formats.push(DiffFormat::NameOnly);
     }
     if args.git {
-        let context = args.context.unwrap_or(DEFAULT_CONTEXT_LINES);
-        formats.push(DiffFormat::Git { context });
+        let options = UnifiedDiffOptions::from_args(args);
+        formats.push(DiffFormat::Git(Box::new(options)));
     }
     if args.color_words {
         let options = ColorWordsDiffOptions::from_settings_and_args(settings, args)?;
         formats.push(DiffFormat::ColorWords(Box::new(options)));
     }
     if args.stat {
-        formats.push(DiffFormat::Stat);
+        let options = DiffStatOptions::from_args(args);
+        formats.push(DiffFormat::Stat(Box::new(options)));
     }
     if let Some(name) = &args.tool {
         let tool = merge_tools::get_external_tool_config(settings, name)?
@@ -215,14 +216,18 @@ fn default_diff_format(
         "summary" => Ok(DiffFormat::Summary),
         "types" => Ok(DiffFormat::Types),
         "name-only" => Ok(DiffFormat::NameOnly),
-        "git" => Ok(DiffFormat::Git {
-            context: args.context.unwrap_or(DEFAULT_CONTEXT_LINES),
-        }),
+        "git" => {
+            let options = UnifiedDiffOptions::from_args(args);
+            Ok(DiffFormat::Git(Box::new(options)))
+        }
         "color-words" => {
             let options = ColorWordsDiffOptions::from_settings_and_args(settings, args)?;
             Ok(DiffFormat::ColorWords(Box::new(options)))
         }
-        "stat" => Ok(DiffFormat::Stat),
+        "stat" => {
+            let options = DiffStatOptions::from_args(args);
+            Ok(DiffFormat::Stat(Box::new(options)))
+        }
         _ => Err(config::ConfigError::Message(format!(
             "invalid diff format: {name}"
         ))),
@@ -309,10 +314,10 @@ impl<'a> DiffRenderer<'a> {
                         from_tree.diff_stream_with_copies(to_tree, matcher, copy_records);
                     show_diff_summary(formatter, tree_diff, path_converter)?;
                 }
-                DiffFormat::Stat => {
+                DiffFormat::Stat(options) => {
                     let tree_diff =
                         from_tree.diff_stream_with_copies(to_tree, matcher, copy_records);
-                    show_diff_stat(formatter, store, tree_diff, path_converter, width)?;
+                    show_diff_stat(formatter, store, tree_diff, path_converter, options, width)?;
                 }
                 DiffFormat::Types => {
                     let tree_diff =
@@ -324,10 +329,10 @@ impl<'a> DiffRenderer<'a> {
                         from_tree.diff_stream_with_copies(to_tree, matcher, copy_records);
                     show_names(formatter, tree_diff, path_converter)?;
                 }
-                DiffFormat::Git { context } => {
+                DiffFormat::Git(options) => {
                     let tree_diff =
                         from_tree.diff_stream_with_copies(to_tree, matcher, copy_records);
-                    show_git_diff(formatter, store, tree_diff, *context)?;
+                    show_git_diff(formatter, store, tree_diff, options)?;
                 }
                 DiffFormat::ColorWords(options) => {
                     let tree_diff =
@@ -1088,6 +1093,20 @@ fn git_diff_part(
     })
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct UnifiedDiffOptions {
+    /// Number of context lines to show.
+    pub context: usize,
+}
+
+impl UnifiedDiffOptions {
+    fn from_args(args: &DiffFormatArgs) -> Self {
+        UnifiedDiffOptions {
+            context: args.context.unwrap_or(DEFAULT_CONTEXT_LINES),
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum DiffLineType {
     Context,
@@ -1138,7 +1157,7 @@ impl<'content> UnifiedDiffHunk<'content> {
 fn unified_diff_hunks<'content>(
     left_content: &'content [u8],
     right_content: &'content [u8],
-    num_context_lines: usize,
+    options: &UnifiedDiffOptions,
 ) -> Vec<UnifiedDiffHunk<'content>> {
     let mut hunks = vec![];
     let mut current_hunk = UnifiedDiffHunk {
@@ -1156,10 +1175,10 @@ fn unified_diff_hunks<'content>(
                 let mut lines = hunk.contents[0].split_inclusive(|b| *b == b'\n').fuse();
                 if !current_hunk.lines.is_empty() {
                     // The previous hunk line should be either removed/added.
-                    current_hunk.extend_context_lines(lines.by_ref().take(num_context_lines));
+                    current_hunk.extend_context_lines(lines.by_ref().take(options.context));
                 }
                 let before_lines = if diff_hunks.peek().is_some() {
-                    lines.by_ref().rev().take(num_context_lines).collect()
+                    lines.by_ref().rev().take(options.context).collect()
                 } else {
                     vec![] // No more hunks
                 };
@@ -1254,9 +1273,9 @@ fn show_unified_diff_hunks(
     formatter: &mut dyn Formatter,
     left_content: &[u8],
     right_content: &[u8],
-    num_context_lines: usize,
+    options: &UnifiedDiffOptions,
 ) -> io::Result<()> {
-    for hunk in unified_diff_hunks(left_content, right_content, num_context_lines) {
+    for hunk in unified_diff_hunks(left_content, right_content, options) {
         writeln!(
             formatter.labeled("hunk_header"),
             "@@ -{},{} +{},{} @@",
@@ -1303,7 +1322,7 @@ pub fn show_git_diff(
     formatter: &mut dyn Formatter,
     store: &Store,
     tree_diff: BoxStream<CopiesTreeDiffEntry>,
-    num_context_lines: usize,
+    options: &UnifiedDiffOptions,
 ) -> Result<(), DiffRenderError> {
     let mut diff_stream = materialized_diff_stream(store, tree_diff);
     async {
@@ -1386,7 +1405,7 @@ pub fn show_git_diff(
                     formatter,
                     &left_part.content.contents,
                     &right_part.content.contents,
-                    num_context_lines,
+                    options,
                 )?;
             }
         }
@@ -1428,6 +1447,15 @@ pub fn show_diff_summary(
     .block_on()
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DiffStatOptions {}
+
+impl DiffStatOptions {
+    fn from_args(_args: &DiffFormatArgs) -> Self {
+        DiffStatOptions {}
+    }
+}
+
 struct DiffStat {
     path: String,
     added: usize,
@@ -1439,6 +1467,7 @@ fn get_diff_stat(
     path: String,
     left_content: &FileContent,
     right_content: &FileContent,
+    _options: &DiffStatOptions,
 ) -> DiffStat {
     // TODO: this matches git's behavior, which is to count the number of newlines
     // in the file. but that behavior seems unhelpful; no one really cares how
@@ -1469,6 +1498,7 @@ pub fn show_diff_stat(
     store: &Store,
     tree_diff: BoxStream<CopiesTreeDiffEntry>,
     path_converter: &RepoPathUiConverter,
+    options: &DiffStatOptions,
     display_width: usize,
 ) -> Result<(), DiffRenderError> {
     let mut stats: Vec<DiffStat> = vec![];
@@ -1493,7 +1523,7 @@ pub fn show_diff_stat(
                 path_converter.format_copied_path(left_path, right_path)
             };
             max_path_width = max(max_path_width, path.width());
-            let stat = get_diff_stat(path, &left_content, &right_content);
+            let stat = get_diff_stat(path, &left_content, &right_content, options);
             max_diffs = max(max_diffs, stat.added + stat.removed);
             stats.push(stat);
         }
