@@ -306,6 +306,12 @@ given [string pattern](#string-patterns).
 
 * `working_copies()`: The working copy commits across all the workspaces.
 
+* `at_operation(op, x)`: Evaluates `x` at the specified [operation][]. For
+  example, `at_operation(@-, visible_heads())` will return all heads which were
+  visible at the previous operation.
+
+[operation]: glossary.md#operation
+
 ??? examples
 
     Given this history:
