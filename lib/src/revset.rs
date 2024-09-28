@@ -46,7 +46,10 @@ use crate::object_id::HexPrefix;
 use crate::object_id::PrefixResolution;
 use crate::op_store::RemoteRefState;
 use crate::op_store::WorkspaceId;
+use crate::op_walk;
+use crate::repo::ReadonlyRepo;
 use crate::repo::Repo;
+use crate::repo::RepoLoaderError;
 use crate::repo_path::RepoPathUiConverter;
 use crate::revset_parser;
 pub use crate::revset_parser::expect_literal;
@@ -208,6 +211,13 @@ pub enum RevsetExpression {
     Filter(RevsetFilterPredicate),
     /// Marker for subtree that should be intersected as filter.
     AsFilter(Rc<Self>),
+    /// Resolves symbols and visibility at the specified operation.
+    AtOperation {
+        operation: String,
+        candidates: Rc<Self>,
+        /// Copy of `repo.view().heads()`, should be set by `resolve_symbols()`.
+        visible_heads: Option<Vec<CommitId>>,
+    },
     Present(Rc<Self>),
     NotIn(Rc<Self>),
     Union(Rc<Self>, Rc<Self>),
@@ -429,13 +439,17 @@ impl RevsetExpression {
         Rc::new(Self::Difference(self.clone(), other.clone()))
     }
 
-    /// Resolve a programmatically created revset expression. In particular, the
-    /// expression must not contain any symbols (bookmarks, tags, change/commit
-    /// prefixes). Callers must not include `RevsetExpression::symbol()` in
-    /// the expression, and should instead resolve symbols to `CommitId`s and
-    /// pass them into `RevsetExpression::commits()`. Similarly, the expression
-    /// must not contain any `RevsetExpression::remote_symbol()` or
+    /// Resolve a programmatically created revset expression.
+    ///
+    /// In particular, the expression must not contain any symbols (bookmarks,
+    /// tags, change/commit prefixes). Callers must not include
+    /// `RevsetExpression::symbol()` in the expression, and should instead
+    /// resolve symbols to `CommitId`s and pass them into
+    /// `RevsetExpression::commits()`. Similarly, the expression must not
+    /// contain any `RevsetExpression::remote_symbol()` or
     /// `RevsetExpression::working_copy()`, unless they're known to be valid.
+    /// The expression must not contain `RevsetExpression::AtOperation` even if
+    /// it's known to be valid. It can fail at loading operation data.
     pub fn resolve_programmatic(self: Rc<Self>, repo: &dyn Repo) -> ResolvedExpression {
         let symbol_resolver = FailingSymbolResolver;
         resolve_symbols(repo, self, &symbol_resolver)
@@ -825,6 +839,20 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
         let expression = lower_expression(diagnostics, arg, context)?;
         Ok(Rc::new(RevsetExpression::Present(expression)))
     });
+    map.insert("at_operation", |diagnostics, function, context| {
+        let [op_arg, cand_arg] = function.expect_exact_arguments()?;
+        // TODO: Parse "opset" here if we add proper language support.
+        let operation =
+            revset_parser::expect_expression_with(diagnostics, op_arg, |_diagnostics, node| {
+                Ok(node.span.as_str().to_owned())
+            })?;
+        let candidates = lower_expression(diagnostics, cand_arg, context)?;
+        Ok(Rc::new(RevsetExpression::AtOperation {
+            operation,
+            candidates,
+            visible_heads: None,
+        }))
+    });
     map
 });
 
@@ -1132,6 +1160,17 @@ fn try_transform_expression<E>(
             RevsetExpression::AsFilter(candidates) => {
                 transform_rec(candidates, pre, post)?.map(RevsetExpression::AsFilter)
             }
+            RevsetExpression::AtOperation {
+                operation,
+                candidates,
+                visible_heads,
+            } => transform_rec(candidates, pre, post)?.map(|candidates| {
+                RevsetExpression::AtOperation {
+                    operation: operation.clone(),
+                    candidates,
+                    visible_heads: visible_heads.clone(),
+                }
+            }),
             RevsetExpression::Present(candidates) => {
                 transform_rec(candidates, pre, post)?.map(RevsetExpression::Present)
             }
@@ -1484,6 +1523,24 @@ pub fn walk_revs<'index>(
     RevsetExpression::commits(unwanted.to_vec())
         .range(&RevsetExpression::commits(wanted.to_vec()))
         .evaluate_programmatic(repo)
+}
+
+fn reload_repo_at_operation(
+    repo: &dyn Repo,
+    op_str: &str,
+) -> Result<Arc<ReadonlyRepo>, RevsetResolutionError> {
+    // TODO: Maybe we should ensure that the resolved operation is an ancestor
+    // of the current operation. If it weren't, there might be commits unknown
+    // to the outer repo.
+    let base_repo = repo.base_repo();
+    let operation = op_walk::resolve_op_with_repo(base_repo, op_str)
+        .map_err(|err| RevsetResolutionError::Other(err.into()))?;
+    base_repo.reload_at(&operation).map_err(|err| match err {
+        RepoLoaderError::Backend(err) => RevsetResolutionError::StoreError(err),
+        RepoLoaderError::IndexRead(_)
+        | RepoLoaderError::OpHeadResolution(_)
+        | RepoLoaderError::OpStore(_) => RevsetResolutionError::Other(err.into()),
+    })
 }
 
 fn resolve_remote_bookmark(repo: &dyn Repo, name: &str, remote: &str) -> Option<Vec<CommitId>> {
@@ -1858,6 +1915,22 @@ fn resolve_symbols(
     Ok(try_transform_expression(
         &expression,
         |expression| match expression.as_ref() {
+            // 'at_operation(op, x)' switches symbol resolution contexts.
+            RevsetExpression::AtOperation {
+                operation,
+                candidates,
+                visible_heads: _,
+            } => {
+                let repo = reload_repo_at_operation(repo, operation)?;
+                let candidates =
+                    resolve_symbols(repo.as_ref(), candidates.clone(), symbol_resolver)?;
+                let visible_heads = Some(repo.view().heads().iter().cloned().collect());
+                Ok(Some(Rc::new(RevsetExpression::AtOperation {
+                    operation: operation.clone(),
+                    candidates,
+                    visible_heads,
+                })))
+            }
             // 'present(x)' opens new symbol resolution scope to map error to 'none()'.
             RevsetExpression::Present(candidates) => {
                 resolve_symbols(repo, candidates.clone(), symbol_resolver)
@@ -1898,9 +1971,6 @@ fn resolve_symbols(
 /// return type `ResolvedExpression` is stricter than `RevsetExpression`,
 /// and isn't designed for such transformation.
 fn resolve_visibility(repo: &dyn Repo, expression: &RevsetExpression) -> ResolvedExpression {
-    // If we add "operation" scope (#1283), visible_heads might be translated to
-    // `RevsetExpression::WithinOperation(visible_heads, expression)` node to
-    // evaluate filter predicates and "all()" against that scope.
     let context = VisibilityResolutionContext {
         visible_heads: &repo.view().heads().iter().cloned().collect_vec(),
     };
@@ -1968,6 +2038,17 @@ impl VisibilityResolutionContext<'_> {
                     candidates: self.resolve_all().into(),
                     predicate: self.resolve_predicate(expression),
                 }
+            }
+            RevsetExpression::AtOperation {
+                operation: _,
+                candidates,
+                visible_heads,
+            } => {
+                let visible_heads = visible_heads
+                    .as_ref()
+                    .expect("visible_heads should have been resolved by caller");
+                let context = VisibilityResolutionContext { visible_heads };
+                context.resolve(candidates)
             }
             RevsetExpression::Present(_) => {
                 panic!("Expression '{expression:?}' should have been resolved by caller");
@@ -2045,6 +2126,10 @@ impl VisibilityResolutionContext<'_> {
                 ResolvedPredicateExpression::Filter(predicate.clone())
             }
             RevsetExpression::AsFilter(candidates) => self.resolve_predicate(candidates),
+            // Filters should be intersected with all() within the at-op repo.
+            RevsetExpression::AtOperation { .. } => {
+                ResolvedPredicateExpression::Set(self.resolve(expression).into())
+            }
             RevsetExpression::Present(_) => {
                 panic!("Expression '{expression:?}' should have been resolved by caller")
             }
@@ -3011,6 +3096,15 @@ mod tests {
             @r###"Present(CommitRef(Bookmarks(Substring(""))))"###);
 
         insta::assert_debug_snapshot!(
+            optimize(parse("at_operation(@-, bookmarks() & all())").unwrap()), @r#"
+        AtOperation {
+            operation: "@-",
+            candidates: CommitRef(Bookmarks(Substring(""))),
+            visible_heads: None,
+        }
+        "#);
+
+        insta::assert_debug_snapshot!(
             optimize(parse("~bookmarks() & all()").unwrap()),
             @r###"NotIn(CommitRef(Bookmarks(Substring(""))))"###);
         insta::assert_debug_snapshot!(
@@ -3480,6 +3574,23 @@ mod tests {
             Filter(Author(Substring("baz"))),
         )
         "###);
+
+        // Filter node shouldn't move across at_operation() boundary.
+        insta::assert_debug_snapshot!(
+            optimize(parse("author(foo) & bar & at_operation(@-, committer(baz))").unwrap()),
+            @r#"
+        Intersection(
+            Intersection(
+                CommitRef(Symbol("bar")),
+                AtOperation {
+                    operation: "@-",
+                    candidates: Filter(Committer(Substring("baz"))),
+                    visible_heads: None,
+                },
+            ),
+            Filter(Author(Substring("foo"))),
+        )
+        "#);
     }
 
     #[test]
