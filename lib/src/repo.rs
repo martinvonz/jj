@@ -98,6 +98,10 @@ use crate::view::RenameWorkspaceError;
 use crate::view::View;
 
 pub trait Repo {
+    /// Base repository that contains all committed data. Returns `self` if this
+    /// is a `ReadonlyRepo`,
+    fn base_repo(&self) -> &ReadonlyRepo;
+
     fn store(&self) -> &Arc<Store>;
 
     fn op_store(&self) -> &Arc<dyn OpStore>;
@@ -312,6 +316,10 @@ impl ReadonlyRepo {
 }
 
 impl Repo for ReadonlyRepo {
+    fn base_repo(&self) -> &ReadonlyRepo {
+        self
+    }
+
     fn store(&self) -> &Arc<Store> {
         self.loader.store()
     }
@@ -1821,6 +1829,10 @@ impl MutableRepo {
 }
 
 impl Repo for MutableRepo {
+    fn base_repo(&self) -> &ReadonlyRepo {
+        &self.base_repo
+    }
+
     fn store(&self) -> &Arc<Store> {
         self.base_repo.store()
     }
