@@ -123,7 +123,7 @@ pub enum DiffFormat {
     Types,
     NameOnly,
     Git { context: usize },
-    ColorWords(Box<ColorWordsOptions>),
+    ColorWords(Box<ColorWordsDiffOptions>),
     Tool(Box<ExternalMergeTool>),
 }
 
@@ -175,7 +175,7 @@ fn diff_formats_from_args(
         formats.push(DiffFormat::Git { context });
     }
     if args.color_words {
-        let options = ColorWordsOptions::from_settings_and_args(settings, args)?;
+        let options = ColorWordsDiffOptions::from_settings_and_args(settings, args)?;
         formats.push(DiffFormat::ColorWords(Box::new(options)));
     }
     if args.stat {
@@ -219,7 +219,7 @@ fn default_diff_format(
             context: args.context.unwrap_or(DEFAULT_CONTEXT_LINES),
         }),
         "color-words" => {
-            let options = ColorWordsOptions::from_settings_and_args(settings, args)?;
+            let options = ColorWordsDiffOptions::from_settings_and_args(settings, args)?;
             Ok(DiffFormat::ColorWords(Box::new(options)))
         }
         "stat" => Ok(DiffFormat::Stat),
@@ -426,14 +426,14 @@ pub fn get_copy_records<'a>(
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct ColorWordsOptions {
+pub struct ColorWordsDiffOptions {
     /// Number of context lines to show.
     pub context: usize,
     /// Maximum number of removed/added word alternation to inline.
     pub max_inline_alternation: Option<usize>,
 }
 
-impl ColorWordsOptions {
+impl ColorWordsDiffOptions {
     fn from_settings_and_args(
         settings: &UserSettings,
         args: &DiffFormatArgs,
@@ -448,7 +448,7 @@ impl ColorWordsOptions {
                 })?),
             }
         };
-        Ok(ColorWordsOptions {
+        Ok(ColorWordsDiffOptions {
             context: args.context.unwrap_or(DEFAULT_CONTEXT_LINES),
             max_inline_alternation,
         })
@@ -459,7 +459,7 @@ fn show_color_words_diff_hunks(
     formatter: &mut dyn Formatter,
     left: &[u8],
     right: &[u8],
-    options: &ColorWordsOptions,
+    options: &ColorWordsDiffOptions,
 ) -> io::Result<()> {
     let line_diff = Diff::by_line([left, right]);
     let mut line_number = DiffLineNumber { left: 1, right: 1 };
@@ -539,7 +539,7 @@ fn show_color_words_diff_lines(
     formatter: &mut dyn Formatter,
     contents: &[&BStr],
     mut line_number: DiffLineNumber,
-    options: &ColorWordsOptions,
+    options: &ColorWordsDiffOptions,
 ) -> io::Result<DiffLineNumber> {
     let word_diff_hunks = Diff::by_word(contents).hunks().collect_vec();
     let can_inline = match options.max_inline_alternation {
@@ -788,7 +788,7 @@ pub fn show_color_words_diff(
     store: &Store,
     tree_diff: BoxStream<CopiesTreeDiffEntry>,
     path_converter: &RepoPathUiConverter,
-    options: &ColorWordsOptions,
+    options: &ColorWordsDiffOptions,
 ) -> Result<(), DiffRenderError> {
     let mut diff_stream = materialized_diff_stream(store, tree_diff);
     async {

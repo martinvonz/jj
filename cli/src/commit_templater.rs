@@ -1504,7 +1504,7 @@ fn builtin_tree_diff_methods<'repo>() -> CommitTemplateBuildMethodFnMap<'repo, T
             let template = (self_property, context_property)
                 .map(move |(diff, context)| {
                     // TODO: load defaults from UserSettings?
-                    let options = diff_util::ColorWordsOptions {
+                    let options = diff_util::ColorWordsDiffOptions {
                         context: context.unwrap_or(diff_util::DEFAULT_CONTEXT_LINES),
                         max_inline_alternation: Some(3),
                     };
