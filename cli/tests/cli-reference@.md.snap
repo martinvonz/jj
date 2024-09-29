@@ -1403,8 +1403,8 @@ For more information, see https://martinvonz.github.io/jj/latest/working-copy/.
 
 * `-m`, `--message <MESSAGE>` — The change description to use
 * `--no-edit` — Do not edit the newly created change
-* `-A`, `--insert-after <INSERT_AFTER>` — Insert the new change after the given commit(s)
-* `-B`, `--insert-before <INSERT_BEFORE>` — Insert the new change before the given commit(s)
+* `-A`, `--insert-after <INSERT_AFTER>` — Insert the new change after the given commit(s), or after `@` if no commit is specified
+* `-B`, `--insert-before <INSERT_BEFORE>` — Insert the new change before the given commit(s), or before `@` if no commit is specified
 
 
 
