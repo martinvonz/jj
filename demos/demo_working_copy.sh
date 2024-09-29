@@ -7,9 +7,9 @@ new_tmp_dir
     jj git clone https://github.com/octocat/Hello-World
     cd Hello-World
     jj abandon --ignore-immutable test@origin
-    jj branch forget test
+    jj bookmark forget test
     jj abandon --ignore-immutable octocat-patch-1@origin
-    jj branch forget octocat-patch-1
+    jj bookmark forget octocat-patch-1
 }> /dev/null 2>&1
 
 comment "We are in the octocat/Hello-World repo.
@@ -25,9 +25,9 @@ comment "Because of these changes, our working copy is no longer marked as \"(em
 Also, its commit ID (starting with a blue character) changed:"
 run_command "jj status"
 
-comment "Add a branch so we can easily refer to this
+comment "Add a bookmark so we can easily refer to this
 commit:"
-run_command "jj branch create goodbye"
+run_command "jj bookmark create goodbye"
 run_command "jj log"
 
 comment "Start working on a new change off of master:"
