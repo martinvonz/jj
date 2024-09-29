@@ -95,6 +95,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   to keeping all changes into the first commit while keeping the current commit
   description for the second commit (the newly created empty one).
 
+* Color author and committer names yellow
+
 ### Fixed bugs
 
 * Update working copy before reporting changes. This prevents errors during reporting
