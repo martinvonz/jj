@@ -64,20 +64,28 @@ pub(crate) struct NewArgs {
     /// No-op flag to pair with --no-edit
     #[arg(long, hide = true)]
     _edit: bool,
-    /// Insert the new change after the given commit(s)
+    /// Insert the new change after the given commit(s), or after `@` if no
+    /// commit is specified
     #[arg(
         long,
         short = 'A',
         visible_alias = "after",
-        conflicts_with = "revisions"
+        conflicts_with = "revisions",
+        default_missing_value = "@",
+        // At most one argument per --after, does not restrict repeating --after
+        num_args=0..=1,
     )]
     insert_after: Vec<RevisionArg>,
-    /// Insert the new change before the given commit(s)
+    /// Insert the new change before the given commit(s), or before `@` if no
+    /// commit is specified
     #[arg(
         long,
         short = 'B',
         visible_alias = "before",
-        conflicts_with = "revisions"
+        conflicts_with = "revisions",
+        default_missing_value = "@",
+        // At most one argument per --before, does not restrict repeating --before
+        num_args=0..=1,
     )]
     insert_before: Vec<RevisionArg>,
 }

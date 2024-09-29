@@ -151,6 +151,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 * Author and committer names are now yellow by default.
 
+* Without a specified revision, `jj new --insert-before` is now equivalent to
+`jj new --insert-before @`; same for `--insert-after`.
+
 ### Fixed bugs
 
 * Update working copy before reporting changes. This prevents errors during reporting
