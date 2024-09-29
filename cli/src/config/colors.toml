@@ -21,8 +21,8 @@
 "divergent prefix" = { fg = "red", underline = true }
 "hidden prefix" = "default"
 
-"email" = "yellow"
-"username" = "yellow"
+"author" = "yellow"
+"committer" = "yellow"
 "timestamp" = "cyan"
 "working_copies" = "green"
 "bookmark" = "magenta"
@@ -54,7 +54,8 @@
 "working_copy change_id" = "bright magenta"
 # We do not use bright yellow because of how it looks on xterm's default theme.
 # https://github.com/martinvonz/jj/issues/528
-"working_copy email" = "yellow"
+"working_copy author" = "yellow"
+"working_copy committer" = "yellow"
 "working_copy timestamp" = "bright cyan"
 "working_copy working_copies" = "bright green"
 "working_copy bookmark" = "bright magenta"
