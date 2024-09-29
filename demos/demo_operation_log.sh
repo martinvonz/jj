@@ -7,8 +7,8 @@ new_tmp_dir
     jj git clone https://github.com/octocat/Hello-World
     cd Hello-World
     jj abandon --ignore-immutable octocat-patch-1@origin
-    jj branch forget octocat-patch-1
-    jj branch track test@origin
+    jj bookmark forget octocat-patch-1
+    jj bookmark track test@origin
 } > /dev/null 2>&1
 
 comment "We are in the octocat/Hello-World repo.
@@ -18,7 +18,7 @@ run_command "jj op log"
 
 comment "We are going to make some changes to show
 how the operation log works. Let's add a file, set
-a description, and rebase onto the \"test\" branch:"
+a description, and rebase onto the \"test\" bookmark:"
 run_command "echo stuff > new-file"
 run_command "jj describe -m stuff"
 run_command "jj rebase -d test"

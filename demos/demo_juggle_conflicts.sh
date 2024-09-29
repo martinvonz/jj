@@ -6,13 +6,13 @@ new_tmp_dir
 (
     jj init --config-toml ui.allow-init-native=true
     echo "first" > file
-    jj branch create first
+    jj bookmark create first
     jj commit -m 'first'
     echo "second" > file
-    jj branch create second
+    jj bookmark create second
     jj commit -m 'second'
     echo "third" > file
-    jj branch create third
+    jj bookmark create third
     jj commit -m 'third'
 ) >/dev/null 2>&1
 

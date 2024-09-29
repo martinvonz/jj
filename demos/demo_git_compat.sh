@@ -10,12 +10,12 @@ run_command "cd Hello-World"
 
 blank
 
-comment "By default, \"jj\" creates a local master branch tracking the remote master
-branch. The other branches are only available as remote-tracking branches."
-run_command "jj branch list --all"
-comment "We can create a local branch tracking one of the remote branches we just
+comment "By default, \"jj\" creates a local bookmark \"master\" tracking the remote master
+branch. Other remote branches are only available as remote-tracking bookmarks."
+run_command "jj bookmark list --all"
+comment "We can create a local bookmark tracking one of the remote branches we just
 fetched."
-run_command "jj branch track octocat-patch-1@origin"
+run_command "jj bookmark track octocat-patch-1@origin"
 
 comment "By default, \"jj log\" excludes untracked remote branches to focus on
 \"our\" commits."
