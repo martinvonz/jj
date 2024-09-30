@@ -218,6 +218,19 @@ fn test_log_default() {
 }
 
 #[test]
+fn test_log_default_without_working_copy() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    test_env.jj_cmd_ok(&repo_path, &["workspace", "forget"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log"]);
+    insta::assert_snapshot!(stdout, @r#"
+    ◆  zzzzzzzz root() 00000000
+    "#);
+}
+
+#[test]
 fn test_log_builtin_templates() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);

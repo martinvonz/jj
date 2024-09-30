@@ -3,7 +3,7 @@
 
 [revsets]
 fix = "reachable(@, mutable())"
-log = "@ | ancestors(immutable_heads().., 2) | trunk()"
+log = "present(@) | ancestors(immutable_heads().., 2) | trunk()"
 
 [revset-aliases]
 'trunk()' = '''
