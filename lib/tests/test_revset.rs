@@ -14,6 +14,7 @@
 
 use std::iter;
 use std::path::Path;
+use std::rc::Rc;
 
 use assert_matches::assert_matches;
 use chrono::DateTime;
@@ -388,6 +389,18 @@ fn test_resolve_working_copy() {
         RevsetExpression::working_copy(ws1.clone())
             .resolve_user_expression(mut_repo, &FailingSymbolResolver),
         Err(RevsetResolutionError::WorkspaceMissingWorkingCopy { name }) if name == "ws1"
+    );
+
+    // The error can be suppressed by present()
+    assert_eq!(
+        Rc::new(RevsetExpression::Present(RevsetExpression::working_copy(
+            ws1.clone()
+        )))
+        .evaluate_programmatic(mut_repo)
+        .unwrap()
+        .iter()
+        .collect_vec(),
+        vec![]
     );
 
     // Add some workspaces
