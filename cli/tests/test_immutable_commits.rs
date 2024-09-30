@@ -60,6 +60,8 @@ fn test_rewrite_immutable_generic() {
     // Error mutating the repo if immutable_heads() uses a ref that can't be
     // resolved
     test_env.add_config(r#"revset-aliases."immutable_heads()" = "bookmark_that_does_not_exist""#);
+    // Suppress warning in the commit summary template
+    test_env.add_config("template-aliases.'format_short_id(id)' = 'id.short(8)'");
     let stderr = test_env.jj_cmd_failure(&repo_path, &["new", "main"]);
     insta::assert_snapshot!(stderr, @r###"
     Config error: Invalid `revset-aliases.immutable_heads()`

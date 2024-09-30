@@ -444,6 +444,10 @@ fn test_log_bad_short_prefixes() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
+
+    // Suppress warning in the commit summary template
+    test_env.add_config("template-aliases.'format_short_id(id)' = 'id.short(8)'");
+
     // Error on bad config of short prefixes
     test_env.add_config(r#"revsets.short-prefixes = "!nval!d""#);
     let stderr = test_env.jj_cmd_failure(&repo_path, &["status"]);
@@ -458,6 +462,33 @@ fn test_log_bad_short_prefixes() {
       = expected <identifier> or <expression>
     For help, see https://martinvonz.github.io/jj/latest/config/.
     "###);
+
+    // Warn on resolution of short prefixes
+    test_env.add_config("revsets.short-prefixes = 'missing'");
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["log", "-Tcommit_id.shortest()"]);
+    insta::assert_snapshot!(stdout, @r#"
+    @  2
+    ◆  0
+    "#);
+    insta::assert_snapshot!(stderr, @r#"
+    Warning: In template expression
+     --> 1:11
+      |
+    1 | commit_id.shortest()
+      |           ^------^
+      |
+      = Failed to load short-prefixes index
+    Failed to resolve short-prefixes disambiguation revset
+    Revision "missing" doesn't exist
+    "#);
+
+    // Error on resolution of short prefixes
+    test_env.add_config("revsets.short-prefixes = 'missing'");
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r0"]);
+    insta::assert_snapshot!(stderr, @r#"
+    Error: Failed to resolve short-prefixes disambiguation revset
+    Caused by: Revision "missing" doesn't exist
+    "#);
 }
 
 #[test]
