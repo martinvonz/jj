@@ -41,6 +41,7 @@ use crate::fileset::FilesetExpression;
 use crate::graph::GraphEdge;
 use crate::hex_util::to_forward_hex;
 use crate::id_prefix::IdPrefixContext;
+use crate::id_prefix::IdPrefixIndex;
 use crate::object_id::HexPrefix;
 use crate::object_id::PrefixResolution;
 use crate::op_store::RemoteRefState;
@@ -1624,11 +1625,10 @@ impl PartialSymbolResolver for CommitPrefixResolver<'_> {
         symbol: &str,
     ) -> Result<Option<Vec<CommitId>>, RevsetResolutionError> {
         if let Some(prefix) = HexPrefix::new(symbol) {
-            let resolution = match self.context.map(|ctx| ctx.populate(repo)) {
-                Some(index) => index.resolve_commit_prefix(repo, &prefix),
-                None => repo.index().resolve_commit_id_prefix(&prefix),
-            };
-            match resolution {
+            let index = self
+                .context
+                .map_or(IdPrefixIndex::empty(), |ctx| ctx.populate(repo));
+            match index.resolve_commit_prefix(repo, &prefix) {
                 PrefixResolution::AmbiguousMatch => Err(
                     RevsetResolutionError::AmbiguousCommitIdPrefix(symbol.to_owned()),
                 ),
@@ -1653,11 +1653,10 @@ impl PartialSymbolResolver for ChangePrefixResolver<'_> {
         symbol: &str,
     ) -> Result<Option<Vec<CommitId>>, RevsetResolutionError> {
         if let Some(prefix) = to_forward_hex(symbol).as_deref().and_then(HexPrefix::new) {
-            let resolution = match self.context.map(|ctx| ctx.populate(repo)) {
-                Some(index) => index.resolve_change_prefix(repo, &prefix),
-                None => repo.resolve_change_id_prefix(&prefix),
-            };
-            match resolution {
+            let index = self
+                .context
+                .map_or(IdPrefixIndex::empty(), |ctx| ctx.populate(repo));
+            match index.resolve_change_prefix(repo, &prefix) {
                 PrefixResolution::AmbiguousMatch => Err(
                     RevsetResolutionError::AmbiguousChangeIdPrefix(symbol.to_owned()),
                 ),
