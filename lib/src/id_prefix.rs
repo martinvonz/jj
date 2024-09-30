@@ -145,6 +145,11 @@ pub struct IdPrefixIndex<'a> {
 }
 
 impl IdPrefixIndex<'_> {
+    /// Returns an empty index that just falls back to a provided `repo`.
+    pub const fn empty() -> IdPrefixIndex<'static> {
+        IdPrefixIndex { indexes: None }
+    }
+
     /// Resolve an unambiguous commit ID prefix.
     pub fn resolve_commit_prefix(
         &self,
