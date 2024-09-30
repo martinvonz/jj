@@ -161,7 +161,13 @@ impl IdPrefixIndex<'_> {
                 .commit_index
                 .resolve_prefix_to_key(&*indexes.commit_change_ids, prefix);
             if let PrefixResolution::SingleMatch(id) = resolution {
-                return PrefixResolution::SingleMatch(id);
+                // The disambiguation set may be loaded from a different repo,
+                // and contain a commit that doesn't exist in the current repo.
+                if repo.index().has_id(&id) {
+                    return PrefixResolution::SingleMatch(id);
+                } else {
+                    return PrefixResolution::NoMatch;
+                }
             }
         }
         repo.index().resolve_commit_id_prefix(prefix)

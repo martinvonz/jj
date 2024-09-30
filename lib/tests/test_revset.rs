@@ -29,6 +29,8 @@ use jj_lib::git;
 use jj_lib::git_backend::GitBackend;
 use jj_lib::graph::GraphEdge;
 use jj_lib::graph::ReverseGraphIterator;
+use jj_lib::hex_util::to_reverse_hex;
+use jj_lib::id_prefix::IdPrefixContext;
 use jj_lib::object_id::ObjectId;
 use jj_lib::op_store::RefTarget;
 use jj_lib::op_store::RemoteRef;
@@ -51,6 +53,7 @@ use jj_lib::revset::RevsetFilterPredicate;
 use jj_lib::revset::RevsetParseContext;
 use jj_lib::revset::RevsetResolutionError;
 use jj_lib::revset::RevsetWorkspaceContext;
+use jj_lib::revset::SymbolResolver;
 use jj_lib::revset::SymbolResolverExtension;
 use jj_lib::settings::GitSettings;
 use jj_lib::workspace::Workspace;
@@ -366,6 +369,67 @@ fn test_resolve_symbol_change_id(readonly: bool) {
             name,
             candidates
         }) if name == "foo" && candidates.is_empty()
+    );
+}
+
+#[test]
+fn test_resolve_symbol_in_different_disambiguation_context() {
+    let settings = testutils::user_settings();
+    let test_repo = TestRepo::init();
+    let repo0 = &test_repo.repo;
+
+    let mut tx = repo0.start_transaction(&settings);
+    let commit1 = write_random_commit(tx.repo_mut(), &settings);
+    // Create more commits that are likely to conflict with 1-char hex prefix.
+    for _ in 0..50 {
+        write_random_commit(tx.repo_mut(), &settings);
+    }
+    let repo1 = tx.commit("test");
+
+    let mut tx = repo1.start_transaction(&settings);
+    let commit2 = tx
+        .repo_mut()
+        .rewrite_commit(&settings, &commit1)
+        .write()
+        .unwrap();
+    tx.repo_mut().rebase_descendants(&settings).unwrap();
+    let repo2 = tx.commit("test");
+
+    // Set up disambiguation index which only contains the commit2.id().
+    let id_prefix_context = IdPrefixContext::new(Default::default())
+        .disambiguate_within(RevsetExpression::commit(commit2.id().clone()));
+    let symbol_resolver =
+        DefaultSymbolResolver::new(repo2.as_ref(), &[] as &[Box<dyn SymbolResolverExtension>])
+            .with_id_prefix_context(&id_prefix_context);
+
+    // Sanity check
+    let change_hex = &to_reverse_hex(&commit2.change_id().hex()).unwrap();
+    assert_eq!(
+        symbol_resolver
+            .resolve_symbol(repo2.as_ref(), &change_hex[0..1])
+            .unwrap(),
+        vec![commit2.id().clone()]
+    );
+    assert_eq!(
+        symbol_resolver
+            .resolve_symbol(repo2.as_ref(), &commit2.id().hex()[0..1])
+            .unwrap(),
+        vec![commit2.id().clone()]
+    );
+
+    // Change ID is disambiguated within repo2, then resolved in repo1.
+    assert_eq!(
+        symbol_resolver
+            .resolve_symbol(repo1.as_ref(), &change_hex[0..1])
+            .unwrap(),
+        vec![commit1.id().clone()]
+    );
+
+    // Commit ID can be found in the disambiguation index, but doesn't exist in
+    // repo1.
+    assert_matches!(
+        symbol_resolver.resolve_symbol(repo1.as_ref(), &commit2.id().hex()[0..1]),
+        Err(RevsetResolutionError::NoSuchRevision { .. })
     );
 }
 
