@@ -33,6 +33,7 @@ use jj_lib::fileset::FilesetExpression;
 use jj_lib::git;
 use jj_lib::hex_util::to_reverse_hex;
 use jj_lib::id_prefix::IdPrefixContext;
+use jj_lib::id_prefix::IdPrefixIndex;
 use jj_lib::matchers::Matcher;
 use jj_lib::merged_tree::MergedTree;
 use jj_lib::object_id::ObjectId as _;
@@ -1267,13 +1268,13 @@ impl CommitOrChangeId {
     pub fn shortest(
         &self,
         repo: &dyn Repo,
-        id_prefix_context: &IdPrefixContext,
+        index: &IdPrefixIndex,
         total_len: usize,
     ) -> ShortestIdPrefix {
         let mut hex = self.hex();
         let prefix_len = match self {
-            CommitOrChangeId::Commit(id) => id_prefix_context.shortest_commit_prefix_len(repo, id),
-            CommitOrChangeId::Change(id) => id_prefix_context.shortest_change_prefix_len(repo, id),
+            CommitOrChangeId::Commit(id) => index.shortest_commit_prefix_len(repo, id),
+            CommitOrChangeId::Change(id) => index.shortest_change_prefix_len(repo, id),
         };
         hex.truncate(max(prefix_len, total_len));
         let rest = hex.split_off(prefix_len);
@@ -1330,7 +1331,6 @@ fn builtin_commit_or_change_id_methods<'repo>(
     map.insert(
         "shortest",
         |language, diagnostics, build_ctx, self_property, function| {
-            let id_prefix_context = &language.id_prefix_context;
             let ([], [len_node]) = function.expect_arguments()?;
             let len_property = len_node
                 .map(|node| {
@@ -1342,8 +1342,10 @@ fn builtin_commit_or_change_id_methods<'repo>(
                     )
                 })
                 .transpose()?;
+            let repo = language.repo;
+            let index = language.id_prefix_context.populate(repo);
             let out_property = (self_property, len_property)
-                .map(|(id, len)| id.shortest(language.repo, id_prefix_context, len.unwrap_or(0)));
+                .map(move |(id, len)| id.shortest(repo, &index, len.unwrap_or(0)));
             Ok(L::wrap_shortest_id_prefix(out_property))
         },
     );

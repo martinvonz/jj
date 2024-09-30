@@ -1624,11 +1624,10 @@ impl PartialSymbolResolver for CommitPrefixResolver<'_> {
         symbol: &str,
     ) -> Result<Option<Vec<CommitId>>, RevsetResolutionError> {
         if let Some(prefix) = HexPrefix::new(symbol) {
-            let resolution = self
-                .context
-                .as_ref()
-                .map(|ctx| ctx.resolve_commit_prefix(repo, &prefix))
-                .unwrap_or_else(|| repo.index().resolve_commit_id_prefix(&prefix));
+            let resolution = match self.context.map(|ctx| ctx.populate(repo)) {
+                Some(index) => index.resolve_commit_prefix(repo, &prefix),
+                None => repo.index().resolve_commit_id_prefix(&prefix),
+            };
             match resolution {
                 PrefixResolution::AmbiguousMatch => Err(
                     RevsetResolutionError::AmbiguousCommitIdPrefix(symbol.to_owned()),
@@ -1654,11 +1653,10 @@ impl PartialSymbolResolver for ChangePrefixResolver<'_> {
         symbol: &str,
     ) -> Result<Option<Vec<CommitId>>, RevsetResolutionError> {
         if let Some(prefix) = to_forward_hex(symbol).as_deref().and_then(HexPrefix::new) {
-            let resolution = self
-                .context
-                .as_ref()
-                .map(|ctx| ctx.resolve_change_prefix(repo, &prefix))
-                .unwrap_or_else(|| repo.resolve_change_id_prefix(&prefix));
+            let resolution = match self.context.map(|ctx| ctx.populate(repo)) {
+                Some(index) => index.resolve_change_prefix(repo, &prefix),
+                None => repo.resolve_change_id_prefix(&prefix),
+            };
             match resolution {
                 PrefixResolution::AmbiguousMatch => Err(
                     RevsetResolutionError::AmbiguousChangeIdPrefix(symbol.to_owned()),

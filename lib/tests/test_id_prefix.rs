@@ -138,53 +138,54 @@ fn test_id_prefix() {
 
     // Without a disambiguation revset
     // ---------------------------------------------------------------------------------------------
-    let c = IdPrefixContext::default();
+    let context = IdPrefixContext::default();
+    let index = context.populate(repo.as_ref());
     assert_eq!(
-        c.shortest_commit_prefix_len(repo.as_ref(), commits[2].id()),
+        index.shortest_commit_prefix_len(repo.as_ref(), commits[2].id()),
         2
     );
     assert_eq!(
-        c.shortest_commit_prefix_len(repo.as_ref(), commits[5].id()),
+        index.shortest_commit_prefix_len(repo.as_ref(), commits[5].id()),
         1
     );
     assert_eq!(
-        c.resolve_commit_prefix(repo.as_ref(), &prefix("2")),
+        index.resolve_commit_prefix(repo.as_ref(), &prefix("2")),
         AmbiguousMatch
     );
     assert_eq!(
-        c.resolve_commit_prefix(repo.as_ref(), &prefix("2a")),
+        index.resolve_commit_prefix(repo.as_ref(), &prefix("2a")),
         SingleMatch(commits[2].id().clone())
     );
     assert_eq!(
-        c.resolve_commit_prefix(repo.as_ref(), &prefix("20")),
+        index.resolve_commit_prefix(repo.as_ref(), &prefix("20")),
         NoMatch
     );
     assert_eq!(
-        c.resolve_commit_prefix(repo.as_ref(), &prefix("2a0")),
+        index.resolve_commit_prefix(repo.as_ref(), &prefix("2a0")),
         NoMatch
     );
     assert_eq!(
-        c.shortest_change_prefix_len(repo.as_ref(), commits[0].change_id()),
+        index.shortest_change_prefix_len(repo.as_ref(), commits[0].change_id()),
         2
     );
     assert_eq!(
-        c.shortest_change_prefix_len(repo.as_ref(), commits[6].change_id()),
+        index.shortest_change_prefix_len(repo.as_ref(), commits[6].change_id()),
         1
     );
     assert_eq!(
-        c.resolve_change_prefix(repo.as_ref(), &prefix("7")),
+        index.resolve_change_prefix(repo.as_ref(), &prefix("7")),
         AmbiguousMatch
     );
     assert_eq!(
-        c.resolve_change_prefix(repo.as_ref(), &prefix("78")),
+        index.resolve_change_prefix(repo.as_ref(), &prefix("78")),
         SingleMatch(vec![commits[0].id().clone()])
     );
     assert_eq!(
-        c.resolve_change_prefix(repo.as_ref(), &prefix("70")),
+        index.resolve_change_prefix(repo.as_ref(), &prefix("70")),
         NoMatch
     );
     assert_eq!(
-        c.resolve_change_prefix(repo.as_ref(), &prefix("780")),
+        index.resolve_change_prefix(repo.as_ref(), &prefix("780")),
         NoMatch
     );
 
@@ -192,28 +193,29 @@ fn test_id_prefix() {
     // ---------------------------------------------------------------------------------------------
     let expression =
         RevsetExpression::commits(vec![commits[0].id().clone(), commits[2].id().clone()]);
-    let c = c.disambiguate_within(expression);
+    let context = context.disambiguate_within(expression);
+    let index = context.populate(repo.as_ref());
     // The prefix is now shorter
     assert_eq!(
-        c.shortest_commit_prefix_len(repo.as_ref(), commits[2].id()),
+        index.shortest_commit_prefix_len(repo.as_ref(), commits[2].id()),
         1
     );
     // Shorter prefix within the set can be used
     assert_eq!(
-        c.resolve_commit_prefix(repo.as_ref(), &prefix("2")),
+        index.resolve_commit_prefix(repo.as_ref(), &prefix("2")),
         SingleMatch(commits[2].id().clone())
     );
     // Can still resolve commits outside the set
     assert_eq!(
-        c.resolve_commit_prefix(repo.as_ref(), &prefix("21")),
+        index.resolve_commit_prefix(repo.as_ref(), &prefix("21")),
         SingleMatch(commits[24].id().clone())
     );
     assert_eq!(
-        c.shortest_change_prefix_len(repo.as_ref(), commits[0].change_id()),
+        index.shortest_change_prefix_len(repo.as_ref(), commits[0].change_id()),
         1
     );
     assert_eq!(
-        c.resolve_change_prefix(repo.as_ref(), &prefix("7")),
+        index.resolve_change_prefix(repo.as_ref(), &prefix("7")),
         SingleMatch(vec![commits[0].id().clone()])
     );
 
@@ -221,29 +223,30 @@ fn test_id_prefix() {
     // needed.
     // ---------------------------------------------------------------------------------------------
     let expression = RevsetExpression::commit(root_commit_id.clone());
-    let c = c.disambiguate_within(expression);
+    let context = context.disambiguate_within(expression);
+    let index = context.populate(repo.as_ref());
     assert_eq!(
-        c.shortest_commit_prefix_len(repo.as_ref(), root_commit_id),
+        index.shortest_commit_prefix_len(repo.as_ref(), root_commit_id),
         1
     );
     assert_eq!(
-        c.resolve_commit_prefix(repo.as_ref(), &prefix("")),
+        index.resolve_commit_prefix(repo.as_ref(), &prefix("")),
         AmbiguousMatch
     );
     assert_eq!(
-        c.resolve_commit_prefix(repo.as_ref(), &prefix("0")),
+        index.resolve_commit_prefix(repo.as_ref(), &prefix("0")),
         SingleMatch(root_commit_id.clone())
     );
     assert_eq!(
-        c.shortest_change_prefix_len(repo.as_ref(), root_change_id),
+        index.shortest_change_prefix_len(repo.as_ref(), root_change_id),
         1
     );
     assert_eq!(
-        c.resolve_change_prefix(repo.as_ref(), &prefix("")),
+        index.resolve_change_prefix(repo.as_ref(), &prefix("")),
         AmbiguousMatch
     );
     assert_eq!(
-        c.resolve_change_prefix(repo.as_ref(), &prefix("0")),
+        index.resolve_change_prefix(repo.as_ref(), &prefix("0")),
         SingleMatch(vec![root_commit_id.clone()])
     );
 
@@ -251,13 +254,14 @@ fn test_id_prefix() {
     // ---------------------------------------------------------------------------------------------
     // TODO: Should be an error
     let expression = RevsetExpression::symbol("nonexistent".to_string());
-    let context = c.disambiguate_within(expression);
+    let context = context.disambiguate_within(expression);
+    let index = context.populate(repo.as_ref());
     assert_eq!(
-        context.shortest_commit_prefix_len(repo.as_ref(), commits[2].id()),
+        index.shortest_commit_prefix_len(repo.as_ref(), commits[2].id()),
         2
     );
     assert_eq!(
-        context.resolve_commit_prefix(repo.as_ref(), &prefix("2")),
+        index.resolve_commit_prefix(repo.as_ref(), &prefix("2")),
         AmbiguousMatch
     );
 }
@@ -335,29 +339,30 @@ fn test_id_prefix_divergent() {
 
     // Without a disambiguation revset
     // --------------------------------
-    let c = IdPrefixContext::default();
+    let context = IdPrefixContext::default();
+    let index = context.populate(repo.as_ref());
     assert_eq!(
-        c.shortest_change_prefix_len(repo.as_ref(), commits[0].change_id()),
+        index.shortest_change_prefix_len(repo.as_ref(), commits[0].change_id()),
         3
     );
     assert_eq!(
-        c.shortest_change_prefix_len(repo.as_ref(), commits[1].change_id()),
+        index.shortest_change_prefix_len(repo.as_ref(), commits[1].change_id()),
         3
     );
     assert_eq!(
-        c.shortest_change_prefix_len(repo.as_ref(), commits[2].change_id()),
+        index.shortest_change_prefix_len(repo.as_ref(), commits[2].change_id()),
         3
     );
     assert_eq!(
-        c.resolve_change_prefix(repo.as_ref(), &prefix("a5")),
+        index.resolve_change_prefix(repo.as_ref(), &prefix("a5")),
         AmbiguousMatch
     );
     assert_eq!(
-        c.resolve_change_prefix(repo.as_ref(), &prefix("a53")),
+        index.resolve_change_prefix(repo.as_ref(), &prefix("a53")),
         SingleMatch(vec![first_commit.id().clone()])
     );
     assert_eq!(
-        c.resolve_change_prefix(repo.as_ref(), &prefix("a50")),
+        index.resolve_change_prefix(repo.as_ref(), &prefix("a50")),
         SingleMatch(vec![
             second_commit.id().clone(),
             third_commit_divergent_with_second.id().clone()
@@ -367,10 +372,11 @@ fn test_id_prefix_divergent() {
     // Now, disambiguate within the revset containing only the second commit
     // ----------------------------------------------------------------------
     let expression = RevsetExpression::commits(vec![second_commit.id().clone()]);
-    let c = c.disambiguate_within(expression);
+    let context = context.disambiguate_within(expression);
+    let index = context.populate(repo.as_ref());
     // The prefix is now shorter
     assert_eq!(
-        c.shortest_change_prefix_len(repo.as_ref(), second_commit.change_id()),
+        index.shortest_change_prefix_len(repo.as_ref(), second_commit.change_id()),
         1
     );
     // This tests two issues, both important:
@@ -381,7 +387,7 @@ fn test_id_prefix_divergent() {
     //   match is not ambiguous, even though the first commit's change id would also
     //   match the prefix.
     assert_eq!(
-        c.resolve_change_prefix(repo.as_ref(), &prefix("a")),
+        index.resolve_change_prefix(repo.as_ref(), &prefix("a")),
         SingleMatch(vec![
             second_commit.id().clone(),
             third_commit_divergent_with_second.id().clone()
@@ -390,11 +396,11 @@ fn test_id_prefix_divergent() {
 
     // We can still resolve commits outside the set
     assert_eq!(
-        c.resolve_change_prefix(repo.as_ref(), &prefix("a53")),
+        index.resolve_change_prefix(repo.as_ref(), &prefix("a53")),
         SingleMatch(vec![first_commit.id().clone()])
     );
     assert_eq!(
-        c.shortest_change_prefix_len(repo.as_ref(), first_commit.change_id()),
+        index.shortest_change_prefix_len(repo.as_ref(), first_commit.change_id()),
         3
     );
 }
@@ -479,32 +485,33 @@ fn test_id_prefix_hidden() {
 
     // Without a disambiguation revset
     // --------------------------------
-    let c = IdPrefixContext::default();
+    let context = IdPrefixContext::default();
+    let index = context.populate(repo.as_ref());
     assert_eq!(
-        c.shortest_commit_prefix_len(repo.as_ref(), hidden_commit.id()),
+        index.shortest_commit_prefix_len(repo.as_ref(), hidden_commit.id()),
         2
     );
     assert_eq!(
-        c.shortest_change_prefix_len(repo.as_ref(), hidden_commit.change_id()),
+        index.shortest_change_prefix_len(repo.as_ref(), hidden_commit.change_id()),
         3
     );
     assert_eq!(
-        c.resolve_commit_prefix(repo.as_ref(), &prefix(&hidden_commit.id().hex()[..1])),
+        index.resolve_commit_prefix(repo.as_ref(), &prefix(&hidden_commit.id().hex()[..1])),
         AmbiguousMatch
     );
     assert_eq!(
-        c.resolve_commit_prefix(repo.as_ref(), &prefix(&hidden_commit.id().hex()[..2])),
+        index.resolve_commit_prefix(repo.as_ref(), &prefix(&hidden_commit.id().hex()[..2])),
         SingleMatch(hidden_commit.id().clone())
     );
     assert_eq!(
-        c.resolve_change_prefix(
+        index.resolve_change_prefix(
             repo.as_ref(),
             &prefix(&hidden_commit.change_id().hex()[..2])
         ),
         AmbiguousMatch
     );
     assert_eq!(
-        c.resolve_change_prefix(
+        index.resolve_change_prefix(
             repo.as_ref(),
             &prefix(&hidden_commit.change_id().hex()[..3])
         ),
@@ -514,32 +521,33 @@ fn test_id_prefix_hidden() {
     // Disambiguate within hidden
     // --------------------------
     let expression = RevsetExpression::commit(hidden_commit.id().clone());
-    let c = c.disambiguate_within(expression);
+    let context = context.disambiguate_within(expression);
+    let index = context.populate(repo.as_ref());
     assert_eq!(
-        c.shortest_commit_prefix_len(repo.as_ref(), hidden_commit.id()),
+        index.shortest_commit_prefix_len(repo.as_ref(), hidden_commit.id()),
         1
     );
     assert_eq!(
-        c.shortest_change_prefix_len(repo.as_ref(), hidden_commit.change_id()),
+        index.shortest_change_prefix_len(repo.as_ref(), hidden_commit.change_id()),
         1
     );
     // Short commit id can be resolved even if it's hidden.
     assert_eq!(
-        c.resolve_commit_prefix(repo.as_ref(), &prefix(&hidden_commit.id().hex()[..1])),
+        index.resolve_commit_prefix(repo.as_ref(), &prefix(&hidden_commit.id().hex()[..1])),
         SingleMatch(hidden_commit.id().clone())
     );
     // OTOH, hidden change id should never be found. The resolution might be
     // ambiguous if hidden commits were excluded from the disambiguation set.
     // In that case, shortest_change_prefix_len() shouldn't be 1.
     assert_eq!(
-        c.resolve_change_prefix(
+        index.resolve_change_prefix(
             repo.as_ref(),
             &prefix(&hidden_commit.change_id().hex()[..1])
         ),
         NoMatch
     );
     assert_eq!(
-        c.resolve_change_prefix(
+        index.resolve_change_prefix(
             repo.as_ref(),
             &prefix(&hidden_commit.change_id().hex()[..2])
         ),
