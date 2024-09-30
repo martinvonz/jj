@@ -289,7 +289,8 @@ You can configure the revisions `jj log` would show when neither `-r` nor any pa
 revsets.log = "main@origin.."
 ```
 
-The default value for `revsets.log` is `'@ | ancestors(immutable_heads().., 2) | trunk()'`.
+The default value for `revsets.log` is
+`'present(@) | ancestors(immutable_heads().., 2) | trunk()'`.
 
 ### Graph style
 
