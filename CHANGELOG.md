@@ -13,6 +13,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 * Revset function names can no longer start with a number.
 
+* Evaluation error of `revsets.short-prefixes` configuration is now reported.
+
 ### Deprecations
 
 ### New features

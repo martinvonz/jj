@@ -1343,7 +1343,21 @@ fn builtin_commit_or_change_id_methods<'repo>(
                 })
                 .transpose()?;
             let repo = language.repo;
-            let index = language.id_prefix_context.populate(repo);
+            let index = match language.id_prefix_context.populate(repo) {
+                Ok(index) => index,
+                Err(err) => {
+                    // Not an error because we can still produce somewhat
+                    // reasonable output.
+                    diagnostics.add_warning(
+                        TemplateParseError::expression(
+                            "Failed to load short-prefixes index",
+                            function.name_span,
+                        )
+                        .with_source(err),
+                    );
+                    IdPrefixIndex::empty()
+                }
+            };
             let out_property = (self_property, len_property)
                 .map(move |(id, len)| id.shortest(repo, &index, len.unwrap_or(0)));
             Ok(L::wrap_shortest_id_prefix(out_property))

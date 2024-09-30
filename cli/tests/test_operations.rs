@@ -789,6 +789,10 @@ fn test_op_diff() {
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "clone", "git-repo", "repo"]);
     let repo_path = test_env.env_root().join("repo");
 
+    // Suppress warning in the commit summary template. The configured "trunk()"
+    // can't be found in earlier operations.
+    test_env.add_config("template-aliases.'format_short_id(id)' = 'id.short(8)'");
+
     // Overview of op log.
     let stdout = test_env.jj_cmd_success(&repo_path, &["op", "log"]);
     insta::assert_snapshot!(&stdout, @r#"
@@ -1581,6 +1585,10 @@ fn test_op_show() {
     let git_repo = init_bare_git_repo(&git_repo_path);
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "clone", "git-repo", "repo"]);
     let repo_path = test_env.env_root().join("repo");
+
+    // Suppress warning in the commit summary template. The configured "trunk()"
+    // can't be found in earlier operations.
+    test_env.add_config("template-aliases.'format_short_id(id)' = 'id.short(8)'");
 
     // Overview of op log.
     let stdout = test_env.jj_cmd_success(&repo_path, &["op", "log"]);
