@@ -107,6 +107,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 * Editing a hidden commit now makes it visible.
 
+* The `present()` revset now suppresses missing working copy error. For example,
+  `present(@)` evaluates to `none()` if the current workspace has no
+  working-copy commit.
+
 ## [0.21.0] - 2024-09-04
 
 ### Breaking changes

@@ -1866,11 +1866,11 @@ fn resolve_symbols(
             RevsetExpression::Present(candidates) => {
                 resolve_symbols(repo, candidates.clone(), symbol_resolver)
                     .or_else(|err| match err {
-                        RevsetResolutionError::NoSuchRevision { .. } => {
+                        RevsetResolutionError::NoSuchRevision { .. }
+                        | RevsetResolutionError::WorkspaceMissingWorkingCopy { .. } => {
                             Ok(RevsetExpression::none())
                         }
-                        RevsetResolutionError::WorkspaceMissingWorkingCopy { .. }
-                        | RevsetResolutionError::EmptyString
+                        RevsetResolutionError::EmptyString
                         | RevsetResolutionError::AmbiguousCommitIdPrefix(_)
                         | RevsetResolutionError::AmbiguousChangeIdPrefix(_)
                         | RevsetResolutionError::StoreError(_)
