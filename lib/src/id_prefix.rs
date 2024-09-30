@@ -103,6 +103,7 @@ impl IdIndexSourceEntry<ChangeId> for &'_ (CommitId, ChangeId) {
     }
 }
 
+/// Manages configuration and cache of commit/change ID disambiguation index.
 #[derive(Default)]
 pub struct IdPrefixContext {
     disambiguation: Option<DisambiguationData>,
@@ -125,22 +126,32 @@ impl IdPrefixContext {
         self
     }
 
-    fn disambiguation_indexes(&self, repo: &dyn Repo) -> Option<&Indexes> {
+    /// Loads disambiguation index once, returns a borrowed index to
+    /// disambiguate commit/change IDs.
+    pub fn populate(&self, repo: &dyn Repo) -> IdPrefixIndex<'_> {
         // TODO: propagate errors instead of treating them as if no revset was specified
-        self.disambiguation.as_ref().and_then(|disambiguation| {
+        let indexes = self.disambiguation.as_ref().and_then(|disambiguation| {
             disambiguation
                 .indexes(repo, self.extensions.symbol_resolvers())
                 .ok()
-        })
+        });
+        IdPrefixIndex { indexes }
     }
+}
 
+/// Loaded index to disambiguate commit/change IDs.
+pub struct IdPrefixIndex<'a> {
+    indexes: Option<&'a Indexes>,
+}
+
+impl IdPrefixIndex<'_> {
     /// Resolve an unambiguous commit ID prefix.
     pub fn resolve_commit_prefix(
         &self,
         repo: &dyn Repo,
         prefix: &HexPrefix,
     ) -> PrefixResolution<CommitId> {
-        if let Some(indexes) = self.disambiguation_indexes(repo) {
+        if let Some(indexes) = self.indexes {
             let resolution = indexes
                 .commit_index
                 .resolve_prefix_to_key(&*indexes.commit_change_ids, prefix);
@@ -154,7 +165,7 @@ impl IdPrefixContext {
     /// Returns the shortest length of a prefix of `commit_id` that
     /// can still be resolved by `resolve_commit_prefix()`.
     pub fn shortest_commit_prefix_len(&self, repo: &dyn Repo, commit_id: &CommitId) -> usize {
-        if let Some(indexes) = self.disambiguation_indexes(repo) {
+        if let Some(indexes) = self.indexes {
             if let Some(lookup) = indexes
                 .commit_index
                 .lookup_exact(&*indexes.commit_change_ids, commit_id)
@@ -171,7 +182,7 @@ impl IdPrefixContext {
         repo: &dyn Repo,
         prefix: &HexPrefix,
     ) -> PrefixResolution<Vec<CommitId>> {
-        if let Some(indexes) = self.disambiguation_indexes(repo) {
+        if let Some(indexes) = self.indexes {
             let resolution = indexes
                 .change_index
                 .resolve_prefix_to_key(&*indexes.commit_change_ids, prefix);
@@ -190,7 +201,7 @@ impl IdPrefixContext {
     /// Returns the shortest length of a prefix of `change_id` that
     /// can still be resolved by `resolve_change_prefix()`.
     pub fn shortest_change_prefix_len(&self, repo: &dyn Repo, change_id: &ChangeId) -> usize {
-        if let Some(indexes) = self.disambiguation_indexes(repo) {
+        if let Some(indexes) = self.indexes {
             if let Some(lookup) = indexes
                 .change_index
                 .lookup_exact(&*indexes.commit_change_ids, change_id)
