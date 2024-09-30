@@ -1531,14 +1531,23 @@ fn make_no_such_symbol_error(repo: &dyn Repo, name: impl Into<String>) -> Revset
 }
 
 pub trait SymbolResolver {
-    fn resolve_symbol(&self, symbol: &str) -> Result<Vec<CommitId>, RevsetResolutionError>;
+    /// Looks up `symbol` in the given `repo`.
+    fn resolve_symbol(
+        &self,
+        repo: &dyn Repo,
+        symbol: &str,
+    ) -> Result<Vec<CommitId>, RevsetResolutionError>;
 }
 
 /// Fails on any attempt to resolve a symbol.
 pub struct FailingSymbolResolver;
 
 impl SymbolResolver for FailingSymbolResolver {
-    fn resolve_symbol(&self, symbol: &str) -> Result<Vec<CommitId>, RevsetResolutionError> {
+    fn resolve_symbol(
+        &self,
+        _repo: &dyn Repo,
+        symbol: &str,
+    ) -> Result<Vec<CommitId>, RevsetResolutionError> {
         Err(RevsetResolutionError::NoSuchRevision {
             name: format!(
                 "Won't resolve symbol {symbol:?}. When creating revsets programmatically, avoid \
@@ -1613,8 +1622,8 @@ impl PartialSymbolResolver for GitRefResolver {
 const DEFAULT_RESOLVERS: &[&'static dyn PartialSymbolResolver] =
     &[&TagResolver, &BookmarkResolver, &GitRefResolver];
 
-#[derive(Default)]
 struct CommitPrefixResolver<'a> {
+    context_repo: &'a dyn Repo,
     context: Option<&'a IdPrefixContext>,
 }
 
@@ -1625,9 +1634,9 @@ impl PartialSymbolResolver for CommitPrefixResolver<'_> {
         symbol: &str,
     ) -> Result<Option<Vec<CommitId>>, RevsetResolutionError> {
         if let Some(prefix) = HexPrefix::new(symbol) {
-            let index = self
-                .context
-                .map_or(IdPrefixIndex::empty(), |ctx| ctx.populate(repo));
+            let index = self.context.map_or(IdPrefixIndex::empty(), |ctx| {
+                ctx.populate(self.context_repo)
+            });
             match index.resolve_commit_prefix(repo, &prefix) {
                 PrefixResolution::AmbiguousMatch => Err(
                     RevsetResolutionError::AmbiguousCommitIdPrefix(symbol.to_owned()),
@@ -1641,8 +1650,8 @@ impl PartialSymbolResolver for CommitPrefixResolver<'_> {
     }
 }
 
-#[derive(Default)]
 struct ChangePrefixResolver<'a> {
+    context_repo: &'a dyn Repo,
     context: Option<&'a IdPrefixContext>,
 }
 
@@ -1653,9 +1662,9 @@ impl PartialSymbolResolver for ChangePrefixResolver<'_> {
         symbol: &str,
     ) -> Result<Option<Vec<CommitId>>, RevsetResolutionError> {
         if let Some(prefix) = to_forward_hex(symbol).as_deref().and_then(HexPrefix::new) {
-            let index = self
-                .context
-                .map_or(IdPrefixIndex::empty(), |ctx| ctx.populate(repo));
+            let index = self.context.map_or(IdPrefixIndex::empty(), |ctx| {
+                ctx.populate(self.context_repo)
+            });
             match index.resolve_change_prefix(repo, &prefix) {
                 PrefixResolution::AmbiguousMatch => Err(
                     RevsetResolutionError::AmbiguousChangeIdPrefix(symbol.to_owned()),
@@ -1676,30 +1685,43 @@ impl PartialSymbolResolver for ChangePrefixResolver<'_> {
 /// may provide a way for extensions to override native resolvers like tags and
 /// bookmarks.
 pub trait SymbolResolverExtension {
-    /// PartialSymbolResolvers can capture `repo` for caching purposes if
-    /// desired, but they do not have to since `repo` is passed into
-    /// `resolve_symbol()` as well.
-    fn new_resolvers<'a>(&self, repo: &'a dyn Repo) -> Vec<Box<dyn PartialSymbolResolver + 'a>>;
+    /// PartialSymbolResolvers can initialize some global data by using the
+    /// `context_repo`, but the `context_repo` may point to a different
+    /// operation from the `repo` passed into `resolve_symbol()`. For
+    /// resolution, the latter `repo` should be used.
+    fn new_resolvers<'a>(
+        &self,
+        context_repo: &'a dyn Repo,
+    ) -> Vec<Box<dyn PartialSymbolResolver + 'a>>;
 }
 
 /// Resolves bookmarks, remote bookmarks, tags, git refs, and full and
 /// abbreviated commit and change ids.
 pub struct DefaultSymbolResolver<'a> {
-    repo: &'a dyn Repo,
     commit_id_resolver: CommitPrefixResolver<'a>,
     change_id_resolver: ChangePrefixResolver<'a>,
     extensions: Vec<Box<dyn PartialSymbolResolver + 'a>>,
 }
 
 impl<'a> DefaultSymbolResolver<'a> {
-    pub fn new(repo: &'a dyn Repo, extensions: &[impl AsRef<dyn SymbolResolverExtension>]) -> Self {
+    /// Creates new symbol resolver that will first disambiguate short ID
+    /// prefixes within the given `context_repo` if configured.
+    pub fn new(
+        context_repo: &'a dyn Repo,
+        extensions: &[impl AsRef<dyn SymbolResolverExtension>],
+    ) -> Self {
         DefaultSymbolResolver {
-            repo,
-            commit_id_resolver: Default::default(),
-            change_id_resolver: Default::default(),
+            commit_id_resolver: CommitPrefixResolver {
+                context_repo,
+                context: None,
+            },
+            change_id_resolver: ChangePrefixResolver {
+                context_repo,
+                context: None,
+            },
             extensions: extensions
                 .iter()
-                .flat_map(|ext| ext.as_ref().new_resolvers(repo))
+                .flat_map(|ext| ext.as_ref().new_resolvers(context_repo))
                 .collect(),
         }
     }
@@ -1722,18 +1744,22 @@ impl<'a> DefaultSymbolResolver<'a> {
 }
 
 impl SymbolResolver for DefaultSymbolResolver<'_> {
-    fn resolve_symbol(&self, symbol: &str) -> Result<Vec<CommitId>, RevsetResolutionError> {
+    fn resolve_symbol(
+        &self,
+        repo: &dyn Repo,
+        symbol: &str,
+    ) -> Result<Vec<CommitId>, RevsetResolutionError> {
         if symbol.is_empty() {
             return Err(RevsetResolutionError::EmptyString);
         }
 
         for partial_resolver in self.partial_resolvers() {
-            if let Some(ids) = partial_resolver.resolve_symbol(self.repo, symbol)? {
+            if let Some(ids) = partial_resolver.resolve_symbol(repo, symbol)? {
                 return Ok(ids);
             }
         }
 
-        Err(make_no_such_symbol_error(self.repo, symbol))
+        Err(make_no_such_symbol_error(repo, symbol))
     }
 }
 
@@ -1743,7 +1769,7 @@ fn resolve_commit_ref(
     symbol_resolver: &dyn SymbolResolver,
 ) -> Result<Vec<CommitId>, RevsetResolutionError> {
     match commit_ref {
-        RevsetCommitRef::Symbol(symbol) => symbol_resolver.resolve_symbol(symbol),
+        RevsetCommitRef::Symbol(symbol) => symbol_resolver.resolve_symbol(repo, symbol),
         RevsetCommitRef::RemoteSymbol { name, remote } => {
             resolve_remote_bookmark(repo, name, remote)
                 .ok_or_else(|| make_no_such_symbol_error(repo, format!("{name}@{remote}")))
