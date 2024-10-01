@@ -11,9 +11,8 @@ pass a bookmark's name to commands that want a revision as argument. For example
 `jj bookmark list` to list bookmarks and `jj bookmark` to create, move, or delete
 bookmarks. There is currently no concept of an active/current/checked-out bookmark.
 
-Currently Jujutsu maps its Bookmarks to Git Branches and stores them as that 
-in the Git backend. This means that all Bookmarks will be reflected as 
-Git Branches, this may change in the future. 
+In a Jujutsu repo that's colocated with Git, Jujutsu's bookmarks currently map 
+to Git branches, this may change in the future. 
 
 ## Remotes and tracked bookmarks
 
@@ -61,7 +60,7 @@ If you want to know the internals of bookmark tracking, consult the
   actual state only when it's actively communicating with the remote. However,
   `jj` does store the last-seen position of the remote bookmark; this is the
   commit `jj show <bookmark name>@<remote name>` would show. This notion is
-  completely analogous to Git's "remote-tracking bookmarks".
+  completely analogous to Git's "remote-tracking branches".
 - A **tracked (remote) bookmark** is defined above. You can make a remote bookmark
   tracked with the [`jj bookmark track` command](#manually-tracking-a-bookmark), for
   example.
@@ -140,7 +139,7 @@ The default can be changed by setting the config `git.auto-local-bookmark = true
 Then, `jj git fetch` tracks every *newly fetched* bookmark with a local bookmark.
 Branches that already existed before the `jj git fetch` are not affected. This
 is similar to Mercurial, which fetches all its bookmarks (equivalent to Git
-bookmarks) by default.
+branches) by default.
 
 ## Bookmark movement
 
