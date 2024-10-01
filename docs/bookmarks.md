@@ -3,17 +3,23 @@
 
 ## Introduction
 
-Bookmarks are named pointers to revisions (just like branches are in Git). You 
+Bookmarks are named pointers to revisions (just like branches are in Git). You
 can move them without affecting the target revision's identity. Bookmarks
 automatically move when revisions are rewritten (e.g. by `jj rebase`). You can
 pass a bookmark's name to commands that want a revision as argument. For example,
-`jj new main` will create a new revision on top of the "main" bookmark. Use
-`jj bookmark list` to list bookmarks and `jj bookmark` to create, move, or delete
-bookmarks. There is currently no concept of an active/current/checked-out bookmark.
+`jj new main` will create a new revision on top of the `main` bookmark. Use
+`jj bookmark list` to list bookmarks and `jj bookmark <subcommand>` to create,
+move, or delete bookmarks. There is currently no concept of an
+active/current/checked-out bookmark.
 
-Currently Jujutsu maps its Bookmarks to Git Branches and stores them as that 
-in the Git backend. This means that all Bookmarks will be reflected as 
-Git Branches, this may change in the future. 
+## Mapping to Git branches
+
+Jujutsu maps its bookmarks to Git branches when interacting with Git repos. For
+example, `jj git push --bookmark foo` will push the state of the `foo` bookmark
+to the `foo` branch on the Git remote. Similarly, if you create a `bar` branch
+in the backing Git repo, then a subsequent `jj git import` will create a `bar`
+bookmark (reminder: that import happens automatically in
+[colocated repos][colocated-repos]).
 
 ## Remotes and tracked bookmarks
 
@@ -23,16 +29,17 @@ and `jj git push` of the bookmark. You can refer to the remembered remote bookma
 positions with `<bookmark name>@<remote name>`, such as `jj new main@origin`. `jj`
 does not provide a way to manually edit these recorded positions.
 
-A remote bookmark can be associated with a local bookmark of the same name. This is
-called a **tracked remote bookmark**, which currently maps to a Git remote 
-branch. When you pull a tracked bookmark from a remote, any changes compared to
-the current record of the remote's state will be propagated to the corresponding
-local bookmark, which will be created if it doesn't exist already.
+A remote bookmark can be associated with a local bookmark of the same name. This
+is called a **tracked remote bookmark** (which maps to a Git remote branch when
+using the Git backend). When you pull a tracked bookmark from a remote, any
+changes compared to the current record of the remote's state will be propagated
+to the corresponding local bookmark, which will be created if it doesn't exist
+already.
 
 !!! note "Details: how `fetch` pulls bookmarks"
 
     Let's say you run `jj git fetch --remote origin` and, during the fetch, `jj`
-    determines that the remote's "main" bookmark has been moved so that its target is
+    determines that the remote's `main` bookmark has been moved so that its target is
     now ahead of the local record in `main@origin`.
 
     `jj` will then update `main@origin` to the new target. If `main@origin` is
@@ -227,4 +234,5 @@ command itself through an alias (as `jj b`), and for its subcommands.
 For example, `jj bookmark create BOOKMARK-NAME` can be abbreviated as
 `jj b c BOOKMARK-NAME`.
 
+[colocated-repos]: git-compatibility.md#co-located-jujutsugit-repos
 [design]: design/tracking-branches.md
