@@ -46,9 +46,10 @@ use crate::ui::Ui;
 /// rendered as a synthetic node labeled "(elided revisions)".
 #[derive(clap::Args, Clone, Debug)]
 pub(crate) struct LogArgs {
-    /// Which revisions to show. If no paths nor revisions are specified, this
-    /// defaults to the `revsets.log` setting, or `@ |
-    /// ancestors(immutable_heads().., 2) | trunk()` if it is not set.
+    /// Which revisions to show
+    ///
+    /// If no paths nor revisions are specified, this defaults to the
+    /// `revsets.log` setting.
     #[arg(long, short)]
     revisions: Vec<RevisionArg>,
     /// Show revisions modifying the given paths
