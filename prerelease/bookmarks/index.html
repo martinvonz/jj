@@ -582,6 +582,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#mapping-to-git-branches" class="md-nav__link">
+    <span class="md-ellipsis">
+      Mapping to Git branches
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#remotes-and-tracked-bookmarks" class="md-nav__link">
     <span class="md-ellipsis">
       Remotes and tracked bookmarks
@@ -1485,6 +1494,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#mapping-to-git-branches" class="md-nav__link">
+    <span class="md-ellipsis">
+      Mapping to Git branches
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#remotes-and-tracked-bookmarks" class="md-nav__link">
     <span class="md-ellipsis">
       Remotes and tracked bookmarks
@@ -1597,31 +1615,37 @@
 
 <h1 id="bookmarks">Bookmarks<a class="headerlink" href="#bookmarks" title="Permanent link">&para;</a></h1>
 <h2 id="introduction">Introduction<a class="headerlink" href="#introduction" title="Permanent link">&para;</a></h2>
-<p>Bookmarks are named pointers to revisions (just like branches are in Git). You 
+<p>Bookmarks are named pointers to revisions (just like branches are in Git). You
 can move them without affecting the target revision's identity. Bookmarks
 automatically move when revisions are rewritten (e.g. by <code>jj rebase</code>). You can
 pass a bookmark's name to commands that want a revision as argument. For example,
-<code>jj new main</code> will create a new revision on top of the "main" bookmark. Use
-<code>jj bookmark list</code> to list bookmarks and <code>jj bookmark</code> to create, move, or delete
-bookmarks. There is currently no concept of an active/current/checked-out bookmark.</p>
-<p>Currently Jujutsu maps its Bookmarks to Git Branches and stores them as that 
-in the Git backend. This means that all Bookmarks will be reflected as 
-Git Branches, this may change in the future. </p>
+<code>jj new main</code> will create a new revision on top of the <code>main</code> bookmark. Use
+<code>jj bookmark list</code> to list bookmarks and <code>jj bookmark &lt;subcommand&gt;</code> to create,
+move, or delete bookmarks. There is currently no concept of an
+active/current/checked-out bookmark.</p>
+<h2 id="mapping-to-git-branches">Mapping to Git branches<a class="headerlink" href="#mapping-to-git-branches" title="Permanent link">&para;</a></h2>
+<p>Jujutsu maps its bookmarks to Git branches when interacting with Git repos. For
+example, <code>jj git push --bookmark foo</code> will push the state of the <code>foo</code> bookmark
+to the <code>foo</code> branch on the Git remote. Similarly, if you create a <code>bar</code> branch
+in the backing Git repo, then a subsequent <code>jj git import</code> will create a <code>bar</code>
+bookmark (reminder: that import happens automatically in
+<a href="../git-compatibility/#co-located-jujutsugit-repos">colocated repos</a>).</p>
 <h2 id="remotes-and-tracked-bookmarks">Remotes and tracked bookmarks<a class="headerlink" href="#remotes-and-tracked-bookmarks" title="Permanent link">&para;</a></h2>
 <p>Jujutsu records the last seen position of a bookmark on each remote (just like
 Git's remote-tracking branches). This record is updated on every <code>jj git fetch</code>
 and <code>jj git push</code> of the bookmark. You can refer to the remembered remote bookmark
 positions with <code>&lt;bookmark name&gt;@&lt;remote name&gt;</code>, such as <code>jj new main@origin</code>. <code>jj</code>
 does not provide a way to manually edit these recorded positions.</p>
-<p>A remote bookmark can be associated with a local bookmark of the same name. This is
-called a <strong>tracked remote bookmark</strong>, which currently maps to a Git remote 
-branch. When you pull a tracked bookmark from a remote, any changes compared to
-the current record of the remote's state will be propagated to the corresponding
-local bookmark, which will be created if it doesn't exist already.</p>
+<p>A remote bookmark can be associated with a local bookmark of the same name. This
+is called a <strong>tracked remote bookmark</strong> (which maps to a Git remote branch when
+using the Git backend). When you pull a tracked bookmark from a remote, any
+changes compared to the current record of the remote's state will be propagated
+to the corresponding local bookmark, which will be created if it doesn't exist
+already.</p>
 <div class="admonition note">
 <p class="admonition-title">Details: how <code>fetch</code> pulls bookmarks</p>
 <p>Let's say you run <code>jj git fetch --remote origin</code> and, during the fetch, <code>jj</code>
-determines that the remote's "main" bookmark has been moved so that its target is
+determines that the remote's <code>main</code> bookmark has been moved so that its target is
 now ahead of the local record in <code>main@origin</code>.</p>
 <p><code>jj</code> will then update <code>main@origin</code> to the new target. If <code>main@origin</code> is
 <strong>tracked</strong>, <code>jj</code> will also apply the change to the local bookmark <code>main</code>. If the
