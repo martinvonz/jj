@@ -34,6 +34,7 @@ use jj_lib::op_store::RefTarget;
 use jj_lib::op_store::RemoteRef;
 use jj_lib::op_store::RemoteRefState;
 use jj_lib::op_store::WorkspaceId;
+use jj_lib::operation::Operation;
 use jj_lib::repo::Repo;
 use jj_lib::repo_path::RepoPath;
 use jj_lib::repo_path::RepoPathUiConverter;
@@ -942,6 +943,14 @@ fn test_evaluate_expression_root_and_checkout() {
     let test_workspace = TestWorkspace::init(&settings);
     let repo = &test_workspace.repo;
 
+    let root_operation = {
+        let op_store = repo.op_store();
+        let id = op_store.root_operation_id();
+        let data = op_store.read_operation(id).unwrap();
+        Operation::new(op_store.clone(), id.clone(), data)
+    };
+    let root_repo = repo.reload_at(&root_operation).unwrap();
+
     let mut tx = repo.start_transaction(&settings);
     let mut_repo = tx.repo_mut();
 
@@ -952,6 +961,14 @@ fn test_evaluate_expression_root_and_checkout() {
     assert_eq!(
         resolve_commit_ids(mut_repo, "root()"),
         vec![root_commit.id().clone()]
+    );
+
+    // but not in the root operation. It might be okay to pretend that the root
+    // commit exists in the root operation, but queries like "root()" shouldn't
+    // panic in any case.
+    assert_matches!(
+        resolve_symbol(root_repo.as_ref(), "root()"),
+        Err(RevsetResolutionError::NoSuchRevision { .. })
     );
 
     // Can find the current working-copy commit
