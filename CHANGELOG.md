@@ -11,7 +11,19 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Breaking changes
 
-* Fixing #4239 means the ordering of some messages have changed.
+### Deprecations
+
+### New features
+
+### Fixed bugs
+
+
+## [0.22.0] - 2024-10-02
+
+### Breaking changes
+
+* Fixing [#4239](https://github.com/martinvonz/jj/issues/4239) means the
+  ordering of some messages have changed.
 
 * Invalid `ui.graph.style` configuration is now an error.
 
@@ -20,9 +32,6 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Deprecations
 
-* `jj obslog` is now called `jj evolution-log`/`jj evolog`. `jj obslog` remains
-  as an alias.
-
 * `jj branch` has been deprecated in favor of `jj bookmark`.
 
   **Rationale:** Jujutsu's branches don't behave like Git branches, which a
@@ -30,6 +39,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   We've renamed them to "bookmarks" to match the actual behavior, as we think
   that describes them better, and they also behave similar to Mercurial's
   bookmarks.
+
+* `jj obslog` is now called `jj evolution-log`/`jj evolog`. `jj obslog` remains
+  as an alias.
 
 * `jj unsquash` has been deprecated in favor of `jj squash` and
   `jj diffedit --restore-descendants`.
@@ -95,7 +107,7 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   to keeping all changes into the first commit while keeping the current commit
   description for the second commit (the newly created empty one).
 
-* Color author and committer names yellow
+* Author and committer names are now yellow by default.
 
 ### Fixed bugs
 
@@ -110,6 +122,28 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * The `present()` revset now suppresses missing working copy error. For example,
   `present(@)` evaluates to `none()` if the current workspace has no
   working-copy commit.
+
+### Contributors
+
+Thanks to the people who made this release happen!
+
+* Austin Seipp (@thoughtpolice)
+* Danny Hooper (@hooper)
+* Emily Shaffer (@nasamuffin)
+* Essien Ita Essien (@essiene)
+* Ethan Brierley (@eopb)
+* Ilya Grigoriev (@ilyagr)
+* Kevin Liao (@kevincliao)
+* Lukas Wirth (@Veykril)
+* Martin von Zweigbergk (@martinvonz)
+* Mateusz Mikuła (@mati865)
+* mlcui (@mlcui-corp)
+* Philip Metzger (@PhilipMetzger)
+* Samuel Tardieu (@samueltardieu)
+* Stephen Jennings (@jennings)
+* Tyler Goffinet (@qubitz)
+* Vamsi Avula (@avamsi)
+* Yuya Nishihara (@yuja)
 
 ## [0.21.0] - 2024-09-04
 
