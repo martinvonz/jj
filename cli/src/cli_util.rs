@@ -3314,7 +3314,7 @@ impl CliRunner {
                 .flatten()
                 .map(|path| format!("- {}", path.display()))
                 .join("\n");
-            e.hinted(format!("Check the following config files:\n{}", paths))
+            e.hinted(format!("Check the following config files:\n{paths}"))
         })?;
 
         let string_args = expand_args(ui, &self.app, env::args_os(), &config)?;

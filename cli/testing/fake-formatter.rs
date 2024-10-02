@@ -70,7 +70,7 @@ fn main() -> ExitCode {
     let args: Args = Args::parse();
     // Code formatters tend to print errors before printing the result.
     if let Some(data) = args.stderr {
-        eprint!("{}", data);
+        eprint!("{data}");
     }
     let stdout = if let Some(data) = args.stdout {
         // Other content-altering flags don't apply to --stdout.
@@ -106,14 +106,14 @@ fn main() -> ExitCode {
         }
         stdout
     };
-    print!("{}", stdout);
+    print!("{stdout}");
     if let Some(path) = args.tee {
         let mut file = OpenOptions::new()
             .create(true)
             .append(true)
             .open(path)
             .unwrap();
-        write!(file, "{}", stdout).unwrap();
+        write!(file, "{stdout}").unwrap();
     }
     if args.fail {
         ExitCode::FAILURE

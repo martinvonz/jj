@@ -352,7 +352,7 @@ impl From<SnapshotError> for CommandError {
                         size_diff, max_size.0, max_size,
                     )
                 } else {
-                    format!("it is {}; the maximum size allowed is ~{}.", size, max_size,)
+                    format!("it is {size}; the maximum size allowed is ~{max_size}.")
                 };
 
                 user_error(format!(

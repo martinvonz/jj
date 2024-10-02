@@ -177,7 +177,7 @@ fn edit_sparse(
                 workspace_relative_sparse_path.display()
             ))
         })?;
-        writeln!(&mut content, "{}", path_string).unwrap();
+        writeln!(&mut content, "{path_string}").unwrap();
     }
 
     let content = edit_temp_file(

@@ -282,7 +282,7 @@ pub fn show_op_diff(
         })?;
         for (name, (from_target, to_target)) in changed_local_bookmarks {
             with_content_format.write(formatter, |formatter| {
-                writeln!(formatter, "{}:", name)?;
+                writeln!(formatter, "{name}:")?;
                 write_ref_target_summary(
                     formatter,
                     current_repo,
@@ -310,7 +310,7 @@ pub fn show_op_diff(
         with_content_format.write(formatter, |formatter| writeln!(formatter, "Changed tags:"))?;
         for (name, (from_target, to_target)) in changed_tags {
             with_content_format.write(formatter, |formatter| {
-                writeln!(formatter, "{}:", name)?;
+                writeln!(formatter, "{name}:")?;
                 write_ref_target_summary(
                     formatter,
                     current_repo,
@@ -351,7 +351,7 @@ pub fn show_op_diff(
         };
         for ((name, remote_name), (from_ref, to_ref)) in changed_remote_bookmarks {
             with_content_format.write(formatter, |formatter| {
-                writeln!(formatter, "{}@{}:", name, remote_name)?;
+                writeln!(formatter, "{name}@{remote_name}:")?;
                 write_ref_target_summary(
                     formatter,
                     current_repo,
@@ -422,7 +422,7 @@ fn write_ref_target_summary(
         })?;
         write!(formatter, " ")?;
         if let Some(prefix) = prefix {
-            write!(formatter, "{} ", prefix)?;
+            write!(formatter, "{prefix} ")?;
         }
         Ok(())
     };

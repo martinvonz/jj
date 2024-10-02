@@ -123,7 +123,7 @@ pub struct GitPushArgs {
 
 fn make_bookmark_term(bookmark_names: &[impl fmt::Display]) -> String {
     match bookmark_names {
-        [bookmark_name] => format!("bookmark {}", bookmark_name),
+        [bookmark_name] => format!("bookmark {bookmark_name}"),
         bookmark_names => format!("bookmarks {}", bookmark_names.iter().join(", ")),
     }
 }

@@ -632,7 +632,7 @@ impl Ui {
         let default_choice = default.map(|c| if c { "Y" } else { "N" });
 
         let choice = self.prompt_choice(
-            &format!("{} {}", prompt, default_str),
+            &format!("{prompt} {default_str}"),
             &["y", "n", "yes", "no", "Yes", "No", "YES", "NO"],
             default_choice,
         )?;

@@ -395,7 +395,7 @@ impl<W: Write> ColorFormatter<W> {
         }
         if let Some(d) = new_debug {
             if !d.is_empty() {
-                write!(self.output, "<<{}::", d)?;
+                write!(self.output, "<<{d}::")?;
             }
             self.current_debug = Some(d);
         }
@@ -471,7 +471,7 @@ fn color_for_name_or_hex(name_or_hex: &str) -> Result<Color, config::ConfigError
         "bright cyan" => Ok(Color::Cyan),
         "bright white" => Ok(Color::White),
         _ => color_for_hex(name_or_hex)
-            .ok_or_else(|| config::ConfigError::Message(format!("invalid color: {}", name_or_hex))),
+            .ok_or_else(|| config::ConfigError::Message(format!("invalid color: {name_or_hex}"))),
     }
 }
 
@@ -786,7 +786,7 @@ mod tests {
         for [label, color] in labels_and_colors {
             // Use the color name as the label.
             config_builder = config_builder
-                .set_override(format!("colors.{}", label), color)
+                .set_override(format!("colors.{label}"), color)
                 .unwrap();
         }
         let mut output: Vec<u8> = vec![];
