@@ -19,7 +19,7 @@ use std::str;
 const GIT_HEAD_PATH: &str = "../.git/HEAD";
 const JJ_OP_HEADS_PATH: &str = "../.jj/repo/op_heads/heads";
 
-fn main() -> std::io::Result<()> {
+fn main() {
     let version = std::env::var("CARGO_PKG_VERSION").unwrap();
 
     if Path::new(GIT_HEAD_PATH).exists() {
@@ -37,8 +37,6 @@ fn main() -> std::io::Result<()> {
     } else {
         println!("cargo:rustc-env=JJ_VERSION={}", version);
     }
-
-    Ok(())
 }
 
 fn get_git_hash() -> Option<String> {
