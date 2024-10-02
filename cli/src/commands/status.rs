@@ -93,7 +93,7 @@ pub(crate) fn cmd_status(
                 formatter.labeled("conflict"),
                 "There are unresolved conflicts at these paths:"
             )?;
-            print_conflicted_paths(&conflicts, formatter, &workspace_command)?
+            print_conflicted_paths(&conflicts, formatter, &workspace_command)?;
         }
 
         let template = workspace_command.commit_summary_template();

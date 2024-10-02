@@ -498,10 +498,10 @@ pub fn default_config() -> config::Config {
         .add_source(from_toml!("config/revsets.toml"))
         .add_source(from_toml!("config/templates.toml"));
     if cfg!(unix) {
-        builder = builder.add_source(from_toml!("config/unix.toml"))
+        builder = builder.add_source(from_toml!("config/unix.toml"));
     }
     if cfg!(windows) {
-        builder = builder.add_source(from_toml!("config/windows.toml"))
+        builder = builder.add_source(from_toml!("config/windows.toml"));
     }
     builder.build().unwrap()
 }

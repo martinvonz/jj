@@ -109,7 +109,7 @@ impl Direction {
                     write!(formatter, "Working copy parent: ")?;
                 }
                 template.format(commit, formatter)
-            })
+            });
         });
 
         cmd_err

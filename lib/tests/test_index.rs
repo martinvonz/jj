@@ -650,7 +650,7 @@ fn test_reindex_corrupt_segment_files() {
         // u32: number of local change ids
         // u32: number of overflow parent entries
         // u32: number of overflow change id positions
-        fs::write(entry.path(), b"\0".repeat(24)).unwrap()
+        fs::write(entry.path(), b"\0".repeat(24)).unwrap();
     }
 
     let repo = load_repo_at_head(&settings, test_repo.repo_path());

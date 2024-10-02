@@ -74,7 +74,7 @@ pub(crate) fn cmd_init(
             ui.warning_default(),
             "`--git` and `--git-repo` are deprecated.
 Use `jj git init` instead"
-        )?
+        )?;
     } else {
         if !command.settings().allow_native_backend() {
             return Err(user_error_with_hint(

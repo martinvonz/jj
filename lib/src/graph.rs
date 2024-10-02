@@ -85,7 +85,7 @@ where
                 reverse_edges.entry(target).or_default().push(GraphEdge {
                     target: node.clone(),
                     edge_type,
-                })
+                });
             }
             entries.push(node);
         }

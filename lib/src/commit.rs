@@ -72,7 +72,7 @@ impl PartialOrd for Commit {
 
 impl Hash for Commit {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.id.hash(state)
+        self.id.hash(state);
     }
 }
 

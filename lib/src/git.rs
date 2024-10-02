@@ -1782,10 +1782,10 @@ pub fn parse_gitmodules(
             // TODO Git warns when a duplicate config entry is found, we should
             // consider doing the same.
             ("path", PartialSubmoduleConfig { path: None, .. }) => {
-                map_entry.path = Some(config_value.to_string())
+                map_entry.path = Some(config_value.to_string());
             }
             ("url", PartialSubmoduleConfig { url: None, .. }) => {
-                map_entry.url = Some(config_value.to_string())
+                map_entry.url = Some(config_value.to_string());
             }
             _ => (),
         };

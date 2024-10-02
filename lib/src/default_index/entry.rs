@@ -73,7 +73,7 @@ impl Eq for IndexEntry<'_> {}
 
 impl Hash for IndexEntry<'_> {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.pos.hash(state)
+        self.pos.hash(state);
     }
 }
 

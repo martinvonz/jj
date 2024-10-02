@@ -34,7 +34,7 @@ fn test_util_config_schema() {
                 [...]
             }
         }
-        "###)
+        "###);
     });
 }
 

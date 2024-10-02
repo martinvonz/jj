@@ -743,7 +743,7 @@ mod tests {
 
     #[test]
     fn test_find_word_ranges_multibyte() {
-        assert_eq!(find_word_ranges("⊢".as_bytes()), vec![0..3])
+        assert_eq!(find_word_ranges("⊢".as_bytes()), vec![0..3]);
     }
 
     #[test]

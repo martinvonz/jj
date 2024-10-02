@@ -328,7 +328,7 @@ fn test_log_null_terminate_multiline_descriptions() {
     insta::assert_debug_snapshot!(
         stdout,
         @r###""commit 3 line 1\n\ncommit 3 line 2\n\0commit 2 line 1\n\ncommit 2 line 2\n\0commit 1 line 1\n\ncommit 1 line 2\n\0""###
-    )
+    );
 }
 
 #[test]

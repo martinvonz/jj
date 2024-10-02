@@ -628,7 +628,7 @@ fn test_parallelize_complex_nonlinear_target() {
     │ ○  14ca4df576b3 4 parents:
     ├─╯
     ◆  000000000000 parents:
-    "###)
+    "###);
 }
 
 fn get_log_output(test_env: &TestEnvironment, cwd: &Path) -> String {

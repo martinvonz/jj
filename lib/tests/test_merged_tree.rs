@@ -541,7 +541,7 @@ fn test_resolve_with_conflict() {
             vec![expected_base1],
             vec![expected_side1, expected_side2]
         ))
-    )
+    );
 }
 
 #[test]

@@ -206,7 +206,7 @@ pub struct ConcatTemplate<T>(pub Vec<T>);
 impl<T: Template> Template for ConcatTemplate<T> {
     fn format(&self, formatter: &mut TemplateFormatter) -> io::Result<()> {
         for template in &self.0 {
-            template.format(formatter)?
+            template.format(formatter)?;
         }
         Ok(())
     }
