@@ -715,7 +715,7 @@ impl fmt::Display for CommandNameAndArgs {
             // TODO: format with shell escapes
             CommandNameAndArgs::Vec(a) => write!(f, "{}", a.0.join(" ")),
             CommandNameAndArgs::Structured { env, command } => {
-                for (k, v) in env.iter() {
+                for (k, v) in env {
                     write!(f, "{k}={v} ")?;
                 }
                 write!(f, "{}", command.0.join(" "))
