@@ -183,7 +183,7 @@ fn test_config_list_layer() {
     let mut test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let user_config_path = test_env.config_path().join("config.toml");
-    test_env.set_config_path(user_config_path.to_owned());
+    test_env.set_config_path(user_config_path.clone());
     let repo_path = test_env.env_root().join("repo");
 
     // User
@@ -456,7 +456,7 @@ fn test_config_set_for_user() {
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     // Point to a config file since `config set` can't handle directories.
     let user_config_path = test_env.config_path().join("config.toml");
-    test_env.set_config_path(user_config_path.to_owned());
+    test_env.set_config_path(user_config_path.clone());
     let repo_path = test_env.env_root().join("repo");
 
     test_env.jj_cmd_ok(
@@ -840,7 +840,7 @@ fn test_config_show_paths() {
     let mut test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let user_config_path = test_env.config_path().join("config.toml");
-    test_env.set_config_path(user_config_path.to_owned());
+    test_env.set_config_path(user_config_path.clone());
     let repo_path = test_env.env_root().join("repo");
 
     test_env.jj_cmd_ok(

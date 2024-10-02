@@ -1131,7 +1131,7 @@ impl MutableRepo {
                 let commit = self
                     .new_commit(
                         settings,
-                        new_commit_ids.to_vec(),
+                        new_commit_ids.clone(),
                         merged_parents_tree.id().clone(),
                     )
                     .write()?;

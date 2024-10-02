@@ -323,7 +323,7 @@ impl LayeredConfigs {
                         config_vals.push(AnnotatedValue {
                             path,
                             value: value.to_owned(),
-                            source: source.to_owned(),
+                            source: source.clone(),
                             // Note: Value updated below.
                             is_overridden: false,
                         });
@@ -888,8 +888,8 @@ mod tests {
     fn test_layered_configs_resolved_config_values_empty() {
         let empty_config = config::Config::default();
         let layered_configs = LayeredConfigs {
-            default: empty_config.to_owned(),
-            env_base: empty_config.to_owned(),
+            default: empty_config.clone(),
+            env_base: empty_config.clone(),
             user: None,
             repo: None,
             env_overrides: empty_config,
@@ -919,7 +919,7 @@ mod tests {
             .build()
             .unwrap();
         let layered_configs = LayeredConfigs {
-            default: empty_config.to_owned(),
+            default: empty_config.clone(),
             env_base: env_base_config,
             user: None,
             repo: Some(repo_config),
@@ -1042,8 +1042,8 @@ mod tests {
             .build()
             .unwrap();
         let layered_configs = LayeredConfigs {
-            default: empty_config.to_owned(),
-            env_base: empty_config.to_owned(),
+            default: empty_config.clone(),
+            env_base: empty_config.clone(),
             user: Some(user_config),
             repo: Some(repo_config),
             env_overrides: empty_config,

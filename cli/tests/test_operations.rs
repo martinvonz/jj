@@ -738,7 +738,7 @@ fn test_op_recover_from_bad_gc() {
     let repo_path = test_env.env_root().join("repo");
     let git_object_path = |hex: &str| {
         let (shard, file_name) = hex.split_at(2);
-        let mut file_path = repo_path.to_owned();
+        let mut file_path = repo_path.clone();
         file_path.extend([".git", "objects", shard, file_name]);
         file_path
     };

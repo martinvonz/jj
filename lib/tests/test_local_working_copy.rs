@@ -234,7 +234,7 @@ fn test_checkout_file_transitions(backend: TestRepoBackend) {
             let path = RepoPathBuf::from_internal_string(format!("{left_kind:?}_{right_kind:?}"));
             write_path(&settings, repo, &mut left_tree_builder, *left_kind, &path);
             write_path(&settings, repo, &mut right_tree_builder, *right_kind, &path);
-            files.push((*left_kind, *right_kind, path.to_owned()));
+            files.push((*left_kind, *right_kind, path.clone()));
         }
     }
     let left_tree_id = left_tree_builder.write_tree(&store).unwrap();
