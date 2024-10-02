@@ -19,4 +19,6 @@ jobs:
           check_filenames: true
           check_hidden: true
           skip: ./target,./.jj,*.lock
-          ignore_words_list: crate,NotIn
+          # `Wirth` is the proper name of one of our contributors in the changelog.
+          # It seems Codespell does not allow per-file ignore_word_list.
+          ignore_words_list: crate,NotIn,Wirth
