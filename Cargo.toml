@@ -134,6 +134,7 @@ testutils = { path = "lib/testutils" }
 
 [workspace.lints.clippy]
 explicit_iter_loop = "warn"
+semicolon_if_nothing_returned = "warn"
 uninlined_format_args = "warn"
  
 # Insta suggests compiling these packages in opt mode for faster testing.

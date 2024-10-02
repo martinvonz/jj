@@ -424,7 +424,7 @@ impl<T> FromIterator<T> for MergeBuilder<T> {
 
 impl<T> Extend<T> for MergeBuilder<T> {
     fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
-        self.values.extend(iter)
+        self.values.extend(iter);
     }
 }
 
@@ -512,7 +512,7 @@ impl<T> Merge<Merge<T>> {
 
 impl<T: ContentHash> ContentHash for Merge<T> {
     fn hash(&self, state: &mut impl DigestUpdate) {
-        self.values.hash(state)
+        self.values.hash(state);
     }
 }
 

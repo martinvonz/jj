@@ -67,7 +67,7 @@ impl PartialOrd for Operation {
 
 impl Hash for Operation {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.id.hash(state)
+        self.id.hash(state);
     }
 }
 

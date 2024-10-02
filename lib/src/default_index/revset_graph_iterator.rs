@@ -183,7 +183,7 @@ impl<'a> RevsetGraphWalk<'a> {
                         parent_edges
                             .iter()
                             .filter(|edge| known_ancestors.insert(edge.target)),
-                    )
+                    );
                 }
             }
         }

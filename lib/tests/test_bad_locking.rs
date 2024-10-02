@@ -32,7 +32,7 @@ fn copy_directory(src: &Path, dst: &Path) {
         let base_name = child_src.file_name().unwrap();
         let child_dst = dst.join(base_name);
         if child_src.is_dir() {
-            copy_directory(&child_src, &child_dst)
+            copy_directory(&child_src, &child_dst);
         } else {
             std::fs::copy(&child_src, &child_dst).unwrap();
         }

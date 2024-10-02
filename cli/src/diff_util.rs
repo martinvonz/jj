@@ -1282,7 +1282,7 @@ fn show_diff_line_tokens(
         match token_type {
             DiffTokenType::Matching => formatter.write_all(content)?,
             DiffTokenType::Different => {
-                formatter.with_label("token", |formatter| formatter.write_all(content))?
+                formatter.with_label("token", |formatter| formatter.write_all(content))?;
             }
         }
     }
@@ -1402,7 +1402,7 @@ pub fn show_diff_summary(
                     CopyOperation::Rename => ("renamed", "R"),
                 };
                 let path = path_converter.format_copied_path(before_path, after_path);
-                writeln!(formatter.labeled(label), "{sigil} {path}")?
+                writeln!(formatter.labeled(label), "{sigil} {path}")?;
             } else {
                 let path = path_converter.format_file_path(after_path);
                 match (before.is_present(), after.is_present()) {

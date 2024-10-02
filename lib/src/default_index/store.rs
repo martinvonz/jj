@@ -233,7 +233,7 @@ impl DefaultIndexStore {
                     change_id_length,
                 )?;
                 maybe_parent_file = Some(parent_file.clone());
-                mutable_index = DefaultMutableIndex::incremental(parent_file)
+                mutable_index = DefaultMutableIndex::incremental(parent_file);
             }
         }
 

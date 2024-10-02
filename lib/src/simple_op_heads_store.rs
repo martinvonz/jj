@@ -87,7 +87,7 @@ impl OpHeadsStore for SimpleOpHeadsStore {
         assert!(!old_ids.contains(new_id));
         self.add_op_head(new_id);
         for old_id in old_ids {
-            self.remove_op_head(old_id)
+            self.remove_op_head(old_id);
         }
     }
 

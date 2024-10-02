@@ -265,7 +265,7 @@ fn make_diff_sections(
                         .split_inclusive('\n')
                         .map(|line| Cow::Owned(line.to_owned()))
                         .collect(),
-                })
+                });
             }
             DiffHunk::Different(sides) => {
                 assert_eq!(sides.len(), 2, "only two inputs were provided to the diff");
@@ -285,7 +285,7 @@ fn make_diff_sections(
                         make_section_changed_lines(right_side, scm_record::ChangeType::Added),
                     ]
                     .concat(),
-                })
+                });
             }
         }
     }
@@ -361,7 +361,7 @@ pub fn make_diff_files(
                     is_checked: false,
                     old_description: None,
                     new_description: Some(Cow::Owned(describe_binary(hash.as_deref(), num_bytes))),
-                })
+                });
             }
 
             (
@@ -426,7 +426,7 @@ pub fn make_diff_files(
                     is_checked: false,
                     old_description: Some(Cow::Owned(describe_binary(hash.as_deref(), num_bytes))),
                     new_description: None,
-                })
+                });
             }
         }
 
@@ -507,7 +507,7 @@ pub fn apply_diff_builtin(
                         executable: file.get_file_mode()
                             == Some(scm_record::FileMode(mode::EXECUTABLE)),
                     }),
-                )
+                );
             }
         }
     }

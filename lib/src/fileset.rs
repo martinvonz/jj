@@ -328,7 +328,7 @@ fn build_union_matcher(expressions: &[FilesetExpression]) -> Box<dyn Matcher> {
                     FilePattern::FilePath(path) => file_paths.push(path),
                     FilePattern::PrefixPath(path) => prefix_paths.push(path),
                     FilePattern::FileGlob { dir, pattern } => {
-                        file_globs.push((dir, pattern.clone()))
+                        file_globs.push((dir, pattern.clone()));
                     }
                 }
                 continue;

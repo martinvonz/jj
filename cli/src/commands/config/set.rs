@@ -100,7 +100,7 @@ fn check_wc_author(
             AuthorChange::Email => &author.email,
         };
         if new_value.as_str() != Some(orig_value) {
-            warn_wc_author(ui, &author.name, &author.email)?
+            warn_wc_author(ui, &author.name, &author.email)?;
         }
     }
     Ok(())

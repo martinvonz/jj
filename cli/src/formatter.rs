@@ -553,7 +553,7 @@ impl<W: Write> Formatter for ColorFormatter<W> {
     fn pop_label(&mut self) -> io::Result<()> {
         self.labels.pop();
         if self.labels.is_empty() {
-            self.write_new_style()?
+            self.write_new_style()?;
         }
         Ok(())
     }

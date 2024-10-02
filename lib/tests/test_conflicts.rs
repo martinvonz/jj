@@ -535,7 +535,7 @@ line 5
             2
         ),
         None
-    )
+    );
 }
 
 #[test]
@@ -631,7 +631,7 @@ fn test_parse_conflict_simple() {
             2
         ),
         @"None"
-    )
+    );
 }
 
 #[test]
@@ -746,7 +746,7 @@ fn test_parse_conflict_wrong_arity() {
             3
         ),
         None
-    )
+    );
 }
 
 #[test]
@@ -767,7 +767,7 @@ fn test_parse_conflict_malformed_missing_removes() {
             2
         ),
         None
-    )
+    );
 }
 
 #[test]
@@ -790,7 +790,7 @@ fn test_parse_conflict_malformed_marker() {
             2
         ),
         None
-    )
+    );
 }
 
 #[test]
@@ -814,7 +814,7 @@ fn test_parse_conflict_malformed_diff() {
             2
         ),
         None
-    )
+    );
 }
 
 #[test]

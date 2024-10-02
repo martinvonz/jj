@@ -618,7 +618,7 @@ fn test_git_colocated_external_checkout() {
     let git_check_out_ref = |name| {
         git_repo
             .set_head_detached(git_repo.find_reference(name).unwrap().target().unwrap())
-            .unwrap()
+            .unwrap();
     };
 
     test_env.jj_cmd_ok(&repo_path, &["git", "init", "--git-repo=."]);

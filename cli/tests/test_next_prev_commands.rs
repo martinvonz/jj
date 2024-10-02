@@ -610,7 +610,7 @@ fn test_prev_prompts_on_multiple_parents() {
     Hint: Working copy parent: mzvwutvl bc4f4fe3 (empty) third
     Hint: Working copy parent: kkmpptxz b0d21db3 (empty) second
     Hint: Working copy parent: qpvuntsm fa15625b (empty) first
-    "###)
+    "###);
 }
 
 #[test]
