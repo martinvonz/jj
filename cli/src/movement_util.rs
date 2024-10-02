@@ -101,7 +101,7 @@ impl Direction {
 
         let template = workspace_command.commit_summary_template();
         let mut cmd_err = user_error(err_msg);
-        commits.iter().for_each(|commit| {
+        for commit in commits {
             cmd_err.add_formatted_hint_with(|formatter| {
                 if args.should_edit {
                     write!(formatter, "Working copy: ")?;
@@ -110,7 +110,7 @@ impl Direction {
                 }
                 template.format(commit, formatter)
             });
-        });
+        }
 
         cmd_err
     }
