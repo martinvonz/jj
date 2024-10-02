@@ -433,8 +433,8 @@ fn test_diff_types() {
             &[
                 "diff",
                 "--types",
-                &format!(r#"--from=description("{}")"#, from),
-                &format!(r#"--to=description("{}")"#, to),
+                &format!(r#"--from=description("{from}")"#),
+                &format!(r#"--to=description("{to}")"#),
             ],
         )
     };

@@ -39,10 +39,9 @@ pub fn edit_description(
     settings: &UserSettings,
 ) -> Result<String, CommandError> {
     let description = format!(
-        r#"{}
+        r#"{description}
 JJ: Lines starting with "JJ: " (like this one) will be removed.
-"#,
-        description
+"#
     );
 
     let description = edit_temp_file(

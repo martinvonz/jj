@@ -762,7 +762,7 @@ impl RepoLoader {
                 tx.repo_mut().rebase_descendants(settings)?;
             }
             let tx_description = tx_description.map_or_else(
-                || format!("merge {} operations", num_operations),
+                || format!("merge {num_operations} operations"),
                 |tx_description| tx_description.to_string(),
             );
             let merged_repo = tx.write(tx_description).leave_unpublished();

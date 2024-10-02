@@ -354,10 +354,7 @@ impl IndexStore for DefaultIndexStore {
                         );
                     }
                     ReadonlyIndexLoadError::Other { name: _, error } => {
-                        eprintln!(
-                            "{err} (maybe the format has changed): {source}. Reindexing...",
-                            source = error
-                        );
+                        eprintln!("{err} (maybe the format has changed): {error}. Reindexing...");
                     }
                 }
                 self.reinit().map_err(|err| IndexReadError(err.into()))?;

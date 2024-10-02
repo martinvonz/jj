@@ -134,7 +134,8 @@ testutils = { path = "lib/testutils" }
 
 [workspace.lints.clippy]
 explicit_iter_loop = "warn"
-
+uninlined_format_args = "warn"
+ 
 # Insta suggests compiling these packages in opt mode for faster testing.
 # See https://docs.rs/insta/latest/insta/#optional-faster-runs.
 [profile.dev.package]
