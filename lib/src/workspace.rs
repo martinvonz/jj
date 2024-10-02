@@ -611,8 +611,8 @@ impl WorkspaceLoader for DefaultWorkspaceLoader {
     ) -> Result<Box<dyn WorkingCopy>, WorkspaceLoadError> {
         Ok(working_copy_factory.load_working_copy(
             store.clone(),
-            self.workspace_root.to_owned(),
-            self.working_copy_state_path.to_owned(),
+            self.workspace_root.clone(),
+            self.working_copy_state_path.clone(),
         )?)
     }
 }

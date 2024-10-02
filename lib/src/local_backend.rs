@@ -388,7 +388,7 @@ fn commit_from_proto(mut proto: crate::protos::local_store::Commit) -> Commit {
         MergedTreeId::Merge(merge_builder.build())
     } else {
         assert_eq!(proto.root_tree.len(), 1);
-        MergedTreeId::Legacy(TreeId::new(proto.root_tree[0].to_vec()))
+        MergedTreeId::Legacy(TreeId::new(proto.root_tree[0].clone()))
     };
     let change_id = ChangeId::new(proto.change_id);
     Commit {

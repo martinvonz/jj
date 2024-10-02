@@ -956,8 +956,7 @@ impl Backend for GitBackend {
             .try_into_blob()
             .map_err(|err| to_read_object_err(err, id))?;
         let target = String::from_utf8(blob.take_data())
-            .map_err(|err| to_invalid_utf8_err(err.utf8_error(), id))?
-            .to_owned();
+            .map_err(|err| to_invalid_utf8_err(err.utf8_error(), id))?;
         Ok(target)
     }
 
