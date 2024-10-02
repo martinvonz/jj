@@ -292,6 +292,31 @@ fn test_bad_path() {
 }
 
 #[test]
+fn test_invalid_filesets_looking_like_filepaths() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["file", "show", "abc~"]);
+    insta::assert_snapshot!(stderr, @r#"
+    Error: Failed to parse fileset: Syntax error
+    Caused by:  --> 1:5
+      |
+    1 | abc~
+      |     ^---
+      |
+      = expected `~` or <primary>
+    Hint: See https://martinvonz.github.io/jj/latest/filesets/ for filesets syntax, or for how to match file paths.
+    "#);
+
+    test_env.add_config(r#"ui.allow-filesets=false"#);
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["file", "show", "abc~"]);
+    insta::assert_snapshot!(stderr, @r#"
+    Error: No such path: abc~
+    "#);
+}
+
+#[test]
 fn test_broken_repo_structure() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
