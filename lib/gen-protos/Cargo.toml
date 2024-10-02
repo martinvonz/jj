@@ -9,3 +9,6 @@ license = { workspace = true }
 
 [dependencies]
 prost-build = { workspace = true }
+
+[lints]
+workspace = true
