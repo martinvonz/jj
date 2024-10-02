@@ -133,6 +133,7 @@ jj-lib-proc-macros = { path = "lib/proc-macros", version = "0.22.0" }
 testutils = { path = "lib/testutils" }
 
 [workspace.lints.clippy]
+explicit_iter_loop = "warn"
 
 # Insta suggests compiling these packages in opt mode for faster testing.
 # See https://docs.rs/insta/latest/insta/#optional-faster-runs.

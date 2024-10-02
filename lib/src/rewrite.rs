@@ -588,7 +588,7 @@ pub fn move_commits(
             HashMap::new();
         // Iterate through all descendants of the target set, going through children
         // before parents.
-        for commit in target_commits_descendants.iter() {
+        for commit in &target_commits_descendants {
             if !target_commit_external_descendants.contains_key(commit.id()) {
                 let children = if target_commit_ids.contains(commit.id()) {
                     IndexSet::new()

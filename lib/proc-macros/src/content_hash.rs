@@ -138,7 +138,7 @@ fn hash_statements_for_enum_fields<'a>(
     let typed_bindings = enum_bindings_with_type(fields);
     let mut hash_statements = Vec::with_capacity(typed_bindings.len() + 1);
     hash_statements.push(quote! {::jj_lib::content_hash::ContentHash::hash(&#ix, state);});
-    for (ty, b) in typed_bindings.iter() {
+    for (ty, b) in &typed_bindings {
         hash_statements.push(quote_spanned! {b.span() =>
             <#ty as ::jj_lib::content_hash::ContentHash>::hash(#b, state);
         });

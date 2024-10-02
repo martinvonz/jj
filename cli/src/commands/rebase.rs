@@ -375,7 +375,7 @@ fn rebase_descendants(
     old_commits: &[impl Borrow<Commit>],
     rebase_options: RebaseOptions,
 ) -> Result<usize, CommandError> {
-    for old_commit in old_commits.iter() {
+    for old_commit in old_commits {
         let rewriter = CommitRewriter::new(
             tx.repo_mut(),
             old_commit.borrow().clone(),
@@ -414,7 +414,7 @@ fn rebase_descendants_transaction(
     if old_commits.is_empty() {
         return Ok(());
     }
-    for old_commit in old_commits.iter() {
+    for old_commit in &old_commits {
         check_rebase_destinations(workspace_command.repo(), &new_parents, old_commit)?;
     }
     let mut tx = workspace_command.start_transaction();
@@ -445,7 +445,7 @@ fn rebase_revisions(
     }
 
     workspace_command.check_rewritable(target_commits.iter().ids())?;
-    for commit in target_commits.iter() {
+    for commit in target_commits {
         if new_parents.contains(commit) {
             return Err(user_error(format!(
                 "Cannot rebase {} onto itself",

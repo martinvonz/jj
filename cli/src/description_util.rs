@@ -73,7 +73,7 @@ pub fn edit_multiple_descriptions(
         JJ: - The syntax of the separator lines may change in the future.
 
     "#});
-    for (commit_id, temp_commit) in commits.iter() {
+    for (commit_id, temp_commit) in commits {
         let commit_hash = short_commit_hash(commit_id);
         bulk_message.push_str("JJ: describe ");
         bulk_message.push_str(&commit_hash);

@@ -800,7 +800,7 @@ mod tests {
         );
 
         let mut files = files;
-        for file in files.iter_mut() {
+        for file in &mut files {
             file.toggle_all();
         }
         let all_changes_tree_id =
@@ -864,7 +864,7 @@ mod tests {
         );
 
         let mut files = files;
-        for file in files.iter_mut() {
+        for file in &mut files {
             file.toggle_all();
         }
         let all_changes_tree_id =
@@ -928,7 +928,7 @@ mod tests {
         );
 
         let mut files = files;
-        for file in files.iter_mut() {
+        for file in &mut files {
             file.toggle_all();
         }
         let all_changes_tree_id =
@@ -993,7 +993,7 @@ mod tests {
         );
 
         let mut files = files;
-        for file in files.iter_mut() {
+        for file in &mut files {
             file.toggle_all();
         }
         let all_changes_tree_id =

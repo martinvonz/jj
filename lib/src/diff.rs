@@ -559,7 +559,7 @@ impl<'input> Diff<'input> {
             others: vec![0..0; self.other_inputs.len()],
         };
         let mut new_unchanged_ranges = vec![];
-        for current in self.unchanged_regions.iter() {
+        for current in &self.unchanged_regions {
             // For the changed region between the previous region and the current one,
             // create a new Diff instance. Then adjust the start positions and
             // offsets to be valid in the context of the larger Diff instance
@@ -591,7 +591,7 @@ impl<'input> Diff<'input> {
     fn compact_unchanged_regions(&mut self) {
         let mut compacted = vec![];
         let mut maybe_previous: Option<UnchangedRange> = None;
-        for current in self.unchanged_regions.iter() {
+        for current in &self.unchanged_regions {
             if let Some(previous) = maybe_previous {
                 if previous.base.end == current.base.start
                     && iter::zip(&previous.others, &current.others)

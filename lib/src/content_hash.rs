@@ -138,7 +138,7 @@ where
 {
     fn hash(&self, state: &mut impl DigestUpdate) {
         state.update(&(self.len() as u64).to_le_bytes());
-        for (k, v) in self.iter() {
+        for (k, v) in self {
             k.hash(state);
             v.hash(state);
         }

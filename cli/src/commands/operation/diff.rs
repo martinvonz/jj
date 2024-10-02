@@ -383,13 +383,13 @@ fn write_modified_change_summary(
     modified_change: &ModifiedChange,
 ) -> Result<(), std::io::Error> {
     writeln!(formatter, "Change {}", short_change_hash(change_id))?;
-    for commit in modified_change.added_commits.iter() {
+    for commit in &modified_change.added_commits {
         formatter.with_label("diff", |formatter| write!(formatter.labeled("added"), "+"))?;
         write!(formatter, " ")?;
         commit_summary_template.format(commit, formatter)?;
         writeln!(formatter)?;
     }
-    for commit in modified_change.removed_commits.iter() {
+    for commit in &modified_change.removed_commits {
         formatter.with_label("diff", |formatter| {
             write!(formatter.labeled("removed"), "-")
         })?;
