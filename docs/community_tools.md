@@ -46,6 +46,14 @@ interactively in the terminal.
 
 Find it [here][vjj].
 
+## VisualJJ
+
+VisualJJ is a plugin for Visual Studio Code which provides native integration
+for Jujutsu, not relying on Git colocation. Unlike other tools on this page,
+VisualJJ is not open-source.
+
+Find it [here][visualjj].
+
 <!-- TODO: Add benbrittains/cultivate when its ready -->
 ## Finding other integrations
 
@@ -59,4 +67,5 @@ You can find other community contributed tools and integrations in our
 [jj_tui]: https://github.com/faldor20/jj_tui
 [lazyjj]: https://github.com/Cretezy/lazyjj
 [vjj]: https://github.com/noahmayr/vjj
+[visualjj]: https://www.visualjj.com
 [Wiki]: https://github.com/martinvonz/jj/wiki
