@@ -141,7 +141,7 @@ fn test_bad_function_call() {
     "###);
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "files(not::a-fileset)"]);
-    insta::assert_snapshot!(stderr, @r###"
+    insta::assert_snapshot!(stderr, @r#"
     Error: Failed to parse revset: In fileset expression
     Caused by:
     1:  --> 1:7
@@ -156,7 +156,8 @@ fn test_bad_function_call() {
       |     ^---
       |
       = expected <identifier>, <string_literal>, or <raw_string_literal>
-    "###);
+    Hint: See https://martinvonz.github.io/jj/latest/filesets/ for filesets syntax, or for how to match file paths.
+    "#);
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", r#"files(foo:"bar")"#]);
     insta::assert_snapshot!(stderr, @r###"
