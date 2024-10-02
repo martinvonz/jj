@@ -134,6 +134,7 @@ testutils = { path = "lib/testutils" }
 
 [workspace.lints.clippy]
 explicit_iter_loop = "warn"
+flat_map_option = "warn"
 implicit_clone = "warn"
 semicolon_if_nothing_returned = "warn"
 uninlined_format_args = "warn"

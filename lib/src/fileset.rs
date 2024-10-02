@@ -297,7 +297,7 @@ impl FilesetExpression {
     pub fn explicit_paths(&self) -> impl Iterator<Item = &RepoPath> {
         // pre/post-ordering doesn't matter so long as children are visited from
         // left to right.
-        self.dfs_pre().flat_map(|expr| match expr {
+        self.dfs_pre().filter_map(|expr| match expr {
             FilesetExpression::Pattern(pattern) => pattern.as_path(),
             _ => None,
         })
