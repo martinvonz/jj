@@ -24,13 +24,13 @@ async-trait = "0.1.83"
 backoff = "0.4.0"
 blake2 = "0.10.6"
 bstr = "1.10.0"
-clap = { version = "4.5.18", features = [
+clap = { version = "4.5.19", features = [
     "derive",
     "deprecated",
     "wrap_help",
     "string",
 ] }
-clap_complete = "4.5.29"
+clap_complete = "4.5.30"
 clap_complete_nushell = "4.5.3"
 clap-markdown = "0.1.4"
 clap_mangen = "0.2.10"
@@ -68,7 +68,7 @@ gix-filter = "0.13.0"
 glob = "0.3.1"
 hex = "0.4.3"
 ignore = "0.4.23"
-indexmap = "2.5.0"
+indexmap = "2.6.0"
 indoc = "2.0.4"
 insta = { version = "1.40.0", features = ["filters"] }
 itertools = "0.13.0"
