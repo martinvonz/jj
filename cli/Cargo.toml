@@ -117,3 +117,6 @@ watchman = ["jj-lib/watchman"]
 # The archive name is jj, not jj-cli. Also, `cargo binstall` gets
 # confused by the `v` before versions in archive name.
 pkg-url = "{ repo }/releases/download/v{ version }/jj-v{ version }-{ target }.{ archive-format }"
+
+[lints]
+workspace = true
