@@ -14,6 +14,7 @@
 
 use std::borrow::Cow;
 use std::cell::OnceCell;
+use std::cmp::max;
 use std::collections::BTreeMap;
 use std::collections::HashSet;
 use std::env;
@@ -2078,9 +2079,7 @@ impl WorkspaceCommandTransaction<'_> {
     /// Creates commit template language environment capturing the current
     /// transaction state.
     pub fn commit_template_language(&self) -> CommitTemplateLanguage<'_> {
-        let id_prefix_context = self
-            .id_prefix_context
-            .get_or_init(|| self.helper.env.new_id_prefix_context());
+        let id_prefix_context = self.id_prefix_context();
         self.helper
             .env
             .commit_template_language(self.tx.repo(), id_prefix_context)
@@ -2128,6 +2127,11 @@ impl WorkspaceCommandTransaction<'_> {
                 &RefTarget::normal(move_to.clone()),
             );
         }
+    }
+
+    pub fn id_prefix_context(&self) -> &IdPrefixContext {
+        self.id_prefix_context
+            .get_or_init(|| self.helper.env.new_id_prefix_context())
     }
 }
 
@@ -2647,6 +2651,40 @@ pub fn edit_temp_file(
     std::fs::remove_file(path).ok();
 
     Ok(edited)
+}
+
+pub fn format_commit_shortest_prefix(
+    formatter: &mut dyn Formatter,
+    repo: &dyn Repo,
+    id_prefix_context: &IdPrefixContext,
+    commit_id: &CommitId,
+) -> io::Result<()> {
+    let mut hex = commit_id.hex();
+    let prefix_len = id_prefix_context.shortest_commit_prefix_len(repo, commit_id);
+    hex.truncate(max(prefix_len, 12));
+    let rest = hex.split_off(prefix_len);
+    formatter.with_label("commit_id", |formatter| {
+        write!(formatter.labeled("prefix"), "{hex}")?;
+        write!(formatter.labeled("rest"), "{rest}")?;
+        Ok(())
+    })
+}
+
+pub fn format_change_shortest_prefix(
+    formatter: &mut dyn Formatter,
+    repo: &dyn Repo,
+    id_prefix_context: &IdPrefixContext,
+    change_id: &ChangeId,
+) -> io::Result<()> {
+    let mut hex = to_reverse_hex(&change_id.hex()).unwrap();
+    let prefix_len = id_prefix_context.shortest_change_prefix_len(repo, change_id);
+    hex.truncate(max(prefix_len, 12));
+    let rest = hex.split_off(prefix_len);
+    formatter.with_label("change_id", |formatter| {
+        write!(formatter.labeled("prefix"), "{hex}")?;
+        write!(formatter.labeled("rest"), "{rest}")?;
+        Ok(())
+    })
 }
 
 pub fn short_commit_hash(commit_id: &CommitId) -> String {

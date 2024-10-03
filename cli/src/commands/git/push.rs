@@ -23,6 +23,7 @@ use jj_lib::backend::CommitId;
 use jj_lib::git;
 use jj_lib::git::GitBranchPushTargets;
 use jj_lib::git::GitPushError;
+use jj_lib::id_prefix::IdPrefixContext;
 use jj_lib::object_id::ObjectId;
 use jj_lib::op_store::RefTarget;
 use jj_lib::refs::classify_bookmark_push_action;
@@ -36,6 +37,7 @@ use jj_lib::settings::UserSettings;
 use jj_lib::str_util::StringPattern;
 use jj_lib::view::View;
 
+use crate::cli_util::format_commit_shortest_prefix;
 use crate::cli_util::short_change_hash;
 use crate::cli_util::short_commit_hash;
 use crate::cli_util::CommandHelper;
@@ -265,8 +267,15 @@ pub fn cmd_git_push(
 
     validate_commits_ready_to_push(ui, &bookmark_updates, &remote, &tx, command, args)?;
     if let Some(mut formatter) = ui.status_formatter() {
-        writeln!(formatter, "Changes to push to {remote}:")?;
-        print_commits_ready_to_push(formatter.as_mut(), repo.as_ref(), &bookmark_updates)?;
+        write!(formatter, "Changes to push to ")?;
+        write!(formatter.labeled("remote_bookmarks"), "{remote}")?;
+        writeln!(formatter, ":")?;
+        print_commits_ready_to_push(
+            formatter.as_mut(),
+            repo.as_ref(),
+            tx.id_prefix_context(),
+            &bookmark_updates,
+        )?;
     }
 
     if args.dry_run {
@@ -379,6 +388,7 @@ fn validate_commits_ready_to_push(
 fn print_commits_ready_to_push(
     formatter: &mut dyn Formatter,
     repo: &dyn Repo,
+    id_prefix_context: &IdPrefixContext,
     bookmark_updates: &[(String, BookmarkPushUpdate)],
 ) -> io::Result<()> {
     let to_direction = |old_target: &CommitId, new_target: &CommitId| {
@@ -394,46 +404,33 @@ fn print_commits_ready_to_push(
 
     for (bookmark_name, update) in bookmark_updates {
         match (&update.old_target, &update.new_target) {
-            (Some(old_target), Some(new_target)) => {
-                let old = short_commit_hash(old_target);
-                let new = short_commit_hash(new_target);
-                // TODO(ilyagr): Add color. Once there is color, "Move bookmark ... sideways"
-                // may read more naturally than "Move sideways bookmark ...".
-                // Without color, it's hard to see at a glance if one bookmark
-                // among many was moved sideways (say). TODO: People on Discord
-                // suggest "Move bookmark ... forward by n commits",
-                // possibly "Move bookmark ... sideways (X forward, Y back)".
-                let msg = match to_direction(old_target, new_target) {
-                    BookmarkMoveDirection::Forward => {
-                        format!("Move forward bookmark {bookmark_name} from {old} to {new}")
-                    }
-                    BookmarkMoveDirection::Backward => {
-                        format!("Move backward bookmark {bookmark_name} from {old} to {new}")
-                    }
-                    BookmarkMoveDirection::Sideways => {
-                        format!("Move sideways bookmark {bookmark_name} from {old} to {new}")
-                    }
-                };
-                writeln!(formatter, "  {msg}")?;
-            }
-            (Some(old_target), None) => {
-                writeln!(
-                    formatter,
-                    "  Delete bookmark {bookmark_name} from {}",
-                    short_commit_hash(old_target)
-                )?;
-            }
-            (None, Some(new_target)) => {
-                writeln!(
-                    formatter,
-                    "  Add bookmark {bookmark_name} to {}",
-                    short_commit_hash(new_target)
-                )?;
-            }
+            // TODO: People on Discord
+            // suggest "Move bookmark ... forward by n commits",
+            // possibly "Move bookmark ... sideways (X forward, Y back)".
+            (Some(_), Some(_)) => write!(formatter, "  Move bookmark ",)?,
+            (Some(_), None) => write!(formatter, "  Delete bookmark ",)?,
+            (None, Some(_)) => write!(formatter, "  Add bookmark ",)?,
             (None, None) => {
                 panic!("Not pushing any change to bookmark {bookmark_name}");
             }
         }
+        write!(formatter.labeled("bookmarks"), "{bookmark_name}")?;
+        if let (Some(old_target), Some(new_target)) = (&update.old_target, &update.new_target) {
+            match to_direction(old_target, new_target) {
+                BookmarkMoveDirection::Forward => write!(formatter, " forward")?,
+                BookmarkMoveDirection::Backward => write!(formatter, " backward")?,
+                BookmarkMoveDirection::Sideways => write!(formatter, " sideways")?,
+            }
+        }
+        if let Some(old_target) = &update.old_target {
+            write!(formatter, " from ")?;
+            format_commit_shortest_prefix(formatter, repo, id_prefix_context, old_target)?;
+        }
+        if let Some(new_target) = &update.new_target {
+            write!(formatter, " to ")?;
+            format_commit_shortest_prefix(formatter, repo, id_prefix_context, new_target)?;
+        }
+        writeln!(formatter)?;
     }
     Ok(())
 }

@@ -1236,7 +1236,7 @@ fn test_op_diff() {
     "###);
     insta::assert_snapshot!(&stderr, @r#"
     Changes to push to origin:
-      Move forward bookmark bookmark-1 from 4f856199edbf to 358b82d6be53
+      Move bookmark bookmark-1 forward from 4f856199edbf to 358b82d6be53
       Delete bookmark bookmark-2 from d487febd08e6
     Warning: The working-copy commit in workspace 'default' became immutable, so a new commit has been created on top of it.
     Working copy now at: oupztwtk 2f0718a0 (empty) (no description set)
@@ -1932,7 +1932,7 @@ fn test_op_show() {
     "###);
     insta::assert_snapshot!(&stderr, @r#"
     Changes to push to origin:
-      Move forward bookmark bookmark-1 from 4f856199edbf to eb6c2b21ec20
+      Move bookmark bookmark-1 forward from 4f856199edbf to eb6c2b21ec20
       Delete bookmark bookmark-2 from d487febd08e6
     Warning: The working-copy commit in workspace 'default' became immutable, so a new commit has been created on top of it.
     Working copy now at: pzsxstzt 7ab2d837 (empty) (no description set)

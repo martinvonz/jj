@@ -174,6 +174,7 @@ fn do_op_log(
                 repo.as_ref(),
                 &parent_repo,
                 &repo,
+                &id_prefix_context,
                 &commit_summary_template,
                 (!args.no_graph).then_some(graph_style),
                 with_content_format,

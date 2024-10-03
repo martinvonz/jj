@@ -20,7 +20,7 @@ use jj_lib::commit::Commit;
 use jj_lib::repo::Repo;
 use tracing::instrument;
 
-use crate::cli_util::short_commit_hash;
+use crate::cli_util::format_commit_shortest_prefix;
 use crate::cli_util::CommandHelper;
 use crate::cli_util::RevisionArg;
 use crate::command_error::user_error;
@@ -81,8 +81,16 @@ pub(crate) fn cmd_duplicate(
     }
 
     if let Some(mut formatter) = ui.status_formatter() {
+        let id_prefix_context = tx.id_prefix_context();
         for (old_id, new_commit) in &duplicated_old_to_new {
-            write!(formatter, "Duplicated {} as ", short_commit_hash(old_id))?;
+            write!(formatter, "Duplicated ")?;
+            format_commit_shortest_prefix(
+                formatter.as_mut(),
+                &*base_repo,
+                id_prefix_context,
+                old_id,
+            )?;
+            write!(formatter, " as ")?;
             tx.write_commit_summary(formatter.as_mut(), new_commit)?;
             writeln!(formatter)?;
         }
