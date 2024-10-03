@@ -25,6 +25,7 @@ use futures::stream::BoxStream;
 use thiserror::Error;
 
 use crate::content_hash::ContentHash;
+use crate::hex_util;
 use crate::index::Index;
 use crate::merge::Merge;
 use crate::object_id::id_type;
@@ -49,6 +50,12 @@ id_type!(pub TreeId);
 id_type!(pub FileId);
 id_type!(pub SymlinkId);
 id_type!(pub ConflictId);
+
+impl ChangeId {
+    pub fn reverse_hex(&self) -> String {
+        hex_util::encode_hex_string_reverse(&self.0)
+    }
+}
 
 #[derive(ContentHash, Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord)]
 pub struct MillisSinceEpoch(pub i64);

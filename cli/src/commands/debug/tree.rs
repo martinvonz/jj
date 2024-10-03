@@ -47,7 +47,7 @@ pub fn cmd_debug_tree(
     let workspace_command = command.workspace_helper(ui)?;
     let tree = if let Some(tree_id_hex) = &args.id {
         let tree_id =
-            TreeId::try_from_hex(tree_id_hex).map_err(|_| user_error("Invalid tree id"))?;
+            TreeId::try_from_hex(tree_id_hex).ok_or_else(|| user_error("Invalid tree id"))?;
         let dir = if let Some(dir_str) = &args.dir {
             workspace_command.parse_file_path(dir_str)?
         } else {

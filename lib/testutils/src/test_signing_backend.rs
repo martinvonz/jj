@@ -1,5 +1,5 @@
-use hex::ToHex;
 use jj_lib::content_hash::blake2b_hash;
+use jj_lib::hex_util;
 use jj_lib::signing::SigStatus;
 use jj_lib::signing::SignError;
 use jj_lib::signing::SignResult;
@@ -26,7 +26,7 @@ impl SigningBackend for TestSigningBackend {
         body.extend_from_slice(key.as_bytes());
         body.extend_from_slice(data);
 
-        let hash: String = blake2b_hash(&body).encode_hex();
+        let hash: String = hex_util::encode_hex_string(&blake2b_hash(&body));
 
         Ok(format!("{PREFIX}{key}\n{hash}").into_bytes())
     }

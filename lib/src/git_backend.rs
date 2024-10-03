@@ -500,7 +500,7 @@ fn root_tree_from_header(git_commit: &CommitRef) -> Result<Option<MergedTreeId>,
         if *key == JJ_TREES_COMMIT_HEADER {
             let mut tree_ids = SmallVec::new();
             for hex in str::from_utf8(value.as_ref()).or(Err(()))?.split(' ') {
-                let tree_id = TreeId::try_from_hex(hex).or(Err(()))?;
+                let tree_id = TreeId::try_from_hex(hex).ok_or(())?;
                 if tree_id.as_bytes().len() != HASH_LENGTH {
                     return Err(());
                 }
@@ -1505,19 +1505,19 @@ fn tree_value_from_json(json: &serde_json::Value) -> TreeValue {
 }
 
 fn bytes_vec_from_json(value: &serde_json::Value) -> Vec<u8> {
-    hex::decode(value.as_str().unwrap()).unwrap()
+    crate::hex_util::decode_hex_string(value.as_str().unwrap()).unwrap()
 }
 
 #[cfg(test)]
 mod tests {
     use assert_matches::assert_matches;
     use git2::Oid;
-    use hex::ToHex;
     use pollster::FutureExt;
     use test_case::test_case;
 
     use super::*;
     use crate::content_hash::blake2b_hash;
+    use crate::hex_util;
 
     #[test_case(false; "legacy tree format")]
     #[test_case(true; "tree-level conflict format")]
@@ -2133,7 +2133,7 @@ mod tests {
         };
 
         let mut signer = |data: &_| {
-            let hash: String = blake2b_hash(data).encode_hex();
+            let hash: String = hex_util::encode_hex_string(&blake2b_hash(data));
             Ok(format!("test sig\n\n\nhash={hash}").into_bytes())
         };
 
