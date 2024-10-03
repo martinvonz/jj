@@ -283,11 +283,11 @@ given [string pattern](#string-patterns).
   Paths are relative to the directory `jj` was invoked from. A directory name
   will match all files in that directory and its subdirectories.
 
-  For example, `file(foo)` will match files `foo`, `foo/bar`, `foo/bar/baz`.
+  For example, `files(foo)` will match files `foo`, `foo/bar`, `foo/bar/baz`.
   It will *not* match `foobar` or `bar/foo`.
 
   Some file patterns might need quoting because the `expression` must also be
-  parsable as a revset. For example, `.` has to be quoted in `file(".")`.
+  parsable as a revset. For example, `.` has to be quoted in `files(".")`.
 
 * `diff_contains(text[, files])`: Commits containing diffs matching the given
   `text` pattern line by line.
