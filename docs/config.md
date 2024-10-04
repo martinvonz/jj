@@ -954,6 +954,19 @@ using `jj debug watchman status`.
 
 ## Snapshot settings
 
+### Paths to automatically track
+
+All new files in the working copy that don't match the ignore patterns are
+tracked by default. You can set the `snapshot.auto-track` to set which paths
+get automatically tracked when they're added to the working copy. See the
+[fileset documentation](filesets.md) for the syntax. Files with paths matching
+[ignore files](working-copy.md#ignored-files) are never tracked automatically.
+
+You can use `jj file untrack` to untrack a file while keeping it in the working
+copy. However, first [ignore](working-copy.md#ignored-files) them or remove them
+from the `snapshot.auto-track` patterns; otherwise they will be immediately
+tracked again.
+
 ### Maximum size for new files
 
 By default, as an anti-footgun measure, `jj` will refuse to add new files to the

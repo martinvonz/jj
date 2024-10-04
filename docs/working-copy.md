@@ -20,7 +20,7 @@ working copy, it will implicitly be untracked.
 The `snapshot.auto-track` config option controls which paths get automatically
 tracked when they're added to the working copy. See the
 [fileset documentation](filesets.md) for the syntax. Files with paths matching
-[ignore files](#ignored-files) are never tracked automatically
+[ignore files](#ignored-files) are never tracked automatically.
 
 You can use `jj file untrack` to untrack a file while keeping it in the working
 copy. However, first [ignore](#ignored-files) them or remove them from the
