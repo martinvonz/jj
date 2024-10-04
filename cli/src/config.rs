@@ -455,10 +455,11 @@ pub fn existing_config_path() -> Result<Option<PathBuf>, ConfigError> {
     ConfigEnv::new().existing_config_path()
 }
 
-/// Returns a path to the user-specific config file. If no config file is found,
-/// tries to guess a reasonable new location for it. If a path to a new config
-/// file is returned, the parent directory may be created as a result of this
-/// call.
+/// Returns a path to the user-specific config file.
+///
+/// If no config file is found, tries to guess a reasonable new
+/// location for it. If a path to a new config file is returned, the
+/// parent directory may be created as a result of this call.
 pub fn new_config_path() -> Result<Option<PathBuf>, ConfigError> {
     ConfigEnv::new().new_config_path()
 }

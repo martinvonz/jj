@@ -522,13 +522,15 @@ impl ReadonlyUserRepo {
     }
 }
 
-/// A bookmark that should be advanced to satisfy the "advance-bookmarks"
-/// feature. This is a helper for `WorkspaceCommandTransaction`. It provides a
-/// type-safe way to separate the work of checking whether a bookmark can be
-/// advanced and actually advancing it. Advancing the bookmark never fails, but
-/// can't be done until the new `CommitId` is available. Splitting the work in
-/// this way also allows us to identify eligible bookmarks without actually
-/// moving them and return config errors to the user early.
+/// A advanceable bookmark to satisfy the "advance-bookmarks" feature.
+///
+/// This is a helper for `WorkspaceCommandTransaction`. It provides a
+/// type-safe way to separate the work of checking whether a bookmark
+/// can be advanced and actually advancing it. Advancing the bookmark
+/// never fails, but can't be done until the new `CommitId` is
+/// available. Splitting the work in this way also allows us to
+/// identify eligible bookmarks without actually moving them and
+/// return config errors to the user early.
 pub struct AdvanceableBookmark {
     name: String,
     old_commit_id: CommitId,
@@ -1999,7 +2001,8 @@ Then run `jj squash` to move the resolution into the conflicted commit."#,
     }
 }
 
-/// A [`Transaction`] tied to a particular workspace.
+/// An ongoing [`Transaction`] tied to a particular workspace.
+///
 /// `WorkspaceCommandTransaction`s are created with
 /// [`WorkspaceCommandHelper::start_transaction`] and committed with
 /// [`WorkspaceCommandTransaction::finish`]. The inner `Transaction` can also be
