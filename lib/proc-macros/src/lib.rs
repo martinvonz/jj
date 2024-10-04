@@ -6,6 +6,8 @@ use quote::quote;
 use syn::parse_macro_input;
 use syn::DeriveInput;
 
+/// Derive macro generating an impl of the trait `ContentHash`.
+///
 /// Derives the `ContentHash` trait for a struct by calling `ContentHash::hash`
 /// on each of the struct members in the order that they're declared. All
 /// members of the struct must implement the `ContentHash` trait.
