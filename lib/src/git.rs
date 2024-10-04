@@ -1327,7 +1327,15 @@ pub fn reset_head(
             git_repo.set_head_detached(new_git_commit_id)?;
         }
 
-        let is_same_tree = if git_head == &first_parent {
+        let is_same_tree = if git_repo.head().is_err() {
+            // Special case for newly created worktrees, we use a fake ref so that the
+            // repository can be opened at all, in order to get here and write a
+            // new index + head ref.
+            //
+            // Force set the head:
+            git_repo.set_head_detached(new_git_commit_id)?;
+            false
+        } else if git_head == &first_parent {
             true
         } else if let Some(git_head_id) = git_head.as_normal() {
             let git_head_oid = Oid::from_bytes(git_head_id.as_bytes()).unwrap();

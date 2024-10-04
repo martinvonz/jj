@@ -1271,3 +1271,162 @@ fn test_colocated_workspace_independent_heads() {
         new_commit
     }
 }
+
+#[test]
+fn test_colocated_workspace_add_at_root() {
+    let test_env = TestEnvironment::default();
+    let repo_path = test_env.env_root().join("repo");
+    let second_path = test_env.env_root().join("second");
+    let third_path = test_env.env_root().join("third");
+
+    // Initialize and immediately add some workspaces
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "--colocate", "repo"]);
+    test_env.jj_cmd_ok(&repo_path, &["workspace", "add", "--colocate", "../second"]);
+    test_env.jj_cmd_ok(&repo_path, &["workspace", "add", "--colocate", "../third"]);
+
+    // The default workspace is on some kind of "main" branch.
+    let default_git = git2::Repository::open(&repo_path).unwrap();
+    insta::assert_debug_snapshot!(default_git.head().err(), @r#"
+    Some(
+        Error {
+            code: -9,
+            klass: 4,
+            message: "reference 'refs/heads/main' not found",
+        },
+    )
+    "#);
+
+    // The second workspace is on the root commit (a nonexistent ref)
+    let second_git = git2::Repository::open(&second_path).unwrap();
+    insta::assert_debug_snapshot!(second_git.head().err(), @r#"
+    Some(
+        Error {
+            code: -9,
+            klass: 4,
+            message: "reference 'refs/jj/root' not found",
+        },
+    )
+    "#);
+
+    // The third workspace is ALSO on the root commit (a nonexistent ref).
+    // Git is apparently fine with this
+    let third_git = git2::Repository::open(&third_path).unwrap();
+    insta::assert_debug_snapshot!(third_git.head().err(), @r#"
+    Some(
+        Error {
+            code: -9,
+            klass: 4,
+            message: "reference 'refs/jj/root' not found",
+        },
+    )
+    "#);
+
+    // Now add a commit in two workspaces
+    test_env.jj_cmd_ok(
+        &repo_path,
+        &["commit", "-m", "initial commit [default workspace]"],
+    );
+    assert_eq!(default_git.head_detached(), Ok(true));
+
+    test_env.jj_cmd_ok(
+        &second_path,
+        &["commit", "-m", "initial commit [second workspace]"],
+    );
+    assert_eq!(second_git.head_detached(), Ok(true));
+
+    // The third workspace is untouched, sfould still be at refs/jj/root
+    assert_eq!(third_git.head_detached(), Ok(false));
+}
+
+#[test]
+fn test_colocated_workspace_fail_existing_git_worktree() {
+    // TODO: Better way to disable the test if git command couldn't be executed
+    if Command::new("git").arg("--version").status().is_err() {
+        eprintln!("Skipping because git command might fail to run");
+        return;
+    }
+
+    let test_env = TestEnvironment::default();
+    let repo_path = test_env.env_root().join("repo");
+    let second_path = test_env.env_root().join("second");
+    let third_path = test_env.env_root().join("third");
+
+    // Initialize and make a commit so git can create worktrees
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "--colocate", "repo"]);
+    std::fs::write(repo_path.join("file.txt"), "contents").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "initial commit"]);
+
+    // Add a a git worktree at `.git/worktrees/second` that points to "../third"
+    Command::new("git")
+        .args(["worktree", "add"])
+        .arg(&second_path)
+        .current_dir(&repo_path)
+        .assert()
+        .success();
+    Command::new("git")
+        .args(["worktree", "move", "second"])
+        .arg(&third_path)
+        .current_dir(&repo_path)
+        .assert()
+        .success();
+
+    insta::assert_snapshot!(
+        test_env.jj_cmd_failure(&repo_path, &["workspace", "add", "--colocate", "../second"]),
+        @r#"
+    Done importing changes from the underlying Git repo.
+    Error: Failed to add git worktree: A git worktree named 'second' already exists ($TEST_ENV/repo/.git/worktrees/second for $TEST_ENV/third)
+    Hint: You may wish to remove it using `git worktree remove $TEST_ENV/third`
+    "#
+    );
+
+    // Do as advised
+    Command::new("git")
+        .args(["worktree", "remove"])
+        .arg(&third_path)
+        .current_dir(&repo_path)
+        .assert()
+        .success();
+    let _ = test_env.jj_cmd_ok(&repo_path, &["workspace", "add", "--colocate", "../second"]);
+}
+
+#[test]
+fn test_colocated_workspace_forget_locked() {
+    // TODO: Better way to disable the test if git command couldn't be executed
+    if Command::new("git").arg("--version").status().is_err() {
+        eprintln!("Skipping because git command might fail to run");
+        return;
+    }
+
+    let test_env = TestEnvironment::default();
+    let repo_path = test_env.env_root().join("repo");
+
+    let _ = test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "--colocate", "repo"]);
+    // There are no git heads if you do not commit
+    std::fs::write(repo_path.join("file"), "content").unwrap();
+    let _ = test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "initial commit"]);
+    let _ = test_env.jj_cmd_ok(&repo_path, &["workspace", "add", "--colocate", "../second"]);
+
+    // Lock the new worktree
+    Command::new("git")
+        .args(["worktree", "lock", "second"])
+        .current_dir(&repo_path)
+        .assert()
+        .success();
+
+    insta::assert_snapshot!(
+        test_env.jj_cmd_failure(&repo_path, &["workspace", "forget", "second"]),
+        @r#"
+    Error: Could not remove Git worktree for workspace second: Worktree 'second' was locked, and could not be removed from git.
+    Hint: To unlock, run `git worktree unlock second`.
+    "#,
+    );
+
+    // Unlock it again
+    Command::new("git")
+        .args(["worktree", "unlock", "second"])
+        .current_dir(&repo_path)
+        .assert()
+        .success();
+
+    let _ = test_env.jj_cmd_ok(&repo_path, &["workspace", "forget", "second"]);
+}
