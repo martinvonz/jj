@@ -53,6 +53,8 @@ jobs:
       run: wget -c https://github.com/cross-rs/cross/releases/download/v0.2.5/cross-x86_64-unknown-linux-gnu.tar.gz -O - | tar -xz
     - name: Build release binary
       shell: bash
+      env:
+        JJ_RELEASE_BUILD: "1"
       run: |
         CARGO_CMD=cargo
         if [ "${{ matrix.target }}" = "aarch64-unknown-linux-musl" ]; then
