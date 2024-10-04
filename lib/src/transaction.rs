@@ -164,6 +164,8 @@ pub fn create_op_metadata(
     }
 }
 
+/// An unpublished operation in the store.
+///
 /// An Operation which has been written to the operation store but not
 /// published. The repo can be loaded at an unpublished Operation, but the
 /// Operation will not be visible in the op log if the repo is loaded at head.

@@ -12,11 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! A persistent table of fixed-size keys to variable-size values. The keys are
-//! stored in sorted order, with each key followed by an integer offset into the
-//! list of values. The values are concatenated after the keys. A file may have
-//! a parent file, and the parent may have its own parent, and so on. The child
-//! file then represents the union of the entries.
+//! A persistent table of fixed-size keys to variable-size values.
+//!
+//! The keys are stored in sorted order, with each key followed by an
+//! integer offset into the list of values. The values are
+//! concatenated after the keys. A file may have a parent file, and
+//! the parent may have its own parent, and so on. The child file then
+//! represents the union of the entries.
 
 #![allow(missing_docs)]
 

@@ -672,11 +672,13 @@ impl<'diff, 'input> Iterator for DiffHunkIterator<'diff, 'input> {
     }
 }
 
-/// Diffs slices of bytes. The returned diff hunks may be any length (may
-/// span many lines or may be only part of a line). This currently uses
-/// Histogram diff (or maybe something similar; I'm not sure I understood the
-/// algorithm correctly). It first diffs lines in the input and then refines
-/// the changed ranges at the word level.
+/// Diffs slices of bytes.
+///
+/// The returned diff hunks may be any length (may span many lines or
+/// may be only part of a line). This currently uses Histogram diff
+/// (or maybe something similar; I'm not sure I understood the
+/// algorithm correctly). It first diffs lines in the input and then
+/// refines the changed ranges at the word level.
 pub fn diff<'a, T: AsRef<[u8]> + ?Sized + 'a>(
     inputs: impl IntoIterator<Item = &'a T>,
 ) -> Vec<DiffHunk<'a>> {
