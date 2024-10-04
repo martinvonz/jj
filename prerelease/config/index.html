@@ -1213,6 +1213,15 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#paths-to-automatically-track" class="md-nav__link">
+    <span class="md-ellipsis">
+      Paths to automatically track
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#maximum-size-for-new-files" class="md-nav__link">
     <span class="md-ellipsis">
       Maximum size for new files
@@ -2446,6 +2455,15 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#paths-to-automatically-track" class="md-nav__link">
+    <span class="md-ellipsis">
+      Paths to automatically track
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#maximum-size-for-new-files" class="md-nav__link">
     <span class="md-ellipsis">
       Maximum size for new files
@@ -3193,6 +3211,16 @@ snapshots on filestem changes by setting
 <p>You can check whether Watchman is enabled and whether it is installed correctly
 using <code>jj debug watchman status</code>.</p>
 <h2 id="snapshot-settings">Snapshot settings<a class="headerlink" href="#snapshot-settings" title="Permanent link">&para;</a></h2>
+<h3 id="paths-to-automatically-track">Paths to automatically track<a class="headerlink" href="#paths-to-automatically-track" title="Permanent link">&para;</a></h3>
+<p>All new files in the working copy that don't match the ignore patterns are
+tracked by default. You can set the <code>snapshot.auto-track</code> to set which paths
+get automatically tracked when they're added to the working copy. See the
+<a href="../filesets/">fileset documentation</a> for the syntax. Files with paths matching
+<a href="../working-copy/#ignored-files">ignore files</a> are never tracked automatically.</p>
+<p>You can use <code>jj file untrack</code> to untrack a file while keeping it in the working
+copy. However, first <a href="../working-copy/#ignored-files">ignore</a> them or remove them
+from the <code>snapshot.auto-track</code> patterns; otherwise they will be immediately
+tracked again.</p>
 <h3 id="maximum-size-for-new-files">Maximum size for new files<a class="headerlink" href="#maximum-size-for-new-files" title="Permanent link">&para;</a></h3>
 <p>By default, as an anti-footgun measure, <code>jj</code> will refuse to add new files to the
 snapshot that are larger than a certain size; the default is 1MiB. This can be
