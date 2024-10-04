@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//! Filesystem monitor tool interface.
+//!
 //! Interfaces with a filesystem monitor tool to efficiently query for
 //! filesystem updates, without having to crawl the entire working copy. This is
 //! particularly useful for large working copies, or for working copies for

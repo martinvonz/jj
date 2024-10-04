@@ -463,12 +463,14 @@ pub struct MoveCommitsStats {
 }
 
 /// Moves `target_commits` from their current location to a new location in the
-/// graph, given by the set of `new_parent_ids` and `new_children`.
-/// The roots of `target_commits` are rebased onto the new parents, while the
-/// new children are rebased onto the heads of `target_commits`.
-/// This assumes that `target_commits` and `new_children` can be rewritten, and
-/// there will be no cycles in the resulting graph.
-/// `target_commits` should be in reverse topological order.
+/// graph.
+///
+/// The roots of `target_commits` are rebased onto the new parents
+/// given by `new_parent_ids`, while the `new_children` commits are
+/// rebased onto the heads of `target_commits`. This assumes that
+/// `target_commits` and `new_children` can be rewritten, and there
+/// will be no cycles in the resulting graph. `target_commits` should
+/// be in reverse topological order.
 pub fn move_commits(
     settings: &UserSettings,
     mut_repo: &mut MutableRepo,

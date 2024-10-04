@@ -367,10 +367,12 @@ pub fn materialized_diff_stream<'a>(
         .buffered((store.concurrency() / 2).max(1))
 }
 
-/// Parses conflict markers from a slice. Returns None if there were no valid
-/// conflict markers. The caller has to provide the expected number of merge
-/// sides (adds). Conflict markers that are otherwise valid will be considered
-/// invalid if they don't have the expected arity.
+/// Parses conflict markers from a slice.
+///
+/// Returns `None` if there were no valid conflict markers. The caller
+/// has to provide the expected number of merge sides (adds). Conflict
+/// markers that are otherwise valid will be considered invalid if
+/// they don't have the expected arity.
 // TODO: "parse" is not usually the opposite of "materialize", so maybe we
 // should rename them to "serialize" and "deserialize"?
 pub fn parse_conflict(input: &[u8], num_sides: usize) -> Option<Vec<Merge<BString>>> {

@@ -1101,10 +1101,13 @@ impl Stream for TreeDiffStreamImpl<'_> {
     }
 }
 
-/// Helps with writing trees with conflicts. You start by creating an instance
-/// of this type with one or more base trees. You then add overrides on top. The
-/// overrides may be conflicts. Then you can write the result as a legacy tree
-/// (allowing path-level conflicts) or as multiple conflict-free trees.
+/// Helper for writing trees with conflicts.
+///
+/// You start by creating an instance of this type with one or more
+/// base trees. You then add overrides on top. The overrides may be
+/// conflicts. Then you can write the result as a legacy tree
+/// (allowing path-level conflicts) or as multiple conflict-free
+/// trees.
 pub struct MergedTreeBuilder {
     base_tree_id: MergedTreeId,
     overrides: BTreeMap<RepoPathBuf, MergedTreeValue>,

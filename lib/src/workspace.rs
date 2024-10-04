@@ -93,6 +93,8 @@ pub enum WorkspaceLoadError {
     Path(#[from] PathError),
 }
 
+/// The combination of a repo and a working copy.
+///
 /// Represents the combination of a repo and working copy, i.e. what's typically
 /// the .jj/ directory and its parent. See
 /// <https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#workspaces>
