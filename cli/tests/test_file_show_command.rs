@@ -15,7 +15,7 @@
 use crate::common::TestEnvironment;
 
 #[test]
-fn test_print() {
+fn test_show() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
@@ -96,7 +96,7 @@ fn test_print() {
 
 #[cfg(unix)]
 #[test]
-fn test_print_symlink() {
+fn test_show_symlink() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
