@@ -78,11 +78,14 @@ fn get_hash(content: &(impl jj_lib::content_hash::ContentHash + ?Sized)) -> Vec<
     jj_lib::content_hash::blake2b_hash(content).as_slice()[..HASH_LENGTH].to_vec()
 }
 
-/// A commit backend for use in tests. It's meant to be strict, in order to
-/// catch bugs where we make the wrong assumptions. For example, unlike both
-/// `GitBackend` and `LocalBackend`, this backend doesn't share objects written
-/// to different paths (writing a file with contents X to path A will not make
-/// it possible to read that contents from path B given the same `FileId`).
+/// A commit backend for use in tests.
+///
+/// It's meant to be strict, in order to catch bugs where we make the
+/// wrong assumptions. For example, unlike both `GitBackend` and
+/// `LocalBackend`, this backend doesn't share objects written to
+/// different paths (writing a file with contents X to path A will not
+/// make it possible to read that contents from path B given the same
+/// `FileId`).
 pub struct TestBackend {
     root_commit_id: CommitId,
     root_change_id: ChangeId,

@@ -531,6 +531,8 @@ pub fn assert_rebased_onto(
     new_commit
 }
 
+/// Maps children of an abandoned commit to a new rebase target.
+///
 /// If `expected_old_commit` was abandoned, the `rebased` map indicates the
 /// commit the children of `expected_old_commit` should be rebased to, which
 /// would have a different change id. This happens when the EmptyBehavior in
