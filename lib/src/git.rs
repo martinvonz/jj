@@ -20,7 +20,10 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use std::default::Default;
 use std::fmt;
+use std::fs;
+use std::io;
 use std::io::Read;
+use std::path::Path;
 use std::path::PathBuf;
 use std::str;
 
@@ -208,6 +211,141 @@ impl GitImportError {
     fn from_git(source: impl Into<Box<dyn std::error::Error + Send + Sync>>) -> Self {
         GitImportError::InternalGitError(source.into())
     }
+}
+
+/// File::create_new is not stable as of our MSRV 1.76
+/// TODO: replace with fs::File::create_new when we bump it to 1.77
+fn file_create_new<P: AsRef<Path>>(path: P) -> io::Result<fs::File> {
+    fs::File::options()
+        .read(true)
+        .write(true)
+        .create_new(true)
+        .open(path)
+}
+
+#[derive(Error, Debug)]
+pub enum CreateWorktreeError {
+    #[error(
+        "A git worktree named '{name}' already exists ({data_directory} for {working_directory})",
+        data_directory = data_directory.display(),
+        working_directory = working_directory.as_deref().unwrap_or(Path::new("unknown working directory")).display(),
+    )]
+    WorktreeAlreadyExists {
+        name: String,
+        data_directory: PathBuf,
+        working_directory: Option<PathBuf>,
+    },
+    #[error("Could not create directory at {path}: {error}")]
+    CreateDirectory { path: PathBuf, error: io::Error },
+    #[error("IO error while creating git worktree: {0}")]
+    IO(#[from] io::Error),
+    #[error("Could not write empty index file for new worktree: {0}")]
+    GitIndex(git2::Error),
+}
+
+impl CreateWorktreeError {
+    pub fn hint(&self) -> Option<String> {
+        let Self::WorktreeAlreadyExists {
+            working_directory, ..
+        } = self
+        else {
+            return None;
+        };
+
+        if let Some(wd) = working_directory.as_deref() {
+            Some(format!(
+                "You may wish to remove it using `git worktree remove {}`",
+                wd.display()
+            ))
+        } else {
+            Some(
+                "This worktree has been deleted on disk and may be pruned with `git worktree \
+                 prune`."
+                    .to_owned(),
+            )
+        }
+    }
+}
+
+/// `git worktree add` implementation
+///
+/// This function has to be implemented from scratch.
+/// git2 has `Repository::worktree(name, opts)`, but you cannot execute
+/// it when your git repo does not have a HEAD + index, e.g. if it's
+/// not colocated, or if @- is the root commit in JJ. It also has no
+/// options to avoid checking out a tree in the new worktree.
+///
+/// This implementation writes a dummy HEAD and index, and does not
+/// check out any files. JJ is going to be doing all of that momentarily.
+pub fn git_worktree_add(
+    git_repo_path: &Path,
+    destination_path: &Path,
+    name: &str,
+) -> Result<(), CreateWorktreeError> {
+    use io::Write;
+    let dest = destination_path.canonicalize()?;
+    let worktree_dotgit_path = dest.join(".git");
+    let worktrees_path = git_repo_path.join("worktrees");
+    let worktree_data = worktrees_path.join(name);
+    let gitdir_file_path = worktree_data.join("gitdir");
+    if worktree_data.exists() {
+        let working_directory = fs::read_to_string(&gitdir_file_path)
+            .ok()
+            .as_ref()
+            .map(|p| p.trim())
+            .map(Path::new)
+            .and_then(Path::parent)
+            .filter(|p| p.exists())
+            .map(ToOwned::to_owned);
+
+        return Err(CreateWorktreeError::WorktreeAlreadyExists {
+            name: name.to_owned(),
+            data_directory: worktree_data,
+            working_directory,
+        });
+    }
+    // The worktrees path is shared, so mkdir -p
+    fs::create_dir_all(&worktrees_path)
+        // But we must fail if the specific worktree name already exists
+        // This implies we must remove the corresponding worktree when we forget a workspace.
+        .and_then(|()| fs::create_dir(&worktree_data))
+        .map_err(|error| CreateWorktreeError::CreateDirectory {
+            path: worktree_data.clone(),
+            error,
+        })?;
+
+    {
+        let mut commondir_file = file_create_new(worktree_data.join("commondir"))?;
+        commondir_file.write_all(Path::new("..").join("..").as_os_str().as_encoded_bytes())?;
+        writeln!(commondir_file)?;
+    }
+    {
+        let mut gitdir_file = file_create_new(gitdir_file_path)?;
+        gitdir_file.write_all(worktree_dotgit_path.as_os_str().as_encoded_bytes())?;
+        writeln!(gitdir_file)?;
+    }
+
+    // Create an empty index and a dummy HEAD file, so later git2::Repository::open
+    // calls succeed
+    let mut index =
+        git2::Index::open(&worktree_data.join("index")).map_err(CreateWorktreeError::GitIndex)?;
+    index.write().map_err(CreateWorktreeError::GitIndex)?;
+
+    {
+        let mut head_file = file_create_new(worktree_data.join("HEAD"))?;
+        writeln!(head_file, "ref: {}", jj_lib::git::UNBORN_ROOT_REF_NAME)?;
+    }
+
+    // Only create the .git pointer file once everything else got written
+    // successfully
+    {
+        let mut dot_git = file_create_new(&worktree_dotgit_path)?;
+        write!(dot_git, "gitdir: ")?;
+        dot_git.write_all(worktree_data.as_os_str().as_encoded_bytes())?;
+        writeln!(dot_git)?;
+    }
+
+    Ok(())
 }
 
 /// Describes changes made by `import_refs()` or `fetch()`.
