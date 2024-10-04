@@ -2215,6 +2215,11 @@ By default, the new workspace inherits the sparse patterns of the current worksp
   - `empty`:
     Clear all files from the workspace (it will be empty)
 
+* `--colocate` — Specifies that the new `jj` workspace should also be a valid `git` worktree, allowing the use of both `jj` and `git` commands in the same directory.
+
+   This has a similar effect to `jj git init --colocate`, but for new workspaces. It works regardless of whether a repository was initialised with `--colocate`.
+
+   This is implemented by adding a worktree to the backing git repo. If you move a colocated workspace around on disk, you will need to run `git worktree repair` in the workspace to fix up the paths. You should also be able to run `git worktree list` to see which workspaces are no longer where git thinks they are (they show up as `[prunable]`)
 
 
 

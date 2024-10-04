@@ -878,12 +878,13 @@ fn get_bookmark_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
 }
 
 #[test]
-fn test_colocated_workspaces_independent_heads() {
+fn test_colocated_workspace_independent_heads() {
     let test_env = TestEnvironment::default();
     let repo_path = test_env.env_root().join("repo");
     let second_path = test_env.env_root().join("second");
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "--colocate", "repo"]);
     // create a commit so that git can have a HEAD
+    // It works without committing (see _at_root version of this test)
     std::fs::write(repo_path.join("file"), "contents").unwrap();
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "initial commit"]);
     test_env.jj_cmd_ok(&repo_path, &["workspace", "add", "--colocate", "../second"]);
@@ -947,7 +948,73 @@ fn test_colocated_workspaces_independent_heads() {
 }
 
 #[test]
-fn test_workspace_fail_existing_git_worktree() {
+fn test_colocated_workspace_add_at_root() {
+    let test_env = TestEnvironment::default();
+    let repo_path = test_env.env_root().join("repo");
+    let second_path = test_env.env_root().join("second");
+    let third_path = test_env.env_root().join("third");
+
+    // Initialize and immediately add some workspaces
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "--colocate", "repo"]);
+    test_env.jj_cmd_ok(&repo_path, &["workspace", "add", "--colocate", "../second"]);
+    test_env.jj_cmd_ok(&repo_path, &["workspace", "add", "--colocate", "../third"]);
+
+    // The default workspace is on some kind of "main" branch.
+    let default_git = git2::Repository::open(&repo_path).unwrap();
+    insta::assert_debug_snapshot!(default_git.head().err(), @r#"
+    Some(
+        Error {
+            code: -9,
+            klass: 4,
+            message: "reference 'refs/heads/main' not found",
+        },
+    )
+    "#);
+
+    // The second workspace is on the root commit (a nonexistent ref)
+    let second_git = git2::Repository::open(&second_path).unwrap();
+    insta::assert_debug_snapshot!(second_git.head().err(), @r#"
+    Some(
+        Error {
+            code: -9,
+            klass: 4,
+            message: "reference 'refs/jj/root' not found",
+        },
+    )
+    "#);
+
+    // The third workspace is ALSO on the root commit (a nonexistent ref).
+    // Git is apparently fine with this
+    let third_git = git2::Repository::open(&third_path).unwrap();
+    insta::assert_debug_snapshot!(third_git.head().err(), @r#"
+    Some(
+        Error {
+            code: -9,
+            klass: 4,
+            message: "reference 'refs/jj/root' not found",
+        },
+    )
+    "#);
+
+    // Now add a commit in two workspaces
+    test_env.jj_cmd_ok(
+        &repo_path,
+        &["commit", "-m", "initial commit [default workspace]"],
+    );
+    assert_eq!(default_git.head_detached(), Ok(true));
+
+    test_env.jj_cmd_ok(
+        &second_path,
+        &["commit", "-m", "initial commit [second workspace]"],
+    );
+    assert_eq!(second_git.head_detached(), Ok(true));
+
+    // The third workspace is untouched, sfould still be at refs/jj/root
+    assert_eq!(third_git.head_detached(), Ok(false));
+}
+
+#[test]
+fn test_colocated_workspace_fail_existing_git_worktree() {
     // TODO: Better way to disable the test if git command couldn't be executed
     if Command::new("git").arg("--version").status().is_err() {
         eprintln!("Skipping because git command might fail to run");
@@ -982,7 +1049,7 @@ fn test_workspace_fail_existing_git_worktree() {
         test_env.jj_cmd_failure(&repo_path, &["workspace", "add", "--colocate", "../second"]),
         @r#"
     Done importing changes from the underlying Git repo.
-    Error: A git worktree named 'second' already exists ($TEST_ENV/repo/.git/worktrees/second for $TEST_ENV/third)
+    Error: Failed to add git worktree: A git worktree named 'second' already exists ($TEST_ENV/repo/.git/worktrees/second for $TEST_ENV/third)
     Hint: You may wish to remove it using `git worktree remove $TEST_ENV/third`
     "#
     );

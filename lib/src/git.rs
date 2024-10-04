@@ -55,7 +55,7 @@ use crate::view::View;
 /// Reserved remote name for the backing Git repo.
 pub const REMOTE_NAME_FOR_LOCAL_GIT_REPO: &str = "git";
 /// Ref name used as a placeholder to unset HEAD without a commit.
-const UNBORN_ROOT_REF_NAME: &str = "refs/jj/root";
+pub const UNBORN_ROOT_REF_NAME: &str = "refs/jj/root";
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
 pub enum RefName {
@@ -1138,7 +1138,15 @@ pub fn reset_head(
             git_repo.set_head_detached(new_git_commit_id)?;
         }
 
-        let is_same_tree = if git_head == &first_parent {
+        let is_same_tree = if git_repo.head().is_err() {
+            // Special case for newly created worktrees, we use a fake ref so that the
+            // repository can be opened at all, in order to get here and write a
+            // new index + head ref.
+            //
+            // Force set the head:
+            git_repo.set_head_detached(new_git_commit_id)?;
+            false
+        } else if git_head == &first_parent {
             true
         } else if let Some(git_head_id) = git_head.as_normal() {
             let git_head_oid = Oid::from_bytes(git_head_id.as_bytes()).unwrap();
