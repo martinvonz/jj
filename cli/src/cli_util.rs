@@ -1074,6 +1074,44 @@ impl WorkspaceCommandHelper {
         self.working_copy_shared_with_git
     }
 
+    pub fn open_colocated_git_repo_git2(&self) -> Result<Option<git2::Repository>, git2::Error> {
+        if self.working_copy_shared_with_git() {
+            git2::Repository::open(self.workspace_root()).map(Some)
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub fn open_colocated_git_repo_gix(&self) -> Result<Option<gix::Repository>, CommandError> {
+        if self.working_copy_shared_with_git() {
+            let repo = gix::open(self.workspace_root()).map_err(|x| {
+                user_error(format!(
+                    "Could not open git repository at {}: {x}",
+                    self.workspace_root().display()
+                ))
+            })?;
+            Ok(Some(repo))
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub fn git_backend_repo(&self) -> Option<gix::Repository> {
+        self.git_backend().map(|backend| backend.git_repo())
+    }
+
+    pub fn git_either_colocated_or_backend(&self) -> Result<gix::Repository, CommandError> {
+        if let Some(colocated) = self.open_colocated_git_repo_gix()? {
+            Ok(colocated)
+        } else {
+            self.git_backend_repo().ok_or_else(|| {
+                internal_error(
+                    "JJ repo is not backed by git, but JJ attempted to use the git backend",
+                )
+            })
+        }
+    }
+
     pub fn format_file_path(&self, file: &RepoPath) -> String {
         self.path_converter().format_file_path(file)
     }
