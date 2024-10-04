@@ -439,6 +439,14 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_invalid_function_name() {
+        assert_eq!(
+            parse_into_kind("5foo(x)"),
+            Err(FilesetParseErrorKind::SyntaxError)
+        );
+    }
+
+    #[test]
     fn test_parse_whitespace() {
         let ascii_whitespaces: String = ('\x00'..='\x7f')
             .filter(char::is_ascii_whitespace)

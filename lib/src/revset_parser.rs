@@ -1337,6 +1337,7 @@ mod tests {
     #[test]
     fn test_parse_revset_alias_func_decl() {
         let mut aliases_map = RevsetAliasesMap::new();
+        assert!(aliases_map.insert("5func()", r#""is function 0""#).is_err());
         aliases_map.insert("func()", r#""is function 0""#).unwrap();
         aliases_map
             .insert("func(a, b)", r#""is function 2""#)
