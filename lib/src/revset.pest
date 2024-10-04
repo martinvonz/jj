@@ -64,7 +64,7 @@ compat_sub_op = { "-" }
 infix_op = _{ union_op | intersection_op | difference_op | compat_add_op | compat_sub_op }
 
 function = { function_name ~ "(" ~ whitespace* ~ function_arguments ~ whitespace* ~ ")" }
-function_name = @{ (ASCII_ALPHANUMERIC | "_")+ }
+function_name = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
 keyword_argument = { identifier ~ whitespace* ~ "=" ~ whitespace* ~ expression }
 argument = _{ keyword_argument | expression }
 function_arguments = {

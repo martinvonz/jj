@@ -11,6 +11,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Breaking changes
 
+* Revset function names can no longer start with a number.
+
 ### Deprecations
 
 ### New features
