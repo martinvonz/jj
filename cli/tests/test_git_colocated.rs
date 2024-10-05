@@ -1115,13 +1115,47 @@ fn test_colocated_workspace_add_forget_add() {
 
     std::fs::remove_dir_all(&second_path).unwrap();
 
-    // HACK: prune the git worktree manually. We should probably implement `git
-    // worktree remove` and do that when forgetting workspaces.
+    let _ = test_env.jj_cmd_ok(&repo_path, &["workspace", "add", "--colocate", "../second"]);
+}
+
+#[test]
+fn test_colocated_workspace_forget_locked() {
+    // TODO: Better way to disable the test if git command couldn't be executed
+    if Command::new("git").arg("--version").status().is_err() {
+        eprintln!("Skipping because git command might fail to run");
+        return;
+    }
+
+    let test_env = TestEnvironment::default();
+    let repo_path = test_env.env_root().join("repo");
+
+    let _ = test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "--colocate", "repo"]);
+    // There are no git heads if you do not commit
+    std::fs::write(repo_path.join("file"), "content").unwrap();
+    let _ = test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "initial commit"]);
+    let _ = test_env.jj_cmd_ok(&repo_path, &["workspace", "add", "--colocate", "../second"]);
+
+    // Lock the new worktree
     Command::new("git")
-        .args(["worktree", "prune"])
+        .args(["worktree", "lock", "second"])
         .current_dir(&repo_path)
         .assert()
         .success();
 
-    let _ = test_env.jj_cmd_ok(&repo_path, &["workspace", "add", "--colocate", "../second"]);
+    insta::assert_snapshot!(
+        test_env.jj_cmd_failure(&repo_path, &["workspace", "forget", "second"]),
+        @r#"
+    Error: Could not remove Git worktree for workspace second: Worktree 'second' was locked, and could not be removed from git.
+    Hint: To unlock, run `git worktree unlock second`.
+    "#,
+    );
+
+    // Unlock it again
+    Command::new("git")
+        .args(["worktree", "unlock", "second"])
+        .current_dir(&repo_path)
+        .assert()
+        .success();
+
+    let _ = test_env.jj_cmd_ok(&repo_path, &["workspace", "forget", "second"]);
 }
