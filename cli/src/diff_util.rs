@@ -583,30 +583,40 @@ fn show_color_words_context_lines(
     num_before: usize,
 ) -> io::Result<DiffLineNumber> {
     const SKIPPED_CONTEXT_LINE: &str = "    ...\n";
-    let mut lines = contents
-        .iter()
-        .flat_map(|content| content.split_inclusive(|b| *b == b'\n'))
-        .fuse();
-    for line in lines.by_ref().take(num_after) {
-        show_color_words_line_number(formatter, Some(line_number.left), Some(line_number.right))?;
-        show_color_words_inline_hunks(formatter, &[(DiffLineHunkSide::Both, line.as_ref())])?;
-        line_number.left += 1;
-        line_number.right += 1;
-    }
-    let mut before_lines = lines.by_ref().rev().take(num_before + 1).collect_vec();
-    let num_skipped: u32 = lines.count().try_into().unwrap();
+    let extract = || -> (Vec<&[u8]>, Vec<&[u8]>, u32) {
+        let mut lines = contents
+            .iter()
+            .flat_map(|content| content.split_inclusive(|b| *b == b'\n'))
+            .fuse();
+        let after_lines = lines.by_ref().take(num_after).collect();
+        let before_lines = lines.by_ref().rev().take(num_before + 1).collect();
+        let num_skipped: u32 = lines.count().try_into().unwrap();
+        (after_lines, before_lines, num_skipped)
+    };
+    let show = |formatter: &mut dyn Formatter, lines: &[&[u8]], mut line_number: DiffLineNumber| {
+        for line in lines {
+            show_color_words_line_number(
+                formatter,
+                Some(line_number.left),
+                Some(line_number.right),
+            )?;
+            show_color_words_inline_hunks(formatter, &[(DiffLineHunkSide::Both, line.as_ref())])?;
+            line_number.left += 1;
+            line_number.right += 1;
+        }
+        io::Result::Ok(line_number)
+    };
+
+    let (after_lines, mut before_lines, num_skipped) = extract();
+    line_number = show(formatter, &after_lines, line_number)?;
     if num_skipped > 0 {
         write!(formatter, "{SKIPPED_CONTEXT_LINE}")?;
         before_lines.pop();
         line_number.left += num_skipped + 1;
         line_number.right += num_skipped + 1;
     }
-    for line in before_lines.into_iter().rev() {
-        show_color_words_line_number(formatter, Some(line_number.left), Some(line_number.right))?;
-        show_color_words_inline_hunks(formatter, &[(DiffLineHunkSide::Both, line.as_ref())])?;
-        line_number.left += 1;
-        line_number.right += 1;
-    }
+    before_lines.reverse();
+    line_number = show(formatter, &before_lines, line_number)?;
     Ok(line_number)
 }
 
