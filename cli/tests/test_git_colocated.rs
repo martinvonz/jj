@@ -1063,3 +1063,65 @@ fn test_colocated_workspace_fail_existing_git_worktree() {
         .success();
     let _ = test_env.jj_cmd_ok(&repo_path, &["workspace", "add", "--colocate", "../second"]);
 }
+
+#[test]
+fn test_colocated_workspace_add_forget_add() {
+    // TODO: Better way to disable the test if git command couldn't be executed
+    if Command::new("git").arg("--version").status().is_err() {
+        eprintln!("Skipping because git command might fail to run");
+        return;
+    }
+
+    let test_env = TestEnvironment::default();
+    let repo_path = test_env.env_root().join("repo");
+    let second_path = test_env.env_root().join("second");
+
+    let _ = test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "--colocate", "repo"]);
+    // There are no git heads if you do not commit
+    std::fs::write(repo_path.join("file"), "content").unwrap();
+    let _ = test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "initial commit"]);
+
+    let _ = test_env.jj_cmd_ok(&repo_path, &["workspace", "add", "--colocate", "../second"]);
+
+    // Now commit in the second workspace, so we get two different git heads
+    std::fs::write(second_path.join("file"), "edit").unwrap();
+    let _ = test_env.jj_cmd_ok(&second_path, &["commit", "-m", "edit"]);
+
+    let log_heads = || {
+        test_env.jj_cmd_success(
+            &repo_path,
+            &[
+                "log",
+                "-rgit_heads()",
+                "-Tseparate(\" \", description.first_line(), working_copies)",
+            ],
+        )
+    };
+    insta::assert_snapshot!(log_heads(), @r#"
+    ○  edit
+    ○  initial commit
+    │
+    ~
+    "#);
+
+    // This should remove the git_heads entry, so the `edit` commit should disappear
+    let _ = test_env.jj_cmd_ok(&repo_path, &["workspace", "forget", "second"]);
+
+    insta::assert_snapshot!(log_heads(), @r#"
+    ○  initial commit
+    │
+    ~
+    "#);
+
+    std::fs::remove_dir_all(&second_path).unwrap();
+
+    // HACK: prune the git worktree manually. We should probably implement `git
+    // worktree remove` and do that when forgetting workspaces.
+    Command::new("git")
+        .args(["worktree", "prune"])
+        .current_dir(&repo_path)
+        .assert()
+        .success();
+
+    let _ = test_env.jj_cmd_ok(&repo_path, &["workspace", "add", "--colocate", "../second"]);
+}
