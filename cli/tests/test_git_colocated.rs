@@ -13,7 +13,9 @@
 // limitations under the License.
 
 use std::path::Path;
+use std::process::Command;
 
+use assert_cmd::assert::OutputAssertExt;
 use git2::Oid;
 
 use crate::common::TestEnvironment;
@@ -942,4 +944,55 @@ fn test_colocated_workspaces_independent_heads() {
                 .display()
         )
     );
+}
+
+#[test]
+fn test_workspace_fail_existing_git_worktree() {
+    // TODO: Better way to disable the test if git command couldn't be executed
+    if Command::new("git").arg("--version").status().is_err() {
+        eprintln!("Skipping because git command might fail to run");
+        return;
+    }
+
+    let test_env = TestEnvironment::default();
+    let repo_path = test_env.env_root().join("repo");
+    let second_path = test_env.env_root().join("second");
+    let third_path = test_env.env_root().join("third");
+
+    // Initialize and make a commit so git can create worktrees
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "--colocate", "repo"]);
+    std::fs::write(repo_path.join("file.txt"), "contents").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "initial commit"]);
+
+    // Add a a git worktree at `.git/worktrees/second` that points to "../third"
+    Command::new("git")
+        .args(["worktree", "add"])
+        .arg(&second_path)
+        .current_dir(&repo_path)
+        .assert()
+        .success();
+    Command::new("git")
+        .args(["worktree", "move", "second"])
+        .arg(&third_path)
+        .current_dir(&repo_path)
+        .assert()
+        .success();
+
+    insta::assert_snapshot!(
+        test_env.jj_cmd_failure(&repo_path, &["workspace", "add", "--colocate", "../second"]),
+        @r#"
+    Done importing changes from the underlying Git repo.
+    Error: A git worktree named 'second' already exists ($TEST_ENV/repo/.git/worktrees/second for $TEST_ENV/third)
+    Hint: You may wish to remove it using `git worktree remove $TEST_ENV/third`
+    "#
+    );
+
+    // Do as advised
+    Command::new("git")
+        .args(["worktree", "remove"])
+        .arg(&third_path)
+        .current_dir(&repo_path)
+        .assert()
+        .success();
+    let _ = test_env.jj_cmd_ok(&repo_path, &["workspace", "add", "--colocate", "../second"]);
 }
