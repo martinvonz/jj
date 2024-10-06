@@ -55,6 +55,7 @@ impl Rule {
         match self {
             Rule::EOI => None,
             Rule::whitespace => None,
+            Rule::unescaped_hex_byte => None,
             Rule::string_escape => None,
             Rule::string_content_char => None,
             Rule::string_content => None,

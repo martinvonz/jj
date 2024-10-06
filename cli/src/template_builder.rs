@@ -2015,6 +2015,22 @@ mod tests {
     }
 
     #[test]
+    fn test_string_ansi_escape() {
+        let env = TestTemplateEnv::new();
+
+        insta::assert_snapshot!(env.render_ok(r#""\e""#), @"␛");
+        insta::assert_snapshot!(env.render_ok(r#""\x1b""#), @"␛");
+        insta::assert_snapshot!(env.render_ok(r#""\x1B""#), @"␛");
+        insta::assert_snapshot!(
+            env.render_ok(r#""]8;;"
+                ++ "http://example.com"
+                ++ "\e\\"
+                ++ "Example"
+                ++ "\x1b]8;;\x1B\\""#),
+            @r#"␛]8;;http://example.com␛\Example␛]8;;␛\"#);
+    }
+
+    #[test]
     fn test_signature() {
         let mut env = TestTemplateEnv::new();
 
