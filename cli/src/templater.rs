@@ -709,7 +709,7 @@ impl<'a> TemplateFormatter<'a> {
         move |formatter| TemplateFormatter::new(formatter, error_handler)
     }
 
-    pub fn raw(&mut self) -> &mut dyn Write {
+    pub fn raw(&mut self) -> Box<dyn Write + '_> {
         self.formatter.raw()
     }
 

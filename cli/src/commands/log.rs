@@ -169,7 +169,8 @@ pub(crate) fn cmd_log(
         let limit = args.limit.or(args.deprecated_limit).unwrap_or(usize::MAX);
 
         if !args.no_graph {
-            let mut graph = get_graphlog(graph_style, formatter.raw());
+            let mut raw_output = formatter.raw();
+            let mut graph = get_graphlog(graph_style, raw_output.as_mut());
             let forward_iter = TopoGroupedGraphIterator::new(revset.iter_graph());
             let iter: Box<dyn Iterator<Item = _>> = if args.reversed {
                 Box::new(ReverseGraphIterator::new(forward_iter))

@@ -49,7 +49,9 @@ The following functions are defined.
   the content. The `label` is evaluated as a space-separated string.
 * `raw_escape_sequence(content: Template) -> Template`: Preserves any escape
   sequences in `content` (i.e., bypasses sanitization) and strips labels.
-  Note: Doesn't yet work with wrapped output / `fill(...)` / `indent(...)`.
+  Note: This function is intended for escape sequences and as such, it's output
+  is expected to be invisible / of no display width. Outputting content with
+  nonzero display width may break wrapping, indentation etc.
 * `if(condition: Boolean, then: Template[, else: Template]) -> Template`:
   Conditionally evaluate `then`/`else` template content.
 * `coalesce(content: Template...) -> Template`: Returns the first **non-empty**

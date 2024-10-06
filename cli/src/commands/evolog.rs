@@ -142,7 +142,8 @@ pub(crate) fn cmd_evolog(
         commits.truncate(n);
     }
     if !args.no_graph {
-        let mut graph = get_graphlog(graph_style, formatter.raw());
+        let mut raw_output = formatter.raw();
+        let mut graph = get_graphlog(graph_style, raw_output.as_mut());
         for commit in commits {
             let edges = commit
                 .predecessor_ids()
