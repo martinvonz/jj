@@ -485,14 +485,14 @@ mod tests {
     fn test_parse_string_literal() {
         // "\<char>" escapes
         assert_eq!(
-            parse_into_kind(r#" "\t\r\n\"\\\0" "#),
-            Ok(ExpressionKind::String("\t\r\n\"\\\0".to_owned()))
+            parse_into_kind(r#" "\t\r\n\"\\\0\e" "#),
+            Ok(ExpressionKind::String("\t\r\n\"\\\0\u{1b}".to_owned())),
         );
 
         // Invalid "\<char>" escape
         assert_eq!(
             parse_into_kind(r#" "\y" "#),
-            Err(FilesetParseErrorKind::SyntaxError)
+            Err(FilesetParseErrorKind::SyntaxError),
         );
 
         // Single-quoted raw string
@@ -511,6 +511,28 @@ mod tests {
         assert_eq!(
             parse_into_kind(r#" '"' "#),
             Ok(ExpressionKind::String(r#"""#.to_owned())),
+        );
+
+        // Hex bytes
+        assert_eq!(
+            parse_into_kind(r#""\x61\x65\x69\x6f\x75""#),
+            Ok(ExpressionKind::String("aeiou".to_owned())),
+        );
+        assert_eq!(
+            parse_into_kind(r#""\xe0\xe8\xec\xf0\xf9""#),
+            Ok(ExpressionKind::String("àèìðù".to_owned())),
+        );
+        assert_eq!(
+            parse_into_kind(r#""\x""#),
+            Err(FilesetParseErrorKind::SyntaxError),
+        );
+        assert_eq!(
+            parse_into_kind(r#""\xf""#),
+            Err(FilesetParseErrorKind::SyntaxError),
+        );
+        assert_eq!(
+            parse_into_kind(r#""\xgg""#),
+            Err(FilesetParseErrorKind::SyntaxError),
         );
     }
 
