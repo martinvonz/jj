@@ -47,6 +47,9 @@ The following functions are defined.
   non-empty lines by the given `prefix`.
 * `label(label: Template, content: Template) -> Template`: Apply label to
   the content. The `label` is evaluated as a space-separated string.
+* `raw_escape_sequence(content: Template) -> Template`: Preserves any escape
+  sequences in `content` (i.e., bypasses sanitization) and strips labels.
+  Note: Doesn't yet work with wrapped output / `fill(...)` / `indent(...)`.
 * `if(condition: Boolean, then: Template[, else: Template]) -> Template`:
   Conditionally evaluate `then`/`else` template content.
 * `coalesce(content: Template...) -> Template`: Returns the first **non-empty**

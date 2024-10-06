@@ -16,6 +16,7 @@ use std::cell::RefCell;
 use std::error;
 use std::fmt;
 use std::io;
+use std::io::Write;
 use std::iter;
 use std::rc::Rc;
 
@@ -181,6 +182,17 @@ where
             Ok(labels) => format_labeled(formatter, &self.content, &labels),
             Err(err) => formatter.handle_error(err),
         }
+    }
+}
+
+pub struct RawEscapeSequenceTemplate<T>(pub T);
+
+impl<T: Template> Template for RawEscapeSequenceTemplate<T> {
+    fn format(&self, formatter: &mut TemplateFormatter) -> io::Result<()> {
+        let rewrap = formatter.rewrap_fn();
+        let mut raw_formatter = PlainTextFormatter::new(formatter.raw());
+        // TODO(#4631): process "buffered" labels.
+        self.0.format(&mut rewrap(&mut raw_formatter))
     }
 }
 
@@ -695,6 +707,10 @@ impl<'a> TemplateFormatter<'a> {
     pub fn rewrap_fn(&self) -> impl Fn(&mut dyn Formatter) -> TemplateFormatter<'_> {
         let error_handler = self.error_handler;
         move |formatter| TemplateFormatter::new(formatter, error_handler)
+    }
+
+    pub fn raw(&mut self) -> &mut dyn Write {
+        self.formatter.raw()
     }
 
     pub fn labeled<S: AsRef<str>>(
