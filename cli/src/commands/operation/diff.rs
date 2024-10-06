@@ -197,7 +197,8 @@ pub fn show_op_diff(
             writeln!(formatter, "Changed commits:")
         })?;
         if let Some(graph_style) = graph_style {
-            let mut graph = get_graphlog(graph_style, formatter.raw());
+            let mut raw_output = formatter.raw();
+            let mut graph = get_graphlog(graph_style, raw_output.as_mut());
 
             let graph_iter =
                 TopoGroupedGraphIterator::new(ordered_change_ids.iter().map(|change_id| {

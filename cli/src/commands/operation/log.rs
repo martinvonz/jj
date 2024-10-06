@@ -197,7 +197,8 @@ fn do_op_log(
     let limit = args.limit.or(args.deprecated_limit).unwrap_or(usize::MAX);
     let iter = op_walk::walk_ancestors(slice::from_ref(current_op)).take(limit);
     if !args.no_graph {
-        let mut graph = get_graphlog(graph_style, formatter.raw());
+        let mut raw_output = formatter.raw();
+        let mut graph = get_graphlog(graph_style, raw_output.as_mut());
         for op in iter {
             let op = op?;
             let mut edges = vec![];

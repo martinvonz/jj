@@ -365,10 +365,15 @@ impl<'a> DiffRenderer<'a> {
                                 tool,
                             )
                         }
-                        DiffToolMode::Dir => {
-                            generate_diff(ui, formatter.raw(), from_tree, to_tree, matcher, tool)
-                                .map_err(DiffRenderError::DiffGenerate)
-                        }
+                        DiffToolMode::Dir => generate_diff(
+                            ui,
+                            formatter.raw().as_mut(),
+                            from_tree,
+                            to_tree,
+                            matcher,
+                            tool,
+                        )
+                        .map_err(DiffRenderError::DiffGenerate),
                     }?;
                 }
             }
@@ -1098,7 +1103,7 @@ pub fn show_file_by_file_diff(
 
             invoke_external_diff(
                 ui,
-                formatter.raw(),
+                formatter.raw().as_mut(),
                 tool,
                 &maplit::hashmap! {
                     "left" => left_path.to_str().expect("temp_dir should be valid utf-8"),
