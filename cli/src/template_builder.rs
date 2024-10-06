@@ -1116,6 +1116,11 @@ fn builtin_functions<'a, L: TemplateLanguage<'a> + ?Sized>() -> TemplateBuildFun
             content, labels,
         ))))
     });
+    map.insert("raw_text", |language, diagnostics, build_ctx, function| {
+        let [content_node] = function.expect_exact_arguments()?;
+        let content = expect_plain_text_expression(language, diagnostics, build_ctx, content_node)?;
+        Ok(L::wrap_string(content))
+    });
     map.insert("if", |language, diagnostics, build_ctx, function| {
         let ([condition_node, true_node], [false_node]) = function.expect_arguments()?;
         let condition =
@@ -2332,6 +2337,29 @@ mod tests {
         insta::assert_snapshot!(
             env.render_ok(r#"label(if(empty, "error", "warning"), "text")"#),
             @"[38;5;1mtext[39m");
+    }
+
+    #[test]
+    fn test_raw_text_function() {
+        // Note: same as test_label_function above, wrapped with raw_text.
+        let mut env = TestTemplateEnv::new();
+        env.add_keyword("empty", || L::wrap_boolean(Literal(true)));
+        env.add_color("error", crossterm::style::Color::DarkRed);
+        env.add_color("warning", crossterm::style::Color::DarkYellow);
+
+        // Literal
+        insta::assert_snapshot!(
+            env.render_ok(r#"raw_text(label("error", "text"))"#), @"text");
+
+        // Evaluated property
+        insta::assert_snapshot!(
+            env.render_ok(r#"raw_text(label("error".first_line(), "text"))"#),
+            @"text");
+
+        // Template
+        insta::assert_snapshot!(
+            env.render_ok(r#"raw_text(label(if(empty, "error", "warning"), "text"))"#),
+            @"text");
     }
 
     #[test]
