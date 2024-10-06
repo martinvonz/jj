@@ -35,6 +35,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * String literals in filesets, revsets and templates now support hex bytes
   (with `\e` as escape / shorthand for `\x1b`).
 
+* New template function `raw_escape_sequence(...)` preserves escape sequences.
+
 ### Fixed bugs
 
 * Error on `trunk()` revset resolution is now handled gracefully.

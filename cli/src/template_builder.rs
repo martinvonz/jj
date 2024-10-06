@@ -39,6 +39,7 @@ use crate::templater::ListTemplate;
 use crate::templater::Literal;
 use crate::templater::PlainTextFormattedProperty;
 use crate::templater::PropertyPlaceholder;
+use crate::templater::RawEscapeSequenceTemplate;
 use crate::templater::ReformatTemplate;
 use crate::templater::SeparateTemplate;
 use crate::templater::SizeHint;
@@ -1116,6 +1117,17 @@ fn builtin_functions<'a, L: TemplateLanguage<'a> + ?Sized>() -> TemplateBuildFun
             content, labels,
         ))))
     });
+    map.insert(
+        "raw_escape_sequence",
+        |language, diagnostics, build_ctx, function| {
+            let [content_node] = function.expect_exact_arguments()?;
+            let content =
+                expect_template_expression(language, diagnostics, build_ctx, content_node)?;
+            Ok(L::wrap_template(Box::new(RawEscapeSequenceTemplate(
+                content,
+            ))))
+        },
+    );
     map.insert("if", |language, diagnostics, build_ctx, function| {
         let ([condition_node, true_node], [false_node]) = function.expect_arguments()?;
         let condition =
@@ -2332,6 +2344,47 @@ mod tests {
         insta::assert_snapshot!(
             env.render_ok(r#"label(if(empty, "error", "warning"), "text")"#),
             @"[38;5;1mtext[39m");
+    }
+
+    #[test]
+    fn test_raw_escape_sequence_function_strip_labels() {
+        let mut env = TestTemplateEnv::new();
+        env.add_color("error", crossterm::style::Color::DarkRed);
+        env.add_color("warning", crossterm::style::Color::DarkYellow);
+
+        insta::assert_snapshot!(
+            env.render_ok(r#"raw_escape_sequence(label("error warning", "text"))"#),
+            @"text",
+        );
+    }
+
+    #[test]
+    fn test_raw_escape_sequence_function_ansi_escape() {
+        let env = TestTemplateEnv::new();
+
+        // Sanitize ANSI escape without raw_escape_sequence
+        insta::assert_snapshot!(env.render_ok(r#""\e""#), @"␛");
+        insta::assert_snapshot!(env.render_ok(r#""\x1b""#), @"␛");
+        insta::assert_snapshot!(env.render_ok(r#""\x1B""#), @"␛");
+        insta::assert_snapshot!(
+            env.render_ok(r#""]8;;"
+                ++ "http://example.com"
+                ++ "\e\\"
+                ++ "Example"
+                ++ "\x1b]8;;\x1B\\""#),
+            @r#"␛]8;;http://example.com␛\Example␛]8;;␛\"#);
+
+        // Don't sanitize ANSI escape with raw_escape_sequence
+        insta::assert_snapshot!(env.render_ok(r#"raw_escape_sequence("\e")"#), @"");
+        insta::assert_snapshot!(env.render_ok(r#"raw_escape_sequence("\x1b")"#), @"");
+        insta::assert_snapshot!(env.render_ok(r#"raw_escape_sequence("\x1B")"#), @"");
+        insta::assert_snapshot!(
+            env.render_ok(r#"raw_escape_sequence("]8;;"
+                ++ "http://example.com"
+                ++ "\e\\"
+                ++ "Example"
+                ++ "\x1b]8;;\x1B\\")"#),
+            @r#"]8;;http://example.com\Example]8;;\"#);
     }
 
     #[test]
