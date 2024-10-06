@@ -39,6 +39,7 @@ use crate::templater::ListTemplate;
 use crate::templater::Literal;
 use crate::templater::PlainTextFormattedProperty;
 use crate::templater::PropertyPlaceholder;
+use crate::templater::RawTextTemplate;
 use crate::templater::ReformatTemplate;
 use crate::templater::SeparateTemplate;
 use crate::templater::SizeHint;
@@ -1119,7 +1120,7 @@ fn builtin_functions<'a, L: TemplateLanguage<'a> + ?Sized>() -> TemplateBuildFun
     map.insert("raw_text", |language, diagnostics, build_ctx, function| {
         let [content_node] = function.expect_exact_arguments()?;
         let content = expect_plain_text_expression(language, diagnostics, build_ctx, content_node)?;
-        Ok(L::wrap_string(content))
+        Ok(L::wrap_template(Box::new(RawTextTemplate(content))))
     });
     map.insert("if", |language, diagnostics, build_ctx, function| {
         let ([condition_node, true_node], [false_node]) = function.expect_arguments()?;
@@ -2028,6 +2029,23 @@ mod tests {
                 ++ "Example"
                 ++ "\x1b]8;;\x1B\\""#),
             @r#"␛]8;;http://example.com␛\Example␛]8;;␛\"#);
+    }
+
+    #[test]
+    fn test_raw_text_function_ansi_escape() {
+        // Note: same as test_string_ansi_escape above, wrapped with raw_text.
+        let env = TestTemplateEnv::new();
+
+        insta::assert_snapshot!(env.render_ok(r#"raw_text("\e")"#), @"");
+        insta::assert_snapshot!(env.render_ok(r#"raw_text("\x1b")"#), @"");
+        insta::assert_snapshot!(env.render_ok(r#"raw_text("\x1B")"#), @"");
+        insta::assert_snapshot!(
+            env.render_ok(r#"raw_text("]8;;"
+                ++ "http://example.com"
+                ++ "\e\\"
+                ++ "Example"
+                ++ "\x1b]8;;\x1B\\")"#),
+            @r#"]8;;http://example.com\Example]8;;\"#);
     }
 
     #[test]

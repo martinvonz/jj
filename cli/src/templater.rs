@@ -16,6 +16,7 @@ use std::cell::RefCell;
 use std::error;
 use std::fmt;
 use std::io;
+use std::io::Write;
 use std::iter;
 use std::rc::Rc;
 
@@ -179,6 +180,17 @@ where
     fn format(&self, formatter: &mut TemplateFormatter) -> io::Result<()> {
         match self.labels.extract() {
             Ok(labels) => format_labeled(formatter, &self.content, &labels),
+            Err(err) => formatter.handle_error(err),
+        }
+    }
+}
+
+pub struct RawTextTemplate<T>(pub T);
+
+impl<T: TemplateProperty<Output = String>> Template for RawTextTemplate<T> {
+    fn format(&self, formatter: &mut TemplateFormatter) -> io::Result<()> {
+        match self.0.extract() {
+            Ok(content) => formatter.raw().write_all(content.as_bytes()),
             Err(err) => formatter.handle_error(err),
         }
     }
@@ -695,6 +707,10 @@ impl<'a> TemplateFormatter<'a> {
     pub fn rewrap_fn(&self) -> impl Fn(&mut dyn Formatter) -> TemplateFormatter<'_> {
         let error_handler = self.error_handler;
         move |formatter| TemplateFormatter::new(formatter, error_handler)
+    }
+
+    pub fn raw(&mut self) -> &mut dyn Write {
+        self.formatter.raw()
     }
 
     pub fn labeled<S: AsRef<str>>(
