@@ -32,6 +32,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 * `jj squash` now supports `-f/-t` shorthands for `--from/--[in]to`.
 
+* String literals in filesets, revsets and templates now support hex bytes
+  (with `\e` as escape / shorthand for `\x1b`).
+
 ### Fixed bugs
 
 * Error on `trunk()` revset resolution is now handled gracefully.

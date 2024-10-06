@@ -412,6 +412,12 @@ impl<R: RuleType> StringLiteralParser<R> {
                     "r" => result.push('\r'),
                     "n" => result.push('\n'),
                     "0" => result.push('\0'),
+                    "e" => result.push('\x1b'),
+                    hex if hex.starts_with('x') => {
+                        result.push(char::from(
+                            u8::from_str_radix(&hex[1..], 16).expect("hex characters"),
+                        ));
+                    }
                     char => panic!("invalid escape: \\{char:?}"),
                 }
             } else {

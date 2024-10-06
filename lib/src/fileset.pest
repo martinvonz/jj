@@ -34,7 +34,10 @@ bare_string = @{
   | '\u{80}'..'\u{10ffff}' )+
 }
 
-string_escape = @{ "\\" ~ ("t" | "r" | "n" | "0" | "\"" | "\\") }
+string_escape = @{
+  "\\"
+  ~ ("t" | "r" | "n" | "0" | "e" | ("x" ~ ASCII_HEX_DIGIT{2}) | "\"" | "\\")
+}
 string_content_char = @{ !("\"" | "\\") ~ ANY }
 string_content = @{ string_content_char+ }
 string_literal = ${ "\"" ~ (string_content | string_escape)* ~ "\"" }
