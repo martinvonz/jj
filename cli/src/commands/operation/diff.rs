@@ -125,14 +125,12 @@ pub fn cmd_op_diff(
     let op_summary_template = workspace_command.operation_summary_template();
     ui.request_pager();
     let mut formatter = ui.stdout_formatter();
-    formatter.with_label("op_log", |formatter| {
-        write!(formatter, "From operation ")?;
-        op_summary_template.format(&from_op, &mut *formatter)?;
-        writeln!(formatter)?;
-        write!(formatter, "  To operation ")?;
-        op_summary_template.format(&to_op, &mut *formatter)?;
-        writeln!(formatter)
-    })?;
+    write!(formatter, "From operation ")?;
+    op_summary_template.format(&from_op, &mut *formatter)?;
+    writeln!(formatter)?;
+    write!(formatter, "  To operation ")?;
+    op_summary_template.format(&to_op, &mut *formatter)?;
+    writeln!(formatter)?;
 
     show_op_diff(
         ui,

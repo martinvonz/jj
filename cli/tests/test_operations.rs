@@ -791,9 +791,8 @@ fn test_op_summary_diff_template() {
     test_env.jj_cmd_ok(&repo_path, &["new", "--no-edit", "-m=scratch"]);
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["op", "undo", "--color=always"]);
     insta::assert_snapshot!(&stdout, @"");
-    // BUG!! (Fixed in next commit)
     insta::assert_snapshot!(&stderr, @r#"
-    Undid operation ac20a4ff4791 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00 new empty commit
+    Undid operation [38;5;4mac20a4ff4791[39m [38;5;6m2001-02-03 04:05:08.000 +07:00[39m - [38;5;6m2001-02-03 04:05:08.000 +07:00[39m new empty commit
     "#);
     let stdout = test_env.jj_cmd_success(
         &repo_path,
@@ -821,7 +820,7 @@ fn test_op_summary_diff_template() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["op", "undo", "--color=debug"]);
     insta::assert_snapshot!(&stdout, @"");
     insta::assert_snapshot!(&stderr, @r#"
-    Undid operation <<id short::2301f6e6ec31>> <<time start::2001-02-03 04:05:11.000 +07:00>> - <<time end::2001-02-03 04:05:11.000 +07:00>> <<description first_line::new empty commit>>
+    Undid operation [38;5;4m<<op_log id short::2301f6e6ec31>>[39m<<op_log:: >>[38;5;6m<<op_log time start::2001-02-03 04:05:11.000 +07:00>>[39m<<op_log:: - >>[38;5;6m<<op_log time end::2001-02-03 04:05:11.000 +07:00>>[39m<<op_log:: >><<op_log description first_line::new empty commit>>
     "#);
     let stdout = test_env.jj_cmd_success(
         &repo_path,
@@ -836,8 +835,8 @@ fn test_op_summary_diff_template() {
         ],
     );
     insta::assert_snapshot!(&stdout, @r#"
-    <<op_log::From operation >>[38;5;4m<<op_log id short::000000000000>>[39m<<op_log:: >>[38;5;2m<<op_log root::root()>>[39m<<op_log::>>
-    <<op_log::  To operation >>[38;5;4m<<op_log id short::d208ae1b4e3c>>[39m<<op_log:: >>[38;5;6m<<op_log time start::2001-02-03 04:05:12.000 +07:00>>[39m<<op_log:: - >>[38;5;6m<<op_log time end::2001-02-03 04:05:12.000 +07:00>>[39m<<op_log:: >><<op_log description first_line::undo operation 2301f6e6ec31931a9b0a594742d6035a44c05250d1707f7f8678e888b11a98773ef07bf0e8008a5bccddf7114da4a35d1a1b1f7efa37c1e6c80d6bdb8f0d7a90>><<op_log::>>
+    From operation [38;5;4m<<op_log id short::000000000000>>[39m<<op_log:: >>[38;5;2m<<op_log root::root()>>[39m
+      To operation [38;5;4m<<op_log id short::d208ae1b4e3c>>[39m<<op_log:: >>[38;5;6m<<op_log time start::2001-02-03 04:05:12.000 +07:00>>[39m<<op_log:: - >>[38;5;6m<<op_log time end::2001-02-03 04:05:12.000 +07:00>>[39m<<op_log:: >><<op_log description first_line::undo operation 2301f6e6ec31931a9b0a594742d6035a44c05250d1707f7f8678e888b11a98773ef07bf0e8008a5bccddf7114da4a35d1a1b1f7efa37c1e6c80d6bdb8f0d7a90>>
 
     Changed commits:
     ○  Change qpvuntsmwlqt
