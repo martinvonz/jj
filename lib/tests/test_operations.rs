@@ -422,23 +422,22 @@ fn test_resolve_op_id() {
     let mut operations = Vec::new();
     // The actual value of `i` doesn't matter, we just need to make sure we end
     // up with hashes with ambiguous prefixes.
-    for i in (1..7).chain([16]) {
+    for i in (1..5).chain([39, 62]) {
         let tx = repo.start_transaction(&settings);
         let repo = tx.commit(format!("transaction {i}"));
         operations.push(repo.operation().clone());
     }
-    // "2" and "0" are ambiguous
-    insta::assert_debug_snapshot!(operations.iter().map(|op| op.id().hex()).collect_vec(), @r###"
+    // "b" and "0" are ambiguous
+    insta::assert_debug_snapshot!(operations.iter().map(|op| op.id().hex()).collect_vec(), @r#"
     [
-        "5aebb24d08d6f5282d9e06bded4b51febbb4ff4bc822cdd4db9043961339955d6af912e783c3864245867d0cf6d609cb004c5ff0cef5e914c15a415ba92e38a2",
-        "ad1cda629b220f2651d972475fba75e47c30cd57862c51a727e57b7b6e2fbaa937d0bcb881cf6fcff30ba1a088a4ad588cf880765b9d9680b551cdc446f3489e",
-        "2feaf9eb61232582d35f1cb0203b69425f7a7d07140a5f8ff0d0bf98dd9f433b941e4c9e0882f65a007266affee275e235ae1614b159ceadbf9fe6879077a5da",
-        "0b183be5767c3ff9945c8a9e3ac7639d249ff9873985a551f4c2070782aea8b5018ebff906036d1658038708ab9de0d867be385b1181aa7a81669e2ef6852355",
-        "d1c3031dff7b1db4db1bfb592a9aa0ea6faae9300033ef20cb6da488e4b90524c22af8e2541cdb99ca0ee2be3299c213c0f8d48390cd5f11462c4f80c5790f68",
-        "2369ba98e2596715606978a72608970287aaa064ec890f87c29b7e7df64fdf02b7f24b8b03ee845e132f3e19e3929de359b6cfe1328b42946c45ac5ff80705ca",
-        "00271842a189d274a2c97ac28f937584a47b84463d5b408c6f998089131e0e1329a287667b2ac5d63f8c576e95323bcf992c99caa4ef4612a1c3798fe8a3f74f",
+        "bb1ea76bb194556214b1259568d5f3381fb4209f10b86d6c3c7d162a9b8ee1a5d98da57cf21ceadeecd2416c20508348ed4c1a24226c708f035b138fc7a97d5b",
+        "5c35c6506eedd9c74ffab46940129cb3b66e5e1968b4eea5bb38701d6d3462b4a34d78efcaa81d41fabf6937d79c4431e2adc4361095c9fb795004da420d8a26",
+        "b43387cf7a5808ebb6cdacd5c95de9d4b315c6edc465a49ff290b731da1c3d57315af49686e5ffd4c2fc4478af40b4a70cba7334bbca8e3d4e69176de807a916",
+        "fcd828a3033f9a9f44c8f06cd0d7f79570d53895c9d7d794ea51a7ee4b7871c8fe245ec18d2ece76ec7b51a998b04da811c232668c7c2c53f72b5baf0ad20797",
+        "091574d16d89ab848ac08c9a8e35276484c5e332ea97f1fad7b794763aa280ce5b663d835b555b5b763cbdbb6d8dba5a35ad1f2780ebdca5e598f07f82dcd3c7",
+        "06e9f38473578a4b1a8672ab474eb2741269fffb2f765a610de47fddafc60a88c002f7cdb9d82a9d1dfdbdd3b4045cd62e34215e7a781ed149332980e90227f1",
     ]
-    "###);
+    "#);
 
     let repo_loader = repo.loader();
     let resolve = |op_str: &str| op_walk::resolve_op_for_load(repo_loader, op_str);
@@ -457,7 +456,7 @@ fn test_resolve_op_id() {
     );
     // Ambiguous id
     assert_matches!(
-        resolve("2"),
+        resolve("b"),
         Err(OpsetEvaluationError::OpsetResolution(
             OpsetResolutionError::AmbiguousIdPrefix(_)
         ))
@@ -479,8 +478,8 @@ fn test_resolve_op_id() {
     // Virtual root id
     let root_operation = loader.root_operation();
     assert_eq!(resolve(&root_operation.id().hex()).unwrap(), root_operation);
-    assert_eq!(resolve("000").unwrap(), root_operation);
-    assert_eq!(resolve("002").unwrap(), operations[6]);
+    assert_eq!(resolve("00").unwrap(), root_operation);
+    assert_eq!(resolve("09").unwrap(), operations[4]);
     assert_matches!(
         resolve("0"),
         Err(OpsetEvaluationError::OpsetResolution(
@@ -607,7 +606,7 @@ fn test_gc() {
     // |/
     // B
     // A
-    // 0 (initial)
+    // 0 (root)
     let empty_tx = |repo: &Arc<ReadonlyRepo>| repo.start_transaction(&settings);
     let random_tx = |repo: &Arc<ReadonlyRepo>| {
         let mut tx = repo.start_transaction(&settings);
@@ -624,8 +623,8 @@ fn test_gc() {
     // Sanity check for the original state
     let mut expected_op_entries = list_dir(&op_dir);
     let mut expected_view_entries = list_dir(&view_dir);
-    assert_eq!(expected_op_entries.len(), 7);
-    assert_eq!(expected_view_entries.len(), 6);
+    assert_eq!(expected_op_entries.len(), 6);
+    assert_eq!(expected_view_entries.len(), 5);
 
     // No heads, but all kept by file modification time
     op_store.gc(&[], SystemTime::UNIX_EPOCH).unwrap();
@@ -663,6 +662,6 @@ fn test_gc() {
     assert_eq!(list_dir(&view_dir), expected_view_entries);
 
     // Sanity check for the last state
-    assert_eq!(expected_op_entries.len(), 2);
-    assert_eq!(expected_view_entries.len(), 2);
+    assert_eq!(expected_op_entries.len(), 1);
+    assert_eq!(expected_view_entries.len(), 1);
 }

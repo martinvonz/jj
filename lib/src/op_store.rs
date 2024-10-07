@@ -264,7 +264,7 @@ pub struct BookmarkTarget<'a> {
 
 /// Represents the way the repo looks at a given time, just like how a Tree
 /// object represents how the file system looks at a given time.
-#[derive(ContentHash, PartialEq, Eq, Clone, Debug, Default)]
+#[derive(ContentHash, PartialEq, Eq, Clone, Debug)]
 pub struct View {
     /// All head commits
     pub head_ids: HashSet<CommitId>,
@@ -280,6 +280,37 @@ pub struct View {
     // (.jj/working_copy/) has the source of truth about which commit *is* checked out (to be
     // precise: the commit to which we most recently completed an update to).
     pub wc_commit_ids: HashMap<WorkspaceId, CommitId>,
+}
+
+impl View {
+    /// Creates new truly empty view.
+    ///
+    /// The caller should add at least one commit ID to `head_ids`. The other
+    /// fields may be empty.
+    pub fn empty() -> Self {
+        View {
+            head_ids: HashSet::new(),
+            local_bookmarks: BTreeMap::new(),
+            tags: BTreeMap::new(),
+            remote_views: BTreeMap::new(),
+            git_refs: BTreeMap::new(),
+            git_head: RefTarget::absent(),
+            wc_commit_ids: HashMap::new(),
+        }
+    }
+
+    /// Creates new (mostly empty) view containing the given commit as the head.
+    pub fn make_root(root_commit_id: CommitId) -> Self {
+        View {
+            head_ids: HashSet::from([root_commit_id]),
+            local_bookmarks: BTreeMap::new(),
+            tags: BTreeMap::new(),
+            remote_views: BTreeMap::new(),
+            git_refs: BTreeMap::new(),
+            git_head: RefTarget::absent(),
+            wc_commit_ids: HashMap::new(),
+        }
+    }
 }
 
 /// Represents the state of the remote repo.
@@ -368,7 +399,7 @@ pub struct Operation {
 }
 
 impl Operation {
-    pub fn make_root(empty_view_id: ViewId) -> Operation {
+    pub fn make_root(root_view_id: ViewId) -> Operation {
         let timestamp = Timestamp {
             timestamp: MillisSinceEpoch(0),
             tz_offset: 0,
@@ -383,7 +414,7 @@ impl Operation {
             tags: HashMap::new(),
         };
         Operation {
-            view_id: empty_view_id,
+            view_id: root_view_id,
             parents: vec![],
             metadata,
         }

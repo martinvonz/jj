@@ -32,23 +32,21 @@ fn test_concurrent_operation_divergence() {
 
     // "--at-op=@" disables op heads merging, and prints head operation ids.
     let stderr = test_env.jj_cmd_failure(&repo_path, &["op", "log", "--at-op=@"]);
-    insta::assert_snapshot!(stderr, @r###"
+    insta::assert_snapshot!(stderr, @r#"
     Error: The "@" expression resolved to more than one operation
-    Hint: Try specifying one of the operations by ID: e31015019d90, 48f4a48f3f70
-    "###);
+    Hint: Try specifying one of the operations by ID: 0162305507cc, d74dff64472e
+    "#);
 
     // "op log --at-op" should work without merging the head operations
-    let stdout = test_env.jj_cmd_success(&repo_path, &["op", "log", "--at-op=48f4a48f3f70"]);
-    insta::assert_snapshot!(stdout, @r###"
-    @  48f4a48f3f70 test-username@host.example.com 2001-02-03 04:05:09.000 +07:00 - 2001-02-03 04:05:09.000 +07:00
+    let stdout = test_env.jj_cmd_success(&repo_path, &["op", "log", "--at-op=d74dff64472e"]);
+    insta::assert_snapshot!(stdout, @r#"
+    @  d74dff64472e test-username@host.example.com 2001-02-03 04:05:09.000 +07:00 - 2001-02-03 04:05:09.000 +07:00
     │  describe commit 230dd059e1b059aefc0da06a2e5a7dbf22362f22
     │  args: jj describe -m 'message 2' --at-op @-
-    ○  b51416386f26 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
+    ○  eac759b9ab75 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
     │  add workspace 'default'
-    ○  9a7d829846af test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
-    │  initialize repo
     ○  000000000000 root()
-    "###);
+    "#);
 
     // We should be informed about the concurrent modification
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["log", "-T", "description"]);
@@ -72,19 +70,17 @@ fn test_concurrent_operations_auto_rebase() {
     std::fs::write(repo_path.join("file"), "contents").unwrap();
     test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "initial"]);
     let stdout = test_env.jj_cmd_success(&repo_path, &["op", "log"]);
-    insta::assert_snapshot!(stdout, @r###"
-    @  66d1dd775c54 test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
+    insta::assert_snapshot!(stdout, @r#"
+    @  c62ace5c0522 test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
     │  describe commit 4e8f9d2be039994f589b4e57ac5e9488703e604d
     │  args: jj describe -m initial
-    ○  130d67859810 test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
+    ○  82d32fc68fc3 test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
     │  snapshot working copy
     │  args: jj describe -m initial
-    ○  b51416386f26 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
+    ○  eac759b9ab75 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
     │  add workspace 'default'
-    ○  9a7d829846af test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
-    │  initialize repo
     ○  000000000000 root()
-    "###);
+    "#);
     let op_id_hex = stdout[3..15].to_string();
 
     test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "rewritten"]);
@@ -152,7 +148,7 @@ fn test_concurrent_operations_wc_modified() {
 
     // The working copy should be committed after merging the operations
     let stdout = test_env.jj_cmd_success(&repo_path, &["op", "log", "-Tdescription"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @r#"
     @  snapshot working copy
     ○    reconcile divergent operations
     ├─╮
@@ -162,9 +158,8 @@ fn test_concurrent_operations_wc_modified() {
     ○  describe commit 506f4ec3c2c62befa15fabc34ca9d4e6d7bef254
     ○  snapshot working copy
     ○  add workspace 'default'
-    ○  initialize repo
     ○
-    "###);
+    "#);
 }
 
 #[test]
@@ -187,26 +182,24 @@ fn test_concurrent_snapshot_wc_reloadable() {
 
     let template = r#"id ++ "\n" ++ description ++ "\n" ++ tags"#;
     let op_log_stdout = test_env.jj_cmd_success(&repo_path, &["op", "log", "-T", template]);
-    insta::assert_snapshot!(op_log_stdout, @r###"
-    @  9f11958bcf79340028eeabf9b0381cd8d2ae2258d0097b8ce8bd24fe7138eca08d9eb113bb4722ebacd9b7a6fa017e3888f72907be7487f275823c8d21359eed
+    insta::assert_snapshot!(op_log_stdout, @r#"
+    @  ec6bf266624bbaed55833a34ae62fa95c0e9efa651b94eb28846972da645845052dcdc8580332a5628849f23f48b9e99fc728dc3fb13106df8d0666d746f8b85
     │  commit 554d22b2c43c1c47e279430197363e8daabe2fd6
     │  args: jj commit -m 'new child1'
-    ○  f5460e8f43a04fbc61553d12fa5ba8d3b12e4fdcfda1999db6b67cc8e1e473b7e62cc0536196a53b84f34e18c1c6d608f427bb64bd5f834f845a9859e39cb320
+    ○  23858df860b789e8176a73c0eb21804e3f1848f26d68b70d234c004d08980c41499b6669042bca20fbc2543c437222a084c7cd473e91c7a9a095a02bf38544ab
     │  snapshot working copy
     │  args: jj commit -m 'new child1'
-    ○  49359b6597ead3fbb66802a6bbd8761c0ad4646a2b089090d6fd72fb6e2568aa99c4a92f9f1f252a83cce56ec84961c36e85f731f19fc5a4c24d6a3f7282b774
+    ○  e1db5fa988fc66e5cc0491b00c53fb93e25e730341c850cb42e1e0db0c76d2b4065005787563301b1d292c104f381918897f7deabeb92d2532f42ce75d3fe588
     │  commit de71e09289762a65f80bb1c3dae2a949df6bcde7
     │  args: jj commit -m initial
-    ○  86dbba2b96a4a801abef7f77f8fdf338b6e36f81ea4a531aacf06acbd06f4037731fffef42503c2225fdb206488971c1601ca8b2b4a83a3fe2dce64ee4db085e
+    ○  7de878155a459b7751097222132c935f9dcbb8f69a72b0f3a9036345a963010a553dc7c92964220128679ead72b087ca3aaf4ab9e20a221d1ffa4f9e92a32193
     │  snapshot working copy
     │  args: jj commit -m initial
-    ○  b51416386f2685fd5493f2b20e8eec3c24a1776d9e1a7cb5ed7e30d2d9c88c0c1e1fe71b0b7358cba60de42533d1228ed9878f2f89817d892c803395ccf9fe92
+    ○  eac759b9ab75793fd3da96e60939fb48f2cd2b2a9c1f13ffe723cf620f3005b8d3e7e923634a07ea39513e4f2f360c87b9ad5d331cf90d7a844864b83b72eba1
     │  add workspace 'default'
-    ○  9a7d829846af88a2f7a1e348fb46ff58729e49632bc9c6a052aec8501563cb0d10f4a4e6010ffde529f84a2b9b5b3a4c211a889106a41f6c076dfdacc79f6af7
-    │  initialize repo
     ○  00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 
-    "###);
+    "#);
     let op_log_lines = op_log_stdout.lines().collect_vec();
     let current_op_id = op_log_lines[0].split_once("  ").unwrap().1;
     let previous_op_id = op_log_lines[6].split_once("  ").unwrap().1;

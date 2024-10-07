@@ -475,11 +475,11 @@ fn test_git_clone_ignore_working_copy() {
 
     // TODO: Correct, but might be better to check out the root commit?
     let stderr = test_env.jj_cmd_failure(&clone_path, &["status"]);
-    insta::assert_snapshot!(stderr, @r###"
-    Error: The working copy is stale (not updated since operation b51416386f26).
+    insta::assert_snapshot!(stderr, @r##"
+    Error: The working copy is stale (not updated since operation eac759b9ab75).
     Hint: Run `jj workspace update-stale` to update it.
     See https://martinvonz.github.io/jj/latest/working-copy/#stale-working-copy for more information.
-    "###);
+    "##);
 }
 
 #[test]

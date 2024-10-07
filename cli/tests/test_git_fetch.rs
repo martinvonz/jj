@@ -932,7 +932,7 @@ fn test_git_fetch_undo() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&target_jj_repo_path, &["undo"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r#"
-    Undid operation bbebbf6a6ebe 2001-02-03 04:05:18.000 +07:00 - 2001-02-03 04:05:18.000 +07:00 fetch from git remote(s) origin
+    Undid operation eb2029853b02 2001-02-03 04:05:18.000 +07:00 - 2001-02-03 04:05:18.000 +07:00 fetch from git remote(s) origin
     "#);
     // The undo works as expected
     insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"
@@ -1018,7 +1018,7 @@ fn test_fetch_undo_what() {
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r#"
-    Restored to operation b51416386f26 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00 add workspace 'default'
+    Restored to operation eac759b9ab75 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00 add workspace 'default'
     "#);
     insta::assert_snapshot!(get_bookmark_output(&test_env, &repo_path), @r###"
     b (deleted)
@@ -1047,7 +1047,7 @@ fn test_fetch_undo_what() {
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r#"
-    Restored to operation b51416386f26 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00 add workspace 'default'
+    Restored to operation eac759b9ab75 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00 add workspace 'default'
     "#);
     insta::assert_snapshot!(get_bookmark_output(&test_env, &repo_path), @r###"
     newbookmark: qpvuntsm 230dd059 (empty) (no description set)

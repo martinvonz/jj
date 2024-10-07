@@ -90,9 +90,9 @@ fn test_gc_operation_log() {
 
     // Now this doesn't work.
     let stderr = test_env.jj_cmd_failure(&repo_path, &["debug", "operation", &op_to_remove]);
-    insta::assert_snapshot!(stderr, @r###"
-    Error: No operation ID matching "54c5f04ab3dbb32ac86f805c819cb1ef78a3c9758ee560680a465e843fa0b05f42706d0641805905ef4bab550ca805effd1ba73d1980f6cdcc42126f008e51f4"
-    "###);
+    insta::assert_snapshot!(stderr, @r#"
+    Error: No operation ID matching "8382f401329617b0c91a63354b86ca48fc28dee8d7a916fdad5310030f9a1260e969c43ed2b13d1d48eaf38f6f45541ecf593bcb6105495d514d21b3b6a98846"
+    "#);
 }
 
 #[test]

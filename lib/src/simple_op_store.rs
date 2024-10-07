@@ -82,8 +82,9 @@ impl From<DecodeError> for OpStoreError {
 #[derive(Debug)]
 pub struct SimpleOpStore {
     path: PathBuf,
-    empty_view_id: ViewId,
+    root_data: RootOperationData,
     root_operation_id: OperationId,
+    root_view_id: ViewId,
 }
 
 impl SimpleOpStore {
@@ -99,11 +100,12 @@ impl SimpleOpStore {
     }
 
     /// Load an existing OpStore
-    pub fn load(store_path: &Path, _root_data: RootOperationData) -> Self {
+    pub fn load(store_path: &Path, root_data: RootOperationData) -> Self {
         SimpleOpStore {
             path: store_path.to_path_buf(),
-            empty_view_id: ViewId::from_bytes(&[0; VIEW_ID_LENGTH]),
+            root_data,
             root_operation_id: OperationId::from_bytes(&[0; OPERATION_ID_LENGTH]),
+            root_view_id: ViewId::from_bytes(&[0; VIEW_ID_LENGTH]),
         }
     }
 
@@ -130,8 +132,8 @@ impl OpStore for SimpleOpStore {
     }
 
     fn read_view(&self, id: &ViewId) -> OpStoreResult<View> {
-        if *id == self.empty_view_id {
-            return Ok(View::default());
+        if *id == self.root_view_id {
+            return Ok(View::make_root(self.root_data.root_commit_id.clone()));
         }
 
         let path = self.view_path(id);
@@ -164,7 +166,7 @@ impl OpStore for SimpleOpStore {
 
     fn read_operation(&self, id: &OperationId) -> OpStoreResult<Operation> {
         if *id == self.root_operation_id {
-            return Ok(Operation::make_root(self.empty_view_id.clone()));
+            return Ok(Operation::make_root(self.root_view_id.clone()));
         }
 
         let path = self.operation_path(id);
@@ -460,7 +462,7 @@ fn view_to_proto(view: &View) -> crate::protos::op_store::View {
 }
 
 fn view_from_proto(proto: crate::protos::op_store::View) -> View {
-    let mut view = View::default();
+    let mut view = View::empty();
     // For compatibility with old repos before we had support for multiple working
     // copies
     #[allow(deprecated)]
