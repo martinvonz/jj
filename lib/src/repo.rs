@@ -233,24 +233,20 @@ impl ReadonlyRepo {
 
         let root_operation = loader.root_operation();
         let root_view = root_operation.view().expect("failed to read root view");
+        assert!(!root_view.heads().is_empty());
         let index = loader
             .index_store
             .get_index_at_op(&root_operation, &loader.store)
             // If the root op index couldn't be read, the index backend wouldn't
             // be initialized properly.
             .map_err(|err| BackendInitError(err.into()))?;
-        let repo = Arc::new(ReadonlyRepo {
+        Ok(Arc::new(ReadonlyRepo {
             loader,
             operation: root_operation,
             index,
             change_id_index: OnceCell::new(),
             view: root_view,
-        });
-        let mut tx = repo.start_transaction(user_settings);
-        tx.repo_mut()
-            .add_head(&repo.store().root_commit())
-            .expect("failed to add root commit as head");
-        Ok(tx.commit("initialize repo"))
+        }))
     }
 
     pub fn loader(&self) -> &RepoLoader {

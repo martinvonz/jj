@@ -957,12 +957,10 @@ fn test_evaluate_expression_root_and_checkout() {
         vec![root_commit.id().clone()]
     );
 
-    // but not in the root operation. It might be okay to pretend that the root
-    // commit exists in the root operation, but queries like "root()" shouldn't
-    // panic in any case.
-    assert_matches!(
-        resolve_symbol(root_repo.as_ref(), "root()"),
-        Err(RevsetResolutionError::NoSuchRevision { .. })
+    // Can find the root commit in the root view
+    assert_eq!(
+        resolve_commit_ids(root_repo.as_ref(), "root()"),
+        vec![root_commit.id().clone()]
     );
 
     // Can find the current working-copy commit

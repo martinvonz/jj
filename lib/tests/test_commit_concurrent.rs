@@ -69,9 +69,9 @@ fn test_commit_parallel(backend: TestRepoBackend) {
     // the root commit
     assert_eq!(repo.view().heads().len(), num_threads + 1);
 
-    // One additional operation for the root commit, one for initializing the repo,
-    // one for checking out the initial commit.
-    assert_eq!(count_non_merge_operations(&repo), num_threads + 3);
+    // One additional operation for the root operation, one for checking out the
+    // initial commit.
+    assert_eq!(count_non_merge_operations(&repo), num_threads + 2);
 }
 
 #[test_case(TestRepoBackend::Local ; "local backend")]
@@ -99,7 +99,7 @@ fn test_commit_parallel_instances(backend: TestRepoBackend) {
     let repo = load_repo_at_head(&settings, test_workspace.repo_path());
     assert_eq!(repo.view().heads().len(), num_threads + 1);
 
-    // One additional operation for the root commit, one for initializing the repo,
-    // one for checking out the initial commit.
-    assert_eq!(count_non_merge_operations(&repo), num_threads + 3);
+    // One additional operation for the root operation, one for checking out the
+    // initial commit.
+    assert_eq!(count_non_merge_operations(&repo), num_threads + 2);
 }
