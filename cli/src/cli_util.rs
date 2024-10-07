@@ -2240,14 +2240,7 @@ pub fn check_stale_working_copy(
         // The working copy isn't stale, and no need to reload the repo.
         Ok(WorkingCopyFreshness::Fresh)
     } else {
-        let wc_operation_data = repo
-            .op_store()
-            .read_operation(locked_wc.old_operation_id())?;
-        let wc_operation = Operation::new(
-            repo.op_store().clone(),
-            locked_wc.old_operation_id().clone(),
-            wc_operation_data,
-        );
+        let wc_operation = repo.loader().load_operation(locked_wc.old_operation_id())?;
         let repo_operation = repo.operation();
         let ancestor_op = dag_walk::closest_common_node_ok(
             [Ok(wc_operation.clone())],

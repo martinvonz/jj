@@ -198,12 +198,10 @@ fn test_reparent_range_linear() {
     let settings = testutils::user_settings();
     let test_repo = TestRepo::init();
     let repo_0 = test_repo.repo;
+    let loader = repo_0.loader();
     let op_store = repo_0.op_store();
 
-    let read_op = |id| {
-        let data = op_store.read_operation(id).unwrap();
-        Operation::new(op_store.clone(), id.clone(), data)
-    };
+    let read_op = |id| loader.load_operation(id).unwrap();
 
     fn op_parents<const N: usize>(op: &Operation) -> [Operation; N] {
         let parents: Vec<_> = op.parents().try_collect().unwrap();
@@ -267,12 +265,10 @@ fn test_reparent_range_bookmarky() {
     let settings = testutils::user_settings();
     let test_repo = TestRepo::init();
     let repo_0 = test_repo.repo;
+    let loader = repo_0.loader();
     let op_store = repo_0.op_store();
 
-    let read_op = |id| {
-        let data = op_store.read_operation(id).unwrap();
-        Operation::new(op_store.clone(), id.clone(), data)
-    };
+    let read_op = |id| loader.load_operation(id).unwrap();
 
     fn op_parents<const N: usize>(op: &Operation) -> [Operation; N] {
         let parents: Vec<_> = op.parents().try_collect().unwrap();
@@ -421,7 +417,7 @@ fn test_resolve_op_id() {
     let settings = stable_op_id_settings();
     let test_repo = TestRepo::init_with_settings(&settings);
     let repo = test_repo.repo;
-    let op_store = repo.op_store();
+    let loader = repo.loader();
 
     let mut operations = Vec::new();
     // The actual value of `i` doesn't matter, we just need to make sure we end
@@ -481,11 +477,7 @@ fn test_resolve_op_id() {
         ))
     );
     // Virtual root id
-    let root_operation = {
-        let id = op_store.root_operation_id();
-        let data = op_store.read_operation(id).unwrap();
-        Operation::new(op_store.clone(), id.clone(), data)
-    };
+    let root_operation = loader.root_operation();
     assert_eq!(resolve(&root_operation.id().hex()).unwrap(), root_operation);
     assert_eq!(resolve("000").unwrap(), root_operation);
     assert_eq!(resolve("002").unwrap(), operations[6]);
