@@ -122,13 +122,8 @@ pub trait Repo {
 }
 
 pub struct ReadonlyRepo {
-    store: Arc<Store>,
-    op_store: Arc<dyn OpStore>,
-    op_heads_store: Arc<dyn OpHeadsStore>,
+    loader: RepoLoader,
     operation: Operation,
-    settings: RepoSettings,
-    index_store: Arc<dyn IndexStore>,
-    submodule_store: Arc<dyn SubmoduleStore>,
     index: Box<dyn ReadonlyIndex>,
     change_id_index: OnceCell<Box<dyn ChangeIdIndex>>,
     // TODO: This should eventually become part of the index and not be stored fully in memory.
@@ -138,7 +133,7 @@ pub struct ReadonlyRepo {
 impl Debug for ReadonlyRepo {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
         f.debug_struct("ReadonlyRepo")
-            .field("store", &self.store)
+            .field("store", &self.loader.store)
             .finish_non_exhaustive()
     }
 }
@@ -222,31 +217,37 @@ impl ReadonlyRepo {
             .context(&submodule_store_type_path)?;
         let submodule_store = Arc::from(submodule_store);
 
-        let root_operation_data = op_store
-            .read_operation(op_store.root_operation_id())
+        let loader = RepoLoader {
+            repo_settings,
+            store,
+            op_store,
+            op_heads_store,
+            index_store,
+            submodule_store,
+        };
+
+        let root_operation_data = loader
+            .op_store
+            .read_operation(loader.op_store.root_operation_id())
             .expect("failed to read root operation");
         let root_operation = Operation::new(
-            op_store.clone(),
-            op_store.root_operation_id().clone(),
+            loader.op_store.clone(),
+            loader.op_store.root_operation_id().clone(),
             root_operation_data,
         );
         let root_view = root_operation.view().expect("failed to read root view");
-        let index = index_store
-            .get_index_at_op(&root_operation, &store)
+        let index = loader
+            .index_store
+            .get_index_at_op(&root_operation, &loader.store)
             // If the root op index couldn't be read, the index backend wouldn't
             // be initialized properly.
             .map_err(|err| BackendInitError(err.into()))?;
         let repo = Arc::new(ReadonlyRepo {
-            store,
-            op_store,
-            op_heads_store,
+            loader,
             operation: root_operation,
-            settings: repo_settings,
-            index_store,
             index,
             change_id_index: OnceCell::new(),
             view: root_view,
-            submodule_store,
         });
         let mut tx = repo.start_transaction(user_settings);
         tx.repo_mut()
@@ -255,15 +256,8 @@ impl ReadonlyRepo {
         Ok(tx.commit("initialize repo"))
     }
 
-    pub fn loader(&self) -> RepoLoader {
-        RepoLoader {
-            repo_settings: self.settings.clone(),
-            store: self.store.clone(),
-            op_store: self.op_store.clone(),
-            op_heads_store: self.op_heads_store.clone(),
-            index_store: self.index_store.clone(),
-            submodule_store: self.submodule_store.clone(),
-        }
+    pub fn loader(&self) -> &RepoLoader {
+        &self.loader
     }
 
     pub fn op_id(&self) -> &OperationId {
@@ -292,15 +286,15 @@ impl ReadonlyRepo {
     }
 
     pub fn op_heads_store(&self) -> &Arc<dyn OpHeadsStore> {
-        &self.op_heads_store
+        self.loader.op_heads_store()
     }
 
     pub fn index_store(&self) -> &Arc<dyn IndexStore> {
-        &self.index_store
+        self.loader.index_store()
     }
 
     pub fn settings(&self) -> &RepoSettings {
-        &self.settings
+        self.loader.settings()
     }
 
     pub fn start_transaction(
@@ -326,11 +320,11 @@ impl ReadonlyRepo {
 
 impl Repo for ReadonlyRepo {
     fn store(&self) -> &Arc<Store> {
-        &self.store
+        self.loader.store()
     }
 
     fn op_store(&self) -> &Arc<dyn OpStore> {
-        &self.op_store
+        self.loader.op_store()
     }
 
     fn index(&self) -> &dyn Index {
@@ -342,7 +336,7 @@ impl Repo for ReadonlyRepo {
     }
 
     fn submodule_store(&self) -> &Arc<dyn SubmoduleStore> {
-        &self.submodule_store
+        self.loader.submodule_store()
     }
 
     fn resolve_change_id_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<Vec<CommitId>> {
@@ -685,6 +679,10 @@ impl RepoLoader {
         })
     }
 
+    pub fn settings(&self) -> &RepoSettings {
+        &self.repo_settings
+    }
+
     pub fn store(&self) -> &Arc<Store> {
         &self.store
     }
@@ -699,6 +697,10 @@ impl RepoLoader {
 
     pub fn op_heads_store(&self) -> &Arc<dyn OpHeadsStore> {
         &self.op_heads_store
+    }
+
+    pub fn submodule_store(&self) -> &Arc<dyn SubmoduleStore> {
+        &self.submodule_store
     }
 
     pub fn load_at_head(
@@ -727,13 +729,8 @@ impl RepoLoader {
         index: Box<dyn ReadonlyIndex>,
     ) -> Arc<ReadonlyRepo> {
         let repo = ReadonlyRepo {
-            store: self.store.clone(),
-            op_store: self.op_store.clone(),
-            op_heads_store: self.op_heads_store.clone(),
+            loader: self.clone(),
             operation,
-            settings: self.repo_settings.clone(),
-            index_store: self.index_store.clone(),
-            submodule_store: self.submodule_store.clone(),
             index,
             change_id_index: OnceCell::new(),
             view,
@@ -796,13 +793,8 @@ impl RepoLoader {
     ) -> Result<Arc<ReadonlyRepo>, RepoLoaderError> {
         let index = self.index_store.get_index_at_op(&operation, &self.store)?;
         let repo = ReadonlyRepo {
-            store: self.store.clone(),
-            op_store: self.op_store.clone(),
-            op_heads_store: self.op_heads_store.clone(),
+            loader: self.clone(),
             operation,
-            settings: self.repo_settings.clone(),
-            index_store: self.index_store.clone(),
-            submodule_store: self.submodule_store.clone(),
             index,
             change_id_index: OnceCell::new(),
             view,

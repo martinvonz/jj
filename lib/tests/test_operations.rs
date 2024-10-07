@@ -445,7 +445,7 @@ fn test_resolve_op_id() {
     "###);
 
     let repo_loader = repo.loader();
-    let resolve = |op_str: &str| op_walk::resolve_op_for_load(&repo_loader, op_str);
+    let resolve = |op_str: &str| op_walk::resolve_op_for_load(repo_loader, op_str);
 
     // Full id
     assert_eq!(resolve(&operations[0].id().hex()).unwrap(), operations[0]);
