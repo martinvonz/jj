@@ -41,10 +41,20 @@ tag_list = '''
 label("tag", name) ++ format_ref_targets(self) ++ "\n"
 '''
 
+# TODO: Here and elsewhere, the end time for operations is more meaningful than
+# the start time. https://github.com/martinvonz/jj/pull/4602#discussion_r1791207491
 op_summary = '''
-if(root,
-  separate(" ", self.id().short(), label("root", "root()")),
-  separate(" ", self.id().short(), format_time_range(self.time()), self.description().first_line())
+separate(" ",
+  self.id().short(),
+  if(root,
+    label("root", "root()"),
+    surround(
+       "(",
+       ")",
+       format_timestamp(self.time().start())
+    )
+  ),
+  self.description().first_line()
 )
 '''
 
