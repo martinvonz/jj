@@ -560,7 +560,7 @@ impl Ui {
     }
 
     pub fn can_prompt() -> bool {
-        io::stdout().is_terminal()
+        io::stderr().is_terminal()
             || env::var("JJ_INTERACTIVE")
                 .map(|v| v == "1")
                 .unwrap_or(false)
@@ -573,8 +573,8 @@ impl Ui {
                 "Cannot prompt for input since the output is not connected to a terminal",
             ));
         }
-        write!(self.stdout(), "{prompt}: ")?;
-        self.stdout().flush()?;
+        write!(self.stderr(), "{prompt}: ")?;
+        self.stderr().flush()?;
         let mut buf = String::new();
         io::stdin().read_line(&mut buf)?;
 
@@ -601,7 +601,7 @@ impl Ui {
         if !Self::can_prompt() {
             if let Some(default) = default {
                 // Choose the default automatically without waiting.
-                writeln!(self.stdout(), "{prompt}: {default}")?;
+                writeln!(self.stderr(), "{prompt}: {default}")?;
                 return Ok(default.to_owned());
             }
         }
