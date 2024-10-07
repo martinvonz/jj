@@ -404,6 +404,13 @@ pub struct OperationMetadata {
     pub tags: HashMap<String, String>,
 }
 
+/// Data to be loaded into the root operation/view.
+#[derive(Clone, Debug)]
+pub struct RootOperationData {
+    /// The root commit ID, which should exist in the root view.
+    pub root_commit_id: CommitId,
+}
+
 #[derive(Debug, Error)]
 pub enum OpStoreError {
     #[error("Object {hash} of type {object_type} not found")]

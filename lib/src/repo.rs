@@ -70,6 +70,7 @@ use crate::op_store::OperationId;
 use crate::op_store::RefTarget;
 use crate::op_store::RemoteRef;
 use crate::op_store::RemoteRefState;
+use crate::op_store::RootOperationData;
 use crate::op_store::WorkspaceId;
 use crate::operation::Operation;
 use crate::refs::diff_named_ref_targets;
@@ -149,7 +150,7 @@ pub enum RepoInitError {
 
 impl ReadonlyRepo {
     pub fn default_op_store_initializer() -> &'static OpStoreInitializer<'static> {
-        &|_settings, store_path| Box::new(SimpleOpStore::init(store_path))
+        &|_settings, store_path, root_data| Box::new(SimpleOpStore::init(store_path, root_data))
     }
 
     pub fn default_op_heads_store_initializer() -> &'static OpHeadsStoreInitializer<'static> {
@@ -190,7 +191,10 @@ impl ReadonlyRepo {
 
         let op_store_path = repo_path.join("op_store");
         fs::create_dir(&op_store_path).context(&op_store_path)?;
-        let op_store = op_store_initializer(user_settings, &op_store_path);
+        let root_op_data = RootOperationData {
+            root_commit_id: store.root_commit_id().clone(),
+        };
+        let op_store = op_store_initializer(user_settings, &op_store_path, root_op_data);
         let op_store_type_path = op_store_path.join("type");
         fs::write(&op_store_type_path, op_store.name()).context(&op_store_type_path)?;
         let op_store: Arc<dyn OpStore> = Arc::from(op_store);
@@ -343,7 +347,8 @@ impl Repo for ReadonlyRepo {
 
 pub type BackendInitializer<'a> =
     dyn Fn(&UserSettings, &Path) -> Result<Box<dyn Backend>, BackendInitError> + 'a;
-pub type OpStoreInitializer<'a> = dyn Fn(&UserSettings, &Path) -> Box<dyn OpStore> + 'a;
+pub type OpStoreInitializer<'a> =
+    dyn Fn(&UserSettings, &Path, RootOperationData) -> Box<dyn OpStore> + 'a;
 pub type OpHeadsStoreInitializer<'a> = dyn Fn(&UserSettings, &Path) -> Box<dyn OpHeadsStore> + 'a;
 pub type IndexStoreInitializer<'a> =
     dyn Fn(&UserSettings, &Path) -> Result<Box<dyn IndexStore>, BackendInitError> + 'a;
@@ -352,7 +357,7 @@ pub type SubmoduleStoreInitializer<'a> =
 
 type BackendFactory =
     Box<dyn Fn(&UserSettings, &Path) -> Result<Box<dyn Backend>, BackendLoadError>>;
-type OpStoreFactory = Box<dyn Fn(&UserSettings, &Path) -> Box<dyn OpStore>>;
+type OpStoreFactory = Box<dyn Fn(&UserSettings, &Path, RootOperationData) -> Box<dyn OpStore>>;
 type OpHeadsStoreFactory = Box<dyn Fn(&UserSettings, &Path) -> Box<dyn OpHeadsStore>>;
 type IndexStoreFactory =
     Box<dyn Fn(&UserSettings, &Path) -> Result<Box<dyn IndexStore>, BackendLoadError>>;
@@ -410,7 +415,9 @@ impl Default for StoreFactories {
         // OpStores
         factories.add_op_store(
             SimpleOpStore::name(),
-            Box::new(|_settings, store_path| Box::new(SimpleOpStore::load(store_path))),
+            Box::new(|_settings, store_path, root_data| {
+                Box::new(SimpleOpStore::load(store_path, root_data))
+            }),
         );
 
         // OpHeadsStores
@@ -510,6 +517,7 @@ impl StoreFactories {
         &self,
         settings: &UserSettings,
         store_path: &Path,
+        root_data: RootOperationData,
     ) -> Result<Box<dyn OpStore>, StoreLoadError> {
         let op_store_type = read_store_type("operation", store_path.join("type"))?;
         let op_store_factory = self.op_store_factories.get(&op_store_type).ok_or_else(|| {
@@ -518,7 +526,7 @@ impl StoreFactories {
                 store_type: op_store_type.to_string(),
             }
         })?;
-        Ok(op_store_factory(settings, store_path))
+        Ok(op_store_factory(settings, store_path, root_data))
     }
 
     pub fn add_op_heads_store(&mut self, name: &str, factory: OpHeadsStoreFactory) {
@@ -651,8 +659,14 @@ impl RepoLoader {
             Signer::from_settings(user_settings)?,
         );
         let repo_settings = user_settings.with_repo(repo_path).unwrap();
-        let op_store =
-            Arc::from(store_factories.load_op_store(user_settings, &repo_path.join("op_store"))?);
+        let root_op_data = RootOperationData {
+            root_commit_id: store.root_commit_id().clone(),
+        };
+        let op_store = Arc::from(store_factories.load_op_store(
+            user_settings,
+            &repo_path.join("op_store"),
+            root_op_data,
+        )?);
         let op_heads_store = Arc::from(
             store_factories.load_op_heads_store(user_settings, &repo_path.join("op_heads"))?,
         );
