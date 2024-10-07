@@ -41,10 +41,24 @@ tag_list = '''
 label("tag", name) ++ format_ref_targets(self) ++ "\n"
 '''
 
+# TODO: "op_log" is not a great label name for op_summary. We could replace it
+# with `operation` and insert this new label throughout the op log templates.
 op_summary = '''
-if(root,
-  separate(" ", self.id().short(), label("root", "root()")),
-  separate(" ", self.id().short(), format_time_range(self.time()), self.description().first_line())
+label(
+  "op_log",
+  concat(
+    self.id().short(),
+    if(!root, concat(
+       ", ",
+       label("time", "finished "),
+       format_timestamp(self.time().end())
+    )),
+    ": ",
+    if(root, 
+       label("description", "root()"),
+       self.description().first_line()
+    )
+  )
 )
 '''
 
