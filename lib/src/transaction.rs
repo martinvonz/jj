@@ -138,7 +138,7 @@ impl Transaction {
             .index_store()
             .write_index(mut_index, &operation)
             .unwrap();
-        UnpublishedOperation::new(&base_repo.loader(), operation, view, index)
+        UnpublishedOperation::new(base_repo.loader(), operation, view, index)
     }
 }
 

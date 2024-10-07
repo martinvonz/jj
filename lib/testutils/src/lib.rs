@@ -287,7 +287,7 @@ pub fn load_repo_at_head(settings: &UserSettings, repo_path: &Path) -> Arc<Reado
 }
 
 pub fn commit_transactions(settings: &UserSettings, txs: Vec<Transaction>) -> Arc<ReadonlyRepo> {
-    let repo_loader = txs[0].base_repo().loader();
+    let repo_loader = txs[0].base_repo().loader().clone();
     let mut op_ids = vec![];
     for tx in txs {
         op_ids.push(tx.commit("test").op_id().clone());

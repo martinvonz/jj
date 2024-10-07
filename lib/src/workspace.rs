@@ -315,7 +315,7 @@ impl Workspace {
                 working_copy_factory,
                 workspace_id,
             )?;
-            let repo_loader = repo.loader();
+            let repo_loader = repo.loader().clone();
             let workspace = Workspace::new(workspace_root, repo_dir, working_copy, repo_loader)?;
             Ok((workspace, repo))
         })()
@@ -374,7 +374,12 @@ impl Workspace {
             working_copy_factory,
             workspace_id,
         )?;
-        let workspace = Workspace::new(workspace_root, repo_dir, working_copy, repo.loader())?;
+        let workspace = Workspace::new(
+            workspace_root,
+            repo_dir,
+            working_copy,
+            repo.loader().clone(),
+        )?;
         Ok((workspace, repo))
     }
 
