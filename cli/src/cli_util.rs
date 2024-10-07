@@ -1492,6 +1492,12 @@ impl WorkspaceCommandHelper {
             &self.op_summary_template_text,
             OperationTemplateLanguage::wrap_operation,
         )
+        // TODO: "op_log" is not a great label name for op_summary. We could
+        // replace it with `operation summary` and use `operation` in
+        // colors.toml. TODO: It would be better to put labels like these
+        // consistently in the same place, e.g. `templates.toml` instead of the
+        // rust code.
+        .labeled("op_log")
     }
 
     pub fn short_change_id_template(&self) -> TemplateRenderer<'_, Commit> {
