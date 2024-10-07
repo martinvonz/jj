@@ -393,10 +393,9 @@ fn test_next_fails_on_bookmarking_children_quit_prompt() {
     1: zsuskuln 5f24490d (empty) third
     2: rlvkpnrz 9ed53a4a (empty) second
     q: quit the prompt
-    enter the index of the commit you want to target: 
     "###);
     insta::assert_snapshot!(stderr,@r###"
-    Error: ambiguous target commit
+    enter the index of the commit you want to target: Error: ambiguous target commit
     "###);
 }
 
@@ -420,10 +419,9 @@ fn test_next_choose_bookmarking_child() {
     2: zsuskuln 5f24490d (empty) third
     3: rlvkpnrz 9ed53a4a (empty) second
     q: quit the prompt
-    enter the index of the commit you want to target: 
     "###);
     insta::assert_snapshot!(stderr,@r###"
-    Working copy now at: yostqsxw 5c8fa96d (empty) (no description set)
+    enter the index of the commit you want to target: Working copy now at: yostqsxw 5c8fa96d (empty) (no description set)
     Parent commit      : zsuskuln 5f24490d (empty) third
     "###);
 }
@@ -463,10 +461,9 @@ fn test_prev_on_merge_commit() {
     1: zsuskuln b0d21db3 right | (empty) second
     2: qpvuntsm fa15625b left | (empty) first
     q: quit the prompt
-    enter the index of the commit you want to target: 
     "###);
     insta::assert_snapshot!(stderr,@r###"
-    Working copy now at: qpvuntsm fa15625b left | (empty) first
+    enter the index of the commit you want to target: Working copy now at: qpvuntsm fa15625b left | (empty) first
     Parent commit      : zzzzzzzz 00000000 (empty) (no description set)
     "###);
 }
@@ -509,10 +506,9 @@ fn test_prev_on_merge_commit_with_parent_merge() {
     2: qpvuntsm 6799aaa2 (empty) x
     3: zzzzzzzz 00000000 (empty) (no description set)
     q: quit the prompt
-    enter the index of the commit you want to target: 
     "###);
     insta::assert_snapshot!(stderr,@r###"
-    Working copy now at: vruxwmqv e5a6794c (empty) (no description set)
+    enter the index of the commit you want to target: Working copy now at: vruxwmqv e5a6794c (empty) (no description set)
     Parent commit      : qpvuntsm 6799aaa2 (empty) x
     "###);
 
@@ -523,10 +519,9 @@ fn test_prev_on_merge_commit_with_parent_merge() {
     1: mzvwutvl 89b8a355 (empty) 1
     2: zsuskuln a83fc061 (empty) z
     q: quit the prompt
-    enter the index of the commit you want to target: 
     "###);
     insta::assert_snapshot!(stderr,@r###"
-    Working copy now at: zsuskuln a83fc061 (empty) z
+    enter the index of the commit you want to target: Working copy now at: zsuskuln a83fc061 (empty) z
     Parent commit      : qpvuntsm 6799aaa2 (empty) x
     Parent commit      : kkmpptxz 146d5c67 (empty) y
     "###);
@@ -569,10 +564,9 @@ fn test_prev_prompts_on_multiple_parents() {
     2: kkmpptxz b0d21db3 (empty) second
     3: qpvuntsm fa15625b (empty) first
     q: quit the prompt
-    enter the index of the commit you want to target: 
     "###);
     insta::assert_snapshot!(stderr,@r###"
-    Working copy now at: kpqxywon ddac00b0 (empty) (no description set)
+    enter the index of the commit you want to target: Working copy now at: kpqxywon ddac00b0 (empty) (no description set)
     Parent commit      : qpvuntsm fa15625b (empty) first
     "###);
 
