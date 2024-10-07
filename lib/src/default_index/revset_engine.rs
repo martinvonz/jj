@@ -52,6 +52,7 @@ use crate::graph::GraphEdge;
 use crate::matchers::Matcher;
 use crate::matchers::Visit;
 use crate::merged_tree::resolve_file_values;
+use crate::object_id::ObjectId as _;
 use crate::repo_path::RepoPath;
 use crate::revset::ResolvedExpression;
 use crate::revset::ResolvedPredicateExpression;
@@ -759,7 +760,7 @@ impl<'index> EvaluationContext<'index> {
         let index = self.index;
         match expression {
             ResolvedExpression::Commits(commit_ids) => {
-                Ok(Box::new(self.revset_for_commit_ids(commit_ids)))
+                Ok(Box::new(self.revset_for_commit_ids(commit_ids)?))
             }
             ResolvedExpression::Ancestors { heads, generation } => {
                 let head_set = self.evaluate(heads)?;
@@ -966,14 +967,28 @@ impl<'index> EvaluationContext<'index> {
         }
     }
 
-    fn revset_for_commit_ids(&self, commit_ids: &[CommitId]) -> EagerRevset {
-        let mut positions = commit_ids
+    fn revset_for_commit_ids(
+        &self,
+        commit_ids: &[CommitId],
+    ) -> Result<EagerRevset, RevsetEvaluationError> {
+        let mut positions: Vec<_> = commit_ids
             .iter()
-            .map(|id| self.index.commit_id_to_pos(id).unwrap())
-            .collect_vec();
+            .map(|id| {
+                // Invalid commit IDs should be rejected by the revset frontend,
+                // but there are a few edge cases that break the precondition.
+                // For example, in jj <= 0.22, the root commit doesn't exist in
+                // the root operation.
+                self.index.commit_id_to_pos(id).ok_or_else(|| {
+                    RevsetEvaluationError::Other(format!(
+                        "Commit ID {} not found in index (index or view might be corrupted)",
+                        id.hex()
+                    ))
+                })
+            })
+            .try_collect()?;
         positions.sort_unstable_by_key(|&pos| Reverse(pos));
         positions.dedup();
-        EagerRevset { positions }
+        Ok(EagerRevset { positions })
     }
 
     fn take_latest_revset(&self, candidate_set: &dyn InternalRevset, count: usize) -> EagerRevset {
