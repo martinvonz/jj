@@ -55,6 +55,7 @@ use crate::op_store::RefTarget;
 use crate::op_store::RemoteRef;
 use crate::op_store::RemoteRefState;
 use crate::op_store::RemoteView;
+use crate::op_store::RootOperationData;
 use crate::op_store::View;
 use crate::op_store::ViewId;
 use crate::op_store::WorkspaceId;
@@ -91,14 +92,14 @@ impl SimpleOpStore {
     }
 
     /// Creates an empty OpStore, panics if it already exists
-    pub fn init(store_path: &Path) -> Self {
+    pub fn init(store_path: &Path, root_data: RootOperationData) -> Self {
         fs::create_dir(store_path.join("views")).unwrap();
         fs::create_dir(store_path.join("operations")).unwrap();
-        Self::load(store_path)
+        Self::load(store_path, root_data)
     }
 
     /// Load an existing OpStore
-    pub fn load(store_path: &Path) -> Self {
+    pub fn load(store_path: &Path, _root_data: RootOperationData) -> Self {
         SimpleOpStore {
             path: store_path.to_path_buf(),
             empty_view_id: ViewId::from_bytes(&[0; VIEW_ID_LENGTH]),
@@ -820,7 +821,10 @@ mod tests {
     #[test]
     fn test_read_write_view() {
         let temp_dir = testutils::new_temp_dir();
-        let store = SimpleOpStore::init(temp_dir.path());
+        let root_data = RootOperationData {
+            root_commit_id: CommitId::from_hex("000000"),
+        };
+        let store = SimpleOpStore::init(temp_dir.path(), root_data);
         let view = create_view();
         let view_id = store.write_view(&view).unwrap();
         let read_view = store.read_view(&view_id).unwrap();
@@ -830,7 +834,10 @@ mod tests {
     #[test]
     fn test_read_write_operation() {
         let temp_dir = testutils::new_temp_dir();
-        let store = SimpleOpStore::init(temp_dir.path());
+        let root_data = RootOperationData {
+            root_commit_id: CommitId::from_hex("000000"),
+        };
+        let store = SimpleOpStore::init(temp_dir.path(), root_data);
         let operation = create_operation();
         let op_id = store.write_operation(&operation).unwrap();
         let read_operation = store.read_operation(&op_id).unwrap();
