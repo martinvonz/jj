@@ -830,3 +830,125 @@ pub fn move_commits(
         num_skipped_rebases,
     })
 }
+
+pub struct CommitToSquash {
+    pub commit: Commit,
+    pub selected_tree: MergedTree,
+    pub parent_tree: MergedTree,
+}
+
+impl CommitToSquash {
+    /// Returns true if the selection contains all changes in the commit.
+    fn is_full_selection(&self) -> bool {
+        &self.selected_tree.id() == self.commit.tree_id()
+    }
+
+    /// Returns true if the selection matches the parent tree (contains no
+    /// changes from the commit).
+    ///
+    /// Both `is_full_selection()` and `is_empty_selection()`
+    /// can be true if the commit is itself empty.
+    fn is_empty_selection(&self) -> bool {
+        self.selected_tree.id() == self.parent_tree.id()
+    }
+}
+
+#[derive(Clone, Debug)]
+pub enum SquashResult {
+    /// No inputs contained actual changes.
+    NoChanges,
+    /// Destination was rewritten.
+    NewCommit(Commit),
+}
+
+/// Squash `sources` into `destination` and return a CommitBuilder for the
+/// resulting commit. Caller is responsible for setting the description and
+/// finishing the commit.
+pub fn squash_commits<E>(
+    settings: &UserSettings,
+    repo: &mut MutableRepo,
+    sources: &[CommitToSquash],
+    destination: &Commit,
+    keep_emptied: bool,
+    description_fn: impl FnOnce(&[&CommitToSquash]) -> Result<String, E>,
+) -> Result<SquashResult, E>
+where
+    E: From<BackendError>,
+{
+    struct SourceCommit<'a> {
+        commit: &'a CommitToSquash,
+        abandon: bool,
+    }
+    let mut source_commits = vec![];
+    for source in sources {
+        let abandon = !keep_emptied && source.is_full_selection();
+        if !abandon && source.is_empty_selection() {
+            // Nothing selected from this commit. If it's abandoned (i.e. already empty), we
+            // still include it so `jj squash` can be used for abandoning an empty commit in
+            // the middle of a stack.
+            continue;
+        }
+
+        // TODO: Do we want to optimize the case of moving to the parent commit (`jj
+        // squash -r`)? The source tree will be unchanged in that case.
+        source_commits.push(SourceCommit {
+            commit: source,
+            abandon,
+        });
+    }
+
+    if source_commits.is_empty() {
+        return Ok(SquashResult::NoChanges);
+    }
+
+    let mut abandoned_commits = vec![];
+    for source in &source_commits {
+        if source.abandon {
+            repo.record_abandoned_commit(source.commit.commit.id().clone());
+            abandoned_commits.push(source.commit);
+        } else {
+            let source_tree = source.commit.commit.tree()?;
+            // Apply the reverse of the selected changes onto the source
+            let new_source_tree =
+                source_tree.merge(&source.commit.selected_tree, &source.commit.parent_tree)?;
+            repo.rewrite_commit(settings, &source.commit.commit)
+                .set_tree_id(new_source_tree.id().clone())
+                .write()?;
+        }
+    }
+
+    let mut rewritten_destination = destination.clone();
+    if sources.iter().any(|source| {
+        repo.index()
+            .is_ancestor(source.commit.id(), destination.id())
+    }) {
+        // If we're moving changes to a descendant, first rebase descendants onto the
+        // rewritten sources. Otherwise it will likely already have the content
+        // changes we're moving, so applying them will have no effect and the
+        // changes will disappear.
+        let rebase_map = repo.rebase_descendants_return_map(settings)?;
+        let rebased_destination_id = rebase_map.get(destination.id()).unwrap().clone();
+        rewritten_destination = repo.store().get_commit(&rebased_destination_id)?;
+    }
+    // Apply the selected changes onto the destination
+    let mut destination_tree = rewritten_destination.tree()?;
+    for source in &source_commits {
+        destination_tree =
+            destination_tree.merge(&source.commit.parent_tree, &source.commit.selected_tree)?;
+    }
+    let mut predecessors = vec![destination.id().clone()];
+    predecessors.extend(
+        source_commits
+            .iter()
+            .map(|source| source.commit.commit.id().clone()),
+    );
+
+    let destination = repo
+        .rewrite_commit(settings, &rewritten_destination)
+        .set_tree_id(destination_tree.id().clone())
+        .set_predecessors(predecessors)
+        .set_description(description_fn(&abandoned_commits)?)
+        .write()?;
+
+    Ok(SquashResult::NewCommit(destination))
+}
