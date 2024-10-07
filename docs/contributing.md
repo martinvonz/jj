@@ -40,7 +40,7 @@ test and document.
 
 The commit message should describe the changes in the commit;
 the PR description can even be empty, but feel free to include a personal
-message. We write commit messages in an affected component style and don't use
+message. We start the commit message with `<topic>: `  and don't use
 [conventional commits](https://www.conventionalcommits.org/en/v1.0.0/). This means if
 you modified a command in the CLI, use its name as the topic, e.g
 `next/prev: <your-modification>` or `conflicts: <your-modification>`. We don't
