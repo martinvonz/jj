@@ -1765,18 +1765,7 @@ fn resolve_commit_ref(
             Ok(wc_commits)
         }
         RevsetCommitRef::VisibleHeads => Ok(repo.view().heads().iter().cloned().collect_vec()),
-        RevsetCommitRef::Root => {
-            let commit_id = repo.store().root_commit_id();
-            if repo.index().has_id(commit_id) {
-                Ok(vec![commit_id.clone()])
-            } else {
-                // The root commit doesn't exist at the root operation.
-                Err(RevsetResolutionError::NoSuchRevision {
-                    name: "root()".to_owned(),
-                    candidates: vec![],
-                })
-            }
-        }
+        RevsetCommitRef::Root => Ok(vec![repo.store().root_commit_id().clone()]),
         RevsetCommitRef::Bookmarks(pattern) => {
             let commit_ids = repo
                 .view()

@@ -971,6 +971,10 @@ fn test_evaluate_expression_root_and_checkout() {
         resolve_commit_ids_in_workspace(mut_repo, "@", &test_workspace.workspace, None),
         vec![commit1.id().clone()]
     );
+
+    // Shouldn't panic by unindexed commit ID
+    let expression = RevsetExpression::commit(commit1.id().clone()).resolve_programmatic(tx.repo());
+    assert!(expression.evaluate(tx.base_repo().as_ref()).is_err());
 }
 
 #[test]
