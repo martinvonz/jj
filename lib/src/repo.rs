@@ -65,6 +65,7 @@ use crate::op_heads_store::OpHeadsStore;
 use crate::op_store;
 use crate::op_store::OpStore;
 use crate::op_store::OpStoreError;
+use crate::op_store::OpStoreResult;
 use crate::op_store::OperationId;
 use crate::op_store::RefTarget;
 use crate::op_store::RemoteRef;
@@ -226,15 +227,7 @@ impl ReadonlyRepo {
             submodule_store,
         };
 
-        let root_operation_data = loader
-            .op_store
-            .read_operation(loader.op_store.root_operation_id())
-            .expect("failed to read root operation");
-        let root_operation = Operation::new(
-            loader.op_store.clone(),
-            loader.op_store.root_operation_id().clone(),
-            root_operation_data,
-        );
+        let root_operation = loader.root_operation();
         let root_view = root_operation.view().expect("failed to read root view");
         let index = loader
             .index_store
@@ -738,6 +731,21 @@ impl RepoLoader {
         Arc::new(repo)
     }
 
+    // If we add a higher-level abstraction of OpStore, root_operation() and
+    // load_operation() will be moved there.
+
+    /// Returns the root operation.
+    pub fn root_operation(&self) -> Operation {
+        self.load_operation(self.op_store.root_operation_id())
+            .expect("failed to read root operation")
+    }
+
+    /// Loads the specified operation from the operation store.
+    pub fn load_operation(&self, id: &OperationId) -> OpStoreResult<Operation> {
+        let data = self.op_store.read_operation(id)?;
+        Ok(Operation::new(self.op_store.clone(), id.clone(), data))
+    }
+
     /// Merges the given `operations` into a single operation. Returns the root
     /// operation if the `operations` is empty.
     pub fn merge_operations(
@@ -749,9 +757,7 @@ impl RepoLoader {
         let num_operations = operations.len();
         let mut operations = operations.into_iter();
         let Some(base_op) = operations.next() else {
-            let id = self.op_store.root_operation_id();
-            let data = self.op_store.read_operation(id)?;
-            return Ok(Operation::new(self.op_store.clone(), id.clone(), data));
+            return Ok(self.root_operation());
         };
         let final_op = if num_operations > 1 {
             let base_repo = self.load_at(&base_op)?;

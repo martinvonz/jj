@@ -18,7 +18,6 @@ use std::slice;
 
 use itertools::Itertools as _;
 use jj_lib::op_walk;
-use jj_lib::operation::Operation;
 
 use crate::cli_util::short_operation_hash;
 use crate::cli_util::CommandHelper;
@@ -65,9 +64,7 @@ pub fn cmd_op_abandon(
     let (abandon_root_op, abandon_head_ops) =
         if let Some((root_op_str, head_op_str)) = args.operation.split_once("..") {
             let root_op = if root_op_str.is_empty() {
-                let id = op_store.root_operation_id();
-                let data = op_store.read_operation(id)?;
-                Operation::new(op_store.clone(), id.clone(), data)
+                repo_loader.root_operation()
             } else {
                 resolve_op(root_op_str)?
             };

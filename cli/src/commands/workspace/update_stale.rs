@@ -16,7 +16,6 @@ use std::sync::Arc;
 
 use jj_lib::object_id::ObjectId;
 use jj_lib::op_store::OpStoreError;
-use jj_lib::operation::Operation;
 use jj_lib::repo::ReadonlyRepo;
 use jj_lib::repo::Repo;
 use tracing::instrument;
@@ -148,18 +147,10 @@ fn for_stale_working_copy(
     command: &CommandHelper,
 ) -> Result<(WorkspaceCommandHelper, bool), CommandError> {
     let workspace = command.load_workspace()?;
-    let op_store = workspace.repo_loader().op_store();
     let (repo, recovered) = {
         let op_id = workspace.working_copy().operation_id();
-        match op_store.read_operation(op_id) {
-            Ok(op_data) => (
-                workspace.repo_loader().load_at(&Operation::new(
-                    op_store.clone(),
-                    op_id.clone(),
-                    op_data,
-                ))?,
-                false,
-            ),
+        match workspace.repo_loader().load_operation(op_id) {
+            Ok(op) => (workspace.repo_loader().load_at(&op)?, false),
             Err(e @ OpStoreError::ObjectNotFound { .. }) => {
                 writeln!(
                     ui.status(),
