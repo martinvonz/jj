@@ -782,6 +782,70 @@ fn test_op_recover_from_bad_gc() {
 }
 
 #[test]
+fn test_op_summary_diff_template() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    // Tests in color (easier to read with `less -R`)
+    test_env.jj_cmd_ok(&repo_path, &["new", "--no-edit", "-m=scratch"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["op", "undo", "--color=always"]);
+    insta::assert_snapshot!(&stdout, @"");
+    // BUG!! (Fixed in next commit)
+    insta::assert_snapshot!(&stderr, @r#"
+    Undid operation ac20a4ff4791 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00 new empty commit
+    "#);
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &[
+            "op",
+            "diff",
+            "--from",
+            "0000000",
+            "--to",
+            "@",
+            "--color=always",
+        ],
+    );
+    insta::assert_snapshot!(&stdout, @r#"
+    From operation [38;5;4m000000000000[39m [38;5;2mroot()[39m
+      To operation [38;5;4me3792fce5b1f[39m [38;5;6m2001-02-03 04:05:09.000 +07:00[39m - [38;5;6m2001-02-03 04:05:09.000 +07:00[39m undo operation ac20a4ff47914da9a2e43677b94455b86383bfb9227374d6531ecee85b9ff9230eeb96416a24bb27e7477aa18d50c01810e97c6a008b5c584224650846f4c05b
+
+    Changed commits:
+    ○  Change qpvuntsmwlqt
+       [38;5;2m+[39m [1m[38;5;5mq[0m[38;5;8mpvuntsm[39m [1m[38;5;4m2[0m[38;5;8m30dd059[39m [38;5;2m(empty)[39m [38;5;2m(no description set)[39m
+    "#);
+
+    // Tests with templates
+    test_env.jj_cmd_ok(&repo_path, &["new", "--no-edit", "-m=scratch"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["op", "undo", "--color=debug"]);
+    insta::assert_snapshot!(&stdout, @"");
+    insta::assert_snapshot!(&stderr, @r#"
+    Undid operation <<id short::2301f6e6ec31>> <<time start::2001-02-03 04:05:11.000 +07:00>> - <<time end::2001-02-03 04:05:11.000 +07:00>> <<description first_line::new empty commit>>
+    "#);
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &[
+            "op",
+            "diff",
+            "--from",
+            "0000000",
+            "--to",
+            "@",
+            "--color=debug",
+        ],
+    );
+    insta::assert_snapshot!(&stdout, @r#"
+    <<op_log::From operation >>[38;5;4m<<op_log id short::000000000000>>[39m<<op_log:: >>[38;5;2m<<op_log root::root()>>[39m<<op_log::>>
+    <<op_log::  To operation >>[38;5;4m<<op_log id short::d208ae1b4e3c>>[39m<<op_log:: >>[38;5;6m<<op_log time start::2001-02-03 04:05:12.000 +07:00>>[39m<<op_log:: - >>[38;5;6m<<op_log time end::2001-02-03 04:05:12.000 +07:00>>[39m<<op_log:: >><<op_log description first_line::undo operation 2301f6e6ec31931a9b0a594742d6035a44c05250d1707f7f8678e888b11a98773ef07bf0e8008a5bccddf7114da4a35d1a1b1f7efa37c1e6c80d6bdb8f0d7a90>><<op_log::>>
+
+    Changed commits:
+    ○  Change qpvuntsmwlqt
+       [38;5;2m<<diff added::+>>[39m [1m[38;5;5m<<change_id shortest prefix::q>>[0m[38;5;8m<<change_id shortest rest::pvuntsm>>[39m [1m[38;5;4m<<commit_id shortest prefix::2>>[0m[38;5;8m<<commit_id shortest rest::30dd059>>[39m [38;5;2m<<empty::(empty)>>[39m [38;5;2m<<empty description placeholder::(no description set)>>[39m
+    "#);
+}
+
+#[test]
 fn test_op_diff() {
     let test_env = TestEnvironment::default();
     let git_repo_path = test_env.env_root().join("git-repo");
