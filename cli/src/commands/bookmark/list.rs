@@ -187,14 +187,14 @@ pub fn cmd_bookmark_list(
     if found_deleted_tracking_local_bookmark {
         writeln!(
             ui.hint_default(),
-            "Bookmarkes marked as deleted will be *deleted permanently* on the remote on the next \
+            "Bookmarks marked as deleted will be *deleted permanently* on the remote on the next \
              `jj git push`. Use `jj bookmark forget` to prevent this."
         )?;
     } else if found_deleted_local_bookmark {
         writeln!(
             ui.hint_default(),
-            "Bookmarkes marked as deleted will be deleted from the underlying Git repo on the \
-             next `jj git export`."
+            "Bookmarks marked as deleted will be deleted from the underlying Git repo on the next \
+             `jj git export`."
         )?;
     }
 
