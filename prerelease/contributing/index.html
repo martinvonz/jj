@@ -1788,13 +1788,16 @@ split up. Include tests and documentation in the same commit as the code they
 test and document.</p>
 <p>The commit message should describe the changes in the commit;
 the PR description can even be empty, but feel free to include a personal
-message. We write commit messages in an affected component style and don't use
+message. We start the commit message with <code>&lt;topic&gt;:</code>  and don't use
 <a href="https://www.conventionalcommits.org/en/v1.0.0/">conventional commits</a>. This means if
 you modified a command in the CLI, use its name as the topic, e.g
 <code>next/prev: &lt;your-modification&gt;</code> or <code>conflicts: &lt;your-modification&gt;</code>. We don't
 currently have a specific guidelines on what to write in the topic field, but
 the reviewers will help you provide a topic if you have difficulties choosing
-it.</p>
+it. <a href="https://cbea.ms/git-commit/">How to Write a Git Commit Message</a> is a good
+guide if you're new to writing good commit messages. We are not particularly
+strict about the style, but please do explain the reason for the change unless
+it's obvious.</p>
 <p>When you address comments on a PR, don't make the changes in a commit on top (as
 is typical on GitHub). Instead, please make the changes in the appropriate
 commit. You can do that by creating a new commit on top of the initial commit
