@@ -166,8 +166,11 @@ pub(crate) fn cmd_describe(
 
         if let [(_, temp_commit)] = &*temp_commits {
             let template = description_template(ui, &tx, "", temp_commit)?;
-            let description =
-                edit_description(tx.base_workspace_helper(), &template, command.settings())?;
+            let description = edit_description(
+                tx.base_workspace_helper().repo_path(),
+                &template,
+                command.settings(),
+            )?;
 
             vec![(&commits[0], description)]
         } else {

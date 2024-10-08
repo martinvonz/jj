@@ -117,7 +117,7 @@ aborted.
     if new_parent_tree_id == parent_base_tree.id() {
         tx.repo_mut().record_abandoned_commit(parent.id().clone());
         let description = combine_messages(
-            tx.base_workspace_helper(),
+            tx.base_workspace_helper().repo_path(),
             &[&parent],
             &commit,
             command.settings(),

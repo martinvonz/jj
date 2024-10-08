@@ -140,8 +140,11 @@ The remainder will be in the second commit.
             "Enter a description for the first commit.",
             &temp_commit,
         )?;
-        let description =
-            edit_description(tx.base_workspace_helper(), &template, command.settings())?;
+        let description = edit_description(
+            tx.base_workspace_helper().repo_path(),
+            &template,
+            command.settings(),
+        )?;
         commit_builder.set_description(description);
         commit_builder.write(tx.repo_mut())?
     };
@@ -184,7 +187,11 @@ The remainder will be in the second commit.
                 "Enter a description for the second commit.",
                 &temp_commit,
             )?;
-            edit_description(tx.base_workspace_helper(), &template, command.settings())?
+            edit_description(
+                tx.base_workspace_helper().repo_path(),
+                &template,
+                command.settings(),
+            )?
         };
         commit_builder.set_description(description);
         commit_builder.write(tx.repo_mut())?
