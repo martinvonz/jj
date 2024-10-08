@@ -308,7 +308,7 @@ from the source will be moved into the destination.
                 .filter_map(|source| source.abandon.then_some(source.commit))
                 .collect_vec();
             combine_messages(
-                tx.base_workspace_helper(),
+                tx.base_workspace_helper().repo_path(),
                 &abandoned_commits,
                 destination,
                 settings,
