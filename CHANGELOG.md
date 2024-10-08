@@ -108,13 +108,6 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   content.
 
 * `jj git fetch -b <remote-git-branch-name>` will now warn if the branch(es)
-
- ### Fixed bugs
- 
-  * Update working copy before reporting changes. This prevents errors during reporting
-    from leaving the working copy in a stale state.
- 
-  * `jj git fetch -b <remote-git-branch-name>` will now warn if the branch(es)
    can not be found in any of the specified/configured remotes.
 
 * `jj split` now lets the user select all changes in interactive mode. This may be used
