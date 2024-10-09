@@ -45,6 +45,7 @@ use jj_lib::diff::CompareBytesIgnoreAllWhitespace;
 use jj_lib::diff::CompareBytesIgnoreWhitespaceAmount;
 use jj_lib::diff::Diff;
 use jj_lib::diff::DiffHunk;
+use jj_lib::diff::DiffHunkContentVec;
 use jj_lib::diff::DiffHunkKind;
 use jj_lib::files::DiffLineHunkSide;
 use jj_lib::files::DiffLineIterator;
@@ -582,7 +583,7 @@ fn show_color_words_diff_hunks(
 /// Prints `num_after` lines, ellipsis, and `num_before` lines.
 fn show_color_words_context_lines(
     formatter: &mut dyn Formatter,
-    contexts: &[Vec<&BStr>],
+    contexts: &[DiffHunkContentVec],
     mut line_number: DiffLineNumber,
     options: &ColorWordsDiffOptions,
     num_after: usize,
@@ -1288,7 +1289,7 @@ fn unified_diff_hunks<'content>(
                 // Just use the right (i.e. new) content. We could count the
                 // number of skipped lines separately, but the number of the
                 // context lines should match the displayed content.
-                let [_, right] = hunk.contents.try_into().unwrap();
+                let [_, right] = hunk.contents[..].try_into().unwrap();
                 let mut lines = right.split_inclusive(|b| *b == b'\n').fuse();
                 if !current_hunk.lines.is_empty() {
                     // The previous hunk line should be either removed/added.
@@ -1604,7 +1605,7 @@ fn get_diff_stat(
         match hunk.kind {
             DiffHunkKind::Matching => {}
             DiffHunkKind::Different => {
-                let [left, right] = hunk.contents.try_into().unwrap();
+                let [left, right] = hunk.contents[..].try_into().unwrap();
                 removed += left.split_inclusive(|b| *b == b'\n').count();
                 added += right.split_inclusive(|b| *b == b'\n').count();
             }
