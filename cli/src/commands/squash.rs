@@ -60,10 +60,10 @@ pub(crate) struct SquashArgs {
     #[arg(long, short)]
     revision: Option<RevisionArg>,
     /// Revision(s) to squash from (default: @)
-    #[arg(long, conflicts_with = "revision")]
+    #[arg(long, short, conflicts_with = "revision")]
     from: Vec<RevisionArg>,
     /// Revision to squash into (default: @)
-    #[arg(long, conflicts_with = "revision", visible_alias = "to")]
+    #[arg(long, short = 't', conflicts_with = "revision", visible_alias = "to")]
     into: Option<RevisionArg>,
     /// The description to use for squashed revision (don't open editor)
     #[arg(long = "message", short, value_name = "MESSAGE")]
