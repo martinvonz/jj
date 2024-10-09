@@ -1972,8 +1972,8 @@ If a working-copy commit gets abandoned, it will be given a new, empty commit. T
 ###### **Options:**
 
 * `-r`, `--revision <REVISION>` — Revision to squash into its parent (default: @)
-* `--from <FROM>` — Revision(s) to squash from (default: @)
-* `--into <INTO>` — Revision to squash into (default: @)
+* `-f`, `--from <FROM>` — Revision(s) to squash from (default: @)
+* `-t`, `--into <INTO>` — Revision to squash into (default: @)
 * `-m`, `--message <MESSAGE>` — The description to use for squashed revision (don't open editor)
 * `-u`, `--use-destination-message` — Use the description of the destination revision and discard the description(s) of the source revision(s)
 * `-i`, `--interactive` — Interactively choose which parts to squash

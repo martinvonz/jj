@@ -27,6 +27,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * New `at_operation(op, expr)` revset can be used in order to query revisions
   based on historical state.
 
+* `jj squash` now supports `-f/-t` shorthands for `--from/--[in]to`.
+
 ### Fixed bugs
 
 * Error on `trunk()` revset resolution is now handled gracefully.
