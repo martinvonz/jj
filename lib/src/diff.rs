@@ -26,6 +26,8 @@ use std::slice;
 use bstr::BStr;
 use hashbrown::HashTable;
 use itertools::Itertools;
+use smallvec::smallvec;
+use smallvec::SmallVec;
 
 pub fn find_line_ranges(text: &[u8]) -> Vec<Range<usize>> {
     text.split_inclusive(|b| *b == b'\n')
@@ -508,8 +510,9 @@ fn intersect_unchanged_words(
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 struct UnchangedRange {
+    // Inline up to two sides (base + one other)
     base: Range<usize>,
-    others: Vec<Range<usize>>,
+    others: SmallVec<[Range<usize>; 1]>,
 }
 
 impl UnchangedRange {
@@ -538,7 +541,7 @@ impl UnchangedRange {
 #[derive(Clone, Debug)]
 pub struct Diff<'input> {
     base_input: &'input BStr,
-    other_inputs: Vec<&'input BStr>,
+    other_inputs: SmallVec<[&'input BStr; 1]>,
     /// Sorted list of ranges of unchanged regions in bytes.
     ///
     /// The list should never be empty. The first and the last region may be
@@ -554,7 +557,7 @@ impl<'input> Diff<'input> {
     ) -> Self {
         let mut inputs = inputs.into_iter().map(BStr::new);
         let base_input = inputs.next().expect("inputs must not be empty");
-        let other_inputs = inputs.collect_vec();
+        let other_inputs: SmallVec<[&BStr; 1]> = inputs.collect();
         // First tokenize each input
         let base_token_ranges: Vec<Range<usize>>;
         let other_token_ranges: Vec<Vec<Range<usize>>>;
@@ -583,7 +586,7 @@ impl<'input> Diff<'input> {
 
     fn with_inputs_and_token_ranges(
         base_input: &'input BStr,
-        other_inputs: Vec<&'input BStr>,
+        other_inputs: SmallVec<[&'input BStr; 1]>,
         base_token_ranges: &[Range<usize>],
         other_token_ranges: &[Vec<Range<usize>>],
         compare: impl CompareBytes,
@@ -600,7 +603,7 @@ impl<'input> Diff<'input> {
             [] => {
                 let whole_range = UnchangedRange {
                     base: 0..base_source.text.len(),
-                    others: vec![],
+                    others: smallvec![],
                 };
                 vec![whole_range]
             }
@@ -611,7 +614,7 @@ impl<'input> Diff<'input> {
                 // Add an empty range at the start to make life easier for hunks().
                 unchanged_regions.push(UnchangedRange {
                     base: 0..0,
-                    others: vec![0..0; other_inputs.len()],
+                    others: smallvec![0..0; other_inputs.len()],
                 });
                 let mut first_positions = Vec::new();
                 collect_unchanged_words(
@@ -795,7 +798,7 @@ impl<'input> Diff<'input> {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DiffHunk<'input> {
     pub kind: DiffHunkKind,
-    pub contents: Vec<&'input BStr>,
+    pub contents: DiffHunkContentVec<'input>,
 }
 
 impl<'input> DiffHunk<'input> {
@@ -824,6 +827,9 @@ pub enum DiffHunkKind {
     Different,
 }
 
+// Inline up to two sides
+pub type DiffHunkContentVec<'input> = SmallVec<[&'input BStr; 2]>;
+
 pub struct DiffHunkIterator<'diff, 'input> {
     diff: &'diff Diff<'input>,
     previous: &'diff UnchangedRange,
@@ -850,12 +856,12 @@ impl<'diff, 'input> Iterator for DiffHunkIterator<'diff, 'input> {
     fn next(&mut self) -> Option<Self::Item> {
         if !self.unchanged_emitted {
             self.unchanged_emitted = true;
-            let contents = self.diff.hunk_at(self.previous).collect_vec();
+            let contents = self.diff.hunk_at(self.previous).collect();
             let kind = DiffHunkKind::Matching;
             return Some(DiffHunk { kind, contents });
         }
         let current = self.unchanged_iter.next()?;
-        let contents = self.diff.hunk_between(self.previous, current).collect_vec();
+        let contents: DiffHunkContentVec = self.diff.hunk_between(self.previous, current).collect();
         debug_assert!(
             contents.iter().any(|content| !content.is_empty()),
             "unchanged regions should have been compacted"
