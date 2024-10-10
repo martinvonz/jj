@@ -578,13 +578,15 @@ impl<W: Write> Drop for ColorFormatter<W> {
 #[derive(Clone, Debug, Default)]
 pub struct FormatRecorder {
     data: Vec<u8>,
-    label_ops: Vec<(usize, LabelOp)>,
+    ops: Vec<(usize, FormatOp)>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-enum LabelOp {
+enum FormatOp {
     PushLabel(String),
     PopLabel,
+    PushRawText,
+    PopRawText,
 }
 
 impl FormatRecorder {
@@ -596,8 +598,8 @@ impl FormatRecorder {
         &self.data
     }
 
-    fn push_label_op(&mut self, op: LabelOp) {
-        self.label_ops.push((self.data.len(), op));
+    fn push_op(&mut self, op: FormatOp) {
+        self.ops.push((self.data.len(), op));
     }
 
     pub fn replay(&self, formatter: &mut dyn Formatter) -> io::Result<()> {
@@ -612,21 +614,36 @@ impl FormatRecorder {
         mut write_data: impl FnMut(&mut dyn Formatter, Range<usize>) -> io::Result<()>,
     ) -> io::Result<()> {
         let mut last_pos = 0;
-        let mut flush_data = |formatter: &mut dyn Formatter, pos| -> io::Result<()> {
-            if last_pos != pos {
-                write_data(formatter, last_pos..pos)?;
-                last_pos = pos;
+        let mut flush_data = |formatter: &mut dyn Formatter, pos, is_raw| -> io::Result<()> {
+            if pos == last_pos {
+                return Ok(());
             }
+            if is_raw {
+                let mut plain_text_formatter = PlainTextFormatter::new(formatter.raw());
+                write_data(&mut plain_text_formatter, last_pos..pos)?;
+            } else {
+                write_data(formatter, last_pos..pos)?;
+            }
+            last_pos = pos;
             Ok(())
         };
-        for (pos, op) in &self.label_ops {
-            flush_data(formatter, *pos)?;
+        let mut last_op = &FormatOp::PopRawText;
+        for (pos, op) in &self.ops {
+            // Use the {Push/Pop}RawText ops recorded by RawTextRecorder
+            // (returned by FormatRecorder.raw()) to identify when to write to
+            // the underlying raw output of the formatter.
+            let raw_text = *last_op == FormatOp::PushRawText;
+            // PushRawText has to be immediately followed by PopRawText.
+            assert!(raw_text == (*op == FormatOp::PopRawText));
+            flush_data(formatter, *pos, *last_op == FormatOp::PushRawText)?;
             match op {
-                LabelOp::PushLabel(label) => formatter.push_label(label)?,
-                LabelOp::PopLabel => formatter.pop_label()?,
+                FormatOp::PushLabel(label) => formatter.push_label(label)?,
+                FormatOp::PopLabel => formatter.pop_label()?,
+                FormatOp::PushRawText | FormatOp::PopRawText => (),
             }
+            last_op = op;
         }
-        flush_data(formatter, self.data.len())
+        flush_data(formatter, self.data.len(), false)
     }
 }
 
@@ -641,18 +658,33 @@ impl Write for FormatRecorder {
     }
 }
 
+struct RawTextRecorder<'a>(&'a mut FormatRecorder);
+
+impl<'a> Write for RawTextRecorder<'a> {
+    fn write(&mut self, data: &[u8]) -> io::Result<usize> {
+        self.0.push_op(FormatOp::PushRawText);
+        let result = self.0.write(data);
+        self.0.push_op(FormatOp::PopRawText);
+        result
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        self.0.flush()
+    }
+}
+
 impl Formatter for FormatRecorder {
     fn raw(&mut self) -> &mut dyn Write {
-        panic!("raw output isn't supported by FormatRecorder")
+        Box::leak(Box::new(RawTextRecorder(self)))
     }
 
     fn push_label(&mut self, label: &str) -> io::Result<()> {
-        self.push_label_op(LabelOp::PushLabel(label.to_owned()));
+        self.push_op(FormatOp::PushLabel(label.to_owned()));
         Ok(())
     }
 
     fn pop_label(&mut self) -> io::Result<()> {
-        self.push_label_op(LabelOp::PopLabel);
+        self.push_op(FormatOp::PopLabel);
         Ok(())
     }
 }

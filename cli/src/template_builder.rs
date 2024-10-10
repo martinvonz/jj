@@ -39,6 +39,7 @@ use crate::templater::ListTemplate;
 use crate::templater::Literal;
 use crate::templater::PlainTextFormattedProperty;
 use crate::templater::PropertyPlaceholder;
+use crate::templater::RawTextTemplate;
 use crate::templater::ReformatTemplate;
 use crate::templater::SeparateTemplate;
 use crate::templater::SizeHint;
@@ -1116,6 +1117,11 @@ fn builtin_functions<'a, L: TemplateLanguage<'a> + ?Sized>() -> TemplateBuildFun
             content, labels,
         ))))
     });
+    map.insert("raw_text", |language, diagnostics, build_ctx, function| {
+        let [content_node] = function.expect_exact_arguments()?;
+        let content = expect_plain_text_expression(language, diagnostics, build_ctx, content_node)?;
+        Ok(L::wrap_template(Box::new(RawTextTemplate(content))))
+    });
     map.insert("if", |language, diagnostics, build_ctx, function| {
         let ([condition_node, true_node], [false_node]) = function.expect_arguments()?;
         let condition =
@@ -2010,6 +2016,39 @@ mod tests {
     }
 
     #[test]
+    fn test_string_ansi_escape() {
+        let env = TestTemplateEnv::new();
+
+        insta::assert_snapshot!(env.render_ok(r#""\e""#), @"␛");
+        insta::assert_snapshot!(env.render_ok(r#""\x1b""#), @"␛");
+        insta::assert_snapshot!(env.render_ok(r#""\x1B""#), @"␛");
+        insta::assert_snapshot!(
+            env.render_ok(r#""]8;;"
+                ++ "http://example.com"
+                ++ "\e\\"
+                ++ "Example"
+                ++ "\x1b]8;;\x1B\\""#),
+            @r#"␛]8;;http://example.com␛\Example␛]8;;␛\"#);
+    }
+
+    #[test]
+    fn test_raw_text_function_ansi_escape() {
+        // Note: same as test_string_ansi_escape above, wrapped with raw_text.
+        let env = TestTemplateEnv::new();
+
+        insta::assert_snapshot!(env.render_ok(r#"raw_text("\e")"#), @"");
+        insta::assert_snapshot!(env.render_ok(r#"raw_text("\x1b")"#), @"");
+        insta::assert_snapshot!(env.render_ok(r#"raw_text("\x1B")"#), @"");
+        insta::assert_snapshot!(
+            env.render_ok(r#"raw_text("]8;;"
+                ++ "http://example.com"
+                ++ "\e\\"
+                ++ "Example"
+                ++ "\x1b]8;;\x1B\\")"#),
+            @r#"]8;;http://example.com\Example]8;;\"#);
+    }
+
+    #[test]
     fn test_signature() {
         let mut env = TestTemplateEnv::new();
 
@@ -2332,6 +2371,29 @@ mod tests {
         insta::assert_snapshot!(
             env.render_ok(r#"label(if(empty, "error", "warning"), "text")"#),
             @"[38;5;1mtext[39m");
+    }
+
+    #[test]
+    fn test_raw_text_function() {
+        // Note: same as test_label_function above, wrapped with raw_text.
+        let mut env = TestTemplateEnv::new();
+        env.add_keyword("empty", || L::wrap_boolean(Literal(true)));
+        env.add_color("error", crossterm::style::Color::DarkRed);
+        env.add_color("warning", crossterm::style::Color::DarkYellow);
+
+        // Literal
+        insta::assert_snapshot!(
+            env.render_ok(r#"raw_text(label("error", "text"))"#), @"text");
+
+        // Evaluated property
+        insta::assert_snapshot!(
+            env.render_ok(r#"raw_text(label("error".first_line(), "text"))"#),
+            @"text");
+
+        // Template
+        insta::assert_snapshot!(
+            env.render_ok(r#"raw_text(label(if(empty, "error", "warning"), "text"))"#),
+            @"text");
     }
 
     #[test]
