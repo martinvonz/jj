@@ -3,9 +3,14 @@
 
 [revsets]
 fix = "reachable(@, mutable())"
-log = "present(@) | ancestors(immutable_heads().., 2) | trunk()"
+# log revset is also used as the default short-prefixes. If it failed to
+# evaluate, lengthy warning messages would be printed. Use present(expr) to
+# suppress symbol resolution error.
+log = "present(@) | ancestors(immutable_heads().., 2) | present(trunk())"
 
 [revset-aliases]
+# trunk() can be overridden as '<bookmark>@<remote>'. Use present(trunk()) if
+# symbol resolution error should be suppressed.
 'trunk()' = '''
 latest(
   remote_bookmarks(exact:"main", exact:"origin") | 
@@ -18,7 +23,9 @@ latest(
 )
 '''
 
-'builtin_immutable_heads()' = 'trunk() | tags() | untracked_remote_bookmarks()'
+# If immutable_heads() failed to evaluate, many jj commands wouldn't work. Use
+# present(expr) to suppress symbol resolution error.
+'builtin_immutable_heads()' = 'present(trunk()) | tags() | untracked_remote_bookmarks()'
 'immutable_heads()' = 'builtin_immutable_heads()'
 'immutable()' = '::(immutable_heads() | root())'
 'mutable()' = '~immutable()'

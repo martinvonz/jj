@@ -266,8 +266,8 @@ diff-invocation-mode = "file-by-file"
 
 You can configure the set of immutable commits via
 `revset-aliases."immutable_heads()"`. The default set of immutable heads is
-`trunk() | tags() | untracked_remote_bookmarks()`. For example, to prevent
-rewriting commits on `main@origin` and commits authored by other users:
+`present(trunk()) | tags() | untracked_remote_bookmarks()`. For example, to
+prevent rewriting commits on `main@origin` and commits authored by other users:
 
 ```toml
 # The `main.. &` bit is an optimization to scan for non-`mine()` commits only
@@ -290,7 +290,7 @@ revsets.log = "main@origin.."
 ```
 
 The default value for `revsets.log` is
-`'present(@) | ancestors(immutable_heads().., 2) | trunk()'`.
+`'present(@) | ancestors(immutable_heads().., 2) | present(trunk())'`.
 
 ### Graph style
 
