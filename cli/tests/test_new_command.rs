@@ -224,13 +224,108 @@ fn test_new_insert_after() {
 
     // --after cannot be used with revisions
     let stderr = test_env.jj_cmd_cli_error(&repo_path, &["new", "--after", "B", "D"]);
-    insta::assert_snapshot!(stderr, @r###"
-    error: the argument '--insert-after <INSERT_AFTER>' cannot be used with '[REVISIONS]...'
+    insta::assert_snapshot!(stderr, @r#"
+    error: the argument '--insert-after [<INSERT_AFTER>]' cannot be used with '[REVISIONS]...'
 
-    Usage: jj new --insert-after <INSERT_AFTER> [REVISIONS]...
+    Usage: jj new --insert-after [<INSERT_AFTER>] [REVISIONS]...
 
     For more information, try '--help'.
+    "#);
+}
+
+#[test]
+fn test_new_insert_before_after_no_arg() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+    setup_before_insertion(&test_env, &repo_path);
+    test_env.jj_cmd_ok(&repo_path, &["edit", "-r", "B"]);
+    insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r###"
+    ○    F
+    ├─╮
+    │ ○  E
+    ○ │  D
+    ├─╯
+    │ ○  C
+    │ @  B
+    │ ○  A
+    ├─╯
+    ◆  root
     "###);
+
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["new", "--after", "-m", "G"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r#"
+    Rebased 1 descendant commits
+    Working copy now at: nkmrtpmo cf1ca757 (empty) G
+    Parent commit      : kkmpptxz bfd4157e B | (empty) B
+    "#);
+    insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r#"
+    ○  C
+    @  G
+    ○  B
+    ○  A
+    │ ○    F
+    │ ├─╮
+    │ │ ○  E
+    ├───╯
+    │ ○  D
+    ├─╯
+    ◆  root
+    "#);
+
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["new", "-m", "H", "--before"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r#"
+    Rebased 2 descendant commits
+    Working copy now at: xznxytkn f9f74f27 (empty) H
+    Parent commit      : kkmpptxz bfd4157e B | (empty) B
+    "#);
+    insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r#"
+    ○  C
+    ○  G
+    @  H
+    ○  B
+    ○  A
+    │ ○    F
+    │ ├─╮
+    │ │ ○  E
+    ├───╯
+    │ ○  D
+    ├─╯
+    ◆  root
+    "#);
+
+    let (stdout, stderr) = test_env.jj_cmd_ok(
+        &repo_path,
+        &["new", "-m", "I", "--after", "--after", "D", "--no-edit"],
+    );
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r#"
+    Created new commit nmzmmopx 56056dac (empty) I
+    Rebased 3 descendant commits
+    "#);
+    insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r#"
+    ○  C
+    ○  G
+    │ ○  F
+    ╭─┤
+    ○ │    I
+    ├───╮
+    │ │ ○  D
+    @ │ │  H
+    ○ │ │  B
+    ○ │ │  A
+    ├───╯
+    │ ○  E
+    ├─╯
+    ◆  root
+    "#);
+
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["new", "--before", "--after"]);
+    insta::assert_snapshot!(stderr, @r#"
+    Error: Refusing to create a loop: commit f9f74f27408e would be both an ancestor and a descendant of the new commit
+    "#);
 }
 
 #[test]
@@ -346,13 +441,13 @@ fn test_new_insert_before() {
 
     // --before cannot be used with revisions
     let stderr = test_env.jj_cmd_cli_error(&repo_path, &["new", "--before", "B", "D"]);
-    insta::assert_snapshot!(stderr, @r###"
-    error: the argument '--insert-before <INSERT_BEFORE>' cannot be used with '[REVISIONS]...'
+    insta::assert_snapshot!(stderr, @r#"
+    error: the argument '--insert-before [<INSERT_BEFORE>]' cannot be used with '[REVISIONS]...'
 
-    Usage: jj new --insert-before <INSERT_BEFORE> [REVISIONS]...
+    Usage: jj new --insert-before [<INSERT_BEFORE>] [REVISIONS]...
 
     For more information, try '--help'.
-    "###);
+    "#);
 }
 
 #[test]
