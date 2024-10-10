@@ -2842,7 +2842,7 @@ pub struct EarlyArgs {
     // Option<bool>.
     pub quiet: Option<bool>,
     /// Disable the pager
-    #[arg(long, value_name = "WHEN", global = true, action = ArgAction::SetTrue)]
+    #[arg(long, global = true, action = ArgAction::SetTrue)]
     // Parsing with ignore_errors will crash if this is bool, so use
     // Option<bool>.
     pub no_pager: Option<bool>,
