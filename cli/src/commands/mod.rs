@@ -29,6 +29,7 @@ mod edit;
 mod evolog;
 mod file;
 mod fix;
+mod gerrit;
 mod git;
 mod init;
 mod interdiff;
@@ -108,6 +109,8 @@ enum Command {
     #[command(hide = true)]
     Files(file::list::FileListArgs),
     Fix(fix::FixArgs),
+    #[command(subcommand)]
+    Gerrit(gerrit::GerritCommand),
     #[command(subcommand)]
     Git(git::GitCommand),
     Init(init::InitArgs),
@@ -216,6 +219,7 @@ pub fn run_command(ui: &mut Ui, command_helper: &CommandHelper) -> Result<(), Co
             cmd(ui, command_helper, args)
         }
         Command::Fix(args) => fix::cmd_fix(ui, command_helper, args),
+        Command::Gerrit(sub_args) => gerrit::cmd_gerrit(ui, command_helper, sub_args),
         Command::Git(args) => git::cmd_git(ui, command_helper, args),
         Command::Init(args) => init::cmd_init(ui, command_helper, args),
         Command::Interdiff(args) => interdiff::cmd_interdiff(ui, command_helper, args),
