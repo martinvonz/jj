@@ -24,6 +24,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 * New command `jj simplify-parents` will remove redundant parent edges.
 
+* `jj squash` now supports `-f/-t` shorthands for `--from/--[in]to`.
+
 ### Fixed bugs
 
 
