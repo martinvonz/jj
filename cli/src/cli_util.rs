@@ -2833,7 +2833,7 @@ pub struct EarlyArgs {
     pub color: Option<ColorChoice>,
     /// Silence non-primary command output
     ///
-    /// For example, `jj file list ` will still list files, but it won't tell
+    /// For example, `jj file list` will still list files, but it won't tell
     /// you if the working copy was snapshotted or if descendants were rebased.
     ///
     /// Warnings and errors will still be printed.
