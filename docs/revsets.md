@@ -429,15 +429,15 @@ for a comprehensive list.
   'trunk()' = 'your-bookmark@your-remote'
   ```
 
-* `builtin_immutable_heads()`: Resolves to `trunk() | tags() | untracked_remote_bookmarks()`.
-   It is used as the default definition for `immutable_heads()` below. it is not
-   recommended to redefined this alias. Prefer to redefine `immutable_heads()`
-   instead.
+* `builtin_immutable_heads()`: Resolves to
+  `present(trunk()) | tags() | untracked_remote_bookmarks()`. It is used as the
+   default definition for `immutable_heads()` below. it is not recommended to
+   redefined this alias. Prefer to redefine `immutable_heads()` instead.
 
-* `immutable_heads()`: Resolves to `trunk() | tags() | untracked_remote_bookmarks()`
-  by default. It is actually defined as `builtin_immutable_heads()`, and can be
-  overridden as required. See [here](config.md#set-of-immutable-commits) for
-  details.
+* `immutable_heads()`: Resolves to
+  `present(trunk()) | tags() | untracked_remote_bookmarks()` by default. It is
+  actually defined as `builtin_immutable_heads()`, and can be overridden as
+  required. See [here](config.md#set-of-immutable-commits) for details.
 
 * `immutable()`: The set of commits that `jj` treats as immutable. This is
   equivalent to `::(immutable_heads() | root())`. It is not recommended to redefine

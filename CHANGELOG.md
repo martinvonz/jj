@@ -26,6 +26,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed bugs
 
+* Error on `trunk()` revset resolution is now handled gracefully.
+  [#4616](https://github.com/martinvonz/jj/issues/4616)
 
 ## [0.22.0] - 2024-10-02
 
