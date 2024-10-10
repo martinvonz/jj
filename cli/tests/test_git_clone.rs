@@ -522,6 +522,41 @@ fn test_git_clone_with_remote_name() {
     "#);
 }
 
+#[test]
+fn test_git_clone_trunk_deleted() {
+    let test_env = TestEnvironment::default();
+    let git_repo_path = test_env.env_root().join("source");
+    let git_repo = git2::Repository::init(git_repo_path).unwrap();
+    set_up_non_empty_git_repo(&git_repo);
+    let clone_path = test_env.env_root().join("clone");
+
+    let (stdout, stderr) =
+        test_env.jj_cmd_ok(test_env.env_root(), &["git", "clone", "source", "clone"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r#"
+    Fetching into new repo in "$TEST_ENV/clone"
+    bookmark: main@origin [new] untracked
+    Setting the revset alias "trunk()" to "main@origin"
+    Working copy now at: sqpuoqvx cad212e1 (empty) (no description set)
+    Parent commit      : mzyxwzks 9f01a0e0 main | message
+    Added 1 files, modified 0 files, removed 0 files
+    "#);
+
+    test_env.jj_cmd_ok(&clone_path, &["bookmark", "forget", "main"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&clone_path, &["log"]);
+    insta::assert_snapshot!(stdout, @r#"
+    @  sqpuoqvx test.user@example.com 2001-02-03 08:05:07 cad212e1
+    │  (empty) (no description set)
+    ○  mzyxwzks some.one@example.com 1970-01-01 11:00:00 9f01a0e0
+    │  message
+    ◆  zzzzzzzz root() 00000000
+    "#);
+    insta::assert_snapshot!(stderr, @r#"
+    Warning: Failed to resolve `revset-aliases.trunk()`: Revision "main@origin" doesn't exist
+    Hint: Use `jj config edit --repo` to adjust the `trunk()` alias.
+    "#);
+}
+
 fn get_bookmark_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
     test_env.jj_cmd_success(repo_path, &["bookmark", "list", "--all-remotes"])
 }
