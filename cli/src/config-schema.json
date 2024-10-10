@@ -389,7 +389,7 @@
                 "log": {
                     "type": "string",
                     "description": "Default set of revisions to show when no explicit revset is given for jj log and similar commands",
-                    "default": "present(@) | ancestors(immutable_heads().., 2) | trunk()"
+                    "default": "present(@) | ancestors(immutable_heads().., 2) | present(trunk())"
                 },
                 "short-prefixes": {
                     "type": "string",
@@ -408,7 +408,7 @@
                 "immutable_heads()": {
                     "type": "string",
                     "description": "Revisions to consider immutable. Ancestors of these are also considered immutable. The root commit is always considered immutable.",
-                    "default": "trunk() | tags() | untracked_remote_branches()"
+                    "default": "present(trunk()) | tags() | untracked_remote_branches()"
                 }
             },
             "additionalProperties": {
