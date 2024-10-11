@@ -1905,6 +1905,11 @@ is added to or removed from files under "src".</p>
 <li>
 <p><code>working_copies()</code>: The working copy commits across all the workspaces.</p>
 </li>
+<li>
+<p><code>at_operation(op, x)</code>: Evaluates <code>x</code> at the specified <a href="../glossary/#operation">operation</a>. For
+  example, <code>at_operation(@-, visible_heads())</code> will return all heads which were
+  visible at the previous operation.</p>
+</li>
 </ul>
 <details class="examples">
 <summary>Examples</summary>
