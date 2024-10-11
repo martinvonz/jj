@@ -16,14 +16,10 @@ include = [
     "/LICENSE",
     "/benches/",
     "/src/",
-    "/tests/",
     "!*.pending-snap",
     "!*.snap*",
 ]
 
-
-[[test]]
-name = "runner"
 
 [[bench]]
 name = "diff_bench"
@@ -92,7 +88,6 @@ num_cpus = { workspace = true }
 pretty_assertions = { workspace = true }
 sapling-renderdag = { workspace = true }
 test-case = { workspace = true }
-testutils = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 
 [features]
