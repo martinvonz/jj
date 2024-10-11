@@ -612,7 +612,9 @@ fn find_bookmarks_targeted_by_revisions<'a>(
         .intersection(&RevsetExpression::bookmarks(StringPattern::everything()));
         let current_bookmarks_revset = current_bookmarks_expression
             .evaluate_programmatic(workspace_command.repo().as_ref())?;
-        revision_commit_ids.extend(current_bookmarks_revset.iter());
+        for commit_id in current_bookmarks_revset.iter() {
+            revision_commit_ids.insert(commit_id?);
+        }
         if revision_commit_ids.is_empty() {
             writeln!(
                 ui.warning_default(),
@@ -631,7 +633,9 @@ fn find_bookmarks_targeted_by_revisions<'a>(
                 "No bookmarks point to the specified revisions: {rev_arg}"
             )?;
         }
-        revision_commit_ids.extend(commit_ids);
+        for commit_id in commit_ids {
+            revision_commit_ids.insert(commit_id?);
+        }
     }
     let bookmarks_targeted = workspace_command
         .repo()

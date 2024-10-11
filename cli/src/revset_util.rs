@@ -105,7 +105,10 @@ impl<'repo> RevsetExpressionEvaluator<'repo> {
     /// sorted in reverse topological order.
     pub fn evaluate_to_commit_ids(
         &self,
-    ) -> Result<Box<dyn Iterator<Item = CommitId> + 'repo>, UserRevsetEvaluationError> {
+    ) -> Result<
+        Box<dyn Iterator<Item = Result<CommitId, RevsetEvaluationError>> + 'repo>,
+        UserRevsetEvaluationError,
+    > {
         Ok(self.evaluate()?.iter())
     }
 

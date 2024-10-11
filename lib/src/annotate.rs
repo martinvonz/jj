@@ -36,6 +36,7 @@ use crate::graph::GraphEdgeType;
 use crate::merged_tree::MergedTree;
 use crate::repo::Repo;
 use crate::repo_path::RepoPath;
+use crate::revset::RevsetEvaluationError;
 use crate::revset::RevsetExpression;
 use crate::revset::RevsetFilterPredicate;
 use crate::store::Store;
@@ -132,7 +133,7 @@ pub fn get_annotation_for_file(
     repo: &dyn Repo,
     starting_commit: &Commit,
     file_path: &RepoPath,
-) -> Result<AnnotateResults, BackendError> {
+) -> Result<AnnotateResults, RevsetEvaluationError> {
     let original_contents =
         get_file_contents(starting_commit.store(), file_path, &starting_commit.tree()?)?;
     let num_lines = original_contents.split_inclusive(|b| *b == b'\n').count();
@@ -154,7 +155,7 @@ fn process_commits(
     starting_commit_id: &CommitId,
     file_name: &RepoPath,
     num_lines: usize,
-) -> Result<OriginalLineMap, BackendError> {
+) -> Result<OriginalLineMap, RevsetEvaluationError> {
     let predicate = RevsetFilterPredicate::File(FilesetExpression::file_path(file_name.to_owned()));
     let revset = RevsetExpression::commit(starting_commit_id.clone())
         .union(
@@ -167,7 +168,8 @@ fn process_commits(
     let mut commit_line_map = get_initial_commit_line_map(starting_commit_id, num_lines);
     let mut original_line_map = HashMap::new();
 
-    for (cid, edge_list) in revset.iter_graph() {
+    for node in revset.iter_graph() {
+        let (cid, edge_list) = node?;
         let current_commit = repo.store().get_commit(&cid)?;
         process_commit(
             repo,

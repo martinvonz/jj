@@ -1169,7 +1169,8 @@ impl MutableRepo {
         let heads_to_add = heads_to_add_expression
             .evaluate_programmatic(self)
             .unwrap()
-            .iter();
+            .iter()
+            .map(Result::unwrap); // TODO: Return error to caller
 
         let mut view = self.view().store_view().clone();
         for commit_id in self.parent_mapping.keys() {
@@ -1782,6 +1783,8 @@ impl MutableRepo {
         for (commit_id, change_id) in revset::walk_revs(self, old_heads, new_heads)
             .unwrap()
             .commit_change_ids()
+            .map(Result::unwrap)
+        // TODO: Return error to caller
         {
             removed_changes
                 .entry(change_id)
@@ -1797,6 +1800,8 @@ impl MutableRepo {
         for (commit_id, change_id) in revset::walk_revs(self, new_heads, old_heads)
             .unwrap()
             .commit_change_ids()
+            .map(Result::unwrap)
+        // TODO: Return error to caller
         {
             if let Some(old_commits) = removed_changes.get(&change_id) {
                 for old_commit in old_commits {

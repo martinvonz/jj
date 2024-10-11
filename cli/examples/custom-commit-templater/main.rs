@@ -75,6 +75,7 @@ impl MostDigitsInId {
                 .evaluate_programmatic(repo)
                 .unwrap()
                 .iter()
+                .map(Result::unwrap)
                 .map(|id| num_digits_in_id(&id))
                 .max()
                 .unwrap_or(0)
@@ -102,6 +103,7 @@ impl PartialSymbolResolver for TheDigitestResolver {
                 .evaluate_programmatic(repo)
                 .map_err(|err| RevsetResolutionError::Other(err.into()))?
                 .iter()
+                .map(Result::unwrap)
                 .filter(|id| num_digits_in_id(id) == self.cache.count(repo))
                 .collect_vec(),
         ))
