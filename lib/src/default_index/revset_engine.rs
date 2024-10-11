@@ -743,10 +743,9 @@ struct EvaluationContext<'index> {
 
 fn to_u32_generation_range(range: &Range<u64>) -> Result<Range<u32>, RevsetEvaluationError> {
     let start = range.start.try_into().map_err(|_| {
-        RevsetEvaluationError::Other(format!(
-            "Lower bound of generation ({}) is too large",
-            range.start
-        ))
+        RevsetEvaluationError::Other(
+            format!("Lower bound of generation ({}) is too large", range.start).into(),
+        )
     })?;
     let end = range.end.try_into().unwrap_or(u32::MAX);
     Ok(start..end)
@@ -987,10 +986,13 @@ impl EvaluationContext<'_> {
                 // For example, in jj <= 0.22, the root commit doesn't exist in
                 // the root operation.
                 self.index.commit_id_to_pos(id).ok_or_else(|| {
-                    RevsetEvaluationError::Other(format!(
-                        "Commit ID {} not found in index (index or view might be corrupted)",
-                        id.hex()
-                    ))
+                    RevsetEvaluationError::Other(
+                        format!(
+                            "Commit ID {} not found in index (index or view might be corrupted)",
+                            id.hex()
+                        )
+                        .into(),
+                    )
                 })
             })
             .try_collect()?;
