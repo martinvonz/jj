@@ -526,14 +526,46 @@ fn view_from_proto(proto: crate::protos::op_store::View) -> View {
     #[allow(deprecated)]
     if !proto.git_heads.is_empty() {
         view.git_heads = git_heads_from_proto(proto.git_heads);
-    } else if proto.git_head.is_some() {
-        view.git_heads = hashmap! {
-            WorkspaceId::default() => ref_target_from_proto(proto.git_head),
-        };
-    } else if !proto.git_head_legacy.is_empty() {
-        view.git_heads = hashmap! {
-            WorkspaceId::default() => RefTarget::normal(CommitId::new(proto.git_head_legacy)),
-        };
+    } else if let Some(fallback) =
+        proto
+            .git_head
+            .map(Some)
+            .map(ref_target_from_proto)
+            .or(Some(proto.git_head_legacy)
+                .filter(|id| !id.is_empty())
+                .map(CommitId::new)
+                .map(RefTarget::normal))
+    {
+        // Fallback means this view was written when there could only be one HEAD@git.
+        // At that time, there could be other workspaces, but these could not be
+        // colocated with .git, so they didn't have HEADs.
+        //
+        // So we need to figure out which is the default workspace, that should be
+        // assigned the only HEAD we have.
+
+        let default = WorkspaceId::default();
+        if let Ok(only_one) = view.wc_commit_ids.keys().exactly_one().cloned() {
+            // Easy. The user has renamed the default workspace.
+            view.git_heads = hashmap! {
+                only_one => fallback,
+            };
+        } else if view.wc_commit_ids.contains_key(&default) {
+            // If one of them is named default, assume it is the default, and behave the
+            // most correctly we can -- only one git head is set, and we wait for the
+            // other workspaces to reset their git heads on their own in normal operation.
+            view.git_heads = hashmap! {
+                default => fallback,
+            };
+        } else {
+            // We can't tell from the view. Someone has used a nonstandard
+            // default workspace name, and also created more than
+            // one workspace, so we have no way to guess on the data
+            // we have here.
+            //
+            // So we do nothing. Eventually JJ will add git_heads entries for
+            // any workspaces you interact with. So it's not the end
+            // of the world.
+        }
     }
 
     if !proto.has_git_refs_migrated_to_remote {
@@ -1082,5 +1114,68 @@ mod tests {
         );
         let maybe_proto = ref_target_to_proto_legacy(&target);
         assert_eq!(ref_target_from_proto(maybe_proto), target);
+    }
+
+    #[allow(deprecated)]
+    #[test]
+    fn test_upgrade_deprecated_git_heads() {
+        let default = crate::protos::op_store::View {
+            wc_commit_id: vec![],
+            wc_commit_ids: hashmap! {},
+            git_head_legacy: vec![],
+            git_head: None,
+            git_heads: vec![],
+            bookmarks: vec![],
+            git_refs: vec![],
+            has_git_refs_migrated_to_remote: false,
+            head_ids: vec![],
+            tags: vec![],
+        };
+        let wsd = WorkspaceId::default();
+        {
+            let proto = crate::protos::op_store::View {
+                wc_commit_id: b"def".to_vec(),
+                git_head_legacy: b"abc".to_vec(),
+                ..default.clone()
+            };
+            let view = view_from_proto(proto);
+            assert!(view.git_heads.contains_key(&wsd));
+        }
+        {
+            let proto = crate::protos::op_store::View {
+                wc_commit_ids: hashmap! {
+                    wsd.as_str().to_owned() => b"def".to_vec(),
+                },
+                git_head_legacy: b"abc".to_vec(),
+                ..default.clone()
+            };
+            let view = view_from_proto(proto);
+            assert!(view.git_heads.contains_key(&wsd));
+        }
+        let rt = RefTarget::normal(CommitId::new(b"abc".to_vec()));
+        let rtp = ref_target_to_proto(&rt);
+        {
+            let proto = crate::protos::op_store::View {
+                wc_commit_ids: hashmap! {
+                    wsd.as_str().to_owned() => b"def".to_vec(),
+                },
+                git_head: Some(rtp.clone()),
+                ..default.clone()
+            };
+            let view = view_from_proto(proto);
+            assert!(view.git_heads.contains_key(&wsd));
+        }
+        {
+            let proto = crate::protos::op_store::View {
+                wc_commit_ids: hashmap! {
+                    wsd.as_str().to_owned() => b"def".to_vec(),
+                    "second".to_owned() => b"xyz".to_vec(),
+                },
+                git_head: Some(rtp.clone()),
+                ..default.clone()
+            };
+            let view = view_from_proto(proto);
+            assert!(view.git_heads.contains_key(&wsd));
+        }
     }
 }
