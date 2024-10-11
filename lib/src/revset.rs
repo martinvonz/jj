@@ -94,8 +94,8 @@ pub enum RevsetResolutionError {
 pub enum RevsetEvaluationError {
     #[error("Unexpected error from store")]
     StoreError(#[source] BackendError),
-    #[error("{0}")]
-    Other(String),
+    #[error(transparent)]
+    Other(Box<dyn std::error::Error + Send + Sync>),
 }
 
 // assumes index has less than u64::MAX entries.
