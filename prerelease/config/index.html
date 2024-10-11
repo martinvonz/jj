@@ -2722,8 +2722,8 @@ invocations as follows:</p>
 <h3 id="set-of-immutable-commits">Set of immutable commits<a class="headerlink" href="#set-of-immutable-commits" title="Permanent link">&para;</a></h3>
 <p>You can configure the set of immutable commits via
 <code>revset-aliases."immutable_heads()"</code>. The default set of immutable heads is
-<code>trunk() | tags() | untracked_remote_bookmarks()</code>. For example, to prevent
-rewriting commits on <code>main@origin</code> and commits authored by other users:</p>
+<code>present(trunk()) | tags() | untracked_remote_bookmarks()</code>. For example, to
+prevent rewriting commits on <code>main@origin</code> and commits authored by other users:</p>
 <div class="highlight"><pre><span></span><code><span class="c1"># The `main.. &amp;` bit is an optimization to scan for non-`mine()` commits only</span>
 <span class="c1"># among commits that are not in `main`.</span>
 <span class="n">revset-aliases</span><span class="p">.</span><span class="s2">&quot;immutable_heads()&quot;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;main@origin | (main@origin.. &amp; ~mine())&quot;</span>
@@ -2737,7 +2737,7 @@ immutable even if the set is empty.</p>
 <span class="n">revsets</span><span class="p">.</span><span class="n">log</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;main@origin..&quot;</span>
 </code></pre></div>
 <p>The default value for <code>revsets.log</code> is
-<code>'present(@) | ancestors(immutable_heads().., 2) | trunk()'</code>.</p>
+<code>'present(@) | ancestors(immutable_heads().., 2) | present(trunk())'</code>.</p>
 <h3 id="graph-style">Graph style<a class="headerlink" href="#graph-style" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><span class="c1"># Possible values: &quot;curved&quot; (default), &quot;square&quot;, &quot;ascii&quot;, &quot;ascii-large&quot;</span>
 <span class="n">ui</span><span class="p">.</span><span class="n">graph</span><span class="p">.</span><span class="n">style</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;square&quot;</span>
