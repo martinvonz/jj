@@ -1808,7 +1808,6 @@ name = "jj-cli"
 version = "0.24.0"
 dependencies = [
  "anyhow",
- "assert_cmd",
  "assert_matches",
  "async-trait",
  "bstr",
@@ -1831,7 +1830,6 @@ dependencies = [
  "indoc",
  "insta",
  "itertools 0.13.0",
- "jj-cli",
  "jj-lib",
  "libc",
  "maplit",
@@ -1850,7 +1848,6 @@ dependencies = [
  "slab",
  "strsim",
  "tempfile",
- "test-case",
  "testutils",
  "textwrap",
  "thiserror 2.0.4",
@@ -1860,6 +1857,27 @@ dependencies = [
  "tracing-chrome",
  "tracing-subscriber",
  "unicode-width",
+]
+
+[[package]]
+name = "jj-cli-tests"
+version = "0.24.0"
+dependencies = [
+ "assert_cmd",
+ "chrono",
+ "clap",
+ "dunce",
+ "futures 0.3.31",
+ "git2",
+ "indoc",
+ "insta",
+ "itertools 0.13.0",
+ "jj-cli",
+ "jj-lib",
+ "regex",
+ "tempfile",
+ "test-case",
+ "testutils",
 ]
 
 [[package]]
