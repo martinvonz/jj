@@ -294,10 +294,16 @@ pub fn print_git_import_stats(
     }
 
     if !stats.abandoned_commits.is_empty() {
+        let num_abandoned_commits = stats.abandoned_commits.len();
         writeln!(
             formatter,
-            "Abandoned {} commits that are no longer reachable.",
-            stats.abandoned_commits.len()
+            "Abandoned {} {} no longer reachable.",
+            num_abandoned_commits,
+            if num_abandoned_commits == 1 {
+                "commit that is"
+            } else {
+                "commits that are"
+            }
         )?;
     }
 

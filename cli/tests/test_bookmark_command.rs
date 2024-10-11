@@ -1046,7 +1046,7 @@ fn test_bookmark_track_untrack() {
     bookmark: feature2@origin [updated] untracked
     bookmark: feature3@origin [new] tracked
     bookmark: main@origin     [updated] tracked
-    Abandoned 1 commits that are no longer reachable.
+    Abandoned 1 commit that is no longer reachable.
     "###);
     insta::assert_snapshot!(get_bookmark_output(&test_env, &repo_path), @r###"
     feature1: sptzoqmo 7b33f629 commit 1
