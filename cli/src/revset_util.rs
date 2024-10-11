@@ -32,6 +32,7 @@ use jj_lib::revset::RevsetDiagnostics;
 use jj_lib::revset::RevsetEvaluationError;
 use jj_lib::revset::RevsetExpression;
 use jj_lib::revset::RevsetExtensions;
+use jj_lib::revset::RevsetIterator;
 use jj_lib::revset::RevsetIteratorExt as _;
 use jj_lib::revset::RevsetParseContext;
 use jj_lib::revset::RevsetParseError;
@@ -105,7 +106,7 @@ impl<'repo> RevsetExpressionEvaluator<'repo> {
     /// sorted in reverse topological order.
     pub fn evaluate_to_commit_ids(
         &self,
-    ) -> Result<Box<dyn Iterator<Item = CommitId> + 'repo>, UserRevsetEvaluationError> {
+    ) -> Result<Box<dyn RevsetIterator<CommitId> + 'repo>, UserRevsetEvaluationError> {
         Ok(self.evaluate()?.iter())
     }
 

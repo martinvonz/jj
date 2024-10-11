@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use std::collections::HashMap;
+use std::convert::Infallible;
 use std::sync::Arc;
 
 use indexmap::IndexMap;
@@ -198,19 +199,21 @@ pub fn show_op_diff(
             let mut raw_output = formatter.raw()?;
             let mut graph = get_graphlog(graph_style, raw_output.as_mut());
 
-            let graph_iter =
-                TopoGroupedGraphIterator::new(ordered_change_ids.iter().map(|change_id| {
+            let graph_iter = TopoGroupedGraphIterator::new(ordered_change_ids.iter().map(
+                |change_id| -> Result<_, Infallible> {
                     let parent_change_ids = change_parents.get(change_id).unwrap();
-                    (
+                    Ok((
                         change_id.clone(),
                         parent_change_ids
                             .iter()
                             .map(|parent_change_id| GraphEdge::direct(parent_change_id.clone()))
                             .collect_vec(),
-                    )
-                }));
+                    ))
+                },
+            ));
 
-            for (change_id, edges) in graph_iter {
+            for node in graph_iter {
+                let (change_id, edges) = node.unwrap();
                 let modified_change = changes.get(&change_id).unwrap();
                 let edges = edges
                     .iter()
