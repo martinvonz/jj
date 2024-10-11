@@ -37,7 +37,7 @@ use crate::dsl_util::AliasExpandError as _;
 use crate::fileset;
 use crate::fileset::FilesetDiagnostics;
 use crate::fileset::FilesetExpression;
-use crate::graph::GraphEdge;
+use crate::graph::GraphNodeResult;
 use crate::hex_util::to_forward_hex;
 use crate::id_prefix::IdPrefixContext;
 use crate::id_prefix::IdPrefixIndex;
@@ -92,7 +92,7 @@ pub enum RevsetResolutionError {
 #[derive(Debug, Error)]
 pub enum RevsetEvaluationError {
     #[error("Unexpected error from store")]
-    StoreError(#[source] BackendError),
+    StoreError(#[from] BackendError),
     #[error(transparent)]
     Other(Box<dyn std::error::Error + Send + Sync>),
 }
@@ -2197,16 +2197,20 @@ impl VisibilityResolutionContext<'_> {
 
 pub trait Revset: fmt::Debug {
     /// Iterate in topological order with children before parents.
-    fn iter<'a>(&self) -> Box<dyn Iterator<Item = CommitId> + 'a>
+    fn iter<'a>(&self) -> Box<dyn Iterator<Item = Result<CommitId, RevsetEvaluationError>> + 'a>
     where
         Self: 'a;
 
     /// Iterates commit/change id pairs in topological order.
-    fn commit_change_ids<'a>(&self) -> Box<dyn Iterator<Item = (CommitId, ChangeId)> + 'a>
+    fn commit_change_ids<'a>(
+        &self,
+    ) -> Box<dyn Iterator<Item = Result<(CommitId, ChangeId), RevsetEvaluationError>> + 'a>
     where
         Self: 'a;
 
-    fn iter_graph<'a>(&self) -> Box<dyn Iterator<Item = (CommitId, Vec<GraphEdge<CommitId>>)> + 'a>
+    fn iter_graph<'a>(
+        &self,
+    ) -> Box<dyn Iterator<Item = GraphNodeResult<CommitId, RevsetEvaluationError>> + 'a>
     where
         Self: 'a;
 
@@ -2230,10 +2234,10 @@ pub trait Revset: fmt::Debug {
 
 pub trait RevsetIteratorExt<'index, I> {
     fn commits(self, store: &Arc<Store>) -> RevsetCommitIterator<I>;
-    fn reversed(self) -> ReverseRevsetIterator;
+    fn reversed(self) -> Result<ReverseRevsetIterator, RevsetEvaluationError>;
 }
 
-impl<I: Iterator<Item = CommitId>> RevsetIteratorExt<'_, I> for I {
+impl<I: Iterator<Item = Result<CommitId, RevsetEvaluationError>>> RevsetIteratorExt<'_, I> for I {
     fn commits(self, store: &Arc<Store>) -> RevsetCommitIterator<I> {
         RevsetCommitIterator {
             iter: self,
@@ -2241,10 +2245,9 @@ impl<I: Iterator<Item = CommitId>> RevsetIteratorExt<'_, I> for I {
         }
     }
 
-    fn reversed(self) -> ReverseRevsetIterator {
-        ReverseRevsetIterator {
-            entries: self.into_iter().collect_vec(),
-        }
+    fn reversed(self) -> Result<ReverseRevsetIterator, RevsetEvaluationError> {
+        let entries: Vec<_> = self.into_iter().try_collect()?;
+        Ok(ReverseRevsetIterator { entries })
     }
 }
 
@@ -2253,11 +2256,14 @@ pub struct RevsetCommitIterator<I> {
     iter: I,
 }
 
-impl<I: Iterator<Item = CommitId>> Iterator for RevsetCommitIterator<I> {
+impl<I: Iterator<Item = Result<CommitId, RevsetEvaluationError>>> Iterator
+    for RevsetCommitIterator<I>
+{
     type Item = Result<Commit, RevsetEvaluationError>;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.iter.next().map(|commit_id| {
+            let commit_id = commit_id?;
             self.store
                 .get_commit(&commit_id)
                 .map_err(RevsetEvaluationError::StoreError)
@@ -2270,10 +2276,10 @@ pub struct ReverseRevsetIterator {
 }
 
 impl Iterator for ReverseRevsetIterator {
-    type Item = CommitId;
+    type Item = Result<CommitId, RevsetEvaluationError>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.entries.pop()
+        self.entries.pop().map(Ok)
     }
 }
 

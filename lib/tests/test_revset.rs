@@ -462,6 +462,7 @@ fn test_resolve_working_copy() {
         .evaluate_programmatic(mut_repo)
         .unwrap()
         .iter()
+        .map(Result::unwrap)
         .collect_vec(),
         vec![]
     );
@@ -478,6 +479,7 @@ fn test_resolve_working_copy() {
             .evaluate_programmatic(mut_repo)
             .unwrap()
             .iter()
+            .map(Result::unwrap)
             .collect()
     };
 
@@ -515,6 +517,7 @@ fn test_resolve_working_copies() {
             .evaluate_programmatic(mut_repo)
             .unwrap()
             .iter()
+            .map(Result::unwrap)
             .collect()
     };
 
@@ -968,7 +971,12 @@ fn try_resolve_commit_ids(
     let expression = optimize(parse(&mut RevsetDiagnostics::new(), revset_str, &context).unwrap());
     let symbol_resolver = DefaultSymbolResolver::new(repo, revset_extensions.symbol_resolvers());
     let expression = expression.resolve_user_expression(repo, &symbol_resolver)?;
-    Ok(expression.evaluate(repo).unwrap().iter().collect())
+    Ok(expression
+        .evaluate(repo)
+        .unwrap()
+        .iter()
+        .map(Result::unwrap)
+        .collect())
 }
 
 fn resolve_commit_ids_in_workspace(
@@ -1001,7 +1009,12 @@ fn resolve_commit_ids_in_workspace(
     let expression = expression
         .resolve_user_expression(repo, &symbol_resolver)
         .unwrap();
-    expression.evaluate(repo).unwrap().iter().collect()
+    expression
+        .evaluate(repo)
+        .unwrap()
+        .iter()
+        .map(Result::unwrap)
+        .collect()
 }
 
 #[test]
@@ -3387,7 +3400,7 @@ fn test_evaluate_expression_file() {
             FilesetExpression::prefix_path(file_path.to_owned()),
         ));
         let revset = expression.evaluate_programmatic(mut_repo).unwrap();
-        revset.iter().collect()
+        revset.iter().map(Result::unwrap).collect()
     };
 
     assert_eq!(resolve(added_clean_clean), vec![commit1.id().clone()]);
@@ -3731,7 +3744,10 @@ fn test_reverse_graph_iterator() {
         repo.as_ref(),
         &[&commit_a, &commit_c, &commit_d, &commit_e, &commit_f],
     );
-    let commits = ReverseGraphIterator::new(revset.iter_graph()).collect_vec();
+    let commits: Vec<_> = ReverseGraphIterator::new(revset.iter_graph())
+        .unwrap()
+        .try_collect()
+        .unwrap();
     assert_eq!(commits.len(), 5);
     assert_eq!(commits[0].0, *commit_a.id());
     assert_eq!(commits[1].0, *commit_c.id());

@@ -762,6 +762,7 @@ impl WorkspaceCommandEnvironment {
         })?;
 
         if let Some(commit_id) = commit_id_iter.next() {
+            let commit_id = commit_id?;
             let error = if &commit_id == repo.store().root_commit_id() {
                 user_error(format!(
                     "The root commit {} is immutable",

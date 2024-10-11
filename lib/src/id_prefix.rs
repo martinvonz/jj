@@ -40,9 +40,9 @@ use crate::revset::SymbolResolverExtension;
 #[derive(Debug, Error)]
 pub enum IdPrefixIndexLoadError {
     #[error("Failed to resolve short-prefixes disambiguation revset")]
-    Resolution(#[source] RevsetResolutionError),
+    Resolution(#[from] RevsetResolutionError),
     #[error("Failed to evaluate short-prefixes disambiguation revset")]
-    Evaluation(#[source] RevsetEvaluationError),
+    Evaluation(#[from] RevsetEvaluationError),
 }
 
 struct DisambiguationData {
@@ -67,13 +67,10 @@ impl DisambiguationData {
             let resolved_expression = self
                 .expression
                 .clone()
-                .resolve_user_expression(repo, &symbol_resolver)
-                .map_err(IdPrefixIndexLoadError::Resolution)?;
-            let revset = resolved_expression
-                .evaluate(repo)
-                .map_err(IdPrefixIndexLoadError::Evaluation)?;
+                .resolve_user_expression(repo, &symbol_resolver)?;
+            let revset = resolved_expression.evaluate(repo)?;
 
-            let commit_change_ids = revset.commit_change_ids().collect_vec();
+            let commit_change_ids: Vec<_> = revset.commit_change_ids().try_collect()?;
             let mut commit_index = IdIndex::with_capacity(commit_change_ids.len());
             let mut change_index = IdIndex::with_capacity(commit_change_ids.len());
             for (i, (commit_id, change_id)) in commit_change_ids.iter().enumerate() {

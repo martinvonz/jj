@@ -49,6 +49,7 @@ use crate::default_index::AsCompositeIndex;
 use crate::default_index::CompositeIndex;
 use crate::default_index::IndexPosition;
 use crate::graph::GraphEdge;
+use crate::graph::GraphNodeResult;
 use crate::matchers::Matcher;
 use crate::matchers::Visit;
 use crate::merged_tree::resolve_file_values;
@@ -130,11 +131,12 @@ impl<I: AsCompositeIndex + Clone> RevsetImpl<I> {
     pub fn iter_graph_impl(
         &self,
         skip_transitive_edges: bool,
-    ) -> impl Iterator<Item = (CommitId, Vec<GraphEdge<CommitId>>)> {
+    ) -> impl Iterator<Item = Result<(CommitId, Vec<GraphEdge<CommitId>>), RevsetEvaluationError>>
+    {
         let index = self.index.clone();
         let walk = self.inner.positions();
         let mut graph_walk = RevsetGraphWalk::new(walk, skip_transitive_edges);
-        iter::from_fn(move || graph_walk.next(index.as_composite()))
+        iter::from_fn(move || graph_walk.next(index.as_composite()).map(Ok))
     }
 }
 
@@ -147,7 +149,7 @@ impl<I> fmt::Debug for RevsetImpl<I> {
 }
 
 impl<I: AsCompositeIndex + Clone> Revset for RevsetImpl<I> {
-    fn iter<'a>(&self) -> Box<dyn Iterator<Item = CommitId> + 'a>
+    fn iter<'a>(&self) -> Box<dyn Iterator<Item = Result<CommitId, RevsetEvaluationError>> + 'a>
     where
         Self: 'a,
     {
@@ -156,11 +158,13 @@ impl<I: AsCompositeIndex + Clone> Revset for RevsetImpl<I> {
         Box::new(iter::from_fn(move || {
             let index = index.as_composite();
             let pos = walk.next(index)?;
-            Some(index.entry_by_pos(pos).commit_id())
+            Some(Ok(index.entry_by_pos(pos).commit_id()))
         }))
     }
 
-    fn commit_change_ids<'a>(&self) -> Box<dyn Iterator<Item = (CommitId, ChangeId)> + 'a>
+    fn commit_change_ids<'a>(
+        &self,
+    ) -> Box<dyn Iterator<Item = Result<(CommitId, ChangeId), RevsetEvaluationError>> + 'a>
     where
         Self: 'a,
     {
@@ -170,11 +174,13 @@ impl<I: AsCompositeIndex + Clone> Revset for RevsetImpl<I> {
             let index = index.as_composite();
             let pos = walk.next(index)?;
             let entry = index.entry_by_pos(pos);
-            Some((entry.commit_id(), entry.change_id()))
+            Some(Ok((entry.commit_id(), entry.change_id())))
         }))
     }
 
-    fn iter_graph<'a>(&self) -> Box<dyn Iterator<Item = (CommitId, Vec<GraphEdge<CommitId>>)> + 'a>
+    fn iter_graph<'a>(
+        &self,
+    ) -> Box<dyn Iterator<Item = GraphNodeResult<CommitId, RevsetEvaluationError>> + 'a>
     where
         Self: 'a,
     {

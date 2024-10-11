@@ -381,6 +381,7 @@ fn abandon_unreachable_commits(
         .evaluate_programmatic(mut_repo)
         .unwrap()
         .iter()
+        .map(Result::unwrap) // TODO: Return error to caller
         .collect_vec();
     for abandoned_commit in &abandoned_commits {
         mut_repo.record_abandoned_commit(abandoned_commit.clone());

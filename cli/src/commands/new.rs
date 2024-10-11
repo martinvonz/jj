@@ -243,6 +243,7 @@ fn ensure_no_commit_loop(
         .iter()
         .next()
     {
+        let commit_id = commit_id?;
         return Err(user_error(format!(
             "Refusing to create a loop: commit {} would be both an ancestor and a descendant of \
              the new commit",

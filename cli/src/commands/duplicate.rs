@@ -15,6 +15,7 @@
 use std::io::Write;
 
 use indexmap::IndexMap;
+use itertools::Itertools;
 use jj_lib::backend::CommitId;
 use jj_lib::commit::Commit;
 use jj_lib::repo::Repo;
@@ -48,7 +49,7 @@ pub(crate) fn cmd_duplicate(
     let to_duplicate: Vec<CommitId> = workspace_command
         .parse_union_revsets(ui, &args.revisions)?
         .evaluate_to_commit_ids()?
-        .collect(); // in reverse topological order
+        .try_collect()?; // in reverse topological order
     if to_duplicate.is_empty() {
         writeln!(ui.status(), "No revisions to duplicate.")?;
         return Ok(());

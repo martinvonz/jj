@@ -150,7 +150,7 @@ pub(crate) fn cmd_fix(
         workspace_command.parse_union_revsets(ui, &args.source)?
     }
     .evaluate_to_commit_ids()?
-    .collect();
+    .try_collect()?;
     workspace_command.check_rewritable(root_commits.iter())?;
     let matcher = workspace_command
         .parse_file_patterns(ui, &args.paths)?
