@@ -101,6 +101,3 @@ git = ["dep:git2", "dep:gix", "dep:gix-filter"]
 vendored-openssl = ["git2/vendored-openssl"]
 watchman = ["dep:tokio", "dep:watchman_client"]
 testing = ["git"]
-
-[lints]
-workspace = true
