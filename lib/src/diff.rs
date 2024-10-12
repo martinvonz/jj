@@ -527,6 +527,10 @@ impl UnchangedRange {
             .collect();
         UnchangedRange { base, others }
     }
+
+    fn is_all_empty(&self) -> bool {
+        self.base.is_empty() && self.others.iter().all(|r| r.is_empty())
+    }
 }
 
 /// Takes any number of inputs and finds regions that are them same between all
@@ -702,14 +706,8 @@ impl<'input> Diff<'input> {
         diff
     }
 
-    pub fn hunks<'diff>(&'diff self) -> DiffHunkIterator<'diff, 'input> {
-        let mut unchanged_iter = self.unchanged_regions.iter();
-        DiffHunkIterator {
-            diff: self,
-            previous: unchanged_iter.next().unwrap(),
-            unchanged_emitted: false,
-            unchanged_iter,
-        }
+    pub fn hunks(&self) -> DiffHunkIterator<'_, 'input> {
+        DiffHunkIterator::new(self)
     }
 
     /// Returns contents at the unchanged `range`.
@@ -833,35 +831,39 @@ pub struct DiffHunkIterator<'diff, 'input> {
     unchanged_iter: slice::Iter<'diff, UnchangedRange>,
 }
 
+impl<'diff, 'input> DiffHunkIterator<'diff, 'input> {
+    fn new(diff: &'diff Diff<'input>) -> Self {
+        let mut unchanged_iter = diff.unchanged_regions.iter();
+        let previous = unchanged_iter.next().unwrap();
+        DiffHunkIterator {
+            diff,
+            previous,
+            unchanged_emitted: previous.is_all_empty(),
+            unchanged_iter,
+        }
+    }
+}
+
 impl<'diff, 'input> Iterator for DiffHunkIterator<'diff, 'input> {
     type Item = DiffHunk<'input>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        loop {
-            if !self.unchanged_emitted {
-                self.unchanged_emitted = true;
-                let contents = self.diff.hunk_at(self.previous).collect_vec();
-                if contents.iter().any(|content| !content.is_empty()) {
-                    let kind = DiffHunkKind::Matching;
-                    return Some(DiffHunk { kind, contents });
-                }
-            }
-            if let Some(current) = self.unchanged_iter.next() {
-                let contents = self
-                    .diff
-                    .hunk_between(self.previous, current)
-                    .collect_vec();
-                self.previous = current;
-                self.unchanged_emitted = false;
-                if contents.iter().any(|content| !content.is_empty()) {
-                    let kind = DiffHunkKind::Different;
-                    return Some(DiffHunk { kind, contents });
-                }
-            } else {
-                break;
-            }
+        if !self.unchanged_emitted {
+            self.unchanged_emitted = true;
+            let contents = self.diff.hunk_at(self.previous).collect_vec();
+            let kind = DiffHunkKind::Matching;
+            return Some(DiffHunk { kind, contents });
         }
-        None
+        let current = self.unchanged_iter.next()?;
+        let contents = self.diff.hunk_between(self.previous, current).collect_vec();
+        debug_assert!(
+            contents.iter().any(|content| !content.is_empty()),
+            "unchanged regions should have been compacted"
+        );
+        self.previous = current;
+        self.unchanged_emitted = self.previous.is_all_empty();
+        let kind = DiffHunkKind::Different;
+        Some(DiffHunk { kind, contents })
     }
 }
 
