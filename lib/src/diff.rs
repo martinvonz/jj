@@ -535,6 +535,10 @@ impl UnchangedRange {
 pub struct Diff<'input> {
     base_input: &'input BStr,
     other_inputs: Vec<&'input BStr>,
+    /// Sorted list of ranges of unchanged regions in bytes.
+    ///
+    /// The list should never be empty. The first and the last region may be
+    /// empty if inputs start/end with changes.
     unchanged_regions: Vec<UnchangedRange>,
 }
 
@@ -599,6 +603,12 @@ impl<'input> Diff<'input> {
             // Diff each other input against the base. Intersect the previously
             // found ranges with the ranges in the diff.
             [first_other_source, tail_other_sources @ ..] => {
+                let mut unchanged_regions = Vec::new();
+                // Add an empty range at the start to make life easier for hunks().
+                unchanged_regions.push(UnchangedRange {
+                    base: 0..0,
+                    others: vec![0..0; other_inputs.len()],
+                });
                 let mut first_positions = Vec::new();
                 collect_unchanged_words(
                     &mut first_positions,
@@ -606,18 +616,17 @@ impl<'input> Diff<'input> {
                     first_other_source,
                     &comp,
                 );
-                let mut unchanged_regions: Vec<_> = if tail_other_sources.is_empty() {
-                    first_positions
-                        .iter()
-                        .map(|&(base_pos, other_pos)| {
+                if tail_other_sources.is_empty() {
+                    unchanged_regions.extend(first_positions.iter().map(
+                        |&(base_pos, other_pos)| {
                             UnchangedRange::from_word_positions(
                                 &base_source,
                                 &other_sources,
                                 base_pos,
                                 &[other_pos],
                             )
-                        })
-                        .collect()
+                        },
+                    ));
                 } else {
                     let first_positions = first_positions
                         .iter()
@@ -636,17 +645,16 @@ impl<'input> Diff<'input> {
                             intersect_unchanged_words(current_positions, &new_positions)
                         },
                     );
-                    intersected_positions
-                        .iter()
-                        .map(|(base_pos, other_positions)| {
+                    unchanged_regions.extend(intersected_positions.iter().map(
+                        |(base_pos, other_positions)| {
                             UnchangedRange::from_word_positions(
                                 &base_source,
                                 &other_sources,
                                 *base_pos,
                                 other_positions,
                             )
-                        })
-                        .collect()
+                        },
+                    ));
                 };
                 // Add an empty range at the end to make life easier for hunks().
                 unchanged_regions.push(UnchangedRange {
@@ -695,14 +703,12 @@ impl<'input> Diff<'input> {
     }
 
     pub fn hunks<'diff>(&'diff self) -> DiffHunkIterator<'diff, 'input> {
+        let mut unchanged_iter = self.unchanged_regions.iter();
         DiffHunkIterator {
             diff: self,
-            previous: UnchangedRange {
-                base: 0..0,
-                others: vec![0..0; self.other_inputs.len()],
-            },
-            unchanged_emitted: true,
-            unchanged_iter: self.unchanged_regions.iter(),
+            previous: unchanged_iter.next().unwrap(),
+            unchanged_emitted: false,
+            unchanged_iter,
         }
     }
 
@@ -734,18 +740,15 @@ impl<'input> Diff<'input> {
         tokenizer: impl Fn(&[u8]) -> Vec<Range<usize>>,
         compare: impl CompareBytes,
     ) {
-        let mut previous = UnchangedRange {
-            base: 0..0,
-            others: vec![0..0; self.other_inputs.len()],
-        };
-        let mut new_unchanged_ranges = vec![];
-        for current in &self.unchanged_regions {
+        let mut new_unchanged_ranges = vec![self.unchanged_regions[0].clone()];
+        for window in self.unchanged_regions.windows(2) {
+            let [previous, current]: &[_; 2] = window.try_into().unwrap();
             // For the changed region between the previous region and the current one,
             // create a new Diff instance. Then adjust the start positions and
             // offsets to be valid in the context of the larger Diff instance
             // (`self`).
             let refined_diff =
-                Diff::for_tokenizer(self.hunk_between(&previous, current), &tokenizer, &compare);
+                Diff::for_tokenizer(self.hunk_between(previous, current), &tokenizer, &compare);
             for refined in &refined_diff.unchanged_regions {
                 let new_base_start = refined.base.start + previous.base.end;
                 let new_base_end = refined.base.end + previous.base.end;
@@ -758,7 +761,6 @@ impl<'input> Diff<'input> {
                 });
             }
             new_unchanged_ranges.push(current.clone());
-            previous = current.clone();
         }
         self.unchanged_regions = new_unchanged_ranges;
         self.compact_unchanged_regions();
@@ -826,7 +828,7 @@ pub enum DiffHunkKind {
 
 pub struct DiffHunkIterator<'diff, 'input> {
     diff: &'diff Diff<'input>,
-    previous: UnchangedRange,
+    previous: &'diff UnchangedRange,
     unchanged_emitted: bool,
     unchanged_iter: slice::Iter<'diff, UnchangedRange>,
 }
@@ -838,7 +840,7 @@ impl<'diff, 'input> Iterator for DiffHunkIterator<'diff, 'input> {
         loop {
             if !self.unchanged_emitted {
                 self.unchanged_emitted = true;
-                let contents = self.diff.hunk_at(&self.previous).collect_vec();
+                let contents = self.diff.hunk_at(self.previous).collect_vec();
                 if contents.iter().any(|content| !content.is_empty()) {
                     let kind = DiffHunkKind::Matching;
                     return Some(DiffHunk { kind, contents });
@@ -847,9 +849,9 @@ impl<'diff, 'input> Iterator for DiffHunkIterator<'diff, 'input> {
             if let Some(current) = self.unchanged_iter.next() {
                 let contents = self
                     .diff
-                    .hunk_between(&self.previous, current)
+                    .hunk_between(self.previous, current)
                     .collect_vec();
-                self.previous = current.clone();
+                self.previous = current;
                 self.unchanged_emitted = false;
                 if contents.iter().any(|content| !content.is_empty()) {
                     let kind = DiffHunkKind::Different;
