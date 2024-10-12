@@ -113,6 +113,9 @@ To get started, see the tutorial at https://martinvonz.github.io/jj/latest/tutor
 
 **Usage:** `jj [OPTIONS] [COMMAND]`
 
+'jj help --help' list available keywords. Use 'jj help -k' to show help for one of these keywords.
+
+
 ###### **Subcommands:**
 
 * `abandon` — Abandon a revision
@@ -1215,11 +1218,22 @@ Set the URL of a Git remote
 
 Print this message or the help of the given subcommand(s)
 
-**Usage:** `jj help [COMMAND]...`
+**Usage:** `jj help [OPTIONS] [COMMAND]...`
 
 ###### **Arguments:**
 
 * `<COMMAND>` — Print help for the subcommand(s)
+
+###### **Options:**
+
+* `-k`, `--keyword <KEYWORD>` — Show help for keywords instead of commands
+
+  Possible values:
+  - `revsets`:
+    A functional language for selecting a set of revision
+  - `tutorial`:
+    Show a tutorial to get started with jj
+
 
 
 

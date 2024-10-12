@@ -84,3 +84,62 @@ fn test_help() {
     For more information, try '--help'.
     "#);
 }
+
+#[test]
+fn test_help_keyword() {
+    let test_env = TestEnvironment::default();
+
+    // It should show help for a certain keyword if the `--keyword` flag is present
+    let help_cmd_stdout =
+        test_env.jj_cmd_success(test_env.env_root(), &["help", "--keyword", "revsets"]);
+    // It should be equal to the docs
+    assert_eq!(help_cmd_stdout, include_str!("../../docs/revsets.md"));
+
+    // It should show help for a certain keyword if the `-k` flag is present
+    let help_cmd_stdout = test_env.jj_cmd_success(test_env.env_root(), &["help", "-k", "revsets"]);
+    // It should be equal to the docs
+    assert_eq!(help_cmd_stdout, include_str!("../../docs/revsets.md"));
+
+    // It should give hints if a similar keyword is present
+    let help_cmd_stderr = test_env.jj_cmd_cli_error(test_env.env_root(), &["help", "-k", "rev"]);
+    insta::assert_snapshot!(help_cmd_stderr, @r#"
+    error: invalid value 'rev' for '--keyword <KEYWORD>'
+      [possible values: revsets, tutorial]
+
+      tip: a similar value exists: 'revsets'
+
+    For more information, try '--help'.
+    "#);
+
+    // It should give error with a hint if no similar keyword is found
+    let help_cmd_stderr =
+        test_env.jj_cmd_cli_error(test_env.env_root(), &["help", "-k", "<no-similar-keyword>"]);
+    insta::assert_snapshot!(help_cmd_stderr, @r#"
+    error: invalid value '<no-similar-keyword>' for '--keyword <KEYWORD>'
+      [possible values: revsets, tutorial]
+
+    For more information, try '--help'.
+    "#);
+
+    // The keyword flag with no argument should error with a hint
+    let help_cmd_stderr = test_env.jj_cmd_cli_error(test_env.env_root(), &["help", "-k"]);
+    insta::assert_snapshot!(help_cmd_stderr, @r#"
+    error: a value is required for '--keyword <KEYWORD>' but none was supplied
+      [possible values: revsets, tutorial]
+
+    For more information, try '--help'.
+    "#);
+
+    // It shouldn't show help for a certain keyword if the `--keyword` is not
+    // present
+    let help_cmd_stderr = test_env.jj_cmd_cli_error(test_env.env_root(), &["help", "revsets"]);
+    insta::assert_snapshot!(help_cmd_stderr, @r#"
+    error: unrecognized subcommand 'revsets'
+
+      tip: some similar subcommands exist: 'resolve', 'prev', 'restore', 'rebase', 'revert'
+
+    Usage: jj [OPTIONS] <COMMAND>
+
+    For more information, try '--help'.
+    "#);
+}
