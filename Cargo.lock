@@ -1855,6 +1855,7 @@ dependencies = [
  "pest",
  "pest_derive",
  "pollster",
+ "prost",
  "rayon",
  "regex",
  "rpassword",

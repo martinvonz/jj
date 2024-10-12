@@ -17,6 +17,10 @@ use std::process::Command;
 
 use assert_cmd::assert::OutputAssertExt;
 use git2::Oid;
+use itertools::Itertools;
+use jj_lib::object_id::ObjectId;
+use jj_lib::op_store::RefTarget;
+use jj_lib::op_store::ViewId;
 
 use crate::common::TestEnvironment;
 
@@ -1064,6 +1068,18 @@ fn test_colocated_workspace_fail_existing_git_worktree() {
     let _ = test_env.jj_cmd_ok(&repo_path, &["workspace", "add", "--colocate", "../second"]);
 }
 
+fn log_heads(test_env: &TestEnvironment, repo_path: &Path) -> String {
+    let (stdout, stderr) = test_env.jj_cmd_ok(
+        repo_path,
+        &[
+            "log",
+            "-rgit_heads()",
+            "-Tseparate(\" \", description.first_line(), working_copies)",
+        ],
+    );
+    eprint!("{stderr}");
+    stdout
+}
 #[test]
 fn test_colocated_workspace_add_forget_add() {
     // TODO: Better way to disable the test if git command couldn't be executed
@@ -1087,17 +1103,7 @@ fn test_colocated_workspace_add_forget_add() {
     std::fs::write(second_path.join("file"), "edit").unwrap();
     let _ = test_env.jj_cmd_ok(&second_path, &["commit", "-m", "edit"]);
 
-    let log_heads = || {
-        test_env.jj_cmd_success(
-            &repo_path,
-            &[
-                "log",
-                "-rgit_heads()",
-                "-Tseparate(\" \", description.first_line(), working_copies)",
-            ],
-        )
-    };
-    insta::assert_snapshot!(log_heads(), @r#"
+    insta::assert_snapshot!(log_heads(&test_env, &repo_path), @r#"
     ○  edit
     ○  initial commit
     │
@@ -1107,7 +1113,7 @@ fn test_colocated_workspace_add_forget_add() {
     // This should remove the git_heads entry, so the `edit` commit should disappear
     let _ = test_env.jj_cmd_ok(&repo_path, &["workspace", "forget", "second"]);
 
-    insta::assert_snapshot!(log_heads(), @r#"
+    insta::assert_snapshot!(log_heads(&test_env, &repo_path), @r#"
     ○  initial commit
     │
     ~
@@ -1158,4 +1164,164 @@ fn test_colocated_workspace_forget_locked() {
         .success();
 
     let _ = test_env.jj_cmd_ok(&repo_path, &["workspace", "forget", "second"]);
+}
+
+#[test]
+fn test_colocated_view_proto_deprecated() {
+    let test_env = TestEnvironment::default();
+    let repo_path = test_env.env_root().join("repo");
+    let second_path = test_env.env_root().join("second");
+
+    // Not colocated, because we don't want default to appear in the working copies
+    let _ = test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "--colocate", "repo"]);
+
+    std::fs::write(repo_path.join("file"), "content").unwrap();
+    let _ = test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "renamed"]);
+
+    let _ = test_env.jj_cmd_ok(&repo_path, &["workspace", "rename", "renamed"]);
+    let _ = test_env.jj_cmd_ok(&repo_path, &["workspace", "add", "--colocate", "../second"]);
+
+    std::fs::write(second_path.join("file"), "edit").unwrap();
+    let _ = test_env.jj_cmd_ok(&second_path, &["commit", "-m", "second"]);
+
+    insta::assert_snapshot!(log_heads(&test_env, &repo_path), @r#"
+    ○  second
+    ○  renamed
+    │
+    ~
+    "#);
+
+    let views_path = repo_path
+        .join(".jj")
+        .join("repo")
+        .join("op_store")
+        .join("views");
+
+    let current_view_id = || {
+        let ops_path = repo_path
+            .join(".jj")
+            .join("repo")
+            .join("op_store")
+            .join("operations");
+        let op_id = test_env
+            .jj_cmd_ok(
+                &second_path,
+                &[
+                    "op",
+                    "log",
+                    "--ignore-working-copy",
+                    "--limit",
+                    "1",
+                    "--no-graph",
+                    "--template=id",
+                ],
+            )
+            .0
+            .trim()
+            .to_owned();
+        use prost::Message;
+        let op_path = ops_path.join(&op_id);
+        let buf = std::fs::read(op_path).unwrap();
+        let op_proto = jj_lib::protos::op_store::Operation::decode(&*buf).unwrap();
+        ViewId::new(op_proto.view_id)
+    };
+
+    #[allow(deprecated)]
+    let dbg_view = || {
+        use prost::Message;
+        let view_path = views_path.join(current_view_id().hex());
+        let buf = std::fs::read(&view_path).expect("Layout of op_store changed");
+        let proto = jj_lib::protos::op_store::View::decode(&*buf).unwrap();
+        let working_copies = proto.wc_commit_ids.keys().sorted().collect_vec();
+        let git_head_is_some = proto.git_head.is_some();
+        let git_heads = proto
+            .git_heads
+            .into_iter()
+            .sorted_by_key(|x| x.workspace_id.clone())
+            .map(|x| {
+                //..
+                (
+                    x.workspace_id,
+                    x.git_head
+                        .map(RefTarget::_from_proto)
+                        .unwrap_or_else(RefTarget::absent)
+                        .as_normal()
+                        .map(|cid| cid.hex()[..8].to_owned()),
+                )
+            })
+            .collect_vec();
+        format!(
+            "---- git_head_is_some: {git_head_is_some:?};\n     git_heads: {git_heads:?}\n     \
+             working_copies: {working_copies:?}"
+        )
+    };
+
+    // Now, simulate a previous version of JJ having written these views
+    for dentry in views_path.read_dir().unwrap() {
+        use prost::Message;
+        let view_path = dentry.unwrap().path();
+        let buf = std::fs::read(&view_path).expect("Layout of op_store changed");
+        let mut proto = jj_lib::protos::op_store::View::decode(&*buf).unwrap();
+        #[allow(deprecated)]
+        {
+            proto.git_head = std::mem::take(&mut proto.git_heads)
+                .into_iter()
+                .find(|x| x.workspace_id == "renamed")
+                .and_then(|x| x.git_head);
+        }
+        std::fs::write(&view_path, proto.encode_to_vec()).unwrap();
+    }
+
+    insta::assert_snapshot!(dbg_view(), @r#"
+    ---- git_head_is_some: true;
+         git_heads: []
+         working_copies: ["renamed", "second"]
+    "#);
+
+    // A bit strange: apparently we are finding HEAD for the
+    // default workspace (aka renamed) even when it is not present in the view
+    insta::assert_snapshot!(log_heads(&test_env, &repo_path), @r#"
+    ○  renamed
+    │
+    ~
+    "#);
+
+    insta::assert_snapshot!(dbg_view(), @r#"
+    ---- git_head_is_some: false;
+         git_heads: [("renamed", Some("65186856"))]
+         working_copies: ["renamed", "second"]
+    "#);
+
+    // Even weirder: even in the other workspace.
+    insta::assert_snapshot!(log_heads(&test_env, &second_path), @r#"
+    ○  second
+    ○  renamed
+    │
+    ~
+    "#);
+
+    insta::assert_snapshot!(dbg_view(), @r#"
+    ---- git_head_is_some: false;
+         git_heads: [("renamed", Some("65186856")), ("second", Some("f8398ffd"))]
+         working_copies: ["renamed", "second"]
+    "#);
+
+    let (_, stderr) = test_env.jj_cmd_ok(&second_path, &["commit", "-m", "second 2"]);
+    eprint!("{stderr}");
+
+    insta::assert_snapshot!(dbg_view(), @r#"
+    ---- git_head_is_some: false;
+         git_heads: [("renamed", Some("65186856")), ("second", Some("1bc3c6d5"))]
+         working_copies: ["renamed", "second"]
+    "#);
+
+    // It's ok if we can do better than this and get HEADS for all the workspaces
+    // We are testing that our best effort recovery actually does something.
+    insta::assert_snapshot!(log_heads(&test_env, &repo_path), @r#"
+    ○  second 2
+    ~  (elided revisions)
+    ○  renamed
+    │
+    ~
+    "#);
 }

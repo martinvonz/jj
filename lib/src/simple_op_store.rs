@@ -730,6 +730,12 @@ fn ref_target_to_proto_legacy(value: &RefTarget) -> Option<crate::protos::op_sto
     }
 }
 
+impl RefTarget {
+    #[doc(hidden)]
+    pub fn _from_proto(proto: crate::protos::op_store::RefTarget) -> Self {
+        ref_target_from_proto(Some(proto))
+    }
+}
 fn ref_target_from_proto(maybe_proto: Option<crate::protos::op_store::RefTarget>) -> RefTarget {
     // TODO: Delete legacy format handling when we decide to drop support for views
     // saved by jj <= 0.8.
@@ -1150,6 +1156,7 @@ mod tests {
                 ..default.clone()
             };
             let view = view_from_proto(proto);
+            assert_eq!(view.git_heads.len(), 1);
             assert!(view.git_heads.contains_key(&wsd));
         }
         let rt = RefTarget::normal(CommitId::new(b"abc".to_vec()));
@@ -1163,6 +1170,7 @@ mod tests {
                 ..default.clone()
             };
             let view = view_from_proto(proto);
+            assert_eq!(view.git_heads.len(), 1);
             assert!(view.git_heads.contains_key(&wsd));
         }
         {
@@ -1175,6 +1183,7 @@ mod tests {
                 ..default.clone()
             };
             let view = view_from_proto(proto);
+            assert_eq!(view.git_heads.len(), 1);
             assert!(view.git_heads.contains_key(&wsd));
         }
     }
