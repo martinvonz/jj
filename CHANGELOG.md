@@ -81,6 +81,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * New command `jj config unset` that unsets config values. For example,
   `jj config unset --user user.name`.
 
+* `jj help` now has the flag `--keyword` (shorthand `-k`), which can give help
+  for some keywords (e.g. `jj help -k revsets`). To see a list of the available
+  keywords you can do `jj help --help`.
+
 ### Fixed bugs
 
 * Error on `trunk()` revset resolution is now handled gracefully.
