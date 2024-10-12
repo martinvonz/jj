@@ -18,11 +18,6 @@ use crate::common::TestEnvironment;
 fn test_help() {
     let test_env = TestEnvironment::default();
 
-    let help_cmd_stdout = test_env.jj_cmd_success(test_env.env_root(), &["help"]);
-    // The help command output should be equal to the long --help flag
-    let help_flag_stdout = test_env.jj_cmd_success(test_env.env_root(), &["--help"]);
-    assert_eq!(help_cmd_stdout, help_flag_stdout);
-
     // Help command should work with commands
     let help_cmd_stdout = test_env.jj_cmd_success(test_env.env_root(), &["help", "log"]);
     let help_flag_stdout = test_env.jj_cmd_success(test_env.env_root(), &["log", "--help"]);
@@ -83,4 +78,26 @@ fn test_help() {
 
     For more information, try '--help'.
     "#);
+}
+
+#[test]
+fn test_help_category() {
+    let test_env = TestEnvironment::default();
+    // Now that we have a custom help output, capture it
+    let help_cmd_stdout = test_env.jj_cmd_success(test_env.env_root(), &["help"]);
+
+    insta::with_settings!({filters => vec![
+        (r"(?s).+(?<h>Help Categories:.+)", "$h"),
+    ]}, {
+        insta::assert_snapshot!(help_cmd_stdout, @r#"
+        Help Categories:
+          revsets           A functional language for selecting a set of revision
+          tutorial          Show a tutorial to get started with jj
+        "#);
+    });
+
+    // Help command should work with category commands
+    let help_cmd_stdout = test_env.jj_cmd_success(test_env.env_root(), &["help", "revsets"]);
+    // It should be equal to the docs
+    assert_eq!(help_cmd_stdout, include_str!("../../docs/revsets.md"));
 }

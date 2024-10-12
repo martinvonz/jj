@@ -73,6 +73,7 @@ use crate::ui::Ui;
 
 #[derive(clap::Parser, Clone, Debug)]
 #[command(disable_help_subcommand = true)]
+#[command(after_long_help = help::format_categories())]
 enum Command {
     Abandon(abandon::AbandonArgs),
     Backout(backout::BackoutArgs),
