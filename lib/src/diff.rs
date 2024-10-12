@@ -586,7 +586,7 @@ impl<'input> Diff<'input> {
         let other_sources = iter::zip(&other_inputs, other_token_ranges)
             .map(|(input, token_ranges)| DiffSource::new(input, token_ranges))
             .collect_vec();
-        let mut unchanged_regions = match &*other_sources {
+        let unchanged_regions = match &*other_sources {
             // Consider the whole range of the base input as unchanged compared
             // to itself.
             [] => {
@@ -606,7 +606,7 @@ impl<'input> Diff<'input> {
                     first_other_source,
                     &comp,
                 );
-                if tail_other_sources.is_empty() {
+                let mut unchanged_regions: Vec<_> = if tail_other_sources.is_empty() {
                     first_positions
                         .iter()
                         .map(|&(base_pos, other_pos)| {
@@ -647,17 +647,18 @@ impl<'input> Diff<'input> {
                             )
                         })
                         .collect()
-                }
+                };
+                // Add an empty range at the end to make life easier for hunks().
+                unchanged_regions.push(UnchangedRange {
+                    base: base_input.len()..base_input.len(),
+                    others: other_inputs
+                        .iter()
+                        .map(|input| input.len()..input.len())
+                        .collect(),
+                });
+                unchanged_regions
             }
         };
-        // Add an empty range at the end to make life easier for hunks().
-        unchanged_regions.push(UnchangedRange {
-            base: base_input.len()..base_input.len(),
-            others: other_inputs
-                .iter()
-                .map(|input| input.len()..input.len())
-                .collect(),
-        });
 
         let mut diff = Self {
             base_input,
