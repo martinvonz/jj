@@ -14,7 +14,6 @@
 
 #![allow(missing_docs)]
 
-use std::cmp::Ordering;
 use std::collections::BTreeMap;
 use std::hash::BuildHasher;
 use std::hash::Hash;
@@ -530,21 +529,6 @@ impl UnchangedRange {
     }
 }
 
-impl PartialOrd for UnchangedRange {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for UnchangedRange {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.base
-            .start
-            .cmp(&other.base.start)
-            .then_with(|| self.base.end.cmp(&other.base.end))
-    }
-}
-
 /// Takes any number of inputs and finds regions that are them same between all
 /// of them.
 #[derive(Clone, Debug)]
@@ -772,14 +756,10 @@ impl<'input> Diff<'input> {
                     others: new_others,
                 });
             }
+            new_unchanged_ranges.push(current.clone());
             previous = current.clone();
         }
-        self.unchanged_regions = self
-            .unchanged_regions
-            .iter()
-            .cloned()
-            .merge(new_unchanged_ranges)
-            .collect_vec();
+        self.unchanged_regions = new_unchanged_ranges;
         self.compact_unchanged_regions();
     }
 
