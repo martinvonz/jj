@@ -453,6 +453,12 @@ Thanks to the people who made this release happen!
 
 * `jj squash` now accepts a `--keep-emptied` option to keep the source commit.
 
+* The new configuration option `git.colocate=boolean` controls whether or not
+  Git repositories are colocated by default.
+
+* Both `jj git clone` and `jj git init` now take a `--no-colocate` flag to
+  disable colocation (in case `git.colocate` is set to `true`.)
+
 ### Fixed bugs
 
 * `jj git push` now ignores immutable commits when checking whether a
