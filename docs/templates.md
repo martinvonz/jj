@@ -102,7 +102,7 @@ This type cannot be printed. The following methods are defined.
 * `remote_bookmarks() -> List<RefName>`: All remote bookmarks pointing to the commit.
 * `tags() -> List<RefName>`
 * `git_refs() -> List<RefName>`
-* `git_head() -> Option<RefName>`
+* `git_head() -> Boolean`: True for the Git `HEAD` commit.
 * `divergent() -> Boolean`: True if the commit's change id corresponds to multiple
   visible commits.
 * `hidden() -> Boolean`: True if the commit is not visible (a.k.a. abandoned).

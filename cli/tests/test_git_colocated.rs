@@ -56,11 +56,11 @@ fn test_git_colocated() {
 
     // Import the repo
     test_env.jj_cmd_ok(&workspace_root, &["git", "init", "--git-repo", "."]);
-    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r#"
     @  3e9369cd54227eb88455e1834dbc08aad6a16ac4
-    ○  e61b6729ff4292870702f2f72b2a60165679ef37 master HEAD@git initial
+    ○  e61b6729ff4292870702f2f72b2a60165679ef37 master git_head() initial
     ◆  0000000000000000000000000000000000000000
-    "###);
+    "#);
     insta::assert_snapshot!(
         git_repo.head().unwrap().peel_to_commit().unwrap().id().to_string(),
         @"e61b6729ff4292870702f2f72b2a60165679ef37"
@@ -69,11 +69,11 @@ fn test_git_colocated() {
     // Modify the working copy. The working-copy commit should changed, but the Git
     // HEAD commit should not
     std::fs::write(workspace_root.join("file"), "modified").unwrap();
-    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r#"
     @  4f546c80f30abc0803fb83e5032a4d49fede4d68
-    ○  e61b6729ff4292870702f2f72b2a60165679ef37 master HEAD@git initial
+    ○  e61b6729ff4292870702f2f72b2a60165679ef37 master git_head() initial
     ◆  0000000000000000000000000000000000000000
-    "###);
+    "#);
     insta::assert_snapshot!(
         git_repo.head().unwrap().peel_to_commit().unwrap().id().to_string(),
         @"e61b6729ff4292870702f2f72b2a60165679ef37"
@@ -81,12 +81,12 @@ fn test_git_colocated() {
 
     // Create a new change from jj and check that it's reflected in Git
     test_env.jj_cmd_ok(&workspace_root, &["new"]);
-    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r#"
     @  0e2301a42b288b9568344e32cfdd8c76d1e56a83
-    ○  4f546c80f30abc0803fb83e5032a4d49fede4d68 HEAD@git
+    ○  4f546c80f30abc0803fb83e5032a4d49fede4d68 git_head()
     ○  e61b6729ff4292870702f2f72b2a60165679ef37 master initial
     ◆  0000000000000000000000000000000000000000
-    "###);
+    "#);
     insta::assert_snapshot!(
         git_repo.head().unwrap().target().unwrap().to_string(),
         @"4f546c80f30abc0803fb83e5032a4d49fede4d68"
@@ -165,13 +165,13 @@ fn test_git_colocated_unborn_bookmark() {
         git_repo.head().unwrap().peel_to_commit().unwrap().id().to_string(),
         @"e3e01407bd3539722ae4ffff077700d97c60cb11"
     );
-    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r#"
     @  0e14610343ef50775f5c44db5aeef19aee45d9ad
-    ○  e3e01407bd3539722ae4ffff077700d97c60cb11 HEAD@git
+    ○  e3e01407bd3539722ae4ffff077700d97c60cb11 git_head()
     │ ○  993600f1189571af5bbeb492cf657dc7d0fde48a
     ├─╯
     ◆  0000000000000000000000000000000000000000
-    "###);
+    "#);
     // Staged change shouldn't persist.
     checkout_index();
     insta::assert_snapshot!(test_env.jj_cmd_success(&workspace_root, &["status"]), @r###"
@@ -219,16 +219,16 @@ fn test_git_colocated_unborn_bookmark() {
     Working copy now at: wqnwkozp 101e2723 (empty) (no description set)
     Parent commit      : znkkpsqq fc8af934 (no description set)
     "###);
-    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r#"
     @  101e272377a9daff75358f10dbd078df922fe68c
-    ○  fc8af9345b0830dcb14716e04cd2af26e2d19f63 HEAD@git
+    ○  fc8af9345b0830dcb14716e04cd2af26e2d19f63 git_head()
     │ ○  ef75c0b0dcc9b080e00226908c21316acaa84dc6
     │ ○  e3e01407bd3539722ae4ffff077700d97c60cb11 master
     ├─╯
     │ ○  993600f1189571af5bbeb492cf657dc7d0fde48a
     ├─╯
     ◆  0000000000000000000000000000000000000000
-    "###);
+    "#);
 }
 
 #[test]
@@ -293,11 +293,11 @@ fn test_git_colocated_rebase_on_import() {
     let commit1 = commit2.parents().next().unwrap();
     git_repo.branch("master", &commit1, true).unwrap();
     let (stdout, stderr) = get_log_output_with_stderr(&test_env, &workspace_root);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @r#"
     @  15b1d70c5e33b5d2b18383292b85324d5153ffed
-    ○  47fe984daf66f7bf3ebf31b9cb3513c995afb857 master HEAD@git add a file
+    ○  47fe984daf66f7bf3ebf31b9cb3513c995afb857 master git_head() add a file
     ◆  0000000000000000000000000000000000000000
-    "###);
+    "#);
     insta::assert_snapshot!(stderr, @r###"
     Abandoned 1 commits that are no longer reachable.
     Rebased 1 descendant commits off of commits rewritten from git
@@ -316,13 +316,13 @@ fn test_git_colocated_bookmarks() {
     test_env.jj_cmd_ok(&workspace_root, &["git", "init", "--git-repo", "."]);
     test_env.jj_cmd_ok(&workspace_root, &["new", "-m", "foo"]);
     test_env.jj_cmd_ok(&workspace_root, &["new", "@-", "-m", "bar"]);
-    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r#"
     @  3560559274ab431feea00b7b7e0b9250ecce951f bar
     │ ○  1e6f0b403ed2ff9713b5d6b1dc601e4804250cda foo
     ├─╯
-    ○  230dd059e1b059aefc0da06a2e5a7dbf22362f22 HEAD@git
+    ○  230dd059e1b059aefc0da06a2e5a7dbf22362f22 git_head()
     ◆  0000000000000000000000000000000000000000
-    "###);
+    "#);
 
     // Create a bookmark in jj. It should be exported to Git even though it points
     // to the working- copy commit.
@@ -350,13 +350,13 @@ fn test_git_colocated_bookmarks() {
         )
         .unwrap();
     let (stdout, stderr) = get_log_output_with_stderr(&test_env, &workspace_root);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @r#"
     @  096dc80da67094fbaa6683e2a205dddffa31f9a8
     │ ○  1e6f0b403ed2ff9713b5d6b1dc601e4804250cda master foo
     ├─╯
-    ○  230dd059e1b059aefc0da06a2e5a7dbf22362f22 HEAD@git
+    ○  230dd059e1b059aefc0da06a2e5a7dbf22362f22 git_head()
     ◆  0000000000000000000000000000000000000000
-    "###);
+    "#);
     insta::assert_snapshot!(stderr, @r###"
     Abandoned 1 commits that are no longer reachable.
     Working copy now at: yqosqzyt 096dc80d (empty) (no description set)
@@ -373,11 +373,11 @@ fn test_git_colocated_bookmark_forget() {
     test_env.jj_cmd_ok(&workspace_root, &["git", "init", "--git-repo", "."]);
     test_env.jj_cmd_ok(&workspace_root, &["new"]);
     test_env.jj_cmd_ok(&workspace_root, &["bookmark", "create", "foo"]);
-    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r#"
     @  65b6b74e08973b88d38404430f119c8c79465250 foo
-    ○  230dd059e1b059aefc0da06a2e5a7dbf22362f22 HEAD@git
+    ○  230dd059e1b059aefc0da06a2e5a7dbf22362f22 git_head()
     ◆  0000000000000000000000000000000000000000
-    "###);
+    "#);
     insta::assert_snapshot!(get_bookmark_output(&test_env, &workspace_root), @r###"
     foo: rlvkpnrz 65b6b74e (empty) (no description set)
       @git: rlvkpnrz 65b6b74e (empty) (no description set)
@@ -504,13 +504,13 @@ fn test_git_colocated_checkout_non_empty_working_copy() {
 
     assert_eq!(git_head_target, "refs/heads/master");
 
-    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r#"
     @  149cc31cb08a1589e6c5ee2cb2061559dc758ecb new
     │ ○  4ec6f6506bd1903410f15b80058a7f0d8f62deea two
     ├─╯
-    ○  e61b6729ff4292870702f2f72b2a60165679ef37 master HEAD@git initial
+    ○  e61b6729ff4292870702f2f72b2a60165679ef37 master git_head() initial
     ◆  0000000000000000000000000000000000000000
-    "###);
+    "#);
 }
 
 #[test]
@@ -531,15 +531,15 @@ fn test_git_colocated_fetch_deleted_or_moved_bookmark() {
     git2::Repository::clone(origin_path.to_str().unwrap(), &clone_path).unwrap();
     test_env.jj_cmd_ok(&clone_path, &["git", "init", "--git-repo=."]);
     test_env.jj_cmd_ok(&clone_path, &["new", "A"]);
-    insta::assert_snapshot!(get_log_output(&test_env, &clone_path), @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &clone_path), @r#"
     @  9c2de797c3c299a40173c5af724329012b77cbdd
     │ ○  4a191a9013d3f3398ccf5e172792a61439dbcf3a C_to_move original C
     ├─╯
     │ ○  c49ec4fb50844d0e693f1609da970b11878772ee B_to_delete B_to_delete
     ├─╯
-    ◆  a7e4cec4256b7995129b9d1e1bda7e1df6e60678 A HEAD@git A
+    ◆  a7e4cec4256b7995129b9d1e1bda7e1df6e60678 A git_head() A
     ◆  0000000000000000000000000000000000000000
-    "###);
+    "#);
 
     test_env.jj_cmd_ok(&origin_path, &["bookmark", "delete", "B_to_delete"]);
     // Move bookmark C sideways
@@ -553,13 +553,13 @@ fn test_git_colocated_fetch_deleted_or_moved_bookmark() {
     "###);
     // "original C" and "B_to_delete" are abandoned, as the corresponding bookmarks
     // were deleted or moved on the remote (#864)
-    insta::assert_snapshot!(get_log_output(&test_env, &clone_path), @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &clone_path), @r#"
     ○  4f3d13296f978cbc351c46a43b4619c91b888475 C_to_move moved C
     │ @  9c2de797c3c299a40173c5af724329012b77cbdd
     ├─╯
-    ◆  a7e4cec4256b7995129b9d1e1bda7e1df6e60678 A HEAD@git A
+    ◆  a7e4cec4256b7995129b9d1e1bda7e1df6e60678 A git_head() A
     ◆  0000000000000000000000000000000000000000
-    "###);
+    "#);
 }
 
 #[test]
@@ -599,11 +599,11 @@ fn test_git_colocated_rebase_dirty_working_copy() {
       feature: Modified ref had been deleted in Git
     Done importing changes from the underlying Git repo.
     "###);
-    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r#"
     @  6bad94b10401f5fafc8a91064661224650d10d1b feature??
-    ○  3230d52258f6de7e9afbd10da8d64503cc7cdca5 HEAD@git
+    ○  3230d52258f6de7e9afbd10da8d64503cc7cdca5 git_head()
     ◆  0000000000000000000000000000000000000000
-    "###);
+    "#);
 
     // The working-copy content shouldn't be lost.
     insta::assert_snapshot!(
@@ -628,13 +628,13 @@ fn test_git_colocated_external_checkout() {
     test_env.jj_cmd_ok(&repo_path, &["new"]);
 
     // Checked out anonymous bookmark
-    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r#"
     @  f8a23336e41840ed1757ef323402a770427dc89a
-    ○  eccedddfa5152d99fc8ddd1081b375387a8a382a HEAD@git B
+    ○  eccedddfa5152d99fc8ddd1081b375387a8a382a git_head() B
     │ ○  a7e4cec4256b7995129b9d1e1bda7e1df6e60678 master A
     ├─╯
     ◆  0000000000000000000000000000000000000000
-    "###);
+    "#);
 
     // Check out another bookmark by external command
     git_check_out_ref("refs/heads/master");
@@ -642,13 +642,13 @@ fn test_git_colocated_external_checkout() {
     // The old working-copy commit gets abandoned, but the whole bookmark should not
     // be abandoned. (#1042)
     let (stdout, stderr) = get_log_output_with_stderr(&test_env, &repo_path);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @r#"
     @  8bb9e8d42a37c2a4e8dcfad97fce0b8f49bc7afa
-    ○  a7e4cec4256b7995129b9d1e1bda7e1df6e60678 master HEAD@git A
+    ○  a7e4cec4256b7995129b9d1e1bda7e1df6e60678 master git_head() A
     │ ○  eccedddfa5152d99fc8ddd1081b375387a8a382a B
     ├─╯
     ◆  0000000000000000000000000000000000000000
-    "###);
+    "#);
     insta::assert_snapshot!(stderr, @r###"
     Reset the working copy parent to the new Git HEAD.
     "###);
@@ -656,29 +656,29 @@ fn test_git_colocated_external_checkout() {
     // Edit non-head commit
     test_env.jj_cmd_ok(&repo_path, &["new", "description(B)"]);
     test_env.jj_cmd_ok(&repo_path, &["new", "-m=C", "--no-edit"]);
-    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r#"
     ○  99a813753d6db988d8fc436b0d6b30a54d6b2707 C
     @  81e086b7f9b1dd7fde252e28bdcf4ba4abd86ce5
-    ○  eccedddfa5152d99fc8ddd1081b375387a8a382a HEAD@git B
+    ○  eccedddfa5152d99fc8ddd1081b375387a8a382a git_head() B
     │ ○  a7e4cec4256b7995129b9d1e1bda7e1df6e60678 master A
     ├─╯
     ◆  0000000000000000000000000000000000000000
-    "###);
+    "#);
 
     // Check out another bookmark by external command
     git_check_out_ref("refs/heads/master");
 
     // The old working-copy commit shouldn't be abandoned. (#3747)
     let (stdout, stderr) = get_log_output_with_stderr(&test_env, &repo_path);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @r#"
     @  ca2a4e32f08688c6fb795c4c034a0a7e09c0d804
-    ○  a7e4cec4256b7995129b9d1e1bda7e1df6e60678 master HEAD@git A
+    ○  a7e4cec4256b7995129b9d1e1bda7e1df6e60678 master git_head() A
     │ ○  99a813753d6db988d8fc436b0d6b30a54d6b2707 C
     │ ○  81e086b7f9b1dd7fde252e28bdcf4ba4abd86ce5
     │ ○  eccedddfa5152d99fc8ddd1081b375387a8a382a B
     ├─╯
     ◆  0000000000000000000000000000000000000000
-    "###);
+    "#);
     insta::assert_snapshot!(stderr, @r###"
     Reset the working copy parent to the new Git HEAD.
     "###);
@@ -692,26 +692,26 @@ fn test_git_colocated_squash_undo() {
     test_env.jj_cmd_ok(&repo_path, &["git", "init", "--git-repo=."]);
     test_env.jj_cmd_ok(&repo_path, &["ci", "-m=A"]);
     // Test the setup
-    insta::assert_snapshot!(get_log_output_divergence(&test_env, &repo_path), @r###"
+    insta::assert_snapshot!(get_log_output_divergence(&test_env, &repo_path), @r#"
     @  rlvkpnrzqnoo 9670380ac379
-    ○  qpvuntsmwlqt a7e4cec4256b A HEAD@git
+    ○  qpvuntsmwlqt a7e4cec4256b A git_head()
     ◆  zzzzzzzzzzzz 000000000000
-    "###);
+    "#);
 
     test_env.jj_cmd_ok(&repo_path, &["squash"]);
-    insta::assert_snapshot!(get_log_output_divergence(&test_env, &repo_path), @r###"
+    insta::assert_snapshot!(get_log_output_divergence(&test_env, &repo_path), @r#"
     @  zsuskulnrvyr 6ee662324e5a
-    ○  qpvuntsmwlqt 13ab6b96d82e A HEAD@git
+    ○  qpvuntsmwlqt 13ab6b96d82e A git_head()
     ◆  zzzzzzzzzzzz 000000000000
-    "###);
+    "#);
     test_env.jj_cmd_ok(&repo_path, &["undo"]);
     // TODO: There should be no divergence here; 2f376ea1478c should be hidden
     // (#922)
-    insta::assert_snapshot!(get_log_output_divergence(&test_env, &repo_path), @r###"
+    insta::assert_snapshot!(get_log_output_divergence(&test_env, &repo_path), @r#"
     @  rlvkpnrzqnoo 9670380ac379
-    ○  qpvuntsmwlqt a7e4cec4256b A HEAD@git
+    ○  qpvuntsmwlqt a7e4cec4256b A git_head()
     ◆  zzzzzzzzzzzz 000000000000
-    "###);
+    "#);
 }
 
 #[test]
@@ -726,11 +726,11 @@ fn test_git_colocated_undo_head_move() {
     insta::assert_snapshot!(
         git_repo.head().unwrap().target().unwrap().to_string(),
         @"230dd059e1b059aefc0da06a2e5a7dbf22362f22");
-    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r#"
     @  65b6b74e08973b88d38404430f119c8c79465250
-    ○  230dd059e1b059aefc0da06a2e5a7dbf22362f22 HEAD@git
+    ○  230dd059e1b059aefc0da06a2e5a7dbf22362f22 git_head()
     ◆  0000000000000000000000000000000000000000
-    "###);
+    "#);
 
     // HEAD should be unset
     test_env.jj_cmd_ok(&repo_path, &["undo"]);
@@ -743,12 +743,12 @@ fn test_git_colocated_undo_head_move() {
     // Create commit on non-root commit
     test_env.jj_cmd_ok(&repo_path, &["new"]);
     test_env.jj_cmd_ok(&repo_path, &["new"]);
-    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r#"
     @  69b19f73cf584f162f078fb0d91c55ca39d10bc7
-    ○  eb08b363bb5ef8ee549314260488980d7bbe8f63 HEAD@git
+    ○  eb08b363bb5ef8ee549314260488980d7bbe8f63 git_head()
     ○  230dd059e1b059aefc0da06a2e5a7dbf22362f22
     ◆  0000000000000000000000000000000000000000
-    "###);
+    "#);
     insta::assert_snapshot!(
         git_repo.head().unwrap().target().unwrap().to_string(),
         @"eb08b363bb5ef8ee549314260488980d7bbe8f63");
@@ -764,11 +764,11 @@ fn test_git_colocated_undo_head_move() {
     insta::assert_snapshot!(
         git_repo.head().unwrap().target().unwrap().to_string(),
         @"230dd059e1b059aefc0da06a2e5a7dbf22362f22");
-    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r#"
     @  eb08b363bb5ef8ee549314260488980d7bbe8f63
-    ○  230dd059e1b059aefc0da06a2e5a7dbf22362f22 HEAD@git
+    ○  230dd059e1b059aefc0da06a2e5a7dbf22362f22 git_head()
     ◆  0000000000000000000000000000000000000000
-    "###);
+    "#);
 }
 
 fn get_log_output_divergence(test_env: &TestEnvironment, repo_path: &Path) -> String {
@@ -778,7 +778,7 @@ fn get_log_output_divergence(test_env: &TestEnvironment, repo_path: &Path) -> St
       commit_id.short(),
       description.first_line(),
       bookmarks,
-      git_head,
+      if(git_head, "git_head()"),
       if(divergent, "!divergence!"),
     )
     "#;
@@ -786,7 +786,14 @@ fn get_log_output_divergence(test_env: &TestEnvironment, repo_path: &Path) -> St
 }
 
 fn get_log_output(test_env: &TestEnvironment, workspace_root: &Path) -> String {
-    let template = r#"separate(" ", commit_id, bookmarks, git_head, description)"#;
+    let template = r#"
+    separate(" ",
+      commit_id,
+      bookmarks,
+      if(git_head, "git_head()"),
+      description,
+    )
+    "#;
     test_env.jj_cmd_success(workspace_root, &["log", "-T", template, "-r=all()"])
 }
 
@@ -794,7 +801,14 @@ fn get_log_output_with_stderr(
     test_env: &TestEnvironment,
     workspace_root: &Path,
 ) -> (String, String) {
-    let template = r#"separate(" ", commit_id, bookmarks, git_head, description)"#;
+    let template = r#"
+    separate(" ",
+      commit_id,
+      bookmarks,
+      if(git_head, "git_head()"),
+      description,
+    )
+    "#;
     test_env.jj_cmd_ok(workspace_root, &["log", "-T", template, "-r=all()"])
 }
 
@@ -853,11 +867,11 @@ fn test_git_colocated_unreachable_commits() {
 
     // Import the repo while there is no path to the second commit
     test_env.jj_cmd_ok(&workspace_root, &["git", "init", "--git-repo", "."]);
-    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r#"
     @  66ae47cee4f8c28ee8d7e4f5d9401b03c07e22f2
-    ○  2ee37513d2b5e549f7478c671a780053614bff19 master HEAD@git initial
+    ○  2ee37513d2b5e549f7478c671a780053614bff19 master git_head() initial
     ◆  0000000000000000000000000000000000000000
-    "###);
+    "#);
     insta::assert_snapshot!(
         git_repo.head().unwrap().peel_to_commit().unwrap().id().to_string(),
         @"2ee37513d2b5e549f7478c671a780053614bff19"

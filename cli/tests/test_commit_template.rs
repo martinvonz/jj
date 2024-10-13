@@ -671,27 +671,21 @@ fn test_log_git_head() {
     test_env.jj_cmd_ok(&repo_path, &["new", "-m=initial"]);
     std::fs::write(repo_path.join("file"), "foo\n").unwrap();
 
-    let template = r#"
-    separate(", ",
-      if(git_head, "name: " ++ git_head.name()),
-      "remote: " ++ git_head.remote(),
-    ) ++ "\n"
-    "#;
-    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", template]);
-    insta::assert_snapshot!(stdout, @r###"
-    @  remote: <Error: No RefName available>
-    ○  name: HEAD, remote: git
-    ◆  remote: <Error: No RefName available>
-    "###);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "git_head"]);
+    insta::assert_snapshot!(stdout, @r#"
+    @  false
+    ○  true
+    ◆  false
+    "#);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "--color=always"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @r#"
     [1m[38;5;2m@[0m  [1m[38;5;13mr[38;5;8mlvkpnrz[39m [38;5;3mtest.user@example.com[39m [38;5;14m2001-02-03 08:05:09[39m [38;5;12m5[38;5;8m0aaf475[39m[0m
     │  [1minitial[0m
-    ○  [1m[38;5;5mq[0m[38;5;8mpvuntsm[39m [38;5;3mtest.user@example.com[39m [38;5;6m2001-02-03 08:05:07[39m [38;5;2mHEAD@git[39m [1m[38;5;4m2[0m[38;5;8m30dd059[39m
+    ○  [1m[38;5;5mq[0m[38;5;8mpvuntsm[39m [38;5;3mtest.user@example.com[39m [38;5;6m2001-02-03 08:05:07[39m [38;5;2mgit_head()[39m [1m[38;5;4m2[0m[38;5;8m30dd059[39m
     │  [38;5;2m(empty)[39m [38;5;2m(no description set)[39m
     [1m[38;5;14m◆[0m  [1m[38;5;5mz[0m[38;5;8mzzzzzzz[39m [38;5;2mroot()[39m [1m[38;5;4m0[0m[38;5;8m0000000[39m
-    "###);
+    "#);
 }
 
 #[test]

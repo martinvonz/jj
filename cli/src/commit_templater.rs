@@ -30,7 +30,6 @@ use jj_lib::extensions_map::ExtensionsMap;
 use jj_lib::fileset;
 use jj_lib::fileset::FilesetDiagnostics;
 use jj_lib::fileset::FilesetExpression;
-use jj_lib::git;
 use jj_lib::id_prefix::IdPrefixContext;
 use jj_lib::id_prefix::IdPrefixIndex;
 use jj_lib::matchers::Matcher;
@@ -703,8 +702,11 @@ fn builtin_commit_methods<'repo>() -> CommitTemplateBuildMethodFnMap<'repo, Comm
         |language, _diagnostics, _build_ctx, self_property, function| {
             function.expect_no_arguments()?;
             let repo = language.repo;
-            let out_property = self_property.map(|commit| extract_git_head(repo, &commit));
-            Ok(L::wrap_ref_name_opt(out_property))
+            let out_property = self_property.map(|commit| {
+                let target = repo.view().git_head();
+                target.added_ids().contains(commit.id())
+            });
+            Ok(L::wrap_boolean(out_property))
         },
     );
     map.insert(
@@ -1228,14 +1230,6 @@ fn build_ref_names_index<'a>(
         index.insert(target.added_ids(), ref_name);
     }
     index
-}
-
-fn extract_git_head(repo: &dyn Repo, commit: &Commit) -> Option<Rc<RefName>> {
-    let target = repo.view().git_head();
-    target
-        .added_ids()
-        .contains(commit.id())
-        .then(|| RefName::remote_only("HEAD", git::REMOTE_NAME_FOR_LOCAL_GIT_REPO, target.clone()))
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

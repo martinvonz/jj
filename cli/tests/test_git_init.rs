@@ -64,7 +64,13 @@ fn get_bookmark_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
 }
 
 fn get_log_output(test_env: &TestEnvironment, workspace_root: &Path) -> String {
-    let template = r#"separate(" ", commit_id.short(), bookmarks, git_head, description)"#;
+    let template = r#"
+    separate(" ",
+      commit_id.short(),
+      bookmarks,
+      if(git_head, "git_head()"),
+      description,
+    )"#;
     test_env.jj_cmd_success(workspace_root, &["log", "-T", template, "-r=all()"])
 }
 
@@ -168,11 +174,11 @@ fn test_git_init_external(bare: bool) {
 
     // Check that the Git repo's HEAD got checked out
     insta::allow_duplicates! {
-        insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+        insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r#"
         @  f6950fc115ae
-        ○  8d698d4a8ee1 my-bookmark HEAD@git My commit message
+        ○  8d698d4a8ee1 my-bookmark git_head() My commit message
         ◆  000000000000
-        "###);
+        "#);
     }
 }
 
@@ -342,20 +348,20 @@ fn test_git_init_colocated_via_git_repo_path() {
         .ends_with("../../../.git"));
 
     // Check that the Git repo's HEAD got checked out
-    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r#"
     @  f61b77cd4bb5
-    ○  8d698d4a8ee1 my-bookmark HEAD@git My commit message
+    ○  8d698d4a8ee1 my-bookmark git_head() My commit message
     ◆  000000000000
-    "###);
+    "#);
 
     // Check that the Git repo's HEAD moves
     test_env.jj_cmd_ok(&workspace_root, &["new"]);
-    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r#"
     @  f1c7aa7c62d8
-    ○  f61b77cd4bb5 HEAD@git
+    ○  f61b77cd4bb5 git_head()
     ○  8d698d4a8ee1 my-bookmark My commit message
     ◆  000000000000
-    "###);
+    "#);
 }
 
 #[test]
@@ -378,20 +384,20 @@ fn test_git_init_colocated_via_git_repo_path_gitlink() {
     insta::assert_snapshot!(read_git_target(&workspace_root), @"../../../.git");
 
     // Check that the Git repo's HEAD got checked out
-    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r#"
     @  f61b77cd4bb5
-    ○  8d698d4a8ee1 my-bookmark HEAD@git My commit message
+    ○  8d698d4a8ee1 my-bookmark git_head() My commit message
     ◆  000000000000
-    "###);
+    "#);
 
     // Check that the Git repo's HEAD moves
     test_env.jj_cmd_ok(&workspace_root, &["new"]);
-    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r#"
     @  f1c7aa7c62d8
-    ○  f61b77cd4bb5 HEAD@git
+    ○  f61b77cd4bb5 git_head()
     ○  8d698d4a8ee1 my-bookmark My commit message
     ◆  000000000000
-    "###);
+    "#);
 }
 
 #[cfg(unix)]
@@ -413,20 +419,20 @@ fn test_git_init_colocated_via_git_repo_path_symlink_directory() {
     insta::assert_snapshot!(read_git_target(&workspace_root), @"../../../.git");
 
     // Check that the Git repo's HEAD got checked out
-    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r#"
     @  f61b77cd4bb5
-    ○  8d698d4a8ee1 my-bookmark HEAD@git My commit message
+    ○  8d698d4a8ee1 my-bookmark git_head() My commit message
     ◆  000000000000
-    "###);
+    "#);
 
     // Check that the Git repo's HEAD moves
     test_env.jj_cmd_ok(&workspace_root, &["new"]);
-    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r#"
     @  f1c7aa7c62d8
-    ○  f61b77cd4bb5 HEAD@git
+    ○  f61b77cd4bb5 git_head()
     ○  8d698d4a8ee1 my-bookmark My commit message
     ◆  000000000000
-    "###);
+    "#);
 }
 
 #[cfg(unix)]
@@ -451,20 +457,20 @@ fn test_git_init_colocated_via_git_repo_path_symlink_directory_without_bare_conf
     insta::assert_snapshot!(read_git_target(&workspace_root), @"../../../.git");
 
     // Check that the Git repo's HEAD got checked out
-    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r#"
     @  f61b77cd4bb5
-    ○  8d698d4a8ee1 my-bookmark HEAD@git My commit message
+    ○  8d698d4a8ee1 my-bookmark git_head() My commit message
     ◆  000000000000
-    "###);
+    "#);
 
     // Check that the Git repo's HEAD moves
     test_env.jj_cmd_ok(&workspace_root, &["new"]);
-    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r#"
     @  f1c7aa7c62d8
-    ○  f61b77cd4bb5 HEAD@git
+    ○  f61b77cd4bb5 git_head()
     ○  8d698d4a8ee1 my-bookmark My commit message
     ◆  000000000000
-    "###);
+    "#);
 }
 
 #[cfg(unix)]
@@ -491,20 +497,20 @@ fn test_git_init_colocated_via_git_repo_path_symlink_gitlink() {
     insta::assert_snapshot!(read_git_target(&workspace_root), @"../../../.git");
 
     // Check that the Git repo's HEAD got checked out
-    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r#"
     @  f61b77cd4bb5
-    ○  8d698d4a8ee1 my-bookmark HEAD@git My commit message
+    ○  8d698d4a8ee1 my-bookmark git_head() My commit message
     ◆  000000000000
-    "###);
+    "#);
 
     // Check that the Git repo's HEAD moves
     test_env.jj_cmd_ok(&workspace_root, &["new"]);
-    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r#"
     @  f1c7aa7c62d8
-    ○  f61b77cd4bb5 HEAD@git
+    ○  f61b77cd4bb5 git_head()
     ○  8d698d4a8ee1 my-bookmark My commit message
     ◆  000000000000
-    "###);
+    "#);
 }
 
 #[test]
@@ -614,17 +620,17 @@ fn test_git_init_colocated_dirty_working_copy() {
 
     // Working-copy changes should have been snapshotted.
     let stdout = test_env.jj_cmd_success(&workspace_root, &["log", "-s", "--ignore-working-copy"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @r#"
     @  sqpuoqvx test.user@example.com 2001-02-03 08:05:07 cd1e144d
     │  (no description set)
     │  C {some-file => new-staged-file}
     │  M some-file
     │  C {some-file => unstaged-file}
-    ○  mwrttmos git.user@example.com 1970-01-01 11:02:03 my-bookmark HEAD@git 8d698d4a
+    ○  mwrttmos git.user@example.com 1970-01-01 11:02:03 my-bookmark git_head() 8d698d4a
     │  My commit message
     │  A some-file
     ◆  zzzzzzzz root() 00000000
-    "###);
+    "#);
 
     // Git index should be consistent with the working copy parent. With the
     // current implementation, the index is unchanged. Since jj created new
@@ -717,20 +723,20 @@ fn test_git_init_colocated_via_flag_git_dir_exists() {
     "###);
 
     // Check that the Git repo's HEAD got checked out
-    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r#"
     @  f61b77cd4bb5
-    ○  8d698d4a8ee1 my-bookmark HEAD@git My commit message
+    ○  8d698d4a8ee1 my-bookmark git_head() My commit message
     ◆  000000000000
-    "###);
+    "#);
 
     // Check that the Git repo's HEAD moves
     test_env.jj_cmd_ok(&workspace_root, &["new"]);
-    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r#"
     @  f1c7aa7c62d8
-    ○  f61b77cd4bb5 HEAD@git
+    ○  f61b77cd4bb5 git_head()
     ○  8d698d4a8ee1 my-bookmark My commit message
     ◆  000000000000
-    "###);
+    "#);
 }
 
 #[test]
