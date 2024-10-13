@@ -269,6 +269,98 @@ impl CreateWorktreeError {
     }
 }
 
+pub fn format_gitfile_path(path: &Path) -> Cow<'_, str> {
+    return to_slash_lossy(path);
+
+    // This is from https://docs.rs/path-slash (MIT licensed)
+    // but tweaked to change any verbatim prefix to non-verbatim, as git does.
+    //
+    // Copyright (c) 2018 rhysd
+    //
+    // Permission is hereby granted, free of charge, to any person obtaining a copy
+    // of this software and associated documentation files (the "Software"), to deal
+    // in the Software without restriction, including without limitation the rights
+    // to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    // copies of the Software, and to permit persons to whom the Software is
+    // furnished to do so, subject to the following conditions:
+    //
+    // The above copyright notice and this permission notice shall be included in
+    // all copies or substantial portions of the Software.
+    //
+    // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    // FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+    // THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
+    // OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+    // ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+    // OTHER DEALINGS IN THE SOFTWARE.
+    //
+
+    #[cfg(target_os = "windows")]
+    mod windows {
+        use std::os::windows::ffi::OsStrExt as _;
+        use std::path::MAIN_SEPARATOR;
+
+        use super::*;
+
+        // Workaround for Windows. There is no way to extract raw byte sequence from
+        // `OsStr` (in `Path`). And `OsStr::to_string_lossy` may cause extra
+        // heap allocation.
+        pub(crate) fn ends_with_main_sep(p: &Path) -> bool {
+            p.as_os_str().encode_wide().last() == Some(MAIN_SEPARATOR as u16)
+        }
+    }
+    #[cfg(not(target_os = "windows"))]
+    fn to_slash_lossy(path: &Path) -> Cow<'_, str> {
+        path.to_string_lossy()
+    }
+    #[cfg(target_os = "windows")]
+    fn to_slash_lossy(path: &Path) -> Cow<'_, str> {
+        use std::path::Component;
+        use std::path::Prefix;
+
+        let mut buf = String::new();
+        for c in path.components() {
+            match c {
+                Component::RootDir => { /* empty */ }
+                Component::CurDir => buf.push('.'),
+                Component::ParentDir => buf.push_str(".."),
+                Component::Prefix(prefix_component) => {
+                    match prefix_component.kind() {
+                        Prefix::Disk(disk) | Prefix::VerbatimDisk(disk) => {
+                            if let Some(c) = char::from_u32(disk as u32) {
+                                buf.push(c);
+                                buf.push(':');
+                            }
+                        }
+                        Prefix::UNC(host, share) | Prefix::VerbatimUNC(host, share) => {
+                            // Write it as non-verbatim but with two forward slashes // instead of
+                            // \\. I think this sounds right? https://learn.microsoft.com/en-us/dotnet/core/compatibility/core-libraries/5.0/unc-path-recognition-unix
+                            buf.push_str("//");
+                            buf.push_str(&host.to_string_lossy());
+                            buf.push_str("/");
+                            buf.push_str(&share.to_string_lossy());
+                        }
+                        // Just ignore it and hope for the best?
+                        Prefix::Verbatim(_) => {}
+                        Prefix::DeviceNS(_) => {}
+                    }
+                    // C:\foo is [Prefix, RootDir, Normal]. Avoid C://
+                    continue;
+                }
+                Component::Normal(s) => buf.push_str(&s.to_string_lossy()),
+            }
+            buf.push('/');
+        }
+
+        if !windows::ends_with_main_sep(path) && buf != "/" && buf.ends_with('/') {
+            buf.pop(); // Pop last '/'
+        }
+
+        Cow::Owned(buf)
+    }
+}
+
 /// `git worktree add` implementation
 ///
 /// This function has to be implemented from scratch.
@@ -318,12 +410,12 @@ pub fn git_worktree_add(
 
     {
         let mut commondir_file = file_create_new(worktree_data.join("commondir"))?;
-        commondir_file.write_all(Path::new("..").join("..").as_os_str().as_encoded_bytes())?;
+        commondir_file.write_all(format_gitfile_path(&Path::new("..").join("..")).as_bytes())?;
         writeln!(commondir_file)?;
     }
     {
         let mut gitdir_file = file_create_new(gitdir_file_path)?;
-        gitdir_file.write_all(worktree_dotgit_path.as_os_str().as_encoded_bytes())?;
+        gitdir_file.write_all(format_gitfile_path(&worktree_dotgit_path).as_bytes())?;
         writeln!(gitdir_file)?;
     }
 
@@ -343,7 +435,7 @@ pub fn git_worktree_add(
     {
         let mut dot_git = file_create_new(&worktree_dotgit_path)?;
         write!(dot_git, "gitdir: ")?;
-        dot_git.write_all(worktree_data.as_os_str().as_encoded_bytes())?;
+        dot_git.write_all(format_gitfile_path(&worktree_data).as_bytes())?;
         writeln!(dot_git)?;
     }
 
