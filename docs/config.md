@@ -299,6 +299,32 @@ revsets.log = "main@origin.."
 The default value for `revsets.log` is
 `'present(@) | ancestors(immutable_heads().., 2) | present(trunk())'`.
 
+### Default Template
+
+You can configure the template used when no `-T` is specified.
+
+- `templates.log` for `jj log`
+- `templates.op_log` for `jj op log`
+- `templates.show` for `jj show`
+
+```toml
+[templates]
+# Use builtin log template
+log = "builtin_log_compact"
+# Use builtin op log template
+op_log = "builtin_log_compact"
+# Use builtin show template
+show = "builtin_log_detailed"
+```
+
+If you want to see the full description when you do `jj log` you can add this to
+your config:
+
+```toml
+[templates]
+log = "builtin_log_compact_full_description"
+```
+
 ### Graph style
 
 ```toml
