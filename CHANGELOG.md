@@ -37,6 +37,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 * New template function `raw_escape_sequence(...)` preserves escape sequences.
 
+* New `coalesce(revsets...)` revset which returns commits in the first revset
+  in the `revsets` list that does not evaluate to `none()`.
+
 ### Fixed bugs
 
 * Error on `trunk()` revset resolution is now handled gracefully.

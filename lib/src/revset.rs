@@ -218,6 +218,7 @@ pub enum RevsetExpression {
         /// Copy of `repo.view().heads()`, should be set by `resolve_symbols()`.
         visible_heads: Option<Vec<CommitId>>,
     },
+    Coalesce(Rc<Self>, Rc<Self>),
     Present(Rc<Self>),
     NotIn(Rc<Self>),
     Union(Rc<Self>, Rc<Self>),
@@ -528,6 +529,7 @@ pub enum ResolvedExpression {
         candidates: Box<Self>,
         count: usize,
     },
+    Coalesce(Box<Self>, Box<Self>),
     Union(Box<Self>, Box<Self>),
     /// Intersects `candidates` with `predicate` by filtering.
     FilterWithin {
@@ -853,6 +855,17 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
             visible_heads: None,
         }))
     });
+    map.insert("coalesce", |diagnostics, function, context| {
+        let ([], args) = function.expect_some_arguments()?;
+        let mut revset = RevsetExpression::none();
+        for arg in args.iter().rev() {
+            revset = Rc::new(RevsetExpression::Coalesce(
+                lower_expression(diagnostics, arg, context)?,
+                revset,
+            ));
+        }
+        Ok(revset)
+    });
     map
 });
 
@@ -1171,6 +1184,12 @@ fn try_transform_expression<E>(
                     visible_heads: visible_heads.clone(),
                 }
             }),
+            RevsetExpression::Coalesce(expression1, expression2) => transform_rec_pair(
+                (expression1, expression2),
+                pre,
+                post,
+            )?
+            .map(|(expression1, expression2)| RevsetExpression::Coalesce(expression1, expression2)),
             RevsetExpression::Present(candidates) => {
                 transform_rec(candidates, pre, post)?.map(RevsetExpression::Present)
             }
@@ -2050,6 +2069,10 @@ impl VisibilityResolutionContext<'_> {
                 let context = VisibilityResolutionContext { visible_heads };
                 context.resolve(candidates)
             }
+            RevsetExpression::Coalesce(expression1, expression2) => ResolvedExpression::Coalesce(
+                self.resolve(expression1).into(),
+                self.resolve(expression2).into(),
+            ),
             RevsetExpression::Present(_) => {
                 panic!("Expression '{expression:?}' should have been resolved by caller");
             }
@@ -2128,6 +2151,9 @@ impl VisibilityResolutionContext<'_> {
             RevsetExpression::AsFilter(candidates) => self.resolve_predicate(candidates),
             // Filters should be intersected with all() within the at-op repo.
             RevsetExpression::AtOperation { .. } => {
+                ResolvedPredicateExpression::Set(self.resolve(expression).into())
+            }
+            RevsetExpression::Coalesce(_, _) => {
                 ResolvedPredicateExpression::Set(self.resolve(expression).into())
             }
             RevsetExpression::Present(_) => {

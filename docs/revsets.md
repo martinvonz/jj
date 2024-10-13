@@ -310,6 +310,10 @@ given [string pattern](#string-patterns).
   example, `at_operation(@-, visible_heads())` will return all heads which were
   visible at the previous operation.
 
+* `coalesce(revsets...)`: Commits in the first revset in the list of `revsets`
+  which does not evaluate to `none()`. If all revsets evaluate to `none()`, then
+  the result of `coalesce` will also be `none()`.
+
 [operation]: glossary.md#operation
 
 ??? examples
