@@ -257,6 +257,7 @@ fn test_show_with_no_template() {
     Hint: The following template aliases are defined:
     - builtin_log_comfortable
     - builtin_log_compact
+    - builtin_log_compact_full_description
     - builtin_log_detailed
     - builtin_log_node
     - builtin_log_node_ascii
