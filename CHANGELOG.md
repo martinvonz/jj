@@ -27,6 +27,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * New `at_operation(op, expr)` revset can be used in order to query revisions
   based on historical state.
 
+* `jj workspace add` now accepts a `--colocate` flag, which makes the new
+  workspace into a valid git worktree, so you can run `git` commands there
+  as well.
+
 ### Fixed bugs
 
 * Error on `trunk()` revset resolution is now handled gracefully.

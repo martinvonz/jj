@@ -59,8 +59,10 @@ a comparison with Git, including how workflows are different, see the
   which [doesn't have support for partial clones](https://github.com/libgit2/libgit2/issues/5564).
 * **Shallow clones: No.** We use the [libgit2](https://libgit2.org/) library,
   which [doesn't have support for shallow clones](https://github.com/libgit2/libgit2/issues/3058).
-* **git-worktree: No.** However, there's native support for multiple working
-  copies backed by a single repo. See the `jj workspace` family of commands.
+* **git-worktree: Yes.** Jujutsu has native support for its own multiple
+  working copies ('workspaces') backed by a single repo. To get a corresponding
+  git worktree, use `jj workspace add --colocate`. For an existing
+  worktree, create a new Jujutsu workspace at the same commit.
 * **Sparse checkouts: No.** However, there's native support for sparse
   checkouts. See the `jj sparse` command.
 * **Signed commits: Partial.**

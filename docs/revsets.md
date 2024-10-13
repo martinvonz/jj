@@ -234,8 +234,11 @@ revsets (expressions) as arguments.
 * `git_refs()`:  All Git ref targets as of the last import. If a Git ref
   is in a conflicted state, all its possible targets are included.
 
-* `git_head()`: The Git `HEAD` target as of the last import. Equivalent to
-  `present(HEAD@git)`.
+* `git_head()`: The Git `HEAD` target for the current workspace, as of the last
+  import. Equivalent to `present(HEAD@git)`.
+
+* `git_heads()`: The Git `HEAD` targets for all workspaces, as of the last
+  import.
 
 * `visible_heads()`: All visible heads (same as `heads(all())`).
 
