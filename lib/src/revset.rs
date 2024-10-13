@@ -1582,12 +1582,7 @@ fn reload_repo_at_operation(
 }
 
 fn resolve_remote_bookmark(repo: &dyn Repo, name: &str, remote: &str) -> Option<Vec<CommitId>> {
-    let view = repo.view();
-    let target = match (name, remote) {
-        #[cfg(feature = "git")]
-        ("HEAD", crate::git::REMOTE_NAME_FOR_LOCAL_GIT_REPO) => view.git_head(),
-        (name, remote) => &view.get_remote_bookmark(name, remote).target,
-    };
+    let target = &repo.view().get_remote_bookmark(name, remote).target;
     target
         .is_present()
         .then(|| target.added_ids().cloned().collect())
@@ -1598,23 +1593,21 @@ fn all_bookmark_symbols(
     include_synced_remotes: bool,
 ) -> impl Iterator<Item = String> + '_ {
     let view = repo.view();
-    view.bookmarks()
-        .flat_map(move |(name, bookmark_target)| {
-            // Remote bookmark "x"@"y" may conflict with local "x@y" in unquoted form.
-            let local_target = bookmark_target.local_target;
-            let local_symbol = local_target.is_present().then(|| name.to_owned());
-            let remote_symbols = bookmark_target
-                .remote_refs
-                .into_iter()
-                .filter(move |&(_, remote_ref)| {
-                    include_synced_remotes
-                        || !remote_ref.is_tracking()
-                        || remote_ref.target != *local_target
-                })
-                .map(move |(remote_name, _)| format!("{name}@{remote_name}"));
-            local_symbol.into_iter().chain(remote_symbols)
-        })
-        .chain(view.git_head().is_present().then(|| "HEAD@git".to_owned()))
+    view.bookmarks().flat_map(move |(name, bookmark_target)| {
+        // Remote bookmark "x"@"y" may conflict with local "x@y" in unquoted form.
+        let local_target = bookmark_target.local_target;
+        let local_symbol = local_target.is_present().then(|| name.to_owned());
+        let remote_symbols = bookmark_target
+            .remote_refs
+            .into_iter()
+            .filter(move |&(_, remote_ref)| {
+                include_synced_remotes
+                    || !remote_ref.is_tracking()
+                    || remote_ref.target != *local_target
+            })
+            .map(move |(remote_name, _)| format!("{name}@{remote_name}"));
+        local_symbol.into_iter().chain(remote_symbols)
+    })
 }
 
 fn make_no_such_symbol_error(repo: &dyn Repo, name: impl Into<String>) -> RevsetResolutionError {
