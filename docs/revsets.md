@@ -304,6 +304,10 @@ given [string pattern](#string-patterns).
 * `present(x)`: Same as `x`, but evaluated to `none()` if any of the commits
   in `x` doesn't exist (e.g. is an unknown bookmark name.)
 
+* `coalesce(revsets...)`: Commits in the first revset in the list of `revsets`
+  which does not evaluate to `none()`. If all revsets evaluate to `none()`, then
+  the result of `coalesce` will also be `none()`.
+
 * `working_copies()`: The working copy commits across all the workspaces.
 
 * `at_operation(op, x)`: Evaluates `x` at the specified [operation][]. For
