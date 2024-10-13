@@ -743,7 +743,7 @@ fn test_git_init_colocated_via_flag_git_dir_not_exists() {
     insta::assert_snapshot!(stderr, @r###"
     Initialized repo in "repo"
     "###);
-    // No HEAD@git ref is available yet
+    // No HEAD ref is available yet
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
     @  230dd059e1b0
     ◆  000000000000
