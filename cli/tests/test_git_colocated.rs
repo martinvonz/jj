@@ -18,6 +18,7 @@ use std::process::Command;
 use assert_cmd::assert::OutputAssertExt;
 use git2::Oid;
 
+use crate::common::get_stdout_string;
 use crate::common::TestEnvironment;
 
 #[test]
@@ -1397,4 +1398,68 @@ fn test_colocated_workspace_forget_locked() {
         .success();
 
     let _ = test_env.jj_cmd_ok(&repo_path, &["workspace", "forget", "second"]);
+}
+
+#[test]
+fn test_worktrees_match_git_behaviour() {
+    // TODO: Better way to disable the test if git command couldn't be executed
+    if Command::new("git").arg("--version").status().is_err() {
+        eprintln!("Skipping because git command might fail to run");
+        return;
+    }
+
+    let test_env = TestEnvironment::default();
+    let repo_path = test_env.env_root().join("repo");
+    let abc_path = test_env.env_root().join("abc");
+
+    let git_cmd_success = |test_env: &TestEnvironment, path: &Path, args: &[&str]| -> String {
+        let cmd = Command::new("git")
+            .args(args)
+            .current_dir(path)
+            .env("GIT_AUTHOR_NAME", "JJ Test Suite")
+            .env("GIT_AUTHOR_EMAIL", "jj@example.com")
+            .env("GIT_AUTHOR_DATE", "2005-04-07T22:13:13Z")
+            .env("GIT_COMMITTER_NAME", "JJ Test Suite")
+            .env("GIT_COMMITTER_EMAIL", "jj@example.com")
+            .env("GIT_COMMITTER_DATE", "2005-04-07T22:13:13Z")
+            .assert()
+            .success();
+        let stdout = get_stdout_string(&cmd);
+        test_env.normalize_output(&stdout)
+    };
+
+    let read_worktree_setup = || {
+        let gitfile = std::fs::read_to_string(abc_path.join(".git")).unwrap();
+        let worktree_path = repo_path.join(".git").join("worktrees").join("abc");
+        let gitdir = std::fs::read_to_string(worktree_path.join("gitdir")).unwrap();
+        let commondir = std::fs::read_to_string(worktree_path.join("commondir")).unwrap();
+        eprintln!("   abc/.git -> {gitfile}");
+        eprintln!("   repo/.git/worktrees/abc/gitdir: {gitdir}");
+        eprintln!("   repo/.git/worktrees/abc/commondir: {commondir}");
+        (gitfile, gitdir, commondir)
+    };
+
+    git_cmd_success(&test_env, test_env.env_root(), &["init", "repo"]);
+    std::fs::write(repo_path.join("file.txt"), "contents").unwrap();
+    git_cmd_success(&test_env, &repo_path, &["add", "file.txt"]);
+    git_cmd_success(&test_env, &repo_path, &["commit", "-m", "initial commit"]);
+    git_cmd_success(&test_env, &repo_path, &["worktree", "add", "../abc"]);
+
+    eprintln!("git:");
+    let (git_gitfile, git_gitdir, git_commondir) = read_worktree_setup();
+
+    std::fs::remove_dir_all(&repo_path).unwrap();
+    std::fs::remove_dir_all(&abc_path).unwrap();
+
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "--colocate", "repo"]);
+    std::fs::write(repo_path.join("file.txt"), "contents").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "initial commit"]);
+    test_env.jj_cmd_ok(&repo_path, &["workspace", "add", "--colocate", "../abc"]);
+
+    eprintln!("jj:");
+    let (jj_gitfile, jj_gitdir, jj_commondir) = read_worktree_setup();
+
+    assert_eq!(jj_gitfile, git_gitfile);
+    assert_eq!(jj_gitdir, git_gitdir);
+    assert_eq!(jj_commondir, git_commondir);
 }
