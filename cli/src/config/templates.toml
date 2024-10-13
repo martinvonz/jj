@@ -91,22 +91,13 @@ if(root,
   )
 )
 '''
+
 builtin_log_compact = '''
 if(root,
   format_root_commit(self),
   label(if(current_working_copy, "working_copy"),
     concat(
-      separate(" ",
-        format_short_change_id_with_hidden_and_divergent_info(self),
-        format_short_signature(author),
-        format_timestamp(committer.timestamp()),
-        bookmarks,
-        tags,
-        working_copies,
-        if(git_head, label("git_head", "git_head()")),
-        format_short_commit_id(commit_id),
-        if(conflict, label("conflict", "conflict")),
-      ) ++ "\n",
+      format_short_commit_header(self) ++ "\n",
       separate(" ",
         if(empty, label("empty", "(empty)")),
         if(description,
@@ -118,6 +109,25 @@ if(root,
   )
 )
 '''
+
+builtin_log_compact_full_description = '''
+if(root,
+  format_root_commit(self),
+  label(if(current_working_copy, "working_copy"),
+    concat(
+      format_short_commit_header(self) ++ "\n",
+      separate(" ",
+        if(empty, label("empty", "(empty)")),
+        if(description,
+          description,
+          label(if(empty, "empty"), description_placeholder),
+        ),
+      ) ++ "\n",
+    ),
+  )
+)
+'''
+
 builtin_log_comfortable = 'builtin_log_compact ++ "\n"'
 builtin_log_detailed = '''
 concat(
@@ -241,6 +251,20 @@ if(commit.hidden(),
     format_short_change_id(commit.change_id()) ++ if(commit.divergent(), "??")
   )
 )
+'''
+
+'format_short_commit_header(commit)' = '''
+separate(" ",
+        format_short_change_id_with_hidden_and_divergent_info(commit),
+        format_short_signature(commit.author()),
+        format_timestamp(commit.committer().timestamp()),
+        commit.bookmarks(),
+        commit.tags(),
+        commit.working_copies(),
+        if(commit.git_head(), label("git_head", "git_head()")),
+        format_short_commit_id(commit.commit_id()),
+        if(commit.conflict(), label("conflict", "conflict")),
+      )
 '''
 
 builtin_log_node = '''
