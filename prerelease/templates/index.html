@@ -1944,6 +1944,11 @@ type</a> are available as keywords. For example,
   non-empty lines by the given <code>prefix</code>.</li>
 <li><code>label(label: Template, content: Template) -&gt; Template</code>: Apply label to
   the content. The <code>label</code> is evaluated as a space-separated string.</li>
+<li><code>raw_escape_sequence(content: Template) -&gt; Template</code>: Preserves any escape
+  sequences in <code>content</code> (i.e., bypasses sanitization) and strips labels.
+  Note: This function is intended for escape sequences and as such, it's output
+  is expected to be invisible / of no display width. Outputting content with
+  nonzero display width may break wrapping, indentation etc.</li>
 <li><code>if(condition: Boolean, then: Template[, else: Template]) -&gt; Template</code>:
   Conditionally evaluate <code>then</code>/<code>else</code> template content.</li>
 <li><code>coalesce(content: Template...) -&gt; Template</code>: Returns the first <strong>non-empty</strong>
@@ -2115,6 +2120,8 @@ A double-quoted string literal supports the following escape sequences:</p>
 <li><code>\r</code>: carriage return</li>
 <li><code>\n</code>: new line</li>
 <li><code>\0</code>: null</li>
+<li><code>\e</code>: escape (i.e., <code>\x1b</code>)</li>
+<li><code>\xHH</code>: byte with hex value <code>HH</code></li>
 </ul>
 <p>Other escape sequences are not supported. Any UTF-8 characters are allowed
 inside a string literal, with two exceptions: unescaped <code>"</code>-s and uses of <code>\</code>
