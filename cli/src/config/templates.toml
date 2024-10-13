@@ -41,8 +41,6 @@ tag_list = '''
 label("tag", name) ++ format_ref_targets(self) ++ "\n"
 '''
 
-# TODO: Here and elsewhere, the end time for operations is more meaningful than
-# the start time. https://github.com/martinvonz/jj/pull/4602#discussion_r1791207491
 op_summary = '''
 separate(" ",
   self.id().short(),
@@ -51,7 +49,7 @@ separate(" ",
     surround(
        "(",
        ")",
-       format_timestamp(self.time().start())
+       format_timestamp(self.time().end())
     )
   ),
   self.description().first_line()
@@ -153,8 +151,12 @@ commit_summary_separator = 'label("separator", " | ")'
   coalesce(signature.name(), name_placeholder)
   ++ " <" ++ coalesce(signature.email(), email_placeholder) ++ ">"
   ++ " (" ++ format_timestamp(signature.timestamp()) ++ ")"'''
+# For operations, when it makes a difference whether to use the start time or
+# the end time, the latter is more meaningful. For mutating operations, this is
+# the moment when the repo was actually modified due to this operation. TODO:
+# This macro might need a better name, e.g. `format_operation_time_range`.
 'format_time_range(time_range)' = '''
-  time_range.start().ago() ++ label("time", ", lasted ") ++ time_range.duration()'''
+  time_range.end().ago() ++ label("time", ", lasted ") ++ time_range.duration()'''
 'format_timestamp(timestamp)' = 'timestamp.local().format("%Y-%m-%d %H:%M:%S")'
 
 'format_commit_summary_with_refs(commit, refs)' = '''
