@@ -18,6 +18,7 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use itertools::Itertools as _;
+use jj_lib::git::format_gitfile_path;
 use regex::Captures;
 use regex::Regex;
 use tempfile::TempDir;
@@ -323,8 +324,10 @@ impl TestEnvironment {
     pub fn normalize_output(&self, text: &str) -> String {
         let text = text.replace("jj.exe", "jj");
         let regex = Regex::new(&format!(
-            r"{}(\S+)",
-            regex::escape(&self.env_root.display().to_string())
+            r"(?:{}|{})(\S+)",
+            regex::escape(&self.env_root.display().to_string()),
+            // Needed on windows
+            regex::escape(&format_gitfile_path(self.env_root()))
         ))
         .unwrap();
         regex
