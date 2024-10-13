@@ -15,6 +15,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 * Evaluation error of `revsets.short-prefixes` configuration is now reported.
 
+* The `HEAD@git` symbol no longer resolves to the Git HEAD revision. Use
+  `git_head()` or `@-` revset expression instead.
+
 * Help command doesn't work recursively anymore, i.e. `jj workspace help root`
   doesn't work anymore.
 

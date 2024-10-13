@@ -807,50 +807,6 @@ fn test_resolve_symbol_tags() {
 }
 
 #[test]
-fn test_resolve_symbol_git_head() {
-    let settings = testutils::user_settings();
-    let test_repo = TestRepo::init();
-    let repo = &test_repo.repo;
-
-    let mut tx = repo.start_transaction(&settings);
-    let mut_repo = tx.repo_mut();
-
-    let commit1 = write_random_commit(mut_repo, &settings);
-
-    // Without HEAD@git
-    insta::assert_debug_snapshot!(
-        resolve_symbol(mut_repo, "HEAD").unwrap_err(), @r###"
-    NoSuchRevision {
-        name: "HEAD",
-        candidates: [],
-    }
-    "###);
-    insta::assert_debug_snapshot!(
-        resolve_symbol(mut_repo, "HEAD@git").unwrap_err(), @r###"
-    NoSuchRevision {
-        name: "HEAD@git",
-        candidates: [],
-    }
-    "###);
-
-    // With HEAD@git
-    mut_repo.set_git_head_target(RefTarget::normal(commit1.id().clone()));
-    insta::assert_debug_snapshot!(
-        resolve_symbol(mut_repo, "HEAD").unwrap_err(), @r###"
-    NoSuchRevision {
-        name: "HEAD",
-        candidates: [
-            "HEAD@git",
-        ],
-    }
-    "###);
-    assert_eq!(
-        resolve_symbol(mut_repo, "HEAD@git").unwrap(),
-        vec![commit1.id().clone()],
-    );
-}
-
-#[test]
 fn test_resolve_symbol_git_refs() {
     let settings = testutils::user_settings();
     let test_repo = TestRepo::init();
