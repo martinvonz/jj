@@ -190,8 +190,7 @@ pub struct RawEscapeSequenceTemplate<T>(pub T);
 impl<T: Template> Template for RawEscapeSequenceTemplate<T> {
     fn format(&self, formatter: &mut TemplateFormatter) -> io::Result<()> {
         let rewrap = formatter.rewrap_fn();
-        let mut raw_formatter = PlainTextFormatter::new(formatter.raw());
-        // TODO(#4631): process "buffered" labels.
+        let mut raw_formatter = PlainTextFormatter::new(formatter.raw()?);
         self.0.format(&mut rewrap(&mut raw_formatter))
     }
 }
@@ -709,7 +708,7 @@ impl<'a> TemplateFormatter<'a> {
         move |formatter| TemplateFormatter::new(formatter, error_handler)
     }
 
-    pub fn raw(&mut self) -> Box<dyn Write + '_> {
+    pub fn raw(&mut self) -> io::Result<Box<dyn Write + '_>> {
         self.formatter.raw()
     }
 
