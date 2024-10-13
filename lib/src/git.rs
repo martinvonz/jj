@@ -33,6 +33,7 @@ use itertools::Itertools;
 use tempfile::NamedTempFile;
 use thiserror::Error;
 
+use super::git_path_slash;
 use crate::backend::BackendError;
 use crate::backend::CommitId;
 use crate::commit::Commit;
@@ -268,6 +269,10 @@ impl CreateWorktreeError {
     }
 }
 
+pub fn format_gitfile_path(path: &Path) -> Cow<'_, str> {
+    return git_path_slash::to_slash_lossy(path);
+}
+
 /// `git worktree add` implementation
 ///
 /// This function has to be implemented from scratch.
@@ -317,12 +322,12 @@ pub fn git_worktree_add(
 
     {
         let mut commondir_file = file_create_new(worktree_data.join("commondir"))?;
-        commondir_file.write_all(Path::new("..").join("..").as_os_str().as_encoded_bytes())?;
+        commondir_file.write_all(format_gitfile_path(&Path::new("..").join("..")).as_bytes())?;
         writeln!(commondir_file)?;
     }
     {
         let mut gitdir_file = file_create_new(gitdir_file_path)?;
-        gitdir_file.write_all(worktree_dotgit_path.as_os_str().as_encoded_bytes())?;
+        gitdir_file.write_all(format_gitfile_path(&worktree_dotgit_path).as_bytes())?;
         writeln!(gitdir_file)?;
     }
 
@@ -342,7 +347,7 @@ pub fn git_worktree_add(
     {
         let mut dot_git = file_create_new(&worktree_dotgit_path)?;
         write!(dot_git, "gitdir: ")?;
-        dot_git.write_all(worktree_data.as_os_str().as_encoded_bytes())?;
+        dot_git.write_all(format_gitfile_path(&worktree_data).as_bytes())?;
         writeln!(dot_git)?;
     }
 

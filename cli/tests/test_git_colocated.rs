@@ -1317,7 +1317,6 @@ fn test_colocated_workspace_fail_existing_git_worktree() {
 
     let test_env = TestEnvironment::default();
     let repo_path = test_env.env_root().join("repo");
-    let second_path = test_env.env_root().join("second");
     let third_path = test_env.env_root().join("third");
 
     // Initialize and make a commit so git can create worktrees
@@ -1325,16 +1324,14 @@ fn test_colocated_workspace_fail_existing_git_worktree() {
     std::fs::write(repo_path.join("file.txt"), "contents").unwrap();
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "initial commit"]);
 
-    // Add a a git worktree at `.git/worktrees/second` that points to "../third"
+    // Add a git worktree at `.git/worktrees/second` that points to "../third"
     Command::new("git")
-        .args(["worktree", "add"])
-        .arg(&second_path)
+        .args(["worktree", "add", "../second"])
         .current_dir(&repo_path)
         .assert()
         .success();
     Command::new("git")
-        .args(["worktree", "move", "second"])
-        .arg(&third_path)
+        .args(["worktree", "move", "second", "../third"])
         .current_dir(&repo_path)
         .assert()
         .success();
