@@ -18,6 +18,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * Help command doesn't work recursively anymore, i.e. `jj workspace help root`
   doesn't work anymore.
 
+* Default operation log template now shows end times of operations instead of
+  start times.
+
 ### Deprecations
 
 ### New features
