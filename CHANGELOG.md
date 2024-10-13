@@ -76,6 +76,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * Added the config settings `diff.color-words.context` and `diff.git.context` to
   control the default number of lines of context shown.
 
+* Add a new template alias `bultin_log_compact_full_description()`.
+
 ### Fixed bugs
 
 * Error on `trunk()` revset resolution is now handled gracefully.
