@@ -69,6 +69,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * New template functions `pad_start()`, `pad_end()`, `truncate_start()`, and
   `truncate_end()` are added.
 
+* Add a new template alias `bultin_log_compact_full_description()`.
+
 ### Fixed bugs
 
 * Error on `trunk()` revset resolution is now handled gracefully.

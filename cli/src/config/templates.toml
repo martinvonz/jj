@@ -91,12 +91,9 @@ if(root,
   )
 )
 '''
-builtin_log_compact = '''
-if(root,
-  format_root_commit(self),
-  label(if(current_working_copy, "working_copy"),
-    concat(
-      separate(" ",
+
+builtin_log_compact_commit_header = '''
+separate(" ",
         format_short_change_id_with_hidden_and_divergent_info(self),
         format_short_signature(author),
         format_timestamp(committer.timestamp()),
@@ -106,11 +103,19 @@ if(root,
         if(git_head, label("git_head", "git_head()")),
         format_short_commit_id(commit_id),
         if(conflict, label("conflict", "conflict")),
-      ) ++ "\n",
+      )
+'''
+
+'builtin_log_compact_desc(full_description)' = '''
+if(root,
+  format_root_commit(self),
+  label(if(current_working_copy, "working_copy"),
+    concat(
+      builtin_log_compact_commit_header ++ "\n",
       separate(" ",
         if(empty, label("empty", "(empty)")),
         if(description,
-          description.first_line(),
+          if(full_description, description, description.first_line()),
           label(if(empty, "empty"), description_placeholder),
         ),
       ) ++ "\n",
@@ -118,6 +123,10 @@ if(root,
   )
 )
 '''
+
+builtin_log_compact = 'builtin_log_compact_desc(false)'
+builtin_log_compact_full_description = 'builtin_log_compact_desc(true)'
+
 builtin_log_comfortable = 'builtin_log_compact ++ "\n"'
 builtin_log_detailed = '''
 concat(

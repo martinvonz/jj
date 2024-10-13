@@ -43,6 +43,8 @@ fn test_log_with_no_template() {
     Hint: The following template aliases are defined:
     - builtin_log_comfortable
     - builtin_log_compact
+    - builtin_log_compact_commit_header
+    - builtin_log_compact_full_description
     - builtin_log_detailed
     - builtin_log_node
     - builtin_log_node_ascii
@@ -1651,4 +1653,33 @@ fn test_log_with_custom_symbols() {
     |
     ^
     "###);
+}
+
+#[test]
+fn test_log_full_description_template() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    test_env.jj_cmd_ok(
+        &repo_path,
+        &[
+            "describe",
+            "-m",
+            "this is commit with a multiline description\n\n<full description>",
+        ],
+    );
+
+    let log = test_env.jj_cmd_success(
+        &repo_path,
+        &["log", "-T", "builtin_log_compact_full_description"],
+    );
+    insta::assert_snapshot!(log, @r#"
+    @  qpvuntsm test.user@example.com 2001-02-03 08:05:08 1c504ec6
+    │  (empty) this is commit with a multiline description
+    │
+    │  <full description>
+    │
+    ◆  zzzzzzzz root() 00000000
+    "#);
 }
