@@ -34,7 +34,7 @@ use itertools::Itertools;
 pub trait Formatter: Write {
     /// Returns the backing `Write`. This is useful for writing data that is
     /// already formatted, such as in the graphical log.
-    fn raw(&mut self) -> Box<dyn Write + '_>;
+    fn raw(&mut self) -> io::Result<Box<dyn Write + '_>>;
 
     fn push_label(&mut self, label: &str) -> io::Result<()>;
 
@@ -203,8 +203,8 @@ impl<W: Write> Write for PlainTextFormatter<W> {
 }
 
 impl<W: Write> Formatter for PlainTextFormatter<W> {
-    fn raw(&mut self) -> Box<dyn Write + '_> {
-        Box::new(self.output.by_ref())
+    fn raw(&mut self) -> io::Result<Box<dyn Write + '_>> {
+        Ok(Box::new(self.output.by_ref()))
     }
 
     fn push_label(&mut self, _label: &str) -> io::Result<()> {
@@ -238,8 +238,8 @@ impl<W: Write> Write for SanitizingFormatter<W> {
 }
 
 impl<W: Write> Formatter for SanitizingFormatter<W> {
-    fn raw(&mut self) -> Box<dyn Write + '_> {
-        Box::new(self.output.by_ref())
+    fn raw(&mut self) -> io::Result<Box<dyn Write + '_>> {
+        Ok(Box::new(self.output.by_ref()))
     }
 
     fn push_label(&mut self, _label: &str) -> io::Result<()> {
@@ -541,8 +541,9 @@ impl<W: Write> Write for ColorFormatter<W> {
 }
 
 impl<W: Write> Formatter for ColorFormatter<W> {
-    fn raw(&mut self) -> Box<dyn Write + '_> {
-        Box::new(self.output.by_ref())
+    fn raw(&mut self) -> io::Result<Box<dyn Write + '_>> {
+        self.write_new_style()?;
+        Ok(Box::new(self.output.by_ref()))
     }
 
     fn push_label(&mut self, label: &str) -> io::Result<()> {
@@ -626,8 +627,7 @@ impl FormatRecorder {
                 FormatOp::PushLabel(label) => formatter.push_label(label)?,
                 FormatOp::PopLabel => formatter.pop_label()?,
                 FormatOp::RawEscapeSequence(raw_escape_sequence) => {
-                    // TODO(#4631): process "buffered" labels.
-                    formatter.raw().write_all(raw_escape_sequence)?;
+                    formatter.raw()?.write_all(raw_escape_sequence)?;
                 }
             }
         }
@@ -660,8 +660,8 @@ impl<'a> Write for RawEscapeSequenceRecorder<'a> {
 }
 
 impl Formatter for FormatRecorder {
-    fn raw(&mut self) -> Box<dyn Write + '_> {
-        Box::new(RawEscapeSequenceRecorder(self))
+    fn raw(&mut self) -> io::Result<Box<dyn Write + '_>> {
+        Ok(Box::new(RawEscapeSequenceRecorder(self)))
     }
 
     fn push_label(&mut self, label: &str) -> io::Result<()> {
@@ -1267,21 +1267,21 @@ mod tests {
     fn test_raw_format_recorder() {
         // Note: similar to test_format_recorder above
         let mut recorder = FormatRecorder::new();
-        write!(recorder.raw(), " outer1 ").unwrap();
+        write!(recorder.raw().unwrap(), " outer1 ").unwrap();
         recorder.push_label("inner").unwrap();
-        write!(recorder.raw(), " inner1 ").unwrap();
-        write!(recorder.raw(), " inner2 ").unwrap();
+        write!(recorder.raw().unwrap(), " inner1 ").unwrap();
+        write!(recorder.raw().unwrap(), " inner2 ").unwrap();
         recorder.pop_label().unwrap();
-        write!(recorder.raw(), " outer2 ").unwrap();
+        write!(recorder.raw().unwrap(), " outer2 ").unwrap();
 
-        // No non-raw output to label
+        // Replayed raw escape sequences are labeled.
         let config = config_from_string(r#" colors.inner = "red" "#);
         let mut output: Vec<u8> = vec![];
         let mut formatter = ColorFormatter::for_config(&mut output, &config, false).unwrap();
         recorder.replay(&mut formatter).unwrap();
         drop(formatter);
         insta::assert_snapshot!(
-            String::from_utf8(output).unwrap(), @" outer1  inner1  inner2  outer2 ");
+            String::from_utf8(output).unwrap(), @" outer1 [38;5;1m inner1  inner2 [39m outer2 ");
 
         let mut output: Vec<u8> = vec![];
         let mut formatter = ColorFormatter::for_config(&mut output, &config, false).unwrap();
@@ -1295,6 +1295,6 @@ mod tests {
             .unwrap();
         drop(formatter);
         insta::assert_snapshot!(
-            String::from_utf8(output).unwrap(), @" outer1  inner1  inner2  outer2 ");
+            String::from_utf8(output).unwrap(), @" outer1 [38;5;1m inner1  inner2 [39m outer2 ");
     }
 }
