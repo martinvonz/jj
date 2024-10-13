@@ -919,6 +919,14 @@ impl<'index> EvaluationContext<'index> {
                     self.take_latest_revset(candidate_set.as_ref(), *count),
                 ))
             }
+            ResolvedExpression::Coalesce(expression1, expression2) => {
+                let set1 = self.evaluate(expression1)?;
+                if set1.positions().attach(index).next().is_some() {
+                    Ok(set1)
+                } else {
+                    self.evaluate(expression2)
+                }
+            }
             ResolvedExpression::Union(expression1, expression2) => {
                 let set1 = self.evaluate(expression1)?;
                 let set2 = self.evaluate(expression2)?;

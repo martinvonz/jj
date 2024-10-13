@@ -2975,6 +2975,84 @@ fn test_evaluate_expression_at_operation() {
 }
 
 #[test]
+fn test_evaluate_expression_coalesce() {
+    let settings = testutils::user_settings();
+    let test_repo = TestRepo::init();
+    let repo = &test_repo.repo;
+    let root_commit_id = repo.store().root_commit_id().clone();
+
+    let mut tx = repo.start_transaction(&settings);
+    let mut_repo = tx.repo_mut();
+    let mut graph_builder = CommitGraphBuilder::new(&settings, mut_repo);
+    let commit1 = graph_builder.initial_commit();
+    let commit2 = graph_builder.commit_with_parents(&[&commit1]);
+    mut_repo.set_local_bookmark_target("commit1", RefTarget::normal(commit1.id().clone()));
+    mut_repo.set_local_bookmark_target("commit2", RefTarget::normal(commit2.id().clone()));
+
+    assert_eq!(resolve_commit_ids(mut_repo, "coalesce()"), vec![]);
+    assert_eq!(resolve_commit_ids(mut_repo, "coalesce(none())"), vec![]);
+    assert_eq!(
+        resolve_commit_ids(mut_repo, "coalesce(all())"),
+        vec![
+            commit2.id().clone(),
+            commit1.id().clone(),
+            root_commit_id.clone(),
+        ]
+    );
+    assert_eq!(
+        resolve_commit_ids(mut_repo, "coalesce(all(), commit1)"),
+        vec![
+            commit2.id().clone(),
+            commit1.id().clone(),
+            root_commit_id.clone(),
+        ]
+    );
+    assert_eq!(
+        resolve_commit_ids(mut_repo, "coalesce(none(), commit1)"),
+        vec![commit1.id().clone()]
+    );
+    assert_eq!(
+        resolve_commit_ids(mut_repo, "coalesce(commit1, commit2)"),
+        vec![commit1.id().clone()]
+    );
+    assert_eq!(
+        resolve_commit_ids(mut_repo, "coalesce(none(), none(), commit2)"),
+        vec![commit2.id().clone()]
+    );
+    assert_eq!(
+        resolve_commit_ids(mut_repo, "coalesce(none(), commit1, commit2)"),
+        vec![commit1.id().clone()]
+    );
+    // Should resolve invalid symbols regardless of whether a specific revset is
+    // evaluated.
+    assert_matches!(
+        try_resolve_commit_ids(mut_repo, "coalesce(all(), commit1_invalid)"),
+        Err(RevsetResolutionError::NoSuchRevision { name, .. })
+        if name == "commit1_invalid"
+    );
+    assert_matches!(
+        try_resolve_commit_ids(mut_repo, "coalesce(none(), commit1_invalid)"),
+        Err(RevsetResolutionError::NoSuchRevision { name, .. })
+        if name == "commit1_invalid"
+    );
+    assert_matches!(
+        try_resolve_commit_ids(mut_repo, "coalesce(all(), commit1, commit2_invalid)"),
+        Err(RevsetResolutionError::NoSuchRevision { name, .. })
+        if name == "commit2_invalid"
+    );
+    assert_matches!(
+        try_resolve_commit_ids(mut_repo, "coalesce(none(), commit1, commit2_invalid)"),
+        Err(RevsetResolutionError::NoSuchRevision { name, .. })
+        if name == "commit2_invalid"
+    );
+    assert_matches!(
+        try_resolve_commit_ids(mut_repo, "coalesce(none(), commit1, commit2, commit2_invalid)"),
+        Err(RevsetResolutionError::NoSuchRevision { name, .. })
+        if name == "commit2_invalid"
+    );
+}
+
+#[test]
 fn test_evaluate_expression_union() {
     let settings = testutils::user_settings();
     let test_repo = TestRepo::init();
