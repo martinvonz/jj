@@ -78,7 +78,6 @@ use crate::refs::diff_named_remote_refs;
 use crate::refs::merge_ref_targets;
 use crate::refs::merge_remote_refs;
 use crate::revset;
-use crate::revset::RevsetEvaluationError;
 use crate::revset::RevsetExpression;
 use crate::revset::RevsetIteratorExt;
 use crate::rewrite::merge_commit_trees;
@@ -1194,11 +1193,13 @@ impl MutableRepo {
                 ));
         let to_visit_revset = to_visit_expression
             .evaluate_programmatic(self)
-            .map_err(|err| match err {
-                RevsetEvaluationError::StoreError(err) => err,
-                RevsetEvaluationError::Other(_) => panic!("Unexpected revset error: {err}"),
-            })?;
-        let to_visit: Vec<_> = to_visit_revset.iter().commits(store).try_collect()?;
+            .map_err(|err| err.expect_backend_error())?;
+        let to_visit: Vec<_> = to_visit_revset
+            .iter()
+            .commits(store)
+            .try_collect()
+            // TODO: Return evaluation error to caller
+            .map_err(|err| err.expect_backend_error())?;
         drop(to_visit_revset);
         let to_visit_set: HashSet<CommitId> =
             to_visit.iter().map(|commit| commit.id().clone()).collect();
