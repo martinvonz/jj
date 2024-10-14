@@ -1597,8 +1597,9 @@ a comparison with Git, including how workflows are different, see the
   not be lost either.</li>
 <li><strong>Partial clones: No.</strong> We use the <a href="https://libgit2.org/">libgit2</a> library,
   which <a href="https://github.com/libgit2/libgit2/issues/5564">doesn't have support for partial clones</a>.</li>
-<li><strong>Shallow clones: No.</strong> We use the <a href="https://libgit2.org/">libgit2</a> library,
-  which <a href="https://github.com/libgit2/libgit2/issues/3058">doesn't have support for shallow clones</a>.</li>
+<li><strong>Shallow clones: Kind of.</strong> Shallow commits all have the virtual root commit as
+  their parent. However, deepening or fully unshallowing a repository is currently not yet
+  supported and will cause issues.</li>
 <li><strong>git-worktree: No.</strong> However, there's native support for multiple working
   copies backed by a single repo. See the <code>jj workspace</code> family of commands.</li>
 <li><strong>Sparse checkouts: No.</strong> However, there's native support for sparse
