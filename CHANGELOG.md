@@ -42,6 +42,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * Error on `trunk()` revset resolution is now handled gracefully.
   [#4616](https://github.com/martinvonz/jj/issues/4616)
 
+* Updated the built-in diff editor `scm-record` to version 
+  [0.4.0](https://github.com/arxanas/scm-record/releases/tag/v0.4.0), which
+  includes multiple fixes.
+
 ## [0.22.0] - 2024-10-02
 
 ### Breaking changes
