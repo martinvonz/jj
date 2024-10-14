@@ -82,7 +82,7 @@ pub fn cmd_op_show(
         let text = command.settings().config().get_string("templates.op_log")?;
         workspace_command
             .parse_operation_template(ui, &text)?
-            .labeled("op_log")
+            .labeled("operation")
     };
 
     ui.request_pager();
