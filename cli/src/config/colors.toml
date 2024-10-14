@@ -97,13 +97,13 @@
 "diff copied" = "green"
 "diff access-denied" = { bg = "red" }
 
-"op_log id" = "blue"
-"op_log user" = "yellow"
-"op_log time" = "cyan"
-"op_log current_operation" = { bold = true }
-"op_log current_operation id" = "bright blue"
-"op_log current_operation user" = "yellow"                    # No bright yellow, see comment above
-"op_log current_operation time" = "bright cyan"
+"operation id" = "blue"
+"operation user" = "yellow"
+"operation time" = "cyan"
+"operation current_operation" = { bold = true }
+"operation current_operation id" = "bright blue"
+"operation current_operation user" = "yellow"                    # No bright yellow, see comment above
+"operation current_operation time" = "bright cyan"
 
 "node elided" = { fg = "bright black" }
 "node working_copy" = { fg = "green", bold = true }
