@@ -36,7 +36,6 @@ use crate::graph::GraphEdgeType;
 use crate::merged_tree::MergedTree;
 use crate::repo::Repo;
 use crate::repo_path::RepoPath;
-use crate::revset::RevsetEvaluationError;
 use crate::revset::RevsetExpression;
 use crate::revset::RevsetFilterPredicate;
 use crate::store::Store;
@@ -164,12 +163,7 @@ fn process_commits(
                 .filtered(predicate),
         )
         .evaluate_programmatic(repo)
-        .map_err(|e| match e {
-            RevsetEvaluationError::StoreError(backend_error) => backend_error,
-            RevsetEvaluationError::Other(_) => {
-                panic!("Unable to evaluate internal revset")
-            }
-        })?;
+        .map_err(|e| e.expect_backend_error())?;
     let mut commit_line_map = get_initial_commit_line_map(starting_commit_id, num_lines);
     let mut original_line_map = HashMap::new();
 

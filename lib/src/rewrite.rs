@@ -42,7 +42,6 @@ use crate::merged_tree::TreeDiffEntry;
 use crate::repo::MutableRepo;
 use crate::repo::Repo;
 use crate::repo_path::RepoPath;
-use crate::revset::RevsetEvaluationError;
 use crate::revset::RevsetExpression;
 use crate::revset::RevsetIteratorExt;
 use crate::settings::UserSettings;
@@ -500,13 +499,12 @@ pub fn move_commits(
         RevsetExpression::commits(target_commits.iter().ids().cloned().collect_vec())
             .connected()
             .evaluate_programmatic(mut_repo)
-            .map_err(|err| match err {
-                RevsetEvaluationError::StoreError(err) => err,
-                RevsetEvaluationError::Other(_) => panic!("Unexpected revset error: {err}"),
-            })?
+            .map_err(|err| err.expect_backend_error())?
             .iter()
             .commits(mut_repo.store())
-            .try_collect()?;
+            .try_collect()
+            // TODO: Return evaluation error to caller
+            .map_err(|err| err.expect_backend_error())?;
 
     // Compute the parents of all commits in the connected target set, allowing only
     // commits in the target set as parents. The parents of each commit are
@@ -588,13 +586,12 @@ pub fn move_commits(
                         .children(),
                 )
                 .evaluate_programmatic(mut_repo)
-                .map_err(|err| match err {
-                    RevsetEvaluationError::StoreError(err) => err,
-                    RevsetEvaluationError::Other(_) => panic!("Unexpected revset error: {err}"),
-                })?
+                .map_err(|err| err.expect_backend_error())?
                 .iter()
                 .commits(mut_repo.store())
-                .try_collect()?;
+                .try_collect()
+                // TODO: Return evaluation error to caller
+                .map_err(|err| err.expect_backend_error())?;
 
         // For all commits in the target set, compute its transitive descendant commits
         // which are outside of the target set by up to 1 generation.
@@ -717,13 +714,12 @@ pub fn move_commits(
     let to_visit_expression = RevsetExpression::commits(roots).descendants();
     let to_visit: Vec<_> = to_visit_expression
         .evaluate_programmatic(mut_repo)
-        .map_err(|err| match err {
-            RevsetEvaluationError::StoreError(err) => err,
-            RevsetEvaluationError::Other(_) => panic!("Unexpected revset error: {err}"),
-        })?
+        .map_err(|err| err.expect_backend_error())?
         .iter()
         .commits(mut_repo.store())
-        .try_collect()?;
+        .try_collect()
+        // TODO: Return evaluation error to caller
+        .map_err(|err| err.expect_backend_error())?;
     let to_visit_commits: IndexMap<_, _> = to_visit
         .into_iter()
         .map(|commit| (commit.id().clone(), commit))

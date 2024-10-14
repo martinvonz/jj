@@ -28,7 +28,6 @@ use once_cell::sync::Lazy;
 use thiserror::Error;
 
 use crate::backend::BackendError;
-use crate::backend::BackendResult;
 use crate::backend::ChangeId;
 use crate::backend::CommitId;
 use crate::commit::Commit;
@@ -96,6 +95,15 @@ pub enum RevsetEvaluationError {
     StoreError(#[source] BackendError),
     #[error(transparent)]
     Other(Box<dyn std::error::Error + Send + Sync>),
+}
+
+impl RevsetEvaluationError {
+    pub fn expect_backend_error(self) -> BackendError {
+        match self {
+            Self::StoreError(err) => err,
+            Self::Other(err) => panic!("Unexpected revset error: {err}"),
+        }
+    }
 }
 
 // assumes index has less than u64::MAX entries.
@@ -2246,12 +2254,14 @@ pub struct RevsetCommitIterator<I> {
 }
 
 impl<I: Iterator<Item = CommitId>> Iterator for RevsetCommitIterator<I> {
-    type Item = BackendResult<Commit>;
+    type Item = Result<Commit, RevsetEvaluationError>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.iter
-            .next()
-            .map(|commit_id| self.store.get_commit(&commit_id))
+        self.iter.next().map(|commit_id| {
+            self.store
+                .get_commit(&commit_id)
+                .map_err(RevsetEvaluationError::StoreError)
+        })
     }
 }
 
