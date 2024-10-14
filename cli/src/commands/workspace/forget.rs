@@ -13,11 +13,15 @@
 // limitations under the License.
 
 use itertools::Itertools;
+use jj_lib::git::git_worktree_remove;
+use jj_lib::git::git_worktree_validate_removal;
+use jj_lib::git::WorktreeRemovalValidationError;
 use jj_lib::op_store::WorkspaceId;
 use tracing::instrument;
 
 use crate::cli_util::CommandHelper;
 use crate::command_error::user_error;
+use crate::command_error::user_error_with_hint;
 use crate::command_error::CommandError;
 use crate::ui::Ui;
 
@@ -60,11 +64,38 @@ pub fn cmd_workspace_forget(
         }
     }
 
+    let git_backend = workspace_command
+        .git_backend()
+        .map(|backend| backend.git_repo());
+
     // bundle every workspace forget into a single transaction, so that e.g.
     // undo correctly restores all of them at once.
     let mut tx = workspace_command.start_transaction();
-    wss.iter()
-        .try_for_each(|ws| tx.repo_mut().remove_wc_commit(ws))?;
+
+    let mut worktrees_to_remove = vec![];
+    wss.iter().try_for_each(|ws| {
+        if let Some(git_repo) = git_backend.as_ref() {
+            match git_worktree_validate_removal(git_repo, ws.as_str()) {
+                Ok(stat) => worktrees_to_remove.push(stat),
+                Err(error @ WorktreeRemovalValidationError::NonexistentWorktree(_)) => {
+                    // Indistinguishable from a workspace that never had a worktree.
+                    tracing::debug!(%error, "Ignoring non-existent worktree");
+                }
+                Err(e) => {
+                    let err = format!("Could not remove Git worktree for workspace {ws}: {e}");
+                    return if let Some(hint) = e.hint(git_repo) {
+                        Err(user_error_with_hint(err, hint))
+                    } else {
+                        Err(user_error(err))
+                    };
+                }
+            }
+        }
+        tx.repo_mut()
+            .remove_wc_commit(ws)
+            .map_err(CommandError::from)
+    })?;
+
     let description = if let [ws] = wss.as_slice() {
         format!("forget workspace {}", ws.as_str())
     } else {
@@ -75,5 +106,10 @@ pub fn cmd_workspace_forget(
     };
 
     tx.finish(ui, description)?;
+
+    for validated in worktrees_to_remove {
+        git_worktree_remove(validated).map_err(user_error)?;
+    }
+
     Ok(())
 }

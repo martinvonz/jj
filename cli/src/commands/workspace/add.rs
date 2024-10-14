@@ -13,11 +13,13 @@
 // limitations under the License.
 
 use std::fs;
+use std::io::Write;
 
 use itertools::Itertools;
 use jj_lib::commit::CommitIteratorExt;
 use jj_lib::file_util;
 use jj_lib::file_util::IoResultExt;
+use jj_lib::git::git_worktree_add;
 use jj_lib::op_store::WorkspaceId;
 use jj_lib::repo::Repo;
 use jj_lib::rewrite::merge_commit_trees;
@@ -28,6 +30,7 @@ use crate::cli_util::CommandHelper;
 use crate::cli_util::RevisionArg;
 use crate::command_error::internal_error_with_message;
 use crate::command_error::user_error;
+use crate::command_error::user_error_with_hint;
 use crate::command_error::CommandError;
 use crate::ui::Ui;
 
@@ -73,6 +76,22 @@ pub struct WorkspaceAddArgs {
     /// How to handle sparse patterns when creating a new workspace.
     #[arg(long, value_enum, default_value_t = SparseInheritance::Copy)]
     sparse_patterns: SparseInheritance,
+    /// Specifies that the new `jj` workspace should also be a valid `git`
+    /// worktree, allowing the use of both `jj` and `git` commands in the
+    /// same directory.
+    ///
+    /// This has a similar effect to `jj git init --colocate`, but for new
+    /// workspaces. It works regardless of whether a repository was
+    /// initialised with `--colocate`.
+    ///
+    /// This is implemented by adding a worktree to the backing git repo.
+    /// If you move a colocated workspace around on disk, you will need to
+    /// run `git worktree repair` in the workspace to fix up the paths.
+    /// You should also be able to run `git worktree list` to see which
+    /// workspaces are no longer where git thinks they are (they show up as
+    /// `[prunable]`)
+    #[arg(long, hide = true)]
+    colocate: bool,
 }
 
 #[instrument(skip_all)]
@@ -98,6 +117,28 @@ pub fn cmd_workspace_add(
             .unwrap()
             .to_string()
     };
+
+    if let Some(git_backend) = old_workspace_command.git_backend() {
+        if args.colocate {
+            git_worktree_add(git_backend.git_repo_path(), &destination_path, &name)
+                .inspect_err(|_| {
+                    // we failed to create a worktree, and the user is probably going to want to
+                    // try again. Attempt to destroy the workspace for a clean slate.
+                    // This is ok because we have already successfully run `create_dir`
+                    // for destination_path, so there is nothing there.
+                    fs::remove_dir_all(&destination_path).ok();
+                })
+                .map_err(|error| {
+                    let msg = format!("Failed to add git worktree: {error}");
+                    if let Some(hint) = error.hint() {
+                        user_error_with_hint(msg, hint)
+                    } else {
+                        user_error(msg)
+                    }
+                })?;
+        }
+    }
+
     let workspace_id = WorkspaceId::new(name.clone());
     let repo = old_workspace_command.repo();
     if repo.view().get_wc_commit_id(&workspace_id).is_some() {
@@ -132,6 +173,8 @@ pub fn cmd_workspace_add(
     }
 
     let mut new_workspace_command = command.for_workable_repo(ui, new_workspace, repo)?;
+
+    crate::commands::git::maybe_add_gitignore(&new_workspace_command)?;
 
     let sparsity = match args.sparse_patterns {
         SparseInheritance::Full => None,
@@ -194,5 +237,6 @@ pub fn cmd_workspace_add(
         ui,
         format!("create initial working-copy commit in workspace {name}"),
     )?;
+
     Ok(())
 }
