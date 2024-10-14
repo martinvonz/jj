@@ -106,7 +106,8 @@ use crate::working_copy::WorkingCopyStateError;
 
 #[cfg(unix)]
 type FileExecutableFlag = bool;
-#[cfg(windows)]
+// Wasi doesn't have a concept of an executable file.
+#[cfg(any(windows, target_os = "wasi"))]
 type FileExecutableFlag = ();
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -132,7 +133,7 @@ impl FileState {
     fn placeholder() -> Self {
         #[cfg(unix)]
         let executable = false;
-        #[cfg(windows)]
+        #[cfg(any(windows, target_os = "wasi"))]
         let executable = ();
         FileState {
             file_type: FileType::Normal { executable },
@@ -142,7 +143,7 @@ impl FileState {
     }
 
     fn for_file(executable: bool, size: u64, metadata: &Metadata) -> Self {
-        #[cfg(windows)]
+        #[cfg(any(windows, target_os = "wasi"))]
         let executable = {
             // Windows doesn't support executable bit.
             let _ = executable;
@@ -349,7 +350,7 @@ fn file_state_from_proto(proto: &crate::protos::working_copy::FileState) -> File
         #[cfg(unix)]
         crate::protos::working_copy::FileType::Executable => FileType::Normal { executable: true },
         // can exist in files written by older versions of jj
-        #[cfg(windows)]
+        #[cfg(any(windows, target_os = "wasi"))]
         crate::protos::working_copy::FileType::Executable => FileType::Normal { executable: () },
         crate::protos::working_copy::FileType::Symlink => FileType::Symlink,
         crate::protos::working_copy::FileType::Conflict => FileType::Normal {
@@ -371,7 +372,7 @@ fn file_state_to_proto(file_state: &FileState) -> crate::protos::working_copy::F
         FileType::Normal { executable: false } => crate::protos::working_copy::FileType::Normal,
         #[cfg(unix)]
         FileType::Normal { executable: true } => crate::protos::working_copy::FileType::Executable,
-        #[cfg(windows)]
+        #[cfg(any(windows, target_os = "wasi"))]
         FileType::Normal { executable: () } => crate::protos::working_copy::FileType::Normal,
         FileType::Symlink => crate::protos::working_copy::FileType::Symlink,
         FileType::GitSubmodule => crate::protos::working_copy::FileType::GitSubmodule,
@@ -492,7 +493,7 @@ fn file_state(metadata: &Metadata) -> Option<FileState> {
         } else {
             Some(FileType::Normal { executable: false })
         }
-        #[cfg(windows)]
+        #[cfg(any(windows, target_os = "wasi"))]
         Some(FileType::Normal { executable: () })
     } else {
         None
@@ -1199,7 +1200,7 @@ impl TreeState {
             let _ = current_tree_value; // use the variable
             let id = self.write_file_to_store(repo_path, disk_path).await?;
             // On Windows, we preserve the executable bit from the current tree.
-            #[cfg(windows)]
+            #[cfg(any(windows, target_os = "wasi"))]
             let executable = {
                 let () = executable; // use the variable
                 if let Some(TreeValue::File { id: _, executable }) = current_tree_value {
@@ -1224,7 +1225,7 @@ impl TreeState {
             match new_file_ids.into_resolved() {
                 Ok(file_id) => {
                     // On Windows, we preserve the executable bit from the merged trees.
-                    #[cfg(windows)]
+                    #[cfg(any(windows, target_os = "wasi"))]
                     let executable = {
                         let () = executable; // use the variable
                         if let Some(merge) = current_tree_values.to_executable_merge() {
@@ -1323,7 +1324,7 @@ impl TreeState {
         Ok(FileState::for_file(executable, size, &metadata))
     }
 
-    #[cfg_attr(windows, allow(unused_variables))]
+    #[cfg_attr(any(windows, target_os = "wasi"), allow(unused_variables))]
     fn set_executable(&self, disk_path: &Path, executable: bool) -> Result<(), CheckoutError> {
         #[cfg(unix)]
         {
@@ -1515,7 +1516,7 @@ impl TreeState {
                     Ok(value) => match value.unwrap() {
                         #[cfg(unix)]
                         TreeValue::File { id: _, executable } => FileType::Normal { executable },
-                        #[cfg(windows)]
+                        #[cfg(any(windows, target_os = "wasi"))]
                         TreeValue::File { .. } => FileType::Normal { executable: () },
                         TreeValue::Symlink(_id) => FileType::Symlink,
                         TreeValue::Conflict(_id) => {
