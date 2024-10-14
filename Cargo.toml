@@ -93,7 +93,7 @@ ref-cast = "1.0.23"
 regex = "1.11.0"
 rpassword = "7.3.1"
 rustix = { version = "0.38.37", features = ["fs"] }
-scm-record = "0.3.0"
+scm-record = "0.4.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.128"
 slab = "0.4.9"
