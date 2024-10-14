@@ -73,6 +73,10 @@ pub struct WorkspaceAddArgs {
     /// How to handle sparse patterns when creating a new workspace.
     #[arg(long, value_enum, default_value_t = SparseInheritance::Copy)]
     sparse_patterns: SparseInheritance,
+
+    /// Placeholder until colocated workspaces are ready
+    #[arg(long, hide = true)]
+    colocate: bool,
 }
 
 #[instrument(skip_all)]
