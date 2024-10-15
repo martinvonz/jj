@@ -29,7 +29,6 @@ use jj_lib::git;
 use jj_lib::git_backend::GitBackend;
 use jj_lib::graph::GraphEdge;
 use jj_lib::graph::ReverseGraphIterator;
-use jj_lib::hex_util::to_reverse_hex;
 use jj_lib::id_prefix::IdPrefixContext;
 use jj_lib::object_id::ObjectId;
 use jj_lib::op_store::RefTarget;
@@ -403,7 +402,7 @@ fn test_resolve_symbol_in_different_disambiguation_context() {
             .with_id_prefix_context(&id_prefix_context);
 
     // Sanity check
-    let change_hex = &to_reverse_hex(&commit2.change_id().hex()).unwrap();
+    let change_hex = commit2.change_id().reverse_hex();
     assert_eq!(
         symbol_resolver
             .resolve_symbol(repo2.as_ref(), &change_hex[0..1])

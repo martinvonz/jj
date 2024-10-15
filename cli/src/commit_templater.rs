@@ -31,7 +31,6 @@ use jj_lib::fileset;
 use jj_lib::fileset::FilesetDiagnostics;
 use jj_lib::fileset::FilesetExpression;
 use jj_lib::git;
-use jj_lib::hex_util::to_reverse_hex;
 use jj_lib::id_prefix::IdPrefixContext;
 use jj_lib::id_prefix::IdPrefixIndex;
 use jj_lib::matchers::Matcher;
@@ -1249,11 +1248,7 @@ impl CommitOrChangeId {
     pub fn hex(&self) -> String {
         match self {
             CommitOrChangeId::Commit(id) => id.hex(),
-            CommitOrChangeId::Change(id) => {
-                // TODO: We can avoid the unwrap() and make this more efficient by converting
-                // straight from bytes.
-                to_reverse_hex(&id.hex()).unwrap()
-            }
+            CommitOrChangeId::Change(id) => id.reverse_hex(),
         }
     }
 

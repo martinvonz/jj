@@ -64,7 +64,6 @@ use jj_lib::git;
 use jj_lib::git_backend::GitBackend;
 use jj_lib::gitignore::GitIgnoreError;
 use jj_lib::gitignore::GitIgnoreFile;
-use jj_lib::hex_util::to_reverse_hex;
 use jj_lib::id_prefix::IdPrefixContext;
 use jj_lib::matchers::Matcher;
 use jj_lib::merge::MergedTreeValue;
@@ -2657,9 +2656,7 @@ pub fn short_commit_hash(commit_id: &CommitId) -> String {
 }
 
 pub fn short_change_hash(change_id: &ChangeId) -> String {
-    // TODO: We could avoid the unwrap() and make this more efficient by converting
-    // straight from binary.
-    to_reverse_hex(&change_id.hex()[0..12]).unwrap()
+    change_id.reverse_hex()[0..12].to_string()
 }
 
 pub fn short_operation_hash(operation_id: &OperationId) -> String {
