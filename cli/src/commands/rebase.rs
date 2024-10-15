@@ -131,7 +131,6 @@ use crate::ui::Ui;
 #[derive(clap::Args, Clone, Debug)]
 #[command(verbatim_doc_comment)]
 #[command(group(ArgGroup::new("to_rebase").args(&["branch", "source", "revisions"])))]
-#[command(group(ArgGroup::new("target").args(&["destination", "insert_after", "insert_before"]).multiple(true).required(true)))]
 pub(crate) struct RebaseArgs {
     /// Rebase the whole branch relative to destination's ancestors (can be
     /// repeated)
@@ -140,7 +139,12 @@ pub(crate) struct RebaseArgs {
     /// -d=dst`.
     ///
     /// If none of `-b`, `-s`, or `-r` is provided, then the default is `-b @`.
-    #[arg(long, short)]
+    #[arg(
+        long,
+        short,
+        conflicts_with = "insert_after",
+        conflicts_with = "insert_before"
+    )]
     branch: Vec<RevisionArg>,
 
     /// Rebase specified revision(s) together with their trees of descendants
@@ -162,34 +166,9 @@ pub(crate) struct RebaseArgs {
     /// If none of `-b`, `-s`, or `-r` is provided, then the default is `-b @`.
     #[arg(long, short)]
     revisions: Vec<RevisionArg>,
-    /// The revision(s) to rebase onto (can be repeated to create a merge
-    /// commit)
-    #[arg(long, short)]
-    destination: Vec<RevisionArg>,
-    /// The revision(s) to insert after (can be repeated to create a merge
-    /// commit)
-    ///
-    /// Only works with `-r` and `-s`.
-    #[arg(
-        long,
-        short = 'A',
-        visible_alias = "after",
-        conflicts_with = "destination",
-        conflicts_with = "branch"
-    )]
-    insert_after: Vec<RevisionArg>,
-    /// The revision(s) to insert before (can be repeated to create a merge
-    /// commit)
-    ///
-    /// Only works with `-r` and `-s`.
-    #[arg(
-        long,
-        short = 'B',
-        visible_alias = "before",
-        conflicts_with = "destination",
-        conflicts_with = "branch"
-    )]
-    insert_before: Vec<RevisionArg>,
+
+    #[command(flatten)]
+    destination: RebaseDestinationArgs,
 
     /// Deprecated. Use --skip-emptied instead.
     #[arg(long, conflicts_with = "revisions", hide = true)]
@@ -201,6 +180,37 @@ pub(crate) struct RebaseArgs {
     /// parents.
     #[arg(long, conflicts_with = "revisions")]
     skip_emptied: bool,
+}
+
+#[derive(clap::Args, Clone, Debug)]
+#[group(required = true)]
+pub struct RebaseDestinationArgs {
+    /// The revision(s) to rebase onto (can be repeated to create a merge
+    /// commit)
+    #[arg(long, short)]
+    destination: Option<Vec<RevisionArg>>,
+    /// The revision(s) to insert after (can be repeated to create a merge
+    /// commit)
+    ///
+    /// Only works with `-r` and `-s`.
+    #[arg(
+        long,
+        short = 'A',
+        visible_alias = "after",
+        conflicts_with = "destination"
+    )]
+    insert_after: Option<Vec<RevisionArg>>,
+    /// The revision(s) to insert before (can be repeated to create a merge
+    /// commit)
+    ///
+    /// Only works with `-r` and `-s`.
+    #[arg(
+        long,
+        short = 'B',
+        visible_alias = "before",
+        conflicts_with = "destination"
+    )]
+    insert_before: Option<Vec<RevisionArg>>,
 }
 
 #[instrument(skip_all)]
@@ -245,8 +255,6 @@ pub(crate) fn cmd_rebase(
             &mut workspace_command,
             &args.revisions,
             &args.destination,
-            &args.insert_after,
-            &args.insert_before,
             &rebase_options,
         )?;
     } else if !args.source.is_empty() {
@@ -256,13 +264,16 @@ pub(crate) fn cmd_rebase(
             &mut workspace_command,
             &args.source,
             &args.destination,
-            &args.insert_after,
-            &args.insert_before,
             &rebase_options,
         )?;
     } else {
+        let destination = args
+            .destination
+            .destination
+            .as_ref()
+            .expect("clap should enforce -d when used with -b");
         let new_parents = workspace_command
-            .resolve_some_revsets_default_single(ui, &args.destination)?
+            .resolve_some_revsets_default_single(ui, destination)?
             .into_iter()
             .collect_vec();
         let branch_commits = if args.branch.is_empty() {
@@ -282,15 +293,12 @@ pub(crate) fn cmd_rebase(
     Ok(())
 }
 
-#[allow(clippy::too_many_arguments)]
 fn rebase_revisions(
     ui: &mut Ui,
     settings: &UserSettings,
     workspace_command: &mut WorkspaceCommandHelper,
     revisions: &[RevisionArg],
-    destination: &[RevisionArg],
-    insert_after: &[RevisionArg],
-    insert_before: &[RevisionArg],
+    rebase_destionation: &RebaseDestinationArgs,
     rebase_options: &RebaseOptions,
 ) -> Result<(), CommandError> {
     let target_commits: Vec<_> = workspace_command
@@ -299,14 +307,9 @@ fn rebase_revisions(
         .try_collect()?; // in reverse topological order
     workspace_command.check_rewritable(target_commits.iter().ids())?;
 
-    let (new_parents, new_children) = compute_rebase_destination(
-        ui,
-        workspace_command,
-        destination,
-        insert_after,
-        insert_before,
-    )?;
-    if !destination.is_empty() && new_children.is_empty() {
+    let (new_parents, new_children) =
+        compute_rebase_destination(ui, workspace_command, rebase_destionation)?;
+    if rebase_destionation.destination.is_some() && new_children.is_empty() {
         for commit in &target_commits {
             if new_parents.contains(commit) {
                 return Err(user_error(format!(
@@ -327,15 +330,12 @@ fn rebase_revisions(
     )
 }
 
-#[allow(clippy::too_many_arguments)]
 fn rebase_source(
     ui: &mut Ui,
     settings: &UserSettings,
     workspace_command: &mut WorkspaceCommandHelper,
     source: &[RevisionArg],
-    destination: &[RevisionArg],
-    insert_after: &[RevisionArg],
-    insert_before: &[RevisionArg],
+    rebase_destination: &RebaseDestinationArgs,
     rebase_options: &RebaseOptions,
 ) -> Result<(), CommandError> {
     let source_commits = workspace_command
@@ -344,14 +344,9 @@ fn rebase_source(
         .collect_vec();
     workspace_command.check_rewritable(source_commits.iter().ids())?;
 
-    let (new_parents, new_children) = compute_rebase_destination(
-        ui,
-        workspace_command,
-        destination,
-        insert_after,
-        insert_before,
-    )?;
-    if !destination.is_empty() && new_children.is_empty() {
+    let (new_parents, new_children) =
+        compute_rebase_destination(ui, workspace_command, rebase_destination)?;
+    if rebase_destination.destination.is_some() && new_children.is_empty() {
         for commit in &source_commits {
             check_rebase_destinations(workspace_command.repo(), &new_parents, commit)?;
         }
@@ -481,57 +476,60 @@ fn rebase_descendants_transaction(
     tx.finish(ui, tx_description)
 }
 
-/// Computes the new parents and children given the input arguments for
-/// `destination`, `insert_after`, and `insert_before`.
+/// Computes the new parents and children for the given
+/// [`RebaseDestinationArgs`].
 fn compute_rebase_destination(
     ui: &mut Ui,
     workspace_command: &mut WorkspaceCommandHelper,
-    destination: &[RevisionArg],
-    insert_after: &[RevisionArg],
-    insert_before: &[RevisionArg],
+    rebase_destination: &RebaseDestinationArgs,
 ) -> Result<(Vec<Commit>, Vec<Commit>), CommandError> {
-    let resolve_revisions = |revisions: &[RevisionArg]| -> Result<Vec<Commit>, CommandError> {
-        if revisions.is_empty() {
-            Ok(vec![])
-        } else {
-            Ok(workspace_command
-                .resolve_some_revsets_default_single(ui, revisions)?
-                .into_iter()
-                .collect_vec())
-        }
-    };
-    let destination_commits = resolve_revisions(destination)?;
-    let after_commits = resolve_revisions(insert_after)?;
-    let before_commits = resolve_revisions(insert_before)?;
+    let resolve_revisions =
+        |revisions: &Option<Vec<RevisionArg>>| -> Result<Option<Vec<Commit>>, CommandError> {
+            if let Some(revisions) = revisions {
+                Ok(Some(
+                    workspace_command
+                        .resolve_some_revsets_default_single(ui, revisions)?
+                        .into_iter()
+                        .collect_vec(),
+                ))
+            } else {
+                Ok(None)
+            }
+        };
+    let destination_commits = resolve_revisions(&rebase_destination.destination)?;
+    let after_commits = resolve_revisions(&rebase_destination.insert_after)?;
+    let before_commits = resolve_revisions(&rebase_destination.insert_before)?;
 
-    let (new_parents, new_children) = if !after_commits.is_empty() && !before_commits.is_empty() {
-        (after_commits, before_commits)
-    } else if !after_commits.is_empty() {
-        let new_children: Vec<_> =
-            RevsetExpression::commits(after_commits.iter().ids().cloned().collect_vec())
-                .children()
-                .evaluate_programmatic(workspace_command.repo().as_ref())?
+    let (new_parents, new_children) = match (destination_commits, after_commits, before_commits) {
+        (Some(destination_commits), None, None) => (destination_commits, vec![]),
+        (None, Some(after_commits), Some(before_commits)) => (after_commits, before_commits),
+        (None, Some(after_commits), None) => {
+            let new_children: Vec<_> =
+                RevsetExpression::commits(after_commits.iter().ids().cloned().collect_vec())
+                    .children()
+                    .evaluate_programmatic(workspace_command.repo().as_ref())?
+                    .iter()
+                    .commits(workspace_command.repo().store())
+                    .try_collect()?;
+
+            (after_commits, new_children)
+        }
+        (None, None, Some(before_commits)) => {
+            // Not using `RevsetExpression::parents` here to persist the order of parents
+            // specified in `before_commits`.
+            let new_parent_ids = before_commits
                 .iter()
-                .commits(workspace_command.repo().store())
+                .flat_map(|commit| commit.parent_ids().iter().cloned().collect_vec())
+                .unique()
+                .collect_vec();
+            let new_parents: Vec<_> = new_parent_ids
+                .iter()
+                .map(|commit_id| workspace_command.repo().store().get_commit(commit_id))
                 .try_collect()?;
 
-        (after_commits, new_children)
-    } else if !before_commits.is_empty() {
-        // Not using `RevsetExpression::parents` here to persist the order of parents
-        // specified in `before_commits`.
-        let new_parent_ids = before_commits
-            .iter()
-            .flat_map(|commit| commit.parent_ids().iter().cloned().collect_vec())
-            .unique()
-            .collect_vec();
-        let new_parents: Vec<_> = new_parent_ids
-            .iter()
-            .map(|commit_id| workspace_command.repo().store().get_commit(commit_id))
-            .try_collect()?;
-
-        (new_parents, before_commits)
-    } else {
-        (destination_commits, vec![])
+            (new_parents, before_commits)
+        }
+        _ => unreachable!(),
     };
 
     if !new_children.is_empty() {
