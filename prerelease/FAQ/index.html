@@ -1849,8 +1849,9 @@ $<span class="w"> </span>jj<span class="w"> </span>log
 <li>The private commit <em>wwwwwwww</em> is the second parent of the merge commit.</li>
 <li>The working copy (<em>vvvvvvvv</em>) contains changes from both.</li>
 </ul>
-<p>As you work, squash your changes using <code>jj squash --into xxxxxxxx</code>. Or, you can
-keep your changes in a separate commit and remove <em>ttsqqnrx</em> as a parent:</p>
+<p>As you work, squash your changes using <code>jj squash --into xxxxxxxx</code>. Or you can
+keep your changes in a separate commit without the private commit <em>wwwwwwww</em> as a
+parent:</p>
 <div class="highlight"><pre><span></span><code><span class="c1"># Remove the private commit as a parent</span>
 $<span class="w"> </span>jj<span class="w"> </span>rebase<span class="w"> </span>-r<span class="w"> </span>vvvvvvvv<span class="w"> </span>-d<span class="w"> </span>xxxxxxxx
 
