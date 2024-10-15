@@ -333,8 +333,8 @@ impl View {
         }
     }
 
-    /// Sets `HEAD@git` to point to the given target. If the target is absent,
-    /// the reference will be cleared.
+    /// Sets Git HEAD to point to the given target. If the target is absent, the
+    /// reference will be cleared.
     pub fn set_git_head_target(&mut self, target: RefTarget) {
         self.data.git_head = target;
     }
