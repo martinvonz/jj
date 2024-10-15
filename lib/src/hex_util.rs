@@ -14,15 +14,7 @@
 
 #![allow(missing_docs)]
 
-fn to_reverse_hex_digit(b: u8) -> Option<u8> {
-    let value = match b {
-        b'0'..=b'9' => b - b'0',
-        b'A'..=b'F' => b - b'A' + 10,
-        b'a'..=b'f' => b - b'a' + 10,
-        _ => return None,
-    };
-    Some(b'z' - value)
-}
+const REVERSE_HEX_CHARS: &[u8; 16] = b"zyxwvutsrqponmlk";
 
 fn to_forward_hex_digit(b: u8) -> Option<u8> {
     let value = match b {
@@ -44,11 +36,14 @@ pub fn to_forward_hex(reverse_hex: &str) -> Option<String> {
         .collect()
 }
 
-pub fn to_reverse_hex(forward_hex: &str) -> Option<String> {
-    forward_hex
-        .bytes()
-        .map(|b| to_reverse_hex_digit(b).map(char::from))
-        .collect()
+/// Encodes `data` as hex string using `z-k` "digits".
+pub fn encode_reverse_hex(data: &[u8]) -> String {
+    let chars = REVERSE_HEX_CHARS;
+    let encoded = data
+        .iter()
+        .flat_map(|b| [chars[usize::from(b >> 4)], chars[usize::from(b & 0xf)]])
+        .collect();
+    String::from_utf8(encoded).unwrap()
 }
 
 /// Calculates common prefix length of two byte sequences. The length
@@ -71,17 +66,16 @@ mod tests {
     #[test]
     fn test_reverse_hex() {
         // Empty string
-        assert_eq!(to_reverse_hex(""), Some("".to_string()));
+        assert_eq!(encode_reverse_hex(b""), "".to_string());
         assert_eq!(to_forward_hex(""), Some("".to_string()));
 
         // Single digit
-        assert_eq!(to_reverse_hex("0"), Some("z".to_string()));
         assert_eq!(to_forward_hex("z"), Some("0".to_string()));
 
         // All digits
         assert_eq!(
-            to_reverse_hex("0123456789abcdefABCDEF"),
-            Some("zyxwvutsrqponmlkponmlk".to_string())
+            encode_reverse_hex(b"\x01\x23\x45\x67\x89\xab\xcd\xef"),
+            "zyxwvutsrqponmlk".to_string()
         );
         assert_eq!(
             to_forward_hex("zyxwvutsrqponmlkPONMLK"),
@@ -89,7 +83,6 @@ mod tests {
         );
 
         // Invalid digit
-        assert_eq!(to_reverse_hex("g"), None);
         assert_eq!(to_forward_hex("j"), None);
     }
 }
