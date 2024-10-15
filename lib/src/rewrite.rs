@@ -511,27 +511,9 @@ pub fn move_commits(
             .map_err(|err| err.expect_backend_error())?;
 
     // Compute the parents of all commits in the connected target set, allowing only
-    // commits in the target set as parents. The parents of each commit are
-    // identical to the ones found using a preorder DFS of the node's ancestors,
-    // starting from the node itself, and avoiding traversing an edge if the
-    // parent is in the target set.
-    let mut connected_target_commits_internal_parents: HashMap<CommitId, Vec<CommitId>> =
-        HashMap::new();
-    for commit in connected_target_commits.iter().rev() {
-        // The roots of the set will not have any parents found in
-        // `connected_target_commits_internal_parents`, and will be stored as an empty
-        // vector.
-        let mut new_parents = vec![];
-        for old_parent in commit.parent_ids() {
-            if target_commit_ids.contains(old_parent) {
-                new_parents.push(old_parent.clone());
-            } else if let Some(parents) = connected_target_commits_internal_parents.get(old_parent)
-            {
-                new_parents.extend(parents.iter().cloned());
-            }
-        }
-        connected_target_commits_internal_parents.insert(commit.id().clone(), new_parents);
-    }
+    // commits in the target set as parents.
+    let connected_target_commits_internal_parents =
+        compute_internal_parents_within(&target_commit_ids, &connected_target_commits);
 
     // Compute the roots of `target_commits` if not provided.
     let target_roots: HashSet<_> = if let Some(target_roots) = target_roots {
@@ -844,6 +826,34 @@ pub fn move_commits(
         num_skipped_rebases,
         num_abandoned,
     })
+}
+
+/// Computes the internal parents of all commits in a connected commit graph,
+/// allowing only commits in the target set as parents.
+///
+/// The parents of each commit are identical to the ones found using a preorder
+/// DFS of the node's ancestors, starting from the node itself, and avoiding
+/// traversing an edge if the parent is in the target set. `graph_commits`
+/// should be in reverse topological order.
+fn compute_internal_parents_within(
+    target_commit_ids: &HashSet<CommitId>,
+    graph_commits: &[Commit],
+) -> HashMap<CommitId, Vec<CommitId>> {
+    let mut internal_parents: HashMap<CommitId, Vec<CommitId>> = HashMap::new();
+    for commit in graph_commits.iter().rev() {
+        // The roots of the set will not have any parents found in `internal_parents`,
+        // and will be stored as an empty vector.
+        let mut new_parents = vec![];
+        for old_parent in commit.parent_ids() {
+            if target_commit_ids.contains(old_parent) {
+                new_parents.push(old_parent.clone());
+            } else if let Some(parents) = internal_parents.get(old_parent) {
+                new_parents.extend(parents.iter().cloned());
+            }
+        }
+        internal_parents.insert(commit.id().clone(), new_parents);
+    }
+    internal_parents
 }
 
 pub struct CommitToSquash {
