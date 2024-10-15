@@ -59,6 +59,7 @@ use crate::revset::ResolvedPredicateExpression;
 use crate::revset::Revset;
 use crate::revset::RevsetEvaluationError;
 use crate::revset::RevsetFilterPredicate;
+use crate::revset::RevsetIterator;
 use crate::revset::GENERATION_RANGE_FULL;
 use crate::rewrite;
 use crate::store::Store;
@@ -130,11 +131,11 @@ impl<I: AsCompositeIndex + Clone> RevsetImpl<I> {
     pub fn iter_graph_impl(
         &self,
         skip_transitive_edges: bool,
-    ) -> impl Iterator<Item = (CommitId, Vec<GraphEdge<CommitId>>)> {
+    ) -> impl RevsetIterator<(CommitId, Vec<GraphEdge<CommitId>>)> {
         let index = self.index.clone();
         let walk = self.inner.positions();
         let mut graph_walk = RevsetGraphWalk::new(walk, skip_transitive_edges);
-        iter::from_fn(move || graph_walk.next(index.as_composite()))
+        iter::from_fn(move || graph_walk.next(index.as_composite()).map(Ok))
     }
 }
 
@@ -147,7 +148,7 @@ impl<I> fmt::Debug for RevsetImpl<I> {
 }
 
 impl<I: AsCompositeIndex + Clone> Revset for RevsetImpl<I> {
-    fn iter<'a>(&self) -> Box<dyn Iterator<Item = CommitId> + 'a>
+    fn iter<'a>(&self) -> Box<dyn RevsetIterator<CommitId> + 'a>
     where
         Self: 'a,
     {
@@ -156,11 +157,11 @@ impl<I: AsCompositeIndex + Clone> Revset for RevsetImpl<I> {
         Box::new(iter::from_fn(move || {
             let index = index.as_composite();
             let pos = walk.next(index)?;
-            Some(index.entry_by_pos(pos).commit_id())
+            Some(Ok(index.entry_by_pos(pos).commit_id()))
         }))
     }
 
-    fn commit_change_ids<'a>(&self) -> Box<dyn Iterator<Item = (CommitId, ChangeId)> + 'a>
+    fn commit_change_ids<'a>(&self) -> Box<dyn RevsetIterator<(CommitId, ChangeId)> + 'a>
     where
         Self: 'a,
     {
@@ -170,11 +171,11 @@ impl<I: AsCompositeIndex + Clone> Revset for RevsetImpl<I> {
             let index = index.as_composite();
             let pos = walk.next(index)?;
             let entry = index.entry_by_pos(pos);
-            Some((entry.commit_id(), entry.change_id()))
+            Some(Ok((entry.commit_id(), entry.change_id())))
         }))
     }
 
-    fn iter_graph<'a>(&self) -> Box<dyn Iterator<Item = (CommitId, Vec<GraphEdge<CommitId>>)> + 'a>
+    fn iter_graph<'a>(&self) -> Box<dyn RevsetIterator<(CommitId, Vec<GraphEdge<CommitId>>)> + 'a>
     where
         Self: 'a,
     {
@@ -743,10 +744,9 @@ struct EvaluationContext<'index> {
 
 fn to_u32_generation_range(range: &Range<u64>) -> Result<Range<u32>, RevsetEvaluationError> {
     let start = range.start.try_into().map_err(|_| {
-        RevsetEvaluationError::Other(format!(
-            "Lower bound of generation ({}) is too large",
-            range.start
-        ))
+        RevsetEvaluationError::Other(
+            format!("Lower bound of generation ({}) is too large", range.start).into(),
+        )
     })?;
     let end = range.end.try_into().unwrap_or(u32::MAX);
     Ok(start..end)
@@ -979,10 +979,13 @@ impl<'index> EvaluationContext<'index> {
                 // For example, in jj <= 0.22, the root commit doesn't exist in
                 // the root operation.
                 self.index.commit_id_to_pos(id).ok_or_else(|| {
-                    RevsetEvaluationError::Other(format!(
-                        "Commit ID {} not found in index (index or view might be corrupted)",
-                        id.hex()
-                    ))
+                    RevsetEvaluationError::Other(
+                        format!(
+                            "Commit ID {} not found in index (index or view might be corrupted)",
+                            id.hex()
+                        )
+                        .into(),
+                    )
                 })
             })
             .try_collect()?;

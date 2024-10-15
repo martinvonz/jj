@@ -14,6 +14,7 @@
 
 use std::collections::HashSet;
 
+use itertools::Itertools;
 use jj_lib::git;
 use jj_lib::revset::RevsetExpression;
 use jj_lib::str_util::StringPattern;
@@ -100,7 +101,8 @@ pub fn cmd_bookmark_list(
             // Intersects with the set of local bookmark targets to minimize the lookup
             // space.
             expression.intersect_with(&RevsetExpression::bookmarks(StringPattern::everything()));
-            let filtered_targets: HashSet<_> = expression.evaluate_to_commit_ids()?.collect();
+            let filtered_targets: HashSet<_> =
+                expression.evaluate_to_commit_ids()?.try_collect()?;
             bookmark_names.extend(
                 view.local_bookmarks()
                     .filter(|(_, target)| {

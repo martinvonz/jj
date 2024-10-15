@@ -19,6 +19,7 @@ use jj_lib::graph::TopoGroupedGraphIterator;
 use jj_lib::repo::Repo;
 use jj_lib::revset::RevsetExpression;
 use jj_lib::revset::RevsetFilterPredicate;
+use jj_lib::revset::RevsetIterator;
 use jj_lib::revset::RevsetIteratorExt;
 use jj_lib::settings::ConfigResultExt as _;
 use jj_lib::settings::UserSettings;
@@ -173,11 +174,13 @@ pub(crate) fn cmd_log(
             let mut graph = get_graphlog(graph_style, raw_output.as_mut());
             let forward_iter = TopoGroupedGraphIterator::new(revset.iter_graph());
             let iter: Box<dyn Iterator<Item = _>> = if args.reversed {
-                Box::new(ReverseGraphIterator::new(forward_iter))
+                Box::new(ReverseGraphIterator::new(forward_iter)?)
             } else {
                 Box::new(forward_iter)
             };
-            for (commit_id, edges) in iter.take(limit) {
+            for node in iter.take(limit) {
+                let (commit_id, edges) = node?;
+
                 // The graph is keyed by (CommitId, is_synthetic)
                 let mut graphlog_edges = vec![];
                 // TODO: Should we update revset.iter_graph() to yield this flag instead of all
@@ -255,8 +258,8 @@ pub(crate) fn cmd_log(
                 }
             }
         } else {
-            let iter: Box<dyn Iterator<Item = CommitId>> = if args.reversed {
-                Box::new(revset.iter().reversed())
+            let iter: Box<dyn RevsetIterator<CommitId>> = if args.reversed {
+                Box::new(revset.iter().reversed()?)
             } else {
                 Box::new(revset.iter())
             };

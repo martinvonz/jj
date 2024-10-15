@@ -19,7 +19,6 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 use itertools::Itertools as _;
-use jj_lib::backend::BackendResult;
 use jj_lib::backend::CommitId;
 use jj_lib::commit::Commit;
 use jj_lib::id_prefix::IdPrefixContext;
@@ -33,6 +32,7 @@ use jj_lib::revset::RevsetDiagnostics;
 use jj_lib::revset::RevsetEvaluationError;
 use jj_lib::revset::RevsetExpression;
 use jj_lib::revset::RevsetExtensions;
+use jj_lib::revset::RevsetIterator;
 use jj_lib::revset::RevsetIteratorExt as _;
 use jj_lib::revset::RevsetParseContext;
 use jj_lib::revset::RevsetParseError;
@@ -106,7 +106,7 @@ impl<'repo> RevsetExpressionEvaluator<'repo> {
     /// sorted in reverse topological order.
     pub fn evaluate_to_commit_ids(
         &self,
-    ) -> Result<Box<dyn Iterator<Item = CommitId> + 'repo>, UserRevsetEvaluationError> {
+    ) -> Result<Box<dyn RevsetIterator<CommitId> + 'repo>, UserRevsetEvaluationError> {
         Ok(self.evaluate()?.iter())
     }
 
@@ -114,8 +114,10 @@ impl<'repo> RevsetExpressionEvaluator<'repo> {
     /// sorted in reverse topological order.
     pub fn evaluate_to_commits(
         &self,
-    ) -> Result<impl Iterator<Item = BackendResult<Commit>> + 'repo, UserRevsetEvaluationError>
-    {
+    ) -> Result<
+        impl Iterator<Item = Result<Commit, RevsetEvaluationError>> + 'repo,
+        UserRevsetEvaluationError,
+    > {
         Ok(self.evaluate()?.iter().commits(self.repo.store()))
     }
 }
