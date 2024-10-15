@@ -59,6 +59,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * New `coalesce(revsets...)` revset which returns commits in the first revset
   in the `revsets` list that does not evaluate to `none()`.
 
+* Timestamp objects in templates now have `after(date) -> Boolean` and
+  `before(date) -> Boolean` methods for comparing timestamps to other dates.
+
 ### Fixed bugs
 
 * Error on `trunk()` revset resolution is now handled gracefully.

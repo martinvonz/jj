@@ -147,6 +147,44 @@ fn test_log_author_timestamp_local() {
 }
 
 #[test]
+fn test_log_author_timestamp_after_before() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "first"]);
+
+    let template = r#"
+    separate(" ",
+      author.timestamp(),
+      ":",
+      if(author.timestamp().after("1969"), "(after 1969)", "(before 1969)"),
+      if(author.timestamp().before("1975"), "(before 1975)", "(after 1975)"),
+      if(author.timestamp().before("now"), "(before now)", "(after now)")
+    ) ++ "\n""#;
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "--no-graph", "-T", template]);
+    insta::assert_snapshot!(stdout, @r#"
+    2001-02-03 04:05:08.000 +07:00 : (after 1969) (after 1975) (before now)
+    1970-01-01 00:00:00.000 +00:00 : (after 1969) (before 1975) (before now)
+    "#);
+
+    // Should display error with invalid date.
+    let template = r#"author.timestamp().after("invalid date")"#;
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r@", "--no-graph", "-T", template]);
+    insta::assert_snapshot!(stderr, @r#"
+    Error: Failed to parse template: Invalid date pattern
+    Caused by:
+    1:  --> 1:26
+      |
+    1 | author.timestamp().after("invalid date")
+      |                          ^------------^
+      |
+      = Invalid date pattern
+    2: expected week day or month name
+    "#);
+}
+
+#[test]
 fn test_mine_is_true_when_author_is_user() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
