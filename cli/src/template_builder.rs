@@ -18,6 +18,7 @@ use itertools::Itertools as _;
 use jj_lib::backend::Signature;
 use jj_lib::backend::Timestamp;
 use jj_lib::dsl_util::AliasExpandError as _;
+use jj_lib::time_util::DatePattern;
 
 use crate::template_parser;
 use crate::template_parser::BinaryOp;
@@ -900,6 +901,25 @@ fn builtin_timestamp_methods<'a, L: TemplateLanguage<'a> + ?Sized>(
             Ok(L::wrap_timestamp(out_property))
         },
     );
+    map.insert(
+        "after",
+        |_language, _diagnostics, _build_ctx, self_property, function| {
+            let [date_pattern_node] = function.expect_exact_arguments()?;
+            let now = chrono::Local::now();
+            let date_pattern = template_parser::expect_string_literal_with(
+                date_pattern_node,
+                |date_pattern, span| {
+                    DatePattern::from_str_kind(date_pattern, function.name, now).map_err(|err| {
+                        TemplateParseError::expression("Invalid date pattern", span)
+                            .with_source(err)
+                    })
+                },
+            )?;
+            let out_property = self_property.map(move |timestamp| date_pattern.matches(&timestamp));
+            Ok(L::wrap_boolean(out_property))
+        },
+    );
+    map.insert("before", map["after"]);
     map
 }
 
