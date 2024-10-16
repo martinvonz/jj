@@ -569,7 +569,7 @@ pub fn move_commits(
             if let Some(parent_ids) = target_commits_external_parents.get(parent_id) {
                 parent_ids.iter().cloned().collect_vec()
             } else {
-                [parent_id.clone()].to_vec()
+                vec![parent_id.clone()]
             }
         })
         .collect();
@@ -638,7 +638,7 @@ pub fn move_commits(
                 if let Some(children) = target_commit_external_descendants.get(child.id()) {
                     children.iter().cloned().collect_vec()
                 } else {
-                    [child.clone()].to_vec()
+                    vec![child.clone()]
                 }
             })
             .collect()
