@@ -266,13 +266,20 @@ diff-invocation-mode = "file-by-file"
 
 You can configure the set of immutable commits via
 `revset-aliases."immutable_heads()"`. The default set of immutable heads is
+`builtin_immutable_heads()`, which in turn is defined as
 `present(trunk()) | tags() | untracked_remote_bookmarks()`. For example, to
-prevent rewriting commits on `main@origin` and commits authored by other users:
+also consider the `maint@origin` bookmark immutable:
 
 ```toml
-# The `main.. &` bit is an optimization to scan for non-`mine()` commits only
-# among commits that are not in `main`.
-revset-aliases."immutable_heads()" = "main@origin | (main@origin.. & ~mine())"
+revset-aliases."immutable_heads()" = "builtin_immutable_heads() | maint@origin"
+```
+
+To prevent rewriting commits authored by other users:
+
+```toml
+# The `trunk().. &` bit is an optimization to scan for non-`mine()` commits
+# only among commits that are not in `trunk()`.
+revset-aliases."immutable_heads()" = "builtin_immutable_heads() | (trunk().. & ~mine())"
 ```
 
 Ancestors of the configured set are also immutable. The root commit is always
