@@ -96,12 +96,23 @@ pub fn elide_end<'a>(text: &'a str, ellipsis: &'a str, max_width: usize) -> (Cow
 ///
 /// The truncated string may have 0-width decomposed characters at start.
 fn truncate_start_pos(text: &str, max_width: usize) -> (usize, usize) {
+    truncate_start_pos_with_indices(
+        text.char_indices()
+            .rev()
+            .map(|(start, c)| (start + c.len_utf8(), c)),
+        max_width,
+    )
+}
+
+fn truncate_start_pos_with_indices(
+    char_indices_rev: impl Iterator<Item = (usize, char)>,
+    max_width: usize,
+) -> (usize, usize) {
     let mut acc_width = 0;
-    for (i, c) in text.char_indices().rev() {
+    for (end, c) in char_indices_rev {
         let new_width = acc_width + c.width().unwrap_or(0);
         if new_width > max_width {
-            let prev_index = i + c.len_utf8();
-            return (prev_index, acc_width);
+            return (end, acc_width);
         }
         acc_width = new_width;
     }
@@ -111,15 +122,23 @@ fn truncate_start_pos(text: &str, max_width: usize) -> (usize, usize) {
 /// Shortens `text` to `max_width` by removing trailing characters, returning
 /// `(end_index, width)`.
 fn truncate_end_pos(text: &str, max_width: usize) -> (usize, usize) {
+    truncate_end_pos_with_indices(text.char_indices(), text.len(), max_width)
+}
+
+fn truncate_end_pos_with_indices(
+    char_indices_fwd: impl Iterator<Item = (usize, char)>,
+    text_len: usize,
+    max_width: usize,
+) -> (usize, usize) {
     let mut acc_width = 0;
-    for (i, c) in text.char_indices() {
+    for (start, c) in char_indices_fwd {
         let new_width = acc_width + c.width().unwrap_or(0);
         if new_width > max_width {
-            return (i, acc_width);
+            return (start, acc_width);
         }
         acc_width = new_width;
     }
-    (text.len(), acc_width)
+    (text_len, acc_width)
 }
 
 /// Skips `width` leading characters, returning `(start_index, skipped_width)`.
@@ -129,14 +148,22 @@ fn truncate_end_pos(text: &str, max_width: usize) -> (usize, usize) {
 ///
 /// The truncated string may have 0-width decomposed characters at start.
 fn skip_start_pos(text: &str, width: usize) -> (usize, usize) {
+    skip_start_pos_with_indices(text.char_indices(), text.len(), width)
+}
+
+fn skip_start_pos_with_indices(
+    char_indices_fwd: impl Iterator<Item = (usize, char)>,
+    text_len: usize,
+    width: usize,
+) -> (usize, usize) {
     let mut acc_width = 0;
-    for (i, c) in text.char_indices() {
+    for (start, c) in char_indices_fwd {
         if acc_width >= width {
-            return (i, acc_width);
+            return (start, acc_width);
         }
         acc_width += c.width().unwrap_or(0);
     }
-    (text.len(), acc_width)
+    (text_len, acc_width)
 }
 
 /// Skips `width` trailing characters, returning `(end_index, skipped_width)`.
@@ -144,11 +171,22 @@ fn skip_start_pos(text: &str, width: usize) -> (usize, usize) {
 /// The `skipped_width` may exceed the given `width` if `width` is not at
 /// character boundary.
 fn skip_end_pos(text: &str, width: usize) -> (usize, usize) {
+    skip_end_pos_with_indices(
+        text.char_indices()
+            .rev()
+            .map(|(start, c)| (start + c.len_utf8(), c)),
+        width,
+    )
+}
+
+fn skip_end_pos_with_indices(
+    char_indices_rev: impl Iterator<Item = (usize, char)>,
+    width: usize,
+) -> (usize, usize) {
     let mut acc_width = 0;
-    for (i, c) in text.char_indices().rev() {
+    for (end, c) in char_indices_rev {
         if acc_width >= width {
-            let prev_index = i + c.len_utf8();
-            return (prev_index, acc_width);
+            return (end, acc_width);
         }
         acc_width += c.width().unwrap_or(0);
     }
