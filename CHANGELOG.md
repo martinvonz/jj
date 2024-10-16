@@ -62,6 +62,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * Timestamp objects in templates now have `after(date) -> Boolean` and
   `before(date) -> Boolean` methods for comparing timestamps to other dates.
 
+* New template functions `pad_start()`, `pad_end()`, `truncate_start()`, and
+  `truncate_end()` are added.
+
 ### Fixed bugs
 
 * Error on `trunk()` revset resolution is now handled gracefully.

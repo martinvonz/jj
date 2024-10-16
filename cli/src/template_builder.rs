@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use std::collections::HashMap;
+use std::io;
 
 use itertools::Itertools as _;
 use jj_lib::backend::Signature;
@@ -20,6 +21,8 @@ use jj_lib::backend::Timestamp;
 use jj_lib::dsl_util::AliasExpandError as _;
 use jj_lib::time_util::DatePattern;
 
+use crate::formatter::FormatRecorder;
+use crate::formatter::Formatter;
 use crate::template_parser;
 use crate::template_parser::BinaryOp;
 use crate::template_parser::ExpressionKind;
@@ -1126,6 +1129,50 @@ fn builtin_functions<'a, L: TemplateLanguage<'a> + ?Sized>() -> TemplateBuildFun
         });
         Ok(L::wrap_template(Box::new(template)))
     });
+    map.insert("pad_start", |language, diagnostics, build_ctx, function| {
+        let ([width_node, content_node], [fill_char_node]) =
+            function.expect_named_arguments(&["", "", "fill_char"])?;
+        let width = expect_usize_expression(language, diagnostics, build_ctx, width_node)?;
+        let content = expect_template_expression(language, diagnostics, build_ctx, content_node)?;
+        let fill_char = fill_char_node
+            .map(|node| expect_template_expression(language, diagnostics, build_ctx, node))
+            .transpose()?;
+        let template = new_pad_template(content, fill_char, width, text_util::write_padded_start);
+        Ok(L::wrap_template(template))
+    });
+    map.insert("pad_end", |language, diagnostics, build_ctx, function| {
+        let ([width_node, content_node], [fill_char_node]) =
+            function.expect_named_arguments(&["", "", "fill_char"])?;
+        let width = expect_usize_expression(language, diagnostics, build_ctx, width_node)?;
+        let content = expect_template_expression(language, diagnostics, build_ctx, content_node)?;
+        let fill_char = fill_char_node
+            .map(|node| expect_template_expression(language, diagnostics, build_ctx, node))
+            .transpose()?;
+        let template = new_pad_template(content, fill_char, width, text_util::write_padded_end);
+        Ok(L::wrap_template(template))
+    });
+    map.insert(
+        "truncate_start",
+        |language, diagnostics, build_ctx, function| {
+            let [width_node, content_node] = function.expect_exact_arguments()?;
+            let width = expect_usize_expression(language, diagnostics, build_ctx, width_node)?;
+            let content =
+                expect_template_expression(language, diagnostics, build_ctx, content_node)?;
+            let template = new_truncate_template(content, width, text_util::write_truncated_start);
+            Ok(L::wrap_template(template))
+        },
+    );
+    map.insert(
+        "truncate_end",
+        |language, diagnostics, build_ctx, function| {
+            let [width_node, content_node] = function.expect_exact_arguments()?;
+            let width = expect_usize_expression(language, diagnostics, build_ctx, width_node)?;
+            let content =
+                expect_template_expression(language, diagnostics, build_ctx, content_node)?;
+            let template = new_truncate_template(content, width, text_util::write_truncated_end);
+            Ok(L::wrap_template(template))
+        },
+    );
     map.insert("label", |language, diagnostics, build_ctx, function| {
         let [label_node, content_node] = function.expect_exact_arguments()?;
         let label_property =
@@ -1205,6 +1252,54 @@ fn builtin_functions<'a, L: TemplateLanguage<'a> + ?Sized>() -> TemplateBuildFun
         Ok(L::wrap_template(Box::new(template)))
     });
     map
+}
+
+fn new_pad_template<'a, W>(
+    content: Box<dyn Template + 'a>,
+    fill_char: Option<Box<dyn Template + 'a>>,
+    width: Box<dyn TemplateProperty<Output = usize> + 'a>,
+    write_padded: W,
+) -> Box<dyn Template + 'a>
+where
+    W: Fn(&mut dyn Formatter, &FormatRecorder, &FormatRecorder, usize) -> io::Result<()> + 'a,
+{
+    let default_fill_char = FormatRecorder::with_data(" ");
+    let template = ReformatTemplate::new(content, move |formatter, recorded| {
+        let width = match width.extract() {
+            Ok(width) => width,
+            Err(err) => return formatter.handle_error(err),
+        };
+        let mut fill_char_recorder;
+        let recorded_fill_char = if let Some(fill_char) = &fill_char {
+            let rewrap = formatter.rewrap_fn();
+            fill_char_recorder = FormatRecorder::new();
+            fill_char.format(&mut rewrap(&mut fill_char_recorder))?;
+            &fill_char_recorder
+        } else {
+            &default_fill_char
+        };
+        write_padded(formatter.as_mut(), recorded, recorded_fill_char, width)
+    });
+    Box::new(template)
+}
+
+fn new_truncate_template<'a, W>(
+    content: Box<dyn Template + 'a>,
+    width: Box<dyn TemplateProperty<Output = usize> + 'a>,
+    write_truncated: W,
+) -> Box<dyn Template + 'a>
+where
+    W: Fn(&mut dyn Formatter, &FormatRecorder, usize) -> io::Result<usize> + 'a,
+{
+    let template = ReformatTemplate::new(content, move |formatter, recorded| {
+        let width = match width.extract() {
+            Ok(width) => width,
+            Err(err) => return formatter.handle_error(err),
+        };
+        write_truncated(formatter.as_mut(), recorded, width)?;
+        Ok(())
+    });
+    Box::new(template)
 }
 
 /// Builds intermediate expression tree from AST nodes.
@@ -1728,6 +1823,15 @@ mod tests {
           |
           = Function "if": Expected 2 to 3 arguments
         "###);
+
+        insta::assert_snapshot!(env.parse_err(r#"pad_start("foo", fill_char = "bar", "baz")"#), @r#"
+         --> 1:37
+          |
+        1 | pad_start("foo", fill_char = "bar", "baz")
+          |                                     ^---^
+          |
+          = Function "pad_start": Positional argument follows keyword argument
+        "#);
 
         insta::assert_snapshot!(env.parse_err(r#"if(label("foo", "bar"), "baz")"#), @r###"
          --> 1:4
@@ -2341,6 +2445,52 @@ mod tests {
         [38;5;6mAB[38;5;1mx[39m
         [38;5;6mAB[38;5;3my[39m
         "###);
+    }
+
+    #[test]
+    fn test_pad_function() {
+        let mut env = TestTemplateEnv::new();
+        env.add_keyword("bad_string", || L::wrap_string(new_error_property("Bad")));
+        env.add_color("red", crossterm::style::Color::Red);
+        env.add_color("cyan", crossterm::style::Color::DarkCyan);
+
+        // Default fill_char is ' '
+        insta::assert_snapshot!(
+            env.render_ok(r"'{' ++ pad_start(5, label('red', 'foo')) ++ '}'"),
+            @"{  [38;5;9mfoo[39m}");
+        insta::assert_snapshot!(
+            env.render_ok(r"'{' ++ pad_end(5, label('red', 'foo')) ++ '}'"),
+            @"{[38;5;9mfoo[39m  }");
+
+        // Labeled fill char
+        insta::assert_snapshot!(
+            env.render_ok(r"pad_start(5, label('red', 'foo'), fill_char=label('cyan', '='))"),
+            @"[38;5;6m==[39m[38;5;9mfoo[39m");
+        insta::assert_snapshot!(
+            env.render_ok(r"pad_end(5, label('red', 'foo'), fill_char=label('cyan', '='))"),
+            @"[38;5;9mfoo[39m[38;5;6m==[39m");
+
+        // Error in fill char: the output looks odd (because the error message
+        // isn't 1-width character), but is still readable.
+        insta::assert_snapshot!(
+            env.render_ok(r"pad_start(3, 'foo', fill_char=bad_string)"),
+            @"foo");
+        insta::assert_snapshot!(
+            env.render_ok(r"pad_end(5, 'foo', fill_char=bad_string)"),
+            @"foo<<Error: Error: Bad>Bad>");
+    }
+
+    #[test]
+    fn test_truncate_function() {
+        let mut env = TestTemplateEnv::new();
+        env.add_color("red", crossterm::style::Color::Red);
+
+        insta::assert_snapshot!(
+            env.render_ok(r"truncate_start(2, label('red', 'foobar')) ++ 'baz'"),
+            @"[38;5;9mar[39mbaz");
+        insta::assert_snapshot!(
+            env.render_ok(r"truncate_end(2, label('red', 'foobar')) ++ 'baz'"),
+            @"[38;5;9mfo[39mbaz");
     }
 
     #[test]
