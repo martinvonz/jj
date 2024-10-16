@@ -46,8 +46,10 @@ prefix_ops = _{ logical_not_op | negate_op }
 infix_ops = _{ logical_or_op | logical_and_op }
 
 function = { identifier ~ "(" ~ whitespace* ~ function_arguments ~ whitespace* ~ ")" }
+keyword_argument = { identifier ~ whitespace* ~ "=" ~ whitespace* ~ template }
+argument = _{ keyword_argument | template }
 function_arguments = {
-  template ~ (whitespace* ~ "," ~ whitespace* ~ template)* ~ (whitespace* ~ ",")?
+  argument ~ (whitespace* ~ "," ~ whitespace* ~ argument)* ~ (whitespace* ~ ",")?
   | ""
 }
 lambda = {

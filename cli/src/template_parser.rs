@@ -29,6 +29,7 @@ use jj_lib::dsl_util::AliasesMap;
 use jj_lib::dsl_util::Diagnostics;
 use jj_lib::dsl_util::ExpressionFolder;
 use jj_lib::dsl_util::FoldableExpression;
+use jj_lib::dsl_util::FunctionCallParser;
 use jj_lib::dsl_util::InvalidArguments;
 use jj_lib::dsl_util::StringLiteralParser;
 use once_cell::sync::Lazy;
@@ -48,6 +49,13 @@ struct TemplateParser;
 const STRING_LITERAL_PARSER: StringLiteralParser<Rule> = StringLiteralParser {
     content_rule: Rule::string_content,
     escape_rule: Rule::string_escape,
+};
+const FUNCTION_CALL_PARSER: FunctionCallParser<Rule> = FunctionCallParser {
+    function_name_rule: Rule::identifier,
+    function_arguments_rule: Rule::function_arguments,
+    keyword_argument_rule: Rule::keyword_argument,
+    argument_name_rule: Rule::identifier,
+    argument_value_rule: Rule::template,
 };
 
 impl Rule {
@@ -71,6 +79,8 @@ impl Rule {
             Rule::prefix_ops => None,
             Rule::infix_ops => None,
             Rule::function => None,
+            Rule::keyword_argument => None,
+            Rule::argument => None,
             Rule::function_arguments => None,
             Rule::lambda => None,
             Rule::formal_parameters => None,
@@ -417,28 +427,6 @@ fn parse_formal_parameters(params_pair: Pair<Rule>) -> TemplateParseResult<Vec<&
     }
 }
 
-fn parse_function_call_node(pair: Pair<Rule>) -> TemplateParseResult<FunctionCallNode> {
-    assert_eq!(pair.as_rule(), Rule::function);
-    let mut inner = pair.into_inner();
-    let name_pair = inner.next().unwrap();
-    let name_span = name_pair.as_span();
-    let args_pair = inner.next().unwrap();
-    let args_span = args_pair.as_span();
-    assert_eq!(args_pair.as_rule(), Rule::function_arguments);
-    let name = parse_identifier_name(name_pair)?;
-    let args = args_pair
-        .into_inner()
-        .map(parse_template_node)
-        .try_collect()?;
-    Ok(FunctionCallNode {
-        name,
-        name_span,
-        args,
-        keyword_args: vec![], // unsupported
-        args_span,
-    })
-}
-
 fn parse_lambda_node(pair: Pair<Rule>) -> TemplateParseResult<LambdaNode> {
     assert_eq!(pair.as_rule(), Rule::lambda);
     let mut inner = pair.into_inner();
@@ -478,7 +466,11 @@ fn parse_term_node(pair: Pair<Rule>) -> TemplateParseResult<ExpressionNode> {
         }
         Rule::identifier => ExpressionNode::new(parse_identifier_or_literal(expr), span),
         Rule::function => {
-            let function = Box::new(parse_function_call_node(expr)?);
+            let function = Box::new(FUNCTION_CALL_PARSER.parse(
+                expr,
+                parse_identifier_name,
+                parse_template_node,
+            )?);
             ExpressionNode::new(ExpressionKind::FunctionCall(function), span)
         }
         Rule::lambda => {
@@ -493,7 +485,11 @@ fn parse_term_node(pair: Pair<Rule>) -> TemplateParseResult<ExpressionNode> {
         let span = object.span.start_pos().span(&chain.as_span().end_pos());
         let method = Box::new(MethodCallNode {
             object,
-            function: parse_function_call_node(chain)?,
+            function: FUNCTION_CALL_PARSER.parse(
+                chain,
+                parse_identifier_name,
+                parse_template_node,
+            )?,
         });
         Ok(ExpressionNode::new(
             ExpressionKind::MethodCall(method),
@@ -896,8 +892,15 @@ mod tests {
         assert!(parse_template(r#" label("","",) "#).is_ok());
         assert!(parse_template(r#" label("",,"") "#).is_err());
 
+        // Keyword arguments
+        assert!(parse_template("f(foo = bar)").is_ok());
+        assert!(parse_template("f( foo=bar )").is_ok());
+        assert!(parse_template("x.f(foo, bar=0, baz=1)").is_ok());
+
         // Boolean literal cannot be used as a function name
         assert!(parse_template("false()").is_err());
+        // Boolean literal cannot be used as a parameter name
+        assert!(parse_template("f(false=0)").is_err());
         // Function arguments can be any expression
         assert!(parse_template("f(false)").is_ok());
     }
