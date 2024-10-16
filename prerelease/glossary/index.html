@@ -663,6 +663,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#branch" class="md-nav__link">
+    <span class="md-ellipsis">
+      Branch
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#change" class="md-nav__link">
     <span class="md-ellipsis">
       Change
@@ -1641,6 +1650,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#branch" class="md-nav__link">
+    <span class="md-ellipsis">
+      Branch
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#change" class="md-nav__link">
     <span class="md-ellipsis">
       Change
@@ -1873,11 +1891,11 @@
 
 <h1 id="glossary">Glossary<a class="headerlink" href="#glossary" title="Permanent link">&para;</a></h1>
 <h2 id="anonymous-branch">Anonymous branch<a class="headerlink" href="#anonymous-branch" title="Permanent link">&para;</a></h2>
-<p>An anonymous branch is a chain of commits that doesn't have any
-<a href="#bookmark">named bookmarks</a> pointing to it or to any of its descendants. Unlike
-Git, Jujutsu keeps commits on anonymous branches around until they are
-explicitly abandoned. Visible anonymous branches are tracked by the
-<a href="#view">view</a>, which stores a list of <a href="#head">heads</a> of such branches.</p>
+<p>An anonymous branch is a chain of commits that doesn't necessarily have any
+<a href="#bookmark">bookmarks</a> pointing to it or to any of its descendants. Unlike Git,
+Jujutsu keeps commits on anonymous branches around until they are explicitly
+abandoned. Visible anonymous branches are tracked by the <a href="#view">view</a>, which
+stores a list of <a href="#head">heads</a> of such branches.</p>
 <h2 id="backend">Backend<a class="headerlink" href="#backend" title="Permanent link">&para;</a></h2>
 <p>A backend is an implementation of the storage layer. There are currently two
 builtin commit backends: the Git backend and the native backend. The Git backend
@@ -1888,12 +1906,21 @@ wanted to use jj with a humongous monorepo (as Google does).</p>
 such as the "operation store backend" for storing
 <a href="#operation-log">the operation log</a>.</p>
 <h2 id="bookmark">Bookmark<a class="headerlink" href="#bookmark" title="Permanent link">&para;</a></h2>
-<p>A bookmark is a named pointer to a <a href="#commit">commit</a>. They automatically follow
-the commit if it gets <a href="#rewrite">rewritten</a>. Bookmarks are sometimes called
-"named branches" to distinguish them from <a href="#anonymous-branch">anonymous branches</a>.
-They are similar to Git's branches and even more similar to
-<a href="https://wiki.mercurial-scm.org/Bookmarks">Mercurial's bookmarks</a>. See
-<a href="../bookmarks/">here</a> for details.</p>
+<p>A bookmark is a named pointer to a <a href="#commit">commit</a>. They are similar to Git's
+<a href="#branch">branches</a> and even more similar to <a href="https://wiki.mercurial-scm.org/Bookmarks">Mercurial's
+bookmarks</a>. See <a href="../bookmarks/">here</a>
+for details.</p>
+<p>Unlike in Git, there is no concept of a "current bookmark"; bookmarks <em>do not</em>
+move when you create a new commit. Bookmarks <em>do</em> automatically follow the
+commit if it gets <a href="#rewrite">rewritten</a>. </p>
+<h2 id="branch">Branch<a class="headerlink" href="#branch" title="Permanent link">&para;</a></h2>
+<p>In the context of <code>jj</code>, the work "branch" usually refers to an <a href="#anonymous-branch">anonymous
+branch</a> or, less formally, a branch of the commit "tree"
+(which is itself an informal way to refer to the commit graph, parts of which
+might resemble a tree even when it's not mathematically a tree).</p>
+<p>We also sometimes discuss Git's branches and branches on Git remotes. Locally,
+these correspond to <a href="#bookmark">bookmarks</a>. In a co-located repository, each
+local Git branch corresponds to a <code>jj</code> bookmark.</p>
 <h2 id="change">Change<a class="headerlink" href="#change" title="Permanent link">&para;</a></h2>
 <p>A change is a commit as it <a href="#rewrite">evolves over time</a>.</p>
 <h2 id="change-id">Change ID<a class="headerlink" href="#change-id" title="Permanent link">&para;</a></h2>
