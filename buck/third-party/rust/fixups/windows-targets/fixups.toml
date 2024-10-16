@@ -1,0 +1,3 @@
+[platform_fixup.'cfg(any(target_os = "windows", target_os = "linux"))']
+version = ">=0.48.0"
+cfgs = ["windows_raw_dylib"]
