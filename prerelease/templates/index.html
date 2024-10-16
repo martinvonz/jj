@@ -2138,6 +2138,8 @@ inside a single-quoted string literal.</p>
   format string</a>.</li>
 <li><code>.utc() -&gt; Timestamp</code>: Convert timestamp into UTC timezone.</li>
 <li><code>.local() -&gt; Timestamp</code>: Convert timestamp into local timezone.</li>
+<li><code>.after(date: String) -&gt; Boolean</code>: True if the timestamp is exactly at or after the given date.</li>
+<li><code>.before(date: String) -&gt; Boolean</code>: True if the timestamp is before, but not including, the given date.</li>
 </ul>
 <h3 id="timestamprange-type">TimestampRange type<a class="headerlink" href="#timestamprange-type" title="Permanent link">&para;</a></h3>
 <p>The following methods are defined.</p>
