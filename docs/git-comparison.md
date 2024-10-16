@@ -341,12 +341,12 @@ parent.
     </tr>
     <tr>
       <td>Move a bookmark/branch forward</td>
-      <td><code>jj bookmark set &lt;name&gt; -r &lt;revision&gt;</code></td>
+      <td><code>jj bookmark move &lt;name&gt; --to &lt;revision&gt;</code></td>
       <td><code>git branch -f &lt;name&gt; &lt;revision&gt;</code></td>
     </tr>
     <tr>
       <td>Move a bookmark/branch backward or sideways</td>
-      <td><code>jj bookmark set &lt;name&gt; -r &lt;revision&gt; --allow-backwards</code></td>
+      <td><code>jj bookmark move &lt;name&gt; --to &lt;revision&gt; --allow-backwards</code></td>
       <td><code>git branch -f &lt;name&gt; &lt;revision&gt;</code></td>
     </tr>
     <tr>
