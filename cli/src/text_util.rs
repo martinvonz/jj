@@ -66,6 +66,31 @@ pub fn elide_start<'a>(
     (Cow::Owned([ellipsis, text].concat()), concat_width)
 }
 
+/// Shortens `text` to `max_width` by removing trailing characters. `ellipsis`
+/// is added if the `text` gets truncated.
+///
+/// The returned string (including `ellipsis`) never exceeds the `max_width`.
+pub fn elide_end<'a>(text: &'a str, ellipsis: &'a str, max_width: usize) -> (Cow<'a, str>, usize) {
+    let (text_end, text_width) = truncate_end_pos(text, max_width);
+    if text_end == text.len() {
+        return (Cow::Borrowed(text), text_width);
+    }
+
+    let (ellipsis_end, ellipsis_width) = truncate_end_pos(ellipsis, max_width);
+    if ellipsis_end != ellipsis.len() {
+        let ellipsis = &ellipsis[..ellipsis_end];
+        return (Cow::Borrowed(ellipsis), ellipsis_width);
+    }
+
+    let text = &text[..text_end];
+    let max_text_width = max_width - ellipsis_width;
+    let (skip, skipped_width) = skip_end_pos(text, text_width.saturating_sub(max_text_width));
+    let text = &text[..skip];
+    let concat_width = (text_width - skipped_width) + ellipsis_width;
+    assert!(concat_width <= max_width);
+    (Cow::Owned([text, ellipsis].concat()), concat_width)
+}
+
 /// Shortens `text` to `max_width` by removing leading characters, returning
 /// `(start_index, width)`.
 ///
@@ -83,6 +108,20 @@ fn truncate_start_pos(text: &str, max_width: usize) -> (usize, usize) {
     (0, acc_width)
 }
 
+/// Shortens `text` to `max_width` by removing trailing characters, returning
+/// `(end_index, width)`.
+fn truncate_end_pos(text: &str, max_width: usize) -> (usize, usize) {
+    let mut acc_width = 0;
+    for (i, c) in text.char_indices() {
+        let new_width = acc_width + c.width().unwrap_or(0);
+        if new_width > max_width {
+            return (i, acc_width);
+        }
+        acc_width = new_width;
+    }
+    (text.len(), acc_width)
+}
+
 /// Skips `width` leading characters, returning `(start_index, skipped_width)`.
 ///
 /// The `skipped_width` may exceed the given `width` if `width` is not at
@@ -98,6 +137,22 @@ fn skip_start_pos(text: &str, width: usize) -> (usize, usize) {
         acc_width += c.width().unwrap_or(0);
     }
     (text.len(), acc_width)
+}
+
+/// Skips `width` trailing characters, returning `(end_index, skipped_width)`.
+///
+/// The `skipped_width` may exceed the given `width` if `width` is not at
+/// character boundary.
+fn skip_end_pos(text: &str, width: usize) -> (usize, usize) {
+    let mut acc_width = 0;
+    for (i, c) in text.char_indices().rev() {
+        if acc_width >= width {
+            let prev_index = i + c.len_utf8();
+            return (prev_index, acc_width);
+        }
+        acc_width += c.width().unwrap_or(0);
+    }
+    (0, acc_width)
 }
 
 /// Removes leading 0-width characters.
@@ -367,6 +422,79 @@ mod tests {
         assert_eq!(
             elide_start("a\u{300}bcde\u{300}", "A\u{300}CE\u{300}", 2),
             ("CE\u{300}".into(), 2)
+        );
+    }
+
+    #[test]
+    fn test_elide_end() {
+        // Empty string
+        assert_eq!(elide_end("", "", 1), ("".into(), 0));
+
+        // Basic truncation
+        assert_eq!(elide_end("abcdef", "", 6), ("abcdef".into(), 6));
+        assert_eq!(elide_end("abcdef", "", 5), ("abcde".into(), 5));
+        assert_eq!(elide_end("abcdef", "", 1), ("a".into(), 1));
+        assert_eq!(elide_end("abcdef", "", 0), ("".into(), 0));
+        assert_eq!(elide_end("abcdef", "-=~", 6), ("abcdef".into(), 6));
+        assert_eq!(elide_end("abcdef", "-=~", 5), ("ab-=~".into(), 5));
+        assert_eq!(elide_end("abcdef", "-=~", 4), ("a-=~".into(), 4));
+        assert_eq!(elide_end("abcdef", "-=~", 3), ("-=~".into(), 3));
+        assert_eq!(elide_end("abcdef", "-=~", 2), ("-=".into(), 2));
+        assert_eq!(elide_end("abcdef", "-=~", 1), ("-".into(), 1));
+        assert_eq!(elide_end("abcdef", "-=~", 0), ("".into(), 0));
+
+        // East Asian characters (char.width() == 2)
+        assert_eq!(elide_end("一二三", "", 6), ("一二三".into(), 6));
+        assert_eq!(elide_end("一二三", "", 5), ("一二".into(), 4));
+        assert_eq!(elide_end("一二三", "", 4), ("一二".into(), 4));
+        assert_eq!(elide_end("一二三", "", 1), ("".into(), 0));
+        assert_eq!(elide_end("一二三", "-=~", 6), ("一二三".into(), 6));
+        assert_eq!(elide_end("一二三", "-=~", 5), ("一-=~".into(), 5));
+        assert_eq!(elide_end("一二三", "-=~", 4), ("-=~".into(), 3));
+        assert_eq!(elide_end("一二三", "略", 6), ("一二三".into(), 6));
+        assert_eq!(elide_end("一二三", "略", 5), ("一略".into(), 4));
+        assert_eq!(elide_end("一二三", "略", 4), ("一略".into(), 4));
+        assert_eq!(elide_end("一二三", "略", 2), ("略".into(), 2));
+        assert_eq!(elide_end("一二三", "略", 1), ("".into(), 0));
+        assert_eq!(elide_end("一二三", ".", 5), ("一二.".into(), 5));
+        assert_eq!(elide_end("一二三", ".", 4), ("一.".into(), 3));
+        assert_eq!(elide_end("一二三", "略.", 5), ("一略.".into(), 5));
+        assert_eq!(elide_end("一二三", "略.", 4), ("略.".into(), 3));
+
+        // Multi-byte character at boundary
+        assert_eq!(elide_end("àbcdè", "", 5), ("àbcdè".into(), 5));
+        assert_eq!(elide_end("àbcdè", "", 4), ("àbcd".into(), 4));
+        assert_eq!(elide_end("àbcdè", "", 1), ("à".into(), 1));
+        assert_eq!(elide_end("àbcdè", "", 0), ("".into(), 0));
+        assert_eq!(elide_end("àbcdè", "ÀÇÈ", 4), ("àÀÇÈ".into(), 4));
+        assert_eq!(elide_end("àbcdè", "ÀÇÈ", 3), ("ÀÇÈ".into(), 3));
+        assert_eq!(elide_end("àbcdè", "ÀÇÈ", 2), ("ÀÇ".into(), 2));
+
+        // Decomposed character at boundary
+        assert_eq!(
+            elide_end("a\u{300}bcde\u{300}", "", 5),
+            ("a\u{300}bcde\u{300}".into(), 5)
+        );
+        assert_eq!(
+            elide_end("a\u{300}bcde\u{300}", "", 4),
+            ("a\u{300}bcd".into(), 4)
+        );
+        assert_eq!(
+            elide_end("a\u{300}bcde\u{300}", "", 1),
+            ("a\u{300}".into(), 1)
+        );
+        assert_eq!(elide_end("a\u{300}bcde\u{300}", "", 0), ("".into(), 0));
+        assert_eq!(
+            elide_end("a\u{300}bcde\u{300}", "A\u{300}CE\u{300}", 4),
+            ("a\u{300}A\u{300}CE\u{300}".into(), 4)
+        );
+        assert_eq!(
+            elide_end("a\u{300}bcde\u{300}", "A\u{300}CE\u{300}", 3),
+            ("A\u{300}CE\u{300}".into(), 3)
+        );
+        assert_eq!(
+            elide_end("a\u{300}bcde\u{300}", "A\u{300}CE\u{300}", 2),
+            ("A\u{300}C".into(), 2)
         );
     }
 
