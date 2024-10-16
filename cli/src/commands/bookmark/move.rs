@@ -42,10 +42,15 @@ use crate::ui::Ui;
 #[command(group(clap::ArgGroup::new("source").multiple(true).required(true)))]
 pub struct BookmarkMoveArgs {
     /// Move bookmarks from the given revisions
+    // We intentionally do not support the short `-f` for `--from` since it
+    // could be confused with a shorthand for `--force`, and people might not
+    // realize they need `-B`/`--allow-backwards` instead.
     #[arg(long, group = "source", value_name = "REVISIONS")]
     from: Vec<RevisionArg>,
 
     /// Move bookmarks to this revision
+    // We intentionally do not support the short `-t` for `--to` since we don't
+    // support `-f` for `--from`.
     #[arg(long, default_value = "@", value_name = "REVISION")]
     to: RevisionArg,
 
