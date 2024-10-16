@@ -331,7 +331,7 @@ parent.
     </tr>
     <tr>
       <td>List bookmarks/branches</td>
-      <td><code>jj bookmark list</code></td>
+      <td><code>jj bookmark list</code> or <code>jj b l</code> for short</td>
       <td><code>git branch</code></td>
     </tr>
     <tr>
@@ -341,7 +341,8 @@ parent.
     </tr>
     <tr>
       <td>Move a bookmark/branch forward</td>
-      <td><code>jj bookmark move &lt;name&gt; --to &lt;revision&gt;</code></td>
+      <td><code>jj bookmark move &lt;name&gt; --to &lt;revision&gt;</code>
+        or <code>jj b m &lt;name&gt; --to &lt;revision&gt;</code> for short</td>
       <td><code>git branch -f &lt;name&gt; &lt;revision&gt;</code></td>
     </tr>
     <tr>
