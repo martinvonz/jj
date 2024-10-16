@@ -20,6 +20,7 @@ use std::fmt;
 use std::slice;
 
 use itertools::Itertools as _;
+use pest::iterators::Pair;
 use pest::iterators::Pairs;
 use pest::RuleType;
 
@@ -425,6 +426,76 @@ impl<R: RuleType> StringLiteralParser<R> {
             }
         }
         result
+    }
+}
+
+/// Helper to parse function call.
+#[derive(Debug)]
+pub struct FunctionCallParser<R> {
+    /// Function name.
+    pub function_name_rule: R,
+    /// List of positional and keyword arguments.
+    pub function_arguments_rule: R,
+    /// Pair of parameter name and value.
+    pub keyword_argument_rule: R,
+    /// Parameter name.
+    pub argument_name_rule: R,
+    /// Value expression.
+    pub argument_value_rule: R,
+}
+
+impl<R: RuleType> FunctionCallParser<R> {
+    /// Parses the given `pair` as function call.
+    pub fn parse<'i, T, E: From<InvalidArguments<'i>>>(
+        &self,
+        pair: Pair<'i, R>,
+        // parse_name can be defined for any Pair<'_, R>, but parse_value should
+        // be allowed to construct T by capturing Pair<'i, R>.
+        parse_name: impl Fn(Pair<'i, R>) -> Result<&'i str, E>,
+        parse_value: impl Fn(Pair<'i, R>) -> Result<ExpressionNode<'i, T>, E>,
+    ) -> Result<FunctionCallNode<'i, T>, E> {
+        let (name_pair, args_pair) = pair.into_inner().collect_tuple().unwrap();
+        assert_eq!(name_pair.as_rule(), self.function_name_rule);
+        assert_eq!(args_pair.as_rule(), self.function_arguments_rule);
+        let name_span = name_pair.as_span();
+        let args_span = args_pair.as_span();
+        let function_name = parse_name(name_pair)?;
+        let mut args = Vec::new();
+        let mut keyword_args = Vec::new();
+        for pair in args_pair.into_inner() {
+            let span = pair.as_span();
+            if pair.as_rule() == self.argument_value_rule {
+                if !keyword_args.is_empty() {
+                    return Err(InvalidArguments {
+                        name: function_name,
+                        message: "Positional argument follows keyword argument".to_owned(),
+                        span,
+                    }
+                    .into());
+                }
+                args.push(parse_value(pair)?);
+            } else if pair.as_rule() == self.keyword_argument_rule {
+                let (name_pair, value_pair) = pair.into_inner().collect_tuple().unwrap();
+                assert_eq!(name_pair.as_rule(), self.argument_name_rule);
+                assert_eq!(value_pair.as_rule(), self.argument_value_rule);
+                let name_span = name_pair.as_span();
+                let arg = KeywordArgument {
+                    name: parse_name(name_pair)?,
+                    name_span,
+                    value: parse_value(value_pair)?,
+                };
+                keyword_args.push(arg);
+            } else {
+                panic!("unexpected argument rule {pair:?}");
+            }
+        }
+        Ok(FunctionCallNode {
+            name: function_name,
+            name_span,
+            args,
+            keyword_args,
+            args_span,
+        })
     }
 }
 
