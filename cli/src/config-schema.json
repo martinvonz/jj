@@ -334,6 +334,20 @@
                 }
             }
         },
+        "gerrit": {
+            "type": "object",
+            "description": "Settings for interacting with Gerrit",
+            "properties": {
+                "default_remote": {
+                    "type": "string",
+                    "description": "The Gerrit remote to interact with"
+                },
+                "default_for": {
+                    "type": "string",
+                    "description": "The default branch to propose changes for"
+                }
+            }
+        },
         "merge-tools": {
             "type": "object",
             "description": "Tables of custom options to pass to the given merge tool (selected in ui.merge-editor)",
