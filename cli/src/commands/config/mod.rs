@@ -36,14 +36,14 @@ use crate::config::ConfigSource;
 use crate::ui::Ui;
 
 #[derive(clap::Args, Clone, Debug)]
-#[command(group = clap::ArgGroup::new("config_level").multiple(false).required(true))]
+#[group(id = "config_level", multiple = false, required = true)]
 pub(crate) struct ConfigLevelArgs {
     /// Target the user-level config
-    #[arg(long, group = "config_level")]
+    #[arg(long)]
     user: bool,
 
     /// Target the repo-level config
-    #[arg(long, group = "config_level")]
+    #[arg(long)]
     repo: bool,
 }
 
