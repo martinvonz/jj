@@ -34,7 +34,7 @@
             pkgs.lib.all (re: builtins.match re relPath == null) regexes;
         };
 
-      ourRustVersion = pkgs.rust-bin.selectLatestNightlyWith (toolchain: toolchain.complete);
+      ourRustVersion = pkgs.rust-bin.selectLatestNightlyWith (toolchain: toolchain.default);
 
       ourRustPlatform = pkgs.makeRustPlatform {
         rustc = ourRustVersion;
@@ -147,7 +147,16 @@
 
       devShells.default = pkgs.mkShell {
         buildInputs = with pkgs; [
-          ourRustVersion
+          # NOTE (aseipp): explicitly add rust-src to the rustc compiler only in
+          # devShell. this in turn causes a dependency on the rust compiler src,
+          # which bloats the closure size by several GiB. but doing this here
+          # and not by default avoids the default flake install from including
+          # that dependency, so it's worth it
+          #
+          # relevant PR: https://github.com/rust-lang/rust/pull/129687
+          (ourRustVersion.override {
+            extensions = [ "rust-src" ];
+          })
 
           # Foreign dependencies
           openssl zstd libgit2 libssh2
