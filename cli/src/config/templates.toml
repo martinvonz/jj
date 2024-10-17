@@ -18,7 +18,6 @@ annotate_commit_summary = '''
 separate(" ",
   format_short_id(change_id),
   format_short_id(commit_id),
-  format_short_signature(author),
   format_timestamp(committer.timestamp()),
 )
 '''
