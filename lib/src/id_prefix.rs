@@ -448,7 +448,7 @@ pub struct IdIndexLookup<'i, 'q, K, P, S, const N: usize> {
     pos: usize, // may be index.len()
 }
 
-impl<'i, 'q, K, P, S, const N: usize> IdIndexLookup<'i, 'q, K, P, S, N>
+impl<K, P, S, const N: usize> IdIndexLookup<'_, '_, K, P, S, N>
 where
     K: ObjectId + Eq,
     S: IdIndexSource<P>,

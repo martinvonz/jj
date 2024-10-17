@@ -57,7 +57,7 @@ impl<K: Clone> From<&Edge<K>> for Ancestor<K> {
     }
 }
 
-impl<'writer, K, R> GraphLog<K> for SaplingGraphLog<'writer, R>
+impl<K, R> GraphLog<K> for SaplingGraphLog<'_, R>
 where
     K: Clone + Eq + Hash,
     R: Renderer<K, Output = String>,

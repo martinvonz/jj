@@ -461,7 +461,7 @@ pub struct LockedWorkspace<'a> {
     locked_wc: Box<dyn LockedWorkingCopy>,
 }
 
-impl<'a> LockedWorkspace<'a> {
+impl LockedWorkspace<'_> {
     pub fn locked_wc(&mut self) -> &mut dyn LockedWorkingCopy {
         self.locked_wc.as_mut()
     }
