@@ -648,7 +648,7 @@ impl Write for FormatRecorder {
 
 struct RawEscapeSequenceRecorder<'a>(&'a mut FormatRecorder);
 
-impl<'a> Write for RawEscapeSequenceRecorder<'a> {
+impl Write for RawEscapeSequenceRecorder<'_> {
     fn write(&mut self, data: &[u8]) -> io::Result<usize> {
         self.0.push_op(FormatOp::RawEscapeSequence(data.to_vec()));
         Ok(data.len())

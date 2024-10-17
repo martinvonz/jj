@@ -850,7 +850,7 @@ impl<'diff, 'input> DiffHunkIterator<'diff, 'input> {
     }
 }
 
-impl<'diff, 'input> Iterator for DiffHunkIterator<'diff, 'input> {
+impl<'input> Iterator for DiffHunkIterator<'_, 'input> {
     type Item = DiffHunk<'input>;
 
     fn next(&mut self) -> Option<Self::Item> {

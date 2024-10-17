@@ -109,7 +109,7 @@ where
     }
 }
 
-impl<'a, I> DiffLineIterator<'a, I> {
+impl<I> DiffLineIterator<'_, I> {
     /// Returns line number of the next hunk. After all hunks are consumed, this
     /// returns the next line number if the last hunk ends with newline.
     pub fn next_line_number(&self) -> DiffLineNumber {

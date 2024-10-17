@@ -752,7 +752,7 @@ fn to_u32_generation_range(range: &Range<u64>) -> Result<Range<u32>, RevsetEvalu
     Ok(start..end)
 }
 
-impl<'index> EvaluationContext<'index> {
+impl EvaluationContext<'_> {
     fn evaluate(
         &self,
         expression: &ResolvedExpression,

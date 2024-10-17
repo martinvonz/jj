@@ -2225,7 +2225,7 @@ pub trait RevsetIteratorExt<'index, I> {
     fn reversed(self) -> ReverseRevsetIterator;
 }
 
-impl<'index, I: Iterator<Item = CommitId>> RevsetIteratorExt<'index, I> for I {
+impl<I: Iterator<Item = CommitId>> RevsetIteratorExt<'_, I> for I {
     fn commits(self, store: &Arc<Store>) -> RevsetCommitIterator<I> {
         RevsetCommitIterator {
             iter: self,
