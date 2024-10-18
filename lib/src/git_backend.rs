@@ -368,13 +368,12 @@ impl GitBackend {
         &self,
         head_ids: impl IntoIterator<Item = &'a CommitId>,
     ) -> BackendResult<()> {
-        self.import_head_commits_with_tree_conflicts(head_ids, true)
+        self.import_head_commits_with_tree_conflicts(head_ids)
     }
 
     fn import_head_commits_with_tree_conflicts<'a>(
         &self,
         head_ids: impl IntoIterator<Item = &'a CommitId>,
-        uses_tree_conflict_format: bool,
     ) -> BackendResult<()> {
         let head_ids: HashSet<&CommitId> = head_ids
             .into_iter()
@@ -404,7 +403,6 @@ impl GitBackend {
             &mut mut_table,
             &table_lock,
             &head_ids,
-            uses_tree_conflict_format,
         )?;
         self.save_extra_metadata_table(mut_table, &table_lock)
     }
@@ -452,7 +450,7 @@ impl GitBackend {
         repo: &'repo gix::Repository,
         id: &CommitId,
     ) -> BackendResult<gix::Tree<'repo>> {
-        let tree = self.read_commit(id).block_on()?.root_tree.to_merge();
+        let tree = self.read_commit(id).block_on()?.root_tree;
         // TODO(kfm): probably want to do something here if it is a merge
         let tree_id = tree.first().clone();
         let gix_id = validate_git_object_id(&tree_id)?;
@@ -509,7 +507,7 @@ fn root_tree_from_header(git_commit: &CommitRef) -> Result<Option<MergedTreeId>,
             if tree_ids.len() % 2 == 0 {
                 return Err(());
             }
-            return Ok(Some(MergedTreeId::Merge(Merge::from_vec(tree_ids))));
+            return Ok(Some(Merge::from_vec(tree_ids)));
         }
     }
     Ok(None)
@@ -518,7 +516,6 @@ fn root_tree_from_header(git_commit: &CommitRef) -> Result<Option<MergedTreeId>,
 fn commit_from_git_without_root_parent(
     id: &CommitId,
     git_object: &gix::Object,
-    uses_tree_conflict_format: bool,
     is_shallow: bool,
 ) -> BackendResult<Commit> {
     let commit = git_object
@@ -554,13 +551,7 @@ fn commit_from_git_without_root_parent(
     // the extra metadata.
     let root_tree = root_tree_from_header(&commit)
         .map_err(|()| to_read_object_err("Invalid jj:trees header", id))?;
-    let root_tree = root_tree.unwrap_or_else(|| {
-        if uses_tree_conflict_format {
-            MergedTreeId::resolved(tree_id)
-        } else {
-            MergedTreeId::Legacy(tree_id)
-        }
-    });
+    let root_tree = root_tree.unwrap_or_else(|| MergedTreeId::resolved(tree_id));
     // Use lossy conversion as commit message with "mojibake" is still better than
     // nothing.
     // TODO: what should we do with commit.encoding?
@@ -656,11 +647,9 @@ fn serialize_extras(commit: &Commit) -> Vec<u8> {
         change_id: commit.change_id.to_bytes(),
         ..Default::default()
     };
-    if let MergedTreeId::Merge(tree_ids) = &commit.root_tree {
-        proto.uses_tree_conflict_format = true;
-        if !tree_ids.is_resolved() {
-            proto.root_tree = tree_ids.iter().map(|r| r.to_bytes()).collect();
-        }
+    proto.uses_tree_conflict_format = true;
+    if !commit.root_tree.is_resolved() {
+        proto.root_tree = commit.root_tree.iter().map(|r| r.to_bytes()).collect();
     }
     for predecessor in &commit.predecessors {
         proto.predecessors.push(predecessor.to_bytes());
@@ -671,29 +660,20 @@ fn serialize_extras(commit: &Commit) -> Vec<u8> {
 fn deserialize_extras(commit: &mut Commit, bytes: &[u8]) {
     let proto = crate::protos::git_store::Commit::decode(bytes).unwrap();
     commit.change_id = ChangeId::new(proto.change_id);
-    if proto.uses_tree_conflict_format {
-        if !proto.root_tree.is_empty() {
-            let merge_builder: MergeBuilder<_> = proto
-                .root_tree
-                .iter()
-                .map(|id_bytes| TreeId::from_bytes(id_bytes))
-                .collect();
-            let merge = merge_builder.build();
-            // Check that the trees from the extras match the one we found in the jj:trees
-            // header
-            if let MergedTreeId::Merge(existing_merge) = &commit.root_tree {
-                assert!(existing_merge.is_resolved() || *existing_merge == merge);
-            }
-            commit.root_tree = MergedTreeId::Merge(merge);
-        } else {
-            // uses_tree_conflict_format was set but there was no root_tree override in the
-            // proto, which means we should just promote the tree id from the
-            // git commit to be a known-conflict-free tree
-            let MergedTreeId::Legacy(legacy_tree_id) = &commit.root_tree else {
-                panic!("root tree should have been initialized to a legacy id");
-            };
-            commit.root_tree = MergedTreeId::resolved(legacy_tree_id.clone());
-        }
+    if !proto.uses_tree_conflict_format {
+        panic!("root tree should have been initialized to a legacy id");
+    }
+    if !proto.root_tree.is_empty() {
+        let merge_builder: MergeBuilder<_> = proto
+            .root_tree
+            .iter()
+            .map(|id_bytes| TreeId::from_bytes(id_bytes))
+            .collect();
+        let merge = merge_builder.build();
+        // Check that the trees from the extras match the one we found in the jj:trees
+        // header
+        assert!(commit.root_tree.is_resolved() || commit.root_tree == merge);
+        commit.root_tree = merge;
     }
     for predecessor in &proto.predecessors {
         commit.predecessors.push(CommitId::from_bytes(predecessor));
@@ -865,7 +845,6 @@ fn import_extra_metadata_entries_from_heads(
     mut_table: &mut MutableTable,
     _table_lock: &FileLock,
     head_ids: &HashSet<&CommitId>,
-    uses_tree_conflict_format: bool,
 ) -> BackendResult<()> {
     let shallow_commits = git_repo
         .shallow_commits()
@@ -886,12 +865,7 @@ fn import_extra_metadata_entries_from_heads(
         // TODO(#1624): Should we read the root tree here and check if it has a
         // `.jjconflict-...` entries? That could happen if the user used `git` to e.g.
         // change the description of a commit with tree-level conflicts.
-        let commit = commit_from_git_without_root_parent(
-            &id,
-            &git_object,
-            uses_tree_conflict_format,
-            is_shallow,
-        )?;
+        let commit = commit_from_git_without_root_parent(&id, &git_object, is_shallow)?;
         mut_table.add_entry(id.to_bytes(), serialize_extras(&commit));
         work_ids.extend(
             commit
@@ -1165,7 +1139,7 @@ impl Backend for GitBackend {
                 .ok()
                 .flatten()
                 .is_some_and(|shallow| shallow.contains(&git_object.id));
-            commit_from_git_without_root_parent(id, &git_object, false, is_shallow)?
+            commit_from_git_without_root_parent(id, &git_object, is_shallow)?
         };
         if commit.parents.is_empty() {
             commit.parents.push(self.root_commit_id.clone());
@@ -1196,12 +1170,10 @@ impl Backend for GitBackend {
         assert!(contents.secure_sig.is_none(), "commit.secure_sig was set");
 
         let locked_repo = self.lock_git_repo();
-        let git_tree_id = match &contents.root_tree {
-            MergedTreeId::Legacy(tree_id) => validate_git_object_id(tree_id)?,
-            MergedTreeId::Merge(tree_ids) => match tree_ids.as_resolved() {
-                Some(tree_id) => validate_git_object_id(tree_id)?,
-                None => write_tree_conflict(&locked_repo, tree_ids)?,
-            },
+        let tree_ids = &contents.root_tree;
+        let git_tree_id = match tree_ids.as_resolved() {
+            Some(tree_id) => validate_git_object_id(tree_id)?,
+            None => write_tree_conflict(&locked_repo, tree_ids)?,
         };
         let author = signature_to_git(&contents.author);
         let mut committer = signature_to_git(&contents.committer);
@@ -1230,14 +1202,12 @@ impl Backend for GitBackend {
             }
         }
         let mut extra_headers = vec![];
-        if let MergedTreeId::Merge(tree_ids) = &contents.root_tree {
-            if !tree_ids.is_resolved() {
-                let value = tree_ids.iter().map(|id| id.hex()).join(" ").into_bytes();
-                extra_headers.push((
-                    BString::new(JJ_TREES_COMMIT_HEADER.to_vec()),
-                    BString::new(value),
-                ));
-            }
+        if !tree_ids.is_resolved() {
+            let value = tree_ids.iter().map(|id| id.hex()).join(" ").into_bytes();
+            extra_headers.push((
+                BString::new(JJ_TREES_COMMIT_HEADER.to_vec()),
+                BString::new(value),
+            ));
         }
         let extras = serialize_extras(&contents);
 
@@ -1537,14 +1507,12 @@ mod tests {
     use git2::Oid;
     use hex::ToHex;
     use pollster::FutureExt;
-    use test_case::test_case;
 
     use super::*;
     use crate::content_hash::blake2b_hash;
 
-    #[test_case(false; "legacy tree format")]
-    #[test_case(true; "tree-level conflict format")]
-    fn read_plain_git_commit(uses_tree_conflict_format: bool) {
+    #[test]
+    fn read_plain_git_commit() {
         let settings = user_settings();
         let temp_dir = testutils::new_temp_dir();
         let store_path = temp_dir.path();
@@ -1609,7 +1577,7 @@ mod tests {
 
         // Import the head commit and its ancestors
         backend
-            .import_head_commits_with_tree_conflicts([&commit_id2], uses_tree_conflict_format)
+            .import_head_commits_with_tree_conflicts([&commit_id2])
             .unwrap();
         // Ref should be created only for the head commit
         let git_refs = backend
@@ -1626,14 +1594,9 @@ mod tests {
         assert_eq!(commit.parents, vec![CommitId::from_bytes(&[0; 20])]);
         assert_eq!(commit.predecessors, vec![]);
         assert_eq!(
-            commit.root_tree.to_merge(),
+            commit.root_tree,
             Merge::resolved(TreeId::from_bytes(root_tree_id.as_bytes()))
         );
-        if uses_tree_conflict_format {
-            assert_matches!(commit.root_tree, MergedTreeId::Merge(_));
-        } else {
-            assert_matches!(commit.root_tree, MergedTreeId::Legacy(_));
-        }
         assert_eq!(commit.description, "git commit message");
         assert_eq!(commit.author.name, "git author");
         assert_eq!(commit.author.email, "git.author@example.com");
@@ -1695,14 +1658,9 @@ mod tests {
         assert_eq!(commit2.parents, vec![commit_id.clone()]);
         assert_eq!(commit.predecessors, vec![]);
         assert_eq!(
-            commit.root_tree.to_merge(),
+            commit.root_tree,
             Merge::resolved(TreeId::from_bytes(root_tree_id.as_bytes()))
         );
-        if uses_tree_conflict_format {
-            assert_matches!(commit.root_tree, MergedTreeId::Merge(_));
-        } else {
-            assert_matches!(commit.root_tree, MergedTreeId::Legacy(_));
-        }
     }
 
     #[test]
@@ -1849,7 +1807,7 @@ mod tests {
         let mut commit = Commit {
             parents: vec![],
             predecessors: vec![],
-            root_tree: MergedTreeId::Legacy(backend.empty_tree_id().clone()),
+            root_tree: MergedTreeId::resolved(backend.empty_tree_id().clone()),
             change_id: ChangeId::from_hex("abc123"),
             description: "".to_string(),
             author: create_signature(),
@@ -1931,7 +1889,7 @@ mod tests {
         let mut commit = Commit {
             parents: vec![backend.root_commit_id().clone()],
             predecessors: vec![],
-            root_tree: MergedTreeId::Merge(root_tree.clone()),
+            root_tree: root_tree.clone(),
             change_id: ChangeId::from_hex("abc123"),
             description: "".to_string(),
             author: create_signature(),
@@ -2024,7 +1982,7 @@ mod tests {
         let commit = Commit {
             parents: vec![backend.root_commit_id().clone()],
             predecessors: vec![],
-            root_tree: MergedTreeId::Legacy(backend.empty_tree_id().clone()),
+            root_tree: MergedTreeId::resolved(backend.empty_tree_id().clone()),
             change_id: ChangeId::new(vec![]),
             description: "initial".to_string(),
             author: signature.clone(),
@@ -2101,7 +2059,7 @@ mod tests {
         let mut commit1 = Commit {
             parents: vec![backend.root_commit_id().clone()],
             predecessors: vec![],
-            root_tree: MergedTreeId::Legacy(backend.empty_tree_id().clone()),
+            root_tree: MergedTreeId::resolved(backend.empty_tree_id().clone()),
             change_id: ChangeId::new(vec![]),
             description: "initial".to_string(),
             author: create_signature(),
@@ -2147,7 +2105,7 @@ mod tests {
         let commit = Commit {
             parents: vec![backend.root_commit_id().clone()],
             predecessors: vec![],
-            root_tree: MergedTreeId::Legacy(backend.empty_tree_id().clone()),
+            root_tree: MergedTreeId::resolved(backend.empty_tree_id().clone()),
             change_id: ChangeId::new(vec![]),
             description: "initial".to_string(),
             author: create_signature(),

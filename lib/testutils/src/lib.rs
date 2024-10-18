@@ -417,11 +417,7 @@ pub fn dump_tree(store: &Arc<Store>, tree_id: &MergedTreeId) -> String {
     writeln!(
         &mut buf,
         "tree {}",
-        tree_id
-            .to_merge()
-            .iter()
-            .map(|tree_id| tree_id.hex())
-            .join("&")
+        tree_id.iter().map(|tree_id| tree_id.hex()).join("&")
     )
     .unwrap();
     let tree = store.get_root_tree(tree_id).unwrap();

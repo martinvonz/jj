@@ -237,7 +237,7 @@ impl MergedTree {
 
     /// The tree's id
     pub fn id(&self) -> MergedTreeId {
-        MergedTreeId::Merge(self.trees.map(|tree| tree.id().clone()))
+        self.trees.map(|tree| tree.id().clone())
     }
 
     /// Look up the tree at the given path.
@@ -1129,30 +1129,21 @@ impl MergedTreeBuilder {
     /// a legacy tree, conflicts can be written either as a multi-way `Merge`
     /// value or as a resolved `Merge` value using `TreeValue::Conflict`.
     pub fn set_or_remove(&mut self, path: RepoPathBuf, values: MergedTreeValue) {
-        if let MergedTreeId::Merge(_) = &self.base_tree_id {
-            assert!(!values
-                .iter()
-                .flatten()
-                .any(|value| matches!(value, TreeValue::Conflict(_))));
-        }
+        assert!(!values
+            .iter()
+            .flatten()
+            .any(|value| matches!(value, TreeValue::Conflict(_))));
         self.overrides.insert(path, values);
     }
 
     /// Create new tree(s) from the base tree(s) and overrides.
     pub fn write_tree(self, store: &Arc<Store>) -> BackendResult<MergedTreeId> {
-        let base_tree_ids = match self.base_tree_id.clone() {
-            MergedTreeId::Legacy(base_tree_id) => {
-                let legacy_base_tree = store.get_tree(RepoPath::root(), &base_tree_id)?;
-                let base_tree = MergedTree::from_legacy_tree(legacy_base_tree)?;
-                base_tree.id().to_merge()
-            }
-            MergedTreeId::Merge(base_tree_ids) => base_tree_ids,
-        };
+        let base_tree_ids = self.base_tree_id.clone(); // XXX (aseipp): rename this field to self.base_tree_ids?
         let new_tree_ids = self.write_merged_trees(base_tree_ids, store)?;
         match new_tree_ids.simplify().into_resolved() {
             Ok(single_tree_id) => Ok(MergedTreeId::resolved(single_tree_id)),
             Err(tree_id) => {
-                let tree = store.get_root_tree(&MergedTreeId::Merge(tree_id))?;
+                let tree = store.get_root_tree(&tree_id)?;
                 let resolved = tree.resolve()?;
                 Ok(resolved.id())
             }

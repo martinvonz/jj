@@ -658,14 +658,14 @@ fn test_workspaces_current_op_discarded_by_other() {
         ],
     );
     insta::assert_snapshot!(stdout, @r#"
-    @  757bc1140b abandon commit 20dd439c4bd12c6ad56c187ac490bd0141804618f638dc5c4dc92ff9aecba20f152b23160db9dcf61beb31a5cb14091d9def5a36d11c9599cc4d2e5689236af1
-    ○  8d4abed655 create initial working-copy commit in workspace secondary
-    ○  3de27432e5 add workspace 'secondary'
-    ○  bcf69de808 new empty commit
-    ○  a36b99a15c snapshot working copy
-    ○  ddf023d319 new empty commit
-    ○  829c93f6a3 snapshot working copy
-    ○  2557266dd2 add workspace 'default'
+    @  28cd5cdd88 abandon commit 5eaf6e87919b87ce8078cecd6a6216606601e7372eebc1c9a791595ce8fe7963a9bdd8c56640f2e14baac9e62efb4fccc0c5b3d8e21a95e877b20bc8c20e73d5
+    ○  44fbe961e3 create initial working-copy commit in workspace secondary
+    ○  114173706e add workspace 'secondary'
+    ○  1ad55160ae new empty commit
+    ○  c9efb83077 snapshot working copy
+    ○  243778e06d new empty commit
+    ○  0b530a766d snapshot working copy
+    ○  ffbb23b00f add workspace 'default'
     ○  0000000000
     "#);
 
@@ -673,13 +673,13 @@ fn test_workspaces_current_op_discarded_by_other() {
     test_env.jj_cmd_ok(&main_path, &["operation", "abandon", "..@-"]);
     test_env.jj_cmd_ok(&main_path, &["util", "gc", "--expire=now"]);
 
-    insta::assert_snapshot!(get_log_output(&test_env, &main_path), @r###"
-    ○  96b31dafdc41 secondary@
-    │ @  6c051bd1ccd5 default@
+    insta::assert_snapshot!(get_log_output(&test_env, &main_path), @r#"
+    @  214eef6a63cb default@
+    │ ○  1451cf1f1398 secondary@
     ├─╯
-    ○  7c5b25a4fc8f
+    ○  b431c7611a06
     ◆  000000000000
-    "###);
+    "#);
 
     let stderr = test_env.jj_cmd_failure(&secondary_path, &["st"]);
     insta::assert_snapshot!(stderr, @r###"
@@ -690,19 +690,19 @@ fn test_workspaces_current_op_discarded_by_other() {
 
     let (stdout, stderr) = test_env.jj_cmd_ok(&secondary_path, &["workspace", "update-stale"]);
     insta::assert_snapshot!(stderr, @r#"
-    Failed to read working copy's current operation; attempting recovery. Error message from read attempt: Object 8d4abed655badb70b1bab62aa87136619dbc3c8015a8ce8dfb7abfeca4e2f36c713d8f84e070a0613907a6cee7e1cc05323fe1205a319b93fe978f11a060c33c of type operation not found
-    Created and checked out recovery commit 62f70695e3b0
+    Failed to read working copy's current operation; attempting recovery. Error message from read attempt: Object 44fbe961e37a84af0908d31684571660b28fbe0db71d39abd16a8385200cd048b81a529a5e3988a64dad7fb5a8223545d330316e4f629cf6453b937ed2a17355 of type operation not found
+    Created and checked out recovery commit 44b50c0d749c
     "#);
     insta::assert_snapshot!(stdout, @"");
 
-    insta::assert_snapshot!(get_log_output(&test_env, &main_path), @r###"
-    ○  b0b400439a82 secondary@
-    ○  96b31dafdc41
-    │ @  6c051bd1ccd5 default@
+    insta::assert_snapshot!(get_log_output(&test_env, &main_path), @r#"
+    ○  547a8f368e77 secondary@
+    ○  1451cf1f1398
+    │ @  214eef6a63cb default@
     ├─╯
-    ○  7c5b25a4fc8f
+    ○  b431c7611a06
     ◆  000000000000
-    "###);
+    "#);
 
     // The sparse patterns should remain
     let stdout = test_env.jj_cmd_success(&secondary_path, &["sparse", "list"]);
@@ -713,14 +713,14 @@ fn test_workspaces_current_op_discarded_by_other() {
     "###);
     let (stdout, stderr) = test_env.jj_cmd_ok(&secondary_path, &["st"]);
     insta::assert_snapshot!(stderr, @"");
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @r#"
     Working copy changes:
     A added
     D deleted
     M modified
-    Working copy : kmkuslsw b0b40043 (no description set)
-    Parent commit: rzvqmyuk 96b31daf (empty) (no description set)
-    "###);
+    Working copy : kmkuslsw 547a8f36 (no description set)
+    Parent commit: rzvqmyuk 1451cf1f (empty) (no description set)
+    "#);
     // The modified file should have the same contents it had before (not reset to
     // the base contents)
     insta::assert_snapshot!(std::fs::read_to_string(secondary_path.join("modified")).unwrap(), @r###"
@@ -729,12 +729,12 @@ fn test_workspaces_current_op_discarded_by_other() {
 
     let (stdout, stderr) = test_env.jj_cmd_ok(&secondary_path, &["evolog"]);
     insta::assert_snapshot!(stderr, @"");
-    insta::assert_snapshot!(stdout, @r###"
-    @  kmkuslsw test.user@example.com 2001-02-03 08:05:18 secondary@ b0b40043
+    insta::assert_snapshot!(stdout, @r#"
+    @  kmkuslsw test.user@example.com 2001-02-03 08:05:18 secondary@ 547a8f36
     │  (no description set)
-    ○  kmkuslsw hidden test.user@example.com 2001-02-03 08:05:18 62f70695
+    ○  kmkuslsw hidden test.user@example.com 2001-02-03 08:05:18 44b50c0d
        (empty) (no description set)
-    "###);
+    "#);
 }
 
 #[test]

@@ -103,41 +103,7 @@ pub type SigningFn<'a> = dyn FnMut(&[u8]) -> SignResult<Vec<u8>> + Send + 'a;
 
 /// Identifies a single legacy tree, which may have path-level conflicts, or a
 /// merge of multiple trees, where the individual trees do not have conflicts.
-// TODO(#1624): Delete this type at some point in the future, when we decide to drop
-// support for conflicts in older repos, or maybe after we have provided an upgrade
-// mechanism.
-#[derive(ContentHash, Debug, Clone)]
-pub enum MergedTreeId {
-    /// The tree id of a legacy tree
-    Legacy(TreeId),
-    /// The tree id(s) of a merge tree
-    Merge(Merge<TreeId>),
-}
-
-impl PartialEq for MergedTreeId {
-    /// Overridden to make conflict-free trees be considered equal even if their
-    /// `MergedTreeId` variant is different.
-    fn eq(&self, other: &Self) -> bool {
-        self.to_merge() == other.to_merge()
-    }
-}
-
-impl Eq for MergedTreeId {}
-
-impl MergedTreeId {
-    /// Create a resolved `MergedTreeId` from a single regular tree.
-    pub fn resolved(tree_id: TreeId) -> Self {
-        MergedTreeId::Merge(Merge::resolved(tree_id))
-    }
-
-    /// Return this id as `Merge<TreeId>`
-    pub fn to_merge(&self) -> Merge<TreeId> {
-        match self {
-            MergedTreeId::Legacy(tree_id) => Merge::resolved(tree_id.clone()),
-            MergedTreeId::Merge(tree_ids) => tree_ids.clone(),
-        }
-    }
-}
+pub type MergedTreeId = Merge<TreeId>;
 
 #[derive(ContentHash, Debug, PartialEq, Eq, Clone)]
 pub struct Commit {
