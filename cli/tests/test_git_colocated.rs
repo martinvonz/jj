@@ -13,7 +13,9 @@
 // limitations under the License.
 
 use std::path::Path;
+use std::process::Command;
 
+use assert_cmd::assert::OutputAssertExt;
 use git2::Oid;
 
 use crate::common::TestEnvironment;
@@ -873,4 +875,56 @@ fn test_git_colocated_unreachable_commits() {
 fn get_bookmark_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
     // --quiet to suppress deleted bookmarks hint
     test_env.jj_cmd_success(repo_path, &["bookmark", "list", "--all-remotes", "--quiet"])
+}
+
+/// Substitute for `jj workspace add --colocate` or similar using git CLI,
+/// please replace with the real thing when it lands.
+fn stopgap_workspace_colocate(
+    test_env: &TestEnvironment,
+    repo_path: &Path,
+    original_colocated: bool,
+    dst: &str,
+    initial_head: &str,
+) {
+    // Can't use gix/git2, as neither can repair the broken worktree we're about to
+    // create.
+    let repo_relative_path = if original_colocated {
+        dst.to_owned()
+    } else {
+        format!("../../../../{dst}")
+    };
+    Command::new("git")
+        .args(["worktree", "add", &repo_relative_path])
+        .arg(initial_head)
+        .current_dir(if original_colocated {
+            repo_path.to_path_buf()
+        } else {
+            repo_path.join(".jj/repo/store/git")
+        })
+        .assert()
+        .success()
+        .stderr(format!(
+            "Preparing worktree (detached HEAD {})\n",
+            &initial_head[..7]
+        ));
+    let dst_path = repo_path.join(dst);
+    let tmp_path = test_env.env_root().join("__tmp_worktree__");
+    if tmp_path.exists() {
+        std::fs::remove_dir_all(&tmp_path).unwrap();
+    }
+    std::fs::rename(&dst_path, &tmp_path).unwrap();
+    test_env.jj_cmd_ok(repo_path, &["workspace", "add", dst]);
+    std::fs::rename(tmp_path.join(".git"), dst_path.join(".git")).unwrap();
+    std::fs::write(dst_path.join(".jj/.gitignore"), "*\n").unwrap();
+    Command::new("git")
+        .args(["worktree", "repair"])
+        .current_dir(&dst_path)
+        .assert()
+        .success();
+    Command::new("git")
+        .arg("checkout")
+        .arg(initial_head)
+        .current_dir(&dst_path)
+        .assert()
+        .success();
 }
