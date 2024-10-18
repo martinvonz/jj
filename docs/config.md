@@ -268,10 +268,10 @@ You can configure the set of immutable commits via
 `revset-aliases."immutable_heads()"`. The default set of immutable heads is
 `builtin_immutable_heads()`, which in turn is defined as
 `present(trunk()) | tags() | untracked_remote_bookmarks()`. For example, to
-also consider the `maint@origin` bookmark immutable:
+also consider the `main@origin` bookmark immutable:
 
 ```toml
-revset-aliases."immutable_heads()" = "builtin_immutable_heads() | maint@origin"
+revset-aliases."immutable_heads()" = "builtin_immutable_heads() | main@origin"
 ```
 
 To prevent rewriting commits authored by other users:
