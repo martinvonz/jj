@@ -25,6 +25,15 @@ The configuration option will never affect any of these `jj` behaviors:
 * the way commit topology or contents (ignoring bookmarks) evolve with each
   command
 
+## Diagrams
+
+These Excalidraw diagrams show the effect of various `jj` commands when in
+branch mode:
+https://excalidraw.com/#json=h9PZ238E4kqHt10jGxf7y,WAJk5q_Eu2XoN4Y-UGh3fw
+
+In these diagrams, a colored arrow is a `jj` bookmark, and a bold and colored
+commit-graph node is `b(HEAD)`.
+
 ## Entering branch mode
 
 These commands always enter branch mode, by setting `.git/HEAD` appropriately:
