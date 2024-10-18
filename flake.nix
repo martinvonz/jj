@@ -34,7 +34,7 @@
             pkgs.lib.all (re: builtins.match re relPath == null) regexes;
         };
 
-      ourRustVersion = pkgs.rust-bin.selectLatestNightlyWith (toolchain: toolchain.complete);
+      ourRustVersion = pkgs.rust-bin.selectLatestNightlyWith (toolchain: toolchain.default);
 
       ourRustPlatform = pkgs.makeRustPlatform {
         rustc = ourRustVersion;
@@ -91,13 +91,18 @@
             makeWrapper
             pkg-config
 
-            # for signing tests
-            gnupg 
-            openssh
           ] ++ linuxNativeDeps;
           buildInputs = with pkgs; [
             openssl zstd libgit2 libssh2
           ] ++ darwinDeps;
+          checkInputs = with pkgs; [
+            # for signing tests
+            gnupg 
+            openssh
+
+            # for git-related tests
+            git
+          ];
 
           ZSTD_SYS_USE_PKG_CONFIG = "1";
           LIBSSH2_SYS_USE_PKG_CONFIG = "1";
@@ -147,7 +152,16 @@
 
       devShells.default = pkgs.mkShell {
         buildInputs = with pkgs; [
-          ourRustVersion
+          # NOTE (aseipp): explicitly add rust-src to the rustc compiler only in
+          # devShell. this in turn causes a dependency on the rust compiler src,
+          # which bloats the closure size by several GiB. but doing this here
+          # and not by default avoids the default flake install from including
+          # that dependency, so it's worth it
+          #
+          # relevant PR: https://github.com/rust-lang/rust/pull/129687
+          (ourRustVersion.override {
+            extensions = [ "rust-src" ];
+          })
 
           # Foreign dependencies
           openssl zstd libgit2 libssh2
@@ -168,6 +182,9 @@
           # To run the signing tests
           gnupg
           openssh
+
+          # For git-related tests
+          git
 
           # For building the documentation website
           poetry
