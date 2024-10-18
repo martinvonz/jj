@@ -1,0 +1,3 @@
+features = ["stock-zlib"]
+extra_deps = ["third-party//libz:libz"]
+buildscript = []
