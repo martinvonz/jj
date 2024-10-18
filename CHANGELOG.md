@@ -62,6 +62,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * Timestamp objects in templates now have `after(date) -> Boolean` and
   `before(date) -> Boolean` methods for comparing timestamps to other dates.
 
+* `jj help` now can give help for some categories, like `jj help revsets`.
+
 ### Fixed bugs
 
 * Error on `trunk()` revset resolution is now handled gracefully.
