@@ -417,7 +417,7 @@ fn test_tree_builder_file_directory_transition() {
     let workspace_root = ws.workspace_root().to_owned();
     let mut check_out_tree = |tree_id: &TreeId| {
         let tree = repo.store().get_tree(RepoPath::root(), tree_id).unwrap();
-        let commit = commit_with_tree(repo.store(), MergedTreeId::Legacy(tree.id().clone()));
+        let commit = commit_with_tree(repo.store(), MergedTreeId::resolved(tree.id().clone()));
         ws.check_out(repo.op_id().clone(), None, &commit).unwrap();
     };
 
@@ -1121,7 +1121,7 @@ fn test_gitsubmodule() {
         TreeValue::GitSubmodule(submodule_id),
     );
 
-    let tree_id = MergedTreeId::Legacy(tree_builder.write_tree().unwrap());
+    let tree_id = MergedTreeId::resolved(tree_builder.write_tree().unwrap());
     let tree = store.get_root_tree(&tree_id).unwrap();
     let commit = commit_with_tree(repo.store(), tree.id());
     let ws = &mut test_workspace.workspace;

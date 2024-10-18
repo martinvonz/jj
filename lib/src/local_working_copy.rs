@@ -638,16 +638,13 @@ impl TreeState {
                 source: err,
             }
         })?;
-        if proto.tree_ids.is_empty() {
-            self.tree_id = MergedTreeId::Legacy(TreeId::new(proto.legacy_tree_id.clone()));
-        } else {
-            let tree_ids_builder: MergeBuilder<TreeId> = proto
-                .tree_ids
-                .iter()
-                .map(|id| TreeId::new(id.clone()))
-                .collect();
-            self.tree_id = MergedTreeId::Merge(tree_ids_builder.build());
-        }
+        assert!(!proto.tree_ids.is_empty()); // legacy format incompatibility
+        let tree_ids_builder: MergeBuilder<TreeId> = proto
+            .tree_ids
+            .iter()
+            .map(|id| TreeId::new(id.clone()))
+            .collect();
+        self.tree_id = tree_ids_builder.build();
         self.file_states =
             FileStatesMap::from_proto(proto.file_states, proto.is_file_states_sorted);
         self.sparse_patterns = sparse_patterns_from_proto(proto.sparse_patterns.as_ref());
@@ -658,15 +655,11 @@ impl TreeState {
     #[allow(unknown_lints)] // XXX FIXME (aseipp): nightly bogons; re-test this occasionally
     #[allow(clippy::assigning_clones)]
     fn save(&mut self) -> Result<(), TreeStateError> {
-        let mut proto: crate::protos::working_copy::TreeState = Default::default();
-        match &self.tree_id {
-            MergedTreeId::Legacy(tree_id) => {
-                proto.legacy_tree_id = tree_id.to_bytes();
-            }
-            MergedTreeId::Merge(tree_ids) => {
-                proto.tree_ids = tree_ids.iter().map(|id| id.to_bytes()).collect();
-            }
-        }
+        let mut proto: crate::protos::working_copy::TreeState =
+            crate::protos::working_copy::TreeState {
+                tree_ids: self.tree_id.iter().map(|id| id.to_bytes()).collect(),
+                ..Default::default()
+            };
 
         proto.file_states = self.file_states.data.clone();
         // `FileStatesMap` is guaranteed to be sorted.

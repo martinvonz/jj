@@ -248,7 +248,7 @@ fn test_from_legacy_tree() {
         .take(5)
         .cloned()
         .collect();
-    let empty_merged_id = MergedTreeId::Merge(empty_merged_id_builder.build());
+    let empty_merged_id = empty_merged_id_builder.build();
     let mut tree_builder = MergedTreeBuilder::new(empty_merged_id);
     for (path, value) in merged_tree.entries() {
         tree_builder.set_or_remove(path, value.unwrap());
@@ -258,9 +258,7 @@ fn test_from_legacy_tree() {
 
     // Create the merged tree by adding the same (variable-arity) entries as we
     // added to the single-tree TreeBuilder.
-    let mut tree_builder = MergedTreeBuilder::new(MergedTreeId::Merge(Merge::resolved(
-        store.empty_tree_id().clone(),
-    )));
+    let mut tree_builder = MergedTreeBuilder::new(Merge::resolved(store.empty_tree_id().clone()));
     // Add the entries out of order, so we test both increasing and reducing the
     // arity (going up from 1-way to 3-way to 5-way, then to 3-way again)
     tree_builder.set_or_remove(file1_path.to_owned(), Merge::normal(file_value(&file1_id)));
@@ -289,10 +287,10 @@ fn test_merged_tree_builder_resolves_conflict() {
     let tree2 = create_single_tree(repo, &[(&path1, "bar")]);
     let tree3 = create_single_tree(repo, &[(&path1, "bar")]);
 
-    let base_tree_id = MergedTreeId::Merge(Merge::from_removes_adds(
+    let base_tree_id = Merge::from_removes_adds(
         [tree1.id().clone()],
         [tree2.id().clone(), tree3.id().clone()],
-    ));
+    );
     let tree_builder = MergedTreeBuilder::new(base_tree_id);
     let tree_id = tree_builder.write_tree(store).unwrap();
     assert_eq!(tree_id, MergedTreeId::resolved(tree2.id().clone()));

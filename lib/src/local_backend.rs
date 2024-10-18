@@ -45,7 +45,6 @@ use crate::backend::ConflictId;
 use crate::backend::ConflictTerm;
 use crate::backend::CopyRecord;
 use crate::backend::FileId;
-use crate::backend::MergedTreeId;
 use crate::backend::MillisSinceEpoch;
 use crate::backend::SecureSig;
 use crate::backend::Signature;
@@ -357,15 +356,8 @@ pub fn commit_to_proto(commit: &Commit) -> crate::protos::local_store::Commit {
     for predecessor in &commit.predecessors {
         proto.predecessors.push(predecessor.to_bytes());
     }
-    match &commit.root_tree {
-        MergedTreeId::Legacy(tree_id) => {
-            proto.root_tree = vec![tree_id.to_bytes()];
-        }
-        MergedTreeId::Merge(tree_ids) => {
-            proto.uses_tree_conflict_format = true;
-            proto.root_tree = tree_ids.iter().map(|id| id.to_bytes()).collect();
-        }
-    }
+    proto.uses_tree_conflict_format = true;
+    proto.root_tree = commit.root_tree.iter().map(|id| id.to_bytes()).collect();
     proto.change_id = commit.change_id.to_bytes();
     proto.description = commit.description.clone();
     proto.author = Some(signature_to_proto(&commit.author));
@@ -383,12 +375,9 @@ fn commit_from_proto(mut proto: crate::protos::local_store::Commit) -> Commit {
 
     let parents = proto.parents.into_iter().map(CommitId::new).collect();
     let predecessors = proto.predecessors.into_iter().map(CommitId::new).collect();
-    let root_tree = if proto.uses_tree_conflict_format {
+    let root_tree = {
         let merge_builder: MergeBuilder<_> = proto.root_tree.into_iter().map(TreeId::new).collect();
-        MergedTreeId::Merge(merge_builder.build())
-    } else {
-        assert_eq!(proto.root_tree.len(), 1);
-        MergedTreeId::Legacy(TreeId::new(proto.root_tree[0].clone()))
+        merge_builder.build()
     };
     let change_id = ChangeId::new(proto.change_id);
     Commit {
@@ -539,6 +528,7 @@ mod tests {
     use pollster::FutureExt;
 
     use super::*;
+    use crate::backend::MergedTreeId;
 
     /// Test that parents get written correctly
     #[test]

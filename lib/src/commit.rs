@@ -135,11 +135,7 @@ impl Commit {
     }
 
     pub fn has_conflict(&self) -> BackendResult<bool> {
-        if let MergedTreeId::Merge(tree_ids) = self.tree_id() {
-            Ok(!tree_ids.is_resolved())
-        } else {
-            Ok(self.tree()?.has_conflict())
-        }
+        Ok(!self.tree_id().is_resolved())
     }
 
     pub fn change_id(&self) -> &ChangeId {
