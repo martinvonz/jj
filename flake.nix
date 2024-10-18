@@ -91,13 +91,18 @@
             makeWrapper
             pkg-config
 
-            # for signing tests
-            gnupg 
-            openssh
           ] ++ linuxNativeDeps;
           buildInputs = with pkgs; [
             openssl zstd libgit2 libssh2
           ] ++ darwinDeps;
+          checkInputs = with pkgs; [
+            # for signing tests
+            gnupg 
+            openssh
+
+            # for git-related tests
+            git
+          ];
 
           ZSTD_SYS_USE_PKG_CONFIG = "1";
           LIBSSH2_SYS_USE_PKG_CONFIG = "1";
@@ -177,6 +182,9 @@
           # To run the signing tests
           gnupg
           openssh
+
+          # For git-related tests
+          git
 
           # For building the documentation website
           poetry
