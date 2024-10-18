@@ -18,6 +18,7 @@ use std::io;
 
 use bstr::ByteSlice as _;
 use unicode_width::UnicodeWidthChar as _;
+use unicode_width::UnicodeWidthStr as _;
 
 use crate::formatter::FormatRecorder;
 use crate::formatter::Formatter;
@@ -263,6 +264,62 @@ pub fn write_truncated_end(
         Ok(())
     })?;
     Ok(truncated_width)
+}
+
+/// Writes text padded to `min_width` by adding leading fill characters.
+///
+/// The input `recorded_content` should be a single-line text. The
+/// `recorded_fill_char` should be bytes of 1-width character.
+pub fn write_padded_start(
+    formatter: &mut dyn Formatter,
+    recorded_content: &FormatRecorder,
+    recorded_fill_char: &FormatRecorder,
+    min_width: usize,
+) -> io::Result<()> {
+    // We don't care about the width of non-UTF-8 bytes, but should not panic.
+    let width = String::from_utf8_lossy(recorded_content.data()).width();
+    let fill_width = min_width.saturating_sub(width);
+    write_padding(formatter, recorded_fill_char, fill_width)?;
+    recorded_content.replay(formatter)?;
+    Ok(())
+}
+
+/// Writes text padded to `min_width` by adding leading fill characters.
+///
+/// The input `recorded_content` should be a single-line text. The
+/// `recorded_fill_char` should be bytes of 1-width character.
+pub fn write_padded_end(
+    formatter: &mut dyn Formatter,
+    recorded_content: &FormatRecorder,
+    recorded_fill_char: &FormatRecorder,
+    min_width: usize,
+) -> io::Result<()> {
+    // We don't care about the width of non-UTF-8 bytes, but should not panic.
+    let width = String::from_utf8_lossy(recorded_content.data()).width();
+    let fill_width = min_width.saturating_sub(width);
+    recorded_content.replay(formatter)?;
+    write_padding(formatter, recorded_fill_char, fill_width)?;
+    Ok(())
+}
+
+fn write_padding(
+    formatter: &mut dyn Formatter,
+    recorded_fill_char: &FormatRecorder,
+    fill_width: usize,
+) -> io::Result<()> {
+    if fill_width == 0 {
+        return Ok(());
+    }
+    let data = recorded_fill_char.data();
+    recorded_fill_char.replay_with(formatter, |formatter, range| {
+        // Don't emit labels repeatedly, just repeat content. Suppose fill char
+        // is a single character, the byte sequence shouldn't be broken up to
+        // multiple labeled regions.
+        for _ in 0..fill_width {
+            formatter.write_all(&data[range.clone()])?;
+        }
+        Ok(())
+    })
 }
 
 /// Indents each line by the given prefix preserving labels.
@@ -737,6 +794,118 @@ mod tests {
         insta::assert_snapshot!(
             format_colored(|formatter| write_truncated_end(formatter, &recorder, 1).map(|_| ())),
             @""
+        );
+    }
+
+    #[test]
+    fn test_write_padded_labeled_content() {
+        let mut recorder = FormatRecorder::new();
+        for (label, word) in [("red", "foo"), ("cyan", "bar")] {
+            recorder.push_label(label).unwrap();
+            write!(recorder, "{word}").unwrap();
+            recorder.pop_label().unwrap();
+        }
+        let fill = FormatRecorder::with_data("=");
+
+        // Pad start
+        insta::assert_snapshot!(
+            format_colored(|formatter| write_padded_start(formatter, &recorder, &fill, 6)),
+            @"[38;5;1mfoo[39m[38;5;6mbar[39m"
+        );
+        insta::assert_snapshot!(
+            format_colored(|formatter| write_padded_start(formatter, &recorder, &fill, 7)),
+            @"=[38;5;1mfoo[39m[38;5;6mbar[39m"
+        );
+        insta::assert_snapshot!(
+            format_colored(|formatter| write_padded_start(formatter, &recorder, &fill, 8)),
+            @"==[38;5;1mfoo[39m[38;5;6mbar[39m"
+        );
+
+        // Pad end
+        insta::assert_snapshot!(
+            format_colored(|formatter| write_padded_end(formatter, &recorder, &fill, 6)),
+            @"[38;5;1mfoo[39m[38;5;6mbar[39m"
+        );
+        insta::assert_snapshot!(
+            format_colored(|formatter| write_padded_end(formatter, &recorder, &fill, 7)),
+            @"[38;5;1mfoo[39m[38;5;6mbar[39m="
+        );
+        insta::assert_snapshot!(
+            format_colored(|formatter| write_padded_end(formatter, &recorder, &fill, 8)),
+            @"[38;5;1mfoo[39m[38;5;6mbar[39m=="
+        );
+    }
+
+    #[test]
+    fn test_write_padded_labeled_fill_char() {
+        let recorder = FormatRecorder::with_data("foo");
+        let mut fill = FormatRecorder::new();
+        fill.push_label("red").unwrap();
+        write!(fill, "=").unwrap();
+        fill.pop_label().unwrap();
+
+        // Pad start
+        insta::assert_snapshot!(
+            format_colored(|formatter| write_padded_start(formatter, &recorder, &fill, 5)),
+            @"[38;5;1m==[39mfoo"
+        );
+
+        // Pad end
+        insta::assert_snapshot!(
+            format_colored(|formatter| write_padded_end(formatter, &recorder, &fill, 6)),
+            @"foo[38;5;1m===[39m"
+        );
+    }
+
+    #[test]
+    fn test_write_padded_non_ascii_chars() {
+        let recorder = FormatRecorder::with_data("a\u{300}bc\u{300}一二三");
+        let fill = FormatRecorder::with_data("=");
+
+        // Pad start
+        insta::assert_snapshot!(
+            format_colored(|formatter| write_padded_start(formatter, &recorder, &fill, 9)),
+            @"àbc̀一二三"
+        );
+        insta::assert_snapshot!(
+            format_colored(|formatter| write_padded_start(formatter, &recorder, &fill, 10)),
+            @"=àbc̀一二三"
+        );
+
+        // Pad end
+        insta::assert_snapshot!(
+            format_colored(|formatter| write_padded_end(formatter, &recorder, &fill, 9)),
+            @"àbc̀一二三"
+        );
+        insta::assert_snapshot!(
+            format_colored(|formatter| write_padded_end(formatter, &recorder, &fill, 10)),
+            @"àbc̀一二三="
+        );
+    }
+
+    #[test]
+    fn test_write_padded_empty_content() {
+        let recorder = FormatRecorder::new();
+        let fill = FormatRecorder::with_data("=");
+
+        // Pad start
+        insta::assert_snapshot!(
+            format_colored(|formatter| write_padded_start(formatter, &recorder, &fill, 0)),
+            @""
+        );
+        insta::assert_snapshot!(
+            format_colored(|formatter| write_padded_start(formatter, &recorder, &fill, 1)),
+            @"="
+        );
+
+        // Pad end
+        insta::assert_snapshot!(
+            format_colored(|formatter| write_padded_end(formatter, &recorder, &fill, 0)),
+            @""
+        );
+        insta::assert_snapshot!(
+            format_colored(|formatter| write_padded_end(formatter, &recorder, &fill, 1)),
+            @"="
         );
     }
 

@@ -594,6 +594,14 @@ impl FormatRecorder {
         FormatRecorder::default()
     }
 
+    /// Creates new buffer containing the given `data`.
+    pub fn with_data(data: impl Into<Vec<u8>>) -> Self {
+        FormatRecorder {
+            data: data.into(),
+            ops: vec![],
+        }
+    }
+
     pub fn data(&self) -> &[u8] {
         &self.data
     }

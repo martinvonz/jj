@@ -45,6 +45,16 @@ The following functions are defined.
   the given `width`.
 * `indent(prefix: Template, content: Template) -> Template`: Indent
   non-empty lines by the given `prefix`.
+* `pad_start(width: Integer, content: Template[, fill_char: Template])`: Pad (or
+  right-justify) content by adding leading fill characters. The `content`
+  shouldn't have newline character.
+* `pad_end(width: Integer, content: Template[, fill_char: Template])`: Pad (or
+  left-justify) content by adding trailing fill characters. The `content`
+  shouldn't have newline character.
+* `truncate_start(width: Integer, content: Template)`: Truncate `content` by
+  removing leading characters. The `content` shouldn't have newline character.
+* `truncate_end(width: Integer, content: Template)`: Truncate `content` by
+  removing trailing characters. The `content` shouldn't have newline character.
 * `label(label: Template, content: Template) -> Template`: Apply label to
   the content. The `label` is evaluated as a space-separated string.
 * `raw_escape_sequence(content: Template) -> Template`: Preserves any escape

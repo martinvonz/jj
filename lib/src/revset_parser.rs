@@ -42,8 +42,8 @@ use crate::dsl_util::AliasesMap;
 use crate::dsl_util::Diagnostics;
 use crate::dsl_util::ExpressionFolder;
 use crate::dsl_util::FoldableExpression;
+use crate::dsl_util::FunctionCallParser;
 use crate::dsl_util::InvalidArguments;
-use crate::dsl_util::KeywordArgument;
 use crate::dsl_util::StringLiteralParser;
 
 #[derive(Parser)]
@@ -53,6 +53,13 @@ struct RevsetParser;
 const STRING_LITERAL_PARSER: StringLiteralParser<Rule> = StringLiteralParser {
     content_rule: Rule::string_content,
     escape_rule: Rule::string_escape,
+};
+const FUNCTION_CALL_PARSER: FunctionCallParser<Rule> = FunctionCallParser {
+    function_name_rule: Rule::function_name,
+    function_arguments_rule: Rule::function_arguments,
+    keyword_argument_rule: Rule::keyword_argument,
+    argument_name_rule: Rule::identifier,
+    argument_value_rule: Rule::expression,
 };
 
 impl Rule {
@@ -613,7 +620,11 @@ fn parse_primary_node(pair: Pair<Rule>) -> Result<ExpressionNode, RevsetParseErr
     let expr = match first.as_rule() {
         Rule::expression => return parse_expression_node(first.into_inner()),
         Rule::function => {
-            let function = Box::new(parse_function_call_node(first)?);
+            let function = Box::new(FUNCTION_CALL_PARSER.parse(
+                first,
+                |pair| Ok(pair.as_str()),
+                |pair| parse_expression_node(pair.into_inner()),
+            )?);
             ExpressionKind::FunctionCall(function)
         }
         Rule::string_pattern => {
@@ -666,55 +677,6 @@ fn parse_as_string_literal(pair: Pair<Rule>) -> String {
             panic!("unexpected string literal rule: {:?}", pair.as_str());
         }
     }
-}
-
-fn parse_function_call_node(pair: Pair<Rule>) -> Result<FunctionCallNode, RevsetParseError> {
-    assert_eq!(pair.as_rule(), Rule::function);
-    let (name_pair, args_pair) = pair.into_inner().collect_tuple().unwrap();
-    assert_eq!(name_pair.as_rule(), Rule::function_name);
-    assert_eq!(args_pair.as_rule(), Rule::function_arguments);
-    let name_span = name_pair.as_span();
-    let args_span = args_pair.as_span();
-    let function_name = name_pair.as_str();
-    let mut args = Vec::new();
-    let mut keyword_args = Vec::new();
-    for pair in args_pair.into_inner() {
-        let span = pair.as_span();
-        match pair.as_rule() {
-            Rule::expression => {
-                if !keyword_args.is_empty() {
-                    return Err(InvalidArguments {
-                        name: function_name,
-                        message: "Positional argument follows keyword argument".to_owned(),
-                        span,
-                    }
-                    .into());
-                }
-                args.push(parse_expression_node(pair.into_inner())?);
-            }
-            Rule::keyword_argument => {
-                let mut pairs = pair.into_inner();
-                let name = pairs.next().unwrap();
-                let expr = pairs.next().unwrap();
-                assert_eq!(name.as_rule(), Rule::identifier);
-                assert_eq!(expr.as_rule(), Rule::expression);
-                let arg = KeywordArgument {
-                    name: name.as_str(),
-                    name_span: name.as_span(),
-                    value: parse_expression_node(expr.into_inner())?,
-                };
-                keyword_args.push(arg);
-            }
-            r => panic!("unexpected argument rule {r:?}"),
-        }
-    }
-    Ok(FunctionCallNode {
-        name: function_name,
-        name_span,
-        args,
-        keyword_args,
-        args_span,
-    })
 }
 
 pub type RevsetAliasesMap = AliasesMap<RevsetAliasParser, String>;
@@ -855,6 +817,7 @@ mod tests {
     use assert_matches::assert_matches;
 
     use super::*;
+    use crate::dsl_util::KeywordArgument;
 
     #[derive(Debug)]
     struct WithRevsetAliasesMap(RevsetAliasesMap);
