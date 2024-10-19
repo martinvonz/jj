@@ -2207,13 +2207,14 @@ pub trait Revset: fmt::Debug {
     where
         Self: 'a;
 
+    /// Returns true if iterator will emit at least one commit or error.
     fn is_empty(&self) -> bool;
 
     /// Inclusive lower bound and, optionally, inclusive upper bound of how many
     /// commits are in the revset. The implementation can use its discretion as
     /// to how much effort should be put into the estimation, and how accurate
     /// the resulting estimate should be.
-    fn count_estimate(&self) -> (usize, Option<usize>);
+    fn count_estimate(&self) -> Result<(usize, Option<usize>), RevsetEvaluationError>;
 
     /// Returns a closure that checks if a commit is contained within the
     /// revset.
@@ -2226,7 +2227,7 @@ pub trait Revset: fmt::Debug {
 }
 
 /// Function that checks if a commit is contained within the revset.
-pub type RevsetContainingFn<'a> = dyn Fn(&CommitId) -> bool + 'a;
+pub type RevsetContainingFn<'a> = dyn Fn(&CommitId) -> Result<bool, RevsetEvaluationError> + 'a;
 
 pub trait RevsetIteratorExt<'index, I> {
     fn commits(self, store: &Arc<Store>) -> RevsetCommitIterator<I>;

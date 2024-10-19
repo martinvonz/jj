@@ -336,7 +336,7 @@ fn validate_commits_ready_to_push(
             .evaluate()?
             .containing_fn()
     } else {
-        Box::new(|_: &CommitId| false)
+        Box::new(|_: &CommitId| Ok(false))
     };
 
     for commit in workspace_helper
@@ -362,7 +362,7 @@ fn validate_commits_ready_to_push(
         if commit.has_conflict()? {
             reasons.push("it has conflicts");
         }
-        if !args.allow_private && is_private(commit.id()) {
+        if !args.allow_private && is_private(commit.id())? {
             reasons.push("it is private");
         }
         if !reasons.is_empty() {

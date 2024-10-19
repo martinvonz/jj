@@ -3765,8 +3765,8 @@ fn test_revset_containing_fn() {
     let revset = revset_for_commits(repo.as_ref(), &[&commit_b, &commit_d]);
 
     let revset_has_commit = revset.containing_fn();
-    assert!(!revset_has_commit(commit_a.id()));
-    assert!(revset_has_commit(commit_b.id()));
-    assert!(!revset_has_commit(commit_c.id()));
-    assert!(revset_has_commit(commit_d.id()));
+    assert!(!revset_has_commit(commit_a.id()).unwrap());
+    assert!(revset_has_commit(commit_b.id()).unwrap());
+    assert!(!revset_has_commit(commit_c.id()).unwrap());
+    assert!(revset_has_commit(commit_d.id()).unwrap());
 }
