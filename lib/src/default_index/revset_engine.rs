@@ -191,20 +191,21 @@ impl<I: AsCompositeIndex + Clone> Revset for RevsetImpl<I> {
         self.positions().next().is_none()
     }
 
-    fn count_estimate(&self) -> (usize, Option<usize>) {
+    fn count_estimate(&self) -> Result<(usize, Option<usize>), RevsetEvaluationError> {
         if cfg!(feature = "testing") {
             // Exercise the estimation feature in tests. (If we ever have a Revset
             // implementation in production code that returns estimates, we can probably
             // remove this and rewrite the associated tests.)
             let count = self.positions().take(10).count();
             if count < 10 {
-                (count, Some(count))
+                Ok((count, Some(count)))
             } else {
-                (10, None)
+                Ok((10, None))
             }
         } else {
+            // TODO: propagate error
             let count = self.positions().count();
-            (count, Some(count))
+            Ok((count, Some(count)))
         }
     }
 
@@ -213,7 +214,7 @@ impl<I: AsCompositeIndex + Clone> Revset for RevsetImpl<I> {
         Self: 'a,
     {
         let positions = PositionsAccumulator::new(self.index.clone(), self.inner.positions());
-        Box::new(move |commit_id| positions.contains(commit_id))
+        Box::new(move |commit_id| Ok(positions.contains(commit_id)))
     }
 }
 
