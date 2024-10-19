@@ -29,6 +29,7 @@ use crate::backend::CommitId;
 use crate::graph::GraphEdge;
 use crate::graph::GraphEdgeType;
 use crate::graph::GraphNode;
+use crate::revset::RevsetEvaluationError;
 
 // This can be cheaply allocated and hashed compared to `CommitId`-based type.
 type IndexGraphEdge = GraphEdge<IndexPosition>;
@@ -124,36 +125,40 @@ impl<'a> RevsetGraphWalk<'a> {
         }
     }
 
-    fn next_index_position(&mut self, index: &CompositeIndex) -> Option<IndexPosition> {
-        self.look_ahead
-            .pop_back()
-            .or_else(|| self.input_set_walk.next(index))
+    fn next_index_position(
+        &mut self,
+        index: &CompositeIndex,
+    ) -> Result<Option<IndexPosition>, RevsetEvaluationError> {
+        match self.look_ahead.pop_back() {
+            Some(position) => Ok(Some(position)),
+            None => self.input_set_walk.next(index).transpose(),
+        }
     }
 
     fn edges_from_internal_commit(
         &mut self,
         index: &CompositeIndex,
         index_entry: &IndexEntry,
-    ) -> &[IndexGraphEdge] {
+    ) -> Result<&[IndexGraphEdge], RevsetEvaluationError> {
         let position = index_entry.position();
         // `if let Some(edges) = ...` doesn't pass lifetime check as of Rust 1.76.0
         if self.edges.contains_key(&position) {
-            return self.edges.get(&position).unwrap();
+            return Ok(self.edges.get(&position).unwrap());
         }
-        let edges = self.new_edges_from_internal_commit(index, index_entry);
-        self.edges.entry(position).or_insert(edges)
+        let edges = self.new_edges_from_internal_commit(index, index_entry)?;
+        Ok(self.edges.entry(position).or_insert(edges))
     }
 
     fn pop_edges_from_internal_commit(
         &mut self,
         index: &CompositeIndex,
         index_entry: &IndexEntry,
-    ) -> Vec<IndexGraphEdge> {
+    ) -> Result<Vec<IndexGraphEdge>, RevsetEvaluationError> {
         let position = index_entry.position();
         while let Some(entry) = self.edges.last_entry() {
             match entry.key().cmp(&position) {
                 Ordering::Less => break, // no cached edges found
-                Ordering::Equal => return entry.remove(),
+                Ordering::Equal => return Ok(entry.remove()),
                 Ordering::Greater => entry.remove(),
             };
         }
@@ -164,16 +169,16 @@ impl<'a> RevsetGraphWalk<'a> {
         &mut self,
         index: &CompositeIndex,
         index_entry: &IndexEntry,
-    ) -> Vec<IndexGraphEdge> {
+    ) -> Result<Vec<IndexGraphEdge>, RevsetEvaluationError> {
         let mut edges = Vec::new();
         let mut known_ancestors = HashSet::new();
         for parent in index_entry.parents() {
             let parent_position = parent.position();
-            self.consume_to(index, parent_position);
+            self.consume_to(index, parent_position)?;
             if self.look_ahead.binary_search(&parent_position).is_ok() {
                 edges.push(IndexGraphEdge::direct(parent_position));
             } else {
-                let parent_edges = self.edges_from_external_commit(index, parent);
+                let parent_edges = self.edges_from_external_commit(index, parent)?;
                 if parent_edges
                     .iter()
                     .all(|edge| edge.edge_type == GraphEdgeType::Missing)
@@ -188,14 +193,14 @@ impl<'a> RevsetGraphWalk<'a> {
                 }
             }
         }
-        edges
+        Ok(edges)
     }
 
     fn edges_from_external_commit(
         &mut self,
         index: &CompositeIndex,
         index_entry: IndexEntry<'_>,
-    ) -> &[IndexGraphEdge] {
+    ) -> Result<&[IndexGraphEdge], RevsetEvaluationError> {
         let position = index_entry.position();
         let mut stack = vec![index_entry];
         while let Some(entry) = stack.last() {
@@ -209,7 +214,7 @@ impl<'a> RevsetGraphWalk<'a> {
             let mut parents_complete = true;
             for parent in entry.parents() {
                 let parent_position = parent.position();
-                self.consume_to(index, parent_position);
+                self.consume_to(index, parent_position)?;
                 if self.look_ahead.binary_search(&parent_position).is_ok() {
                     // We have found a path back into the input set
                     edges.push(IndexGraphEdge::indirect(parent_position));
@@ -241,19 +246,19 @@ impl<'a> RevsetGraphWalk<'a> {
                 self.edges.insert(position, edges);
             }
         }
-        self.edges.get(&position).unwrap()
+        Ok(self.edges.get(&position).unwrap())
     }
 
     fn remove_transitive_edges(
         &mut self,
         index: &CompositeIndex,
         edges: Vec<IndexGraphEdge>,
-    ) -> Vec<IndexGraphEdge> {
+    ) -> Result<Vec<IndexGraphEdge>, RevsetEvaluationError> {
         if !edges
             .iter()
             .any(|edge| edge.edge_type == GraphEdgeType::Indirect)
         {
-            return edges;
+            return Ok(edges);
         }
         let mut min_generation = u32::MAX;
         let mut initial_targets = HashSet::new();
@@ -265,7 +270,7 @@ impl<'a> RevsetGraphWalk<'a> {
                 assert!(self.look_ahead.binary_search(&edge.target).is_ok());
                 let entry = index.entry_by_pos(edge.target);
                 min_generation = min(min_generation, entry.generation_number());
-                work.extend_from_slice(self.edges_from_internal_commit(index, &entry));
+                work.extend_from_slice(self.edges_from_internal_commit(index, &entry)?);
             }
         }
         // Find commits reachable transitively and add them to the `unwanted` set.
@@ -287,41 +292,55 @@ impl<'a> RevsetGraphWalk<'a> {
             if entry.generation_number() < min_generation {
                 continue;
             }
-            work.extend_from_slice(self.edges_from_internal_commit(index, &entry));
+            work.extend_from_slice(self.edges_from_internal_commit(index, &entry)?);
         }
 
-        edges
+        Ok(edges
             .into_iter()
             .filter(|edge| !unwanted.contains(&edge.target))
-            .collect()
+            .collect())
     }
 
-    fn consume_to(&mut self, index: &CompositeIndex, pos: IndexPosition) {
+    fn consume_to(
+        &mut self,
+        index: &CompositeIndex,
+        pos: IndexPosition,
+    ) -> Result<(), RevsetEvaluationError> {
         while pos < self.min_position {
-            if let Some(next_position) = self.input_set_walk.next(index) {
+            if let Some(next_position) = self.input_set_walk.next(index).transpose()? {
                 self.look_ahead.push_front(next_position);
                 self.min_position = next_position;
             } else {
                 break;
             }
         }
+        Ok(())
     }
-}
 
-impl RevWalk<CompositeIndex> for RevsetGraphWalk<'_> {
-    type Item = GraphNode<CommitId>;
-
-    fn next(&mut self, index: &CompositeIndex) -> Option<Self::Item> {
-        let position = self.next_index_position(index)?;
+    fn try_next(
+        &mut self,
+        index: &CompositeIndex,
+    ) -> Result<Option<GraphNode<CommitId>>, RevsetEvaluationError> {
+        let Some(position) = self.next_index_position(index)? else {
+            return Ok(None);
+        };
         let entry = index.entry_by_pos(position);
-        let mut edges = self.pop_edges_from_internal_commit(index, &entry);
+        let mut edges = self.pop_edges_from_internal_commit(index, &entry)?;
         if self.skip_transitive_edges {
-            edges = self.remove_transitive_edges(index, edges);
+            edges = self.remove_transitive_edges(index, edges)?;
         }
         let edges = edges
             .iter()
             .map(|edge| edge.map(|pos| index.entry_by_pos(pos).commit_id()))
             .collect();
-        Some((entry.commit_id(), edges))
+        Ok(Some((entry.commit_id(), edges)))
+    }
+}
+
+impl RevWalk<CompositeIndex> for RevsetGraphWalk<'_> {
+    type Item = Result<GraphNode<CommitId>, RevsetEvaluationError>;
+
+    fn next(&mut self, index: &CompositeIndex) -> Option<Self::Item> {
+        self.try_next(index).transpose()
     }
 }
