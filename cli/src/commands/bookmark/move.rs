@@ -90,6 +90,7 @@ pub fn cmd_bookmark_move(
                 repo.view()
                     .local_bookmarks_matching(pattern)
                     .filter(|(_, target)| target.added_ids().any(&is_source_commit))
+                    .map(Ok)
             })?
         } else {
             repo.view()

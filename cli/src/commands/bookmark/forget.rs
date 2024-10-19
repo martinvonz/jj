@@ -73,6 +73,8 @@ fn find_forgettable_bookmarks<'a>(
     name_patterns: &[StringPattern],
 ) -> Result<Vec<(&'a str, BookmarkTarget<'a>)>, CommandError> {
     find_bookmarks_with(name_patterns, |pattern| {
-        view.bookmarks().filter(|(name, _)| pattern.matches(name))
+        view.bookmarks()
+            .filter(|(name, _)| pattern.matches(name))
+            .map(Ok)
     })
 }
