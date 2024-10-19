@@ -42,6 +42,7 @@ use jj_lib::repo::Repo;
 use jj_lib::repo_path::RepoPathUiConverter;
 use jj_lib::revset;
 use jj_lib::revset::Revset;
+use jj_lib::revset::RevsetContainingFn;
 use jj_lib::revset::RevsetDiagnostics;
 use jj_lib::revset::RevsetExpression;
 use jj_lib::revset::RevsetModifier;
@@ -840,8 +841,6 @@ fn expect_fileset_literal(
         Ok(expression)
     })
 }
-
-type RevsetContainingFn<'repo> = dyn Fn(&CommitId) -> bool + 'repo;
 
 fn evaluate_revset_expression<'repo>(
     language: &CommitTemplateLanguage<'repo>,

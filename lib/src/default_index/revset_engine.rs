@@ -57,6 +57,7 @@ use crate::repo_path::RepoPath;
 use crate::revset::ResolvedExpression;
 use crate::revset::ResolvedPredicateExpression;
 use crate::revset::Revset;
+use crate::revset::RevsetContainingFn;
 use crate::revset::RevsetEvaluationError;
 use crate::revset::RevsetFilterPredicate;
 use crate::revset::GENERATION_RANGE_FULL;
@@ -207,7 +208,7 @@ impl<I: AsCompositeIndex + Clone> Revset for RevsetImpl<I> {
         }
     }
 
-    fn containing_fn<'a>(&self) -> Box<dyn Fn(&CommitId) -> bool + 'a>
+    fn containing_fn<'a>(&self) -> Box<RevsetContainingFn<'a>>
     where
         Self: 'a,
     {
