@@ -689,13 +689,19 @@ See `jj restore` if you want to move entire files from one revision to another. 
 
 Create a new change with the same content as an existing one
 
-**Usage:** `jj duplicate [REVISIONS]...`
+**Usage:** `jj duplicate [OPTIONS] [REVISIONS]...`
 
 ###### **Arguments:**
 
 * `<REVISIONS>` — The revision(s) to duplicate
 
   Default value: `@`
+
+###### **Options:**
+
+* `-d`, `--destination <DESTINATION>` — The revision(s) to duplicate onto (can be repeated to create a merge commit)
+* `-A`, `--insert-after <INSERT_AFTER>` — The revision(s) to insert after (can be repeated to create a merge commit)
+* `-B`, `--insert-before <INSERT_BEFORE>` — The revision(s) to insert before (can be repeated to create a merge commit)
 
 
 
