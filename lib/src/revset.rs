@@ -2220,10 +2220,13 @@ pub trait Revset: fmt::Debug {
     ///
     /// The implementation may construct and maintain any necessary internal
     /// context to optimize the performance of the check.
-    fn containing_fn<'a>(&self) -> Box<dyn Fn(&CommitId) -> bool + 'a>
+    fn containing_fn<'a>(&self) -> Box<RevsetContainingFn<'a>>
     where
         Self: 'a;
 }
+
+/// Function that checks if a commit is contained within the revset.
+pub type RevsetContainingFn<'a> = dyn Fn(&CommitId) -> bool + 'a;
 
 pub trait RevsetIteratorExt<'index, I> {
     fn commits(self, store: &Arc<Store>) -> RevsetCommitIterator<I>;
