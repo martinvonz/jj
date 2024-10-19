@@ -792,6 +792,10 @@ fn get_log_output(test_env: &TestEnvironment, workspace_root: &Path) -> String {
     test_env.jj_cmd_success(workspace_root, &["log", "-T", template, "-r=all()"])
 }
 
+fn get_log_output_default(test_env: &TestEnvironment, workspace_root: &Path) -> String {
+    test_env.jj_cmd_success(workspace_root, &["log", "-r=all()"])
+}
+
 fn get_log_output_with_stderr(
     test_env: &TestEnvironment,
     workspace_root: &Path,
@@ -952,25 +956,30 @@ fn test_colocated_workspace_in_bare_repo() {
     // TODO: replace with workspace add, when it can create worktrees
     stopgap_workspace_colocate(&test_env, &repo_path, false, "../second", &initial_commit);
 
-    insta::assert_snapshot!(get_log_output(&test_env, &second_path), @r#"
-    @  baf7f13355a30ddd3aa6476317fcbc9c65239b0c second@
-    │ ○  45c9d8477181a2b9c077ff1b724694fe0969b301 default@
-    ├─╯
-    ○  046d74c8ab0a4730e58488508a5398b7a91e54a2 HEAD@git initial commit
-    ◆  0000000000000000000000000000000000000000
+    insta::assert_snapshot!(get_log_output_default(&test_env, &second_path), @r#"
+    @  mzvwutvl test.user@example.com 2001-02-03 08:05:11 second@ baf7f133
+    │  (empty) (no description set)
+    │ ○  rlvkpnrz test.user@example.com 2001-02-03 08:05:08 default@ 45c9d847
+    ├─╯  (empty) (no description set)
+    ○  qpvuntsm test.user@example.com 2001-02-03 08:05:08 HEAD@git 046d74c8
+    │  initial commit
+    ◆  zzzzzzzz root() 00000000
     "#);
 
     test_env.jj_cmd_ok(
         &second_path,
         &["commit", "-m", "commit in second workspace"],
     );
-    insta::assert_snapshot!(get_log_output(&test_env, &second_path), @r#"
-    @  fca81879c29229d0097cb7d32fc8a661ee80c6e4 second@
-    ○  220827d1ceb632ec7dd4cb2f5110b496977d14c2 HEAD@git commit in second workspace
-    │ ○  45c9d8477181a2b9c077ff1b724694fe0969b301 default@
-    ├─╯
-    ○  046d74c8ab0a4730e58488508a5398b7a91e54a2 initial commit
-    ◆  0000000000000000000000000000000000000000
+    insta::assert_snapshot!(get_log_output_default(&test_env, &second_path), @r#"
+    @  royxmykx test.user@example.com 2001-02-03 08:05:12 second@ fca81879
+    │  (empty) (no description set)
+    ○  mzvwutvl test.user@example.com 2001-02-03 08:05:12 HEAD@git 220827d1
+    │  (empty) commit in second workspace
+    │ ○  rlvkpnrz test.user@example.com 2001-02-03 08:05:08 default@ 45c9d847
+    ├─╯  (empty) (no description set)
+    ○  qpvuntsm test.user@example.com 2001-02-03 08:05:08 046d74c8
+    │  initial commit
+    ◆  zzzzzzzz root() 00000000
     "#);
 
     // FIXME: There should still be no git HEAD in the default workspace, which
