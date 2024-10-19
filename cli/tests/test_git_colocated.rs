@@ -886,51 +886,11 @@ fn get_bookmark_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
 fn stopgap_workspace_colocate(
     test_env: &TestEnvironment,
     repo_path: &Path,
-    original_colocated: bool,
+    _original_colocated: bool,
     dst: &str,
-    initial_head: &str,
+    _initial_head: &str,
 ) {
-    // Can't use gix/git2, as neither can repair the broken worktree we're about to
-    // create.
-    let repo_relative_path = if original_colocated {
-        dst.to_owned()
-    } else {
-        format!("../../../../{dst}")
-    };
-    Command::new("git")
-        .args(["worktree", "add", &repo_relative_path])
-        .arg(initial_head)
-        .current_dir(if original_colocated {
-            repo_path.to_path_buf()
-        } else {
-            repo_path.join(".jj/repo/store/git")
-        })
-        .assert()
-        .success()
-        .stderr(format!(
-            "Preparing worktree (detached HEAD {})\n",
-            &initial_head[..7]
-        ));
-    let dst_path = repo_path.join(dst);
-    let tmp_path = test_env.env_root().join("__tmp_worktree__");
-    if tmp_path.exists() {
-        std::fs::remove_dir_all(&tmp_path).unwrap();
-    }
-    std::fs::rename(&dst_path, &tmp_path).unwrap();
-    test_env.jj_cmd_ok(repo_path, &["workspace", "add", dst]);
-    std::fs::rename(tmp_path.join(".git"), dst_path.join(".git")).unwrap();
-    std::fs::write(dst_path.join(".jj/.gitignore"), "*\n").unwrap();
-    Command::new("git")
-        .args(["worktree", "repair"])
-        .current_dir(&dst_path)
-        .assert()
-        .success();
-    Command::new("git")
-        .arg("checkout")
-        .arg(initial_head)
-        .current_dir(&dst_path)
-        .assert()
-        .success();
+    test_env.jj_cmd_ok(repo_path, &["workspace", "add", "--colocate", dst]);
 }
 
 #[test]
@@ -957,7 +917,7 @@ fn test_colocated_workspace_in_bare_repo() {
     stopgap_workspace_colocate(&test_env, &repo_path, false, "../second", &initial_commit);
 
     insta::assert_snapshot!(get_log_output_default(&test_env, &second_path), @r#"
-    @  mzvwutvl test.user@example.com 2001-02-03 08:05:11 second@ baf7f133
+    @  rzvqmyuk test.user@example.com 2001-02-03 08:05:10 second@ 05530a3e
     │  (empty) (no description set)
     │ ○  rlvkpnrz test.user@example.com 2001-02-03 08:05:08 default@ 45c9d847
     ├─╯  (empty) (no description set)
@@ -973,7 +933,7 @@ fn test_colocated_workspace_in_bare_repo() {
     insta::assert_snapshot!(get_log_output_default(&test_env, &second_path), @r#"
     @  royxmykx test.user@example.com 2001-02-03 08:05:12 second@ fca81879
     │  (empty) (no description set)
-    ○  mzvwutvl test.user@example.com 2001-02-03 08:05:12 HEAD@git 220827d1
+    ○  rzvqmyuk test.user@example.com 2001-02-03 08:05:12 HEAD@git 220827d1
     │  (empty) commit in second workspace
     │ ○  rlvkpnrz test.user@example.com 2001-02-03 08:05:08 default@ 45c9d847
     ├─╯  (empty) (no description set)
@@ -995,8 +955,7 @@ fn test_colocated_workspace_in_bare_repo() {
         &["op", "log", "-Tself.description().first_line()"],
     );
     insta::assert_snapshot!(stdout, @r#"
-    @  commit baf7f13355a30ddd3aa6476317fcbc9c65239b0c
-    ○  import git head
+    @  commit 05530a3e0f9d581260343e273d66c381e76957df
     ○  create initial working-copy commit in workspace second
     ○  add workspace 'second'
     ○  commit 4e8f9d2be039994f589b4e57ac5e9488703e604d
