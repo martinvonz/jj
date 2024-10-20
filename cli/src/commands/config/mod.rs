@@ -17,8 +17,11 @@ mod get;
 mod list;
 mod path;
 mod set;
+mod unset;
 
 use tracing::instrument;
+use unset::cmd_config_unset;
+use unset::ConfigUnsetArgs;
 
 use self::edit::cmd_config_edit;
 use self::edit::ConfigEditArgs;
@@ -82,6 +85,8 @@ pub(crate) enum ConfigCommand {
     Path(ConfigPathArgs),
     #[command(visible_alias("s"))]
     Set(ConfigSetArgs),
+    #[command(visible_alias("u"))]
+    Unset(ConfigUnsetArgs),
 }
 
 #[instrument(skip_all)]
@@ -96,5 +101,6 @@ pub(crate) fn cmd_config(
         ConfigCommand::List(args) => cmd_config_list(ui, command, args),
         ConfigCommand::Path(args) => cmd_config_path(ui, command, args),
         ConfigCommand::Set(args) => cmd_config_set(ui, command, args),
+        ConfigCommand::Unset(args) => cmd_config_unset(command, args),
     }
 }
