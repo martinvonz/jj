@@ -16,14 +16,10 @@ include = [
     "/LICENSE",
     "/benches/",
     "/src/",
-    "/tests/",
     "!*.pending-snap",
     "!*.snap*",
 ]
 
-
-[[test]]
-name = "runner"
 
 [[bench]]
 name = "diff_bench"
@@ -87,12 +83,9 @@ winreg = { workspace = true }
 assert_matches = { workspace = true }
 criterion = { workspace = true }
 esl01-renderdag = { workspace = true }
-indoc = { workspace = true }
 insta = { workspace = true }
 num_cpus = { workspace = true }
-pretty_assertions = { workspace = true }
 test-case = { workspace = true }
-testutils = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 
 [features]

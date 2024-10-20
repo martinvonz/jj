@@ -1,0 +1,42 @@
+[package]
+name = "jj-lib-tests"
+description = "Integration tests for the jj-lib crate"
+autotests = false
+publish = false
+
+version = { workspace = true }
+edition = { workspace = true }
+rust-version = { workspace = true }
+license = { workspace = true }
+homepage = { workspace = true }
+repository = { workspace = true }
+documentation = { workspace = true }
+readme = { workspace = true }
+
+[[test]]
+name = "runner"
+path = "runner.rs"
+
+[dev-dependencies]
+assert_matches = { workspace = true }
+chrono = { workspace = true }
+config = { workspace = true }
+futures = { workspace = true }
+git2 = { workspace = true }
+gix = { workspace = true }
+hex = { workspace = true }
+indoc = { workspace = true }
+insta = { workspace = true }
+itertools = { workspace = true }
+jj-lib = { workspace = true, features = ["testing"] }
+maplit = { workspace = true }
+num_cpus = { workspace = true }
+pollster = { workspace = true }
+pretty_assertions = { workspace = true }
+rand = { workspace = true }
+tempfile = { workspace = true }
+test-case = { workspace = true }
+testutils = { workspace = true }
+
+[lints]
+workspace = true
