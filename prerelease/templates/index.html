@@ -1942,6 +1942,16 @@ type</a> are available as keywords. For example,
   the given <code>width</code>.</li>
 <li><code>indent(prefix: Template, content: Template) -&gt; Template</code>: Indent
   non-empty lines by the given <code>prefix</code>.</li>
+<li><code>pad_start(width: Integer, content: Template[, fill_char: Template])</code>: Pad (or
+  right-justify) content by adding leading fill characters. The <code>content</code>
+  shouldn't have newline character.</li>
+<li><code>pad_end(width: Integer, content: Template[, fill_char: Template])</code>: Pad (or
+  left-justify) content by adding trailing fill characters. The <code>content</code>
+  shouldn't have newline character.</li>
+<li><code>truncate_start(width: Integer, content: Template)</code>: Truncate <code>content</code> by
+  removing leading characters. The <code>content</code> shouldn't have newline character.</li>
+<li><code>truncate_end(width: Integer, content: Template)</code>: Truncate <code>content</code> by
+  removing trailing characters. The <code>content</code> shouldn't have newline character.</li>
 <li><code>label(label: Template, content: Template) -&gt; Template</code>: Apply label to
   the content. The <code>label</code> is evaluated as a space-separated string.</li>
 <li><code>raw_escape_sequence(content: Template) -&gt; Template</code>: Preserves any escape
