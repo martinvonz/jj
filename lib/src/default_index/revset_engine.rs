@@ -770,7 +770,7 @@ impl EvaluationContext<'_> {
             ResolvedExpression::Ancestors { heads, generation } => {
                 let head_set = self.evaluate(heads)?;
                 let head_positions = head_set.positions().attach(index);
-                let builder = RevWalkBuilder::new(index).wanted_heads(head_positions);
+                let builder = RevWalkBuilder::new(index).wanted_heads(head_positions.collect());
                 if generation == &GENERATION_RANGE_FULL {
                     let walk = builder.ancestors().detach();
                     Ok(Box::new(RevWalkRevset { walk }))
@@ -800,7 +800,7 @@ impl EvaluationContext<'_> {
                 )
                 .attach(index);
                 let builder = RevWalkBuilder::new(index)
-                    .wanted_heads(head_positions)
+                    .wanted_heads(head_positions.collect())
                     .unwanted_roots(root_positions);
                 if generation == &GENERATION_RANGE_FULL {
                     let walk = builder.ancestors().detach();
@@ -822,7 +822,7 @@ impl EvaluationContext<'_> {
                 let root_positions = root_set.positions().attach(index);
                 let head_set = self.evaluate(heads)?;
                 let head_positions = head_set.positions().attach(index);
-                let builder = RevWalkBuilder::new(index).wanted_heads(head_positions);
+                let builder = RevWalkBuilder::new(index).wanted_heads(head_positions.collect());
                 if generation_from_roots == &(1..2) {
                     let root_positions: HashSet<_> = root_positions.collect();
                     let walk = builder
@@ -843,7 +843,7 @@ impl EvaluationContext<'_> {
                         predicate,
                     }))
                 } else if generation_from_roots == &GENERATION_RANGE_FULL {
-                    let mut positions = builder.descendants(root_positions).collect_vec();
+                    let mut positions = builder.descendants(root_positions.collect()).collect_vec();
                     positions.reverse();
                     Ok(Box::new(EagerRevset { positions }))
                 } else {
@@ -852,7 +852,7 @@ impl EvaluationContext<'_> {
                     //   reachable[pos] = (reachable[parent_pos] | ...) << 1
                     let mut positions = builder
                         .descendants_filtered_by_generation(
-                            root_positions,
+                            root_positions.collect(),
                             to_u32_generation_range(generation_from_roots)?,
                         )
                         .map(|Reverse(pos)| pos)
@@ -906,8 +906,8 @@ impl EvaluationContext<'_> {
                     .attach(index)
                     .collect_vec();
                 let filled = RevWalkBuilder::new(index)
-                    .wanted_heads(positions.iter().copied())
-                    .descendants(positions.iter().copied())
+                    .wanted_heads(positions.clone())
+                    .descendants(positions.iter().copied().collect())
                     .collect_positions_set();
                 positions.retain(|&pos| {
                     !index
