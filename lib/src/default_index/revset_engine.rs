@@ -153,12 +153,11 @@ impl<I: AsCompositeIndex + Clone> Revset for RevsetImpl<I> {
         Self: 'a,
     {
         let index = self.index.clone();
-        let mut walk = self.inner.positions();
-        Box::new(iter::from_fn(move || {
-            let index = index.as_composite();
-            let pos = walk.next(index)?;
-            Some(Ok(index.entry_by_pos(pos).commit_id()))
-        }))
+        let mut walk = self
+            .inner
+            .positions()
+            .map(|index, pos| Ok(index.entry_by_pos(pos).commit_id()));
+        Box::new(iter::from_fn(move || walk.next(index.as_composite())))
     }
 
     fn commit_change_ids<'a>(
@@ -168,13 +167,11 @@ impl<I: AsCompositeIndex + Clone> Revset for RevsetImpl<I> {
         Self: 'a,
     {
         let index = self.index.clone();
-        let mut walk = self.inner.positions();
-        Box::new(iter::from_fn(move || {
-            let index = index.as_composite();
-            let pos = walk.next(index)?;
+        let mut walk = self.inner.positions().map(|index, pos| {
             let entry = index.entry_by_pos(pos);
-            Some(Ok((entry.commit_id(), entry.change_id())))
-        }))
+            Ok((entry.commit_id(), entry.change_id()))
+        });
+        Box::new(iter::from_fn(move || walk.next(index.as_composite())))
     }
 
     fn iter_graph<'a>(
@@ -388,7 +385,7 @@ where
         Box::new(
             self.candidates
                 .positions()
-                .filter(move |index, &pos| p(index, pos)),
+                .filter_map(move |index, pos| p(index, pos).then_some(pos)),
         )
     }
 

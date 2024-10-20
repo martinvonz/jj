@@ -44,16 +44,23 @@ pub(super) trait RevWalk<I: ?Sized> {
     // The following methods are provided for convenience. They are not supposed
     // to be reimplemented.
 
-    /// Wraps in adapter that will filter items by the given `predicate`.
-    fn filter<P>(self, predicate: P) -> FilterRevWalk<Self, P>
+    /// Wraps in adapter that will filter and transform items by the given
+    /// function.
+    fn filter_map<B, F>(self, f: F) -> FilterMapRevWalk<Self, F>
     where
         Self: Sized,
-        P: FnMut(&I, &Self::Item) -> bool,
+        F: FnMut(&I, Self::Item) -> Option<B>,
     {
-        FilterRevWalk {
-            walk: self,
-            predicate,
-        }
+        FilterMapRevWalk { walk: self, f }
+    }
+
+    /// Wraps in adapter that will transform items by the given function.
+    fn map<B, F>(self, f: F) -> MapRevWalk<Self, F>
+    where
+        Self: Sized,
+        F: FnMut(&I, Self::Item) -> B,
+    {
+        MapRevWalk { walk: self, f }
     }
 
     /// Wraps in adapter that can peek one more item without consuming.
@@ -108,26 +115,46 @@ impl<I: ?Sized, T: Iterator> RevWalk<I> for EagerRevWalk<T> {
 
 #[derive(Clone, Debug)]
 #[must_use]
-pub(super) struct FilterRevWalk<W, P> {
+pub(super) struct FilterMapRevWalk<W, F> {
     walk: W,
-    predicate: P,
+    f: F,
 }
 
-impl<I, W, P> RevWalk<I> for FilterRevWalk<W, P>
+impl<B, I, W, F> RevWalk<I> for FilterMapRevWalk<W, F>
 where
     I: ?Sized,
     W: RevWalk<I>,
-    P: FnMut(&I, &W::Item) -> bool,
+    F: FnMut(&I, W::Item) -> Option<B>,
 {
-    type Item = W::Item;
+    type Item = B;
 
     fn next(&mut self, index: &I) -> Option<Self::Item> {
         while let Some(item) = self.walk.next(index) {
-            if (self.predicate)(index, &item) {
-                return Some(item);
+            if let Some(new_item) = (self.f)(index, item) {
+                return Some(new_item);
             }
         }
         None
+    }
+}
+
+#[derive(Clone, Debug)]
+#[must_use]
+pub(super) struct MapRevWalk<W, F> {
+    walk: W,
+    f: F,
+}
+
+impl<B, I, W, F> RevWalk<I> for MapRevWalk<W, F>
+where
+    I: ?Sized,
+    W: RevWalk<I>,
+    F: FnMut(&I, W::Item) -> B,
+{
+    type Item = B;
+
+    fn next(&mut self, index: &I) -> Option<Self::Item> {
+        self.walk.next(index).map(|item| (self.f)(index, item))
     }
 }
 
@@ -798,6 +825,28 @@ mod tests {
     }
 
     #[test]
+    fn test_filter_map_rev_walk() {
+        let source = EagerRevWalk::new(vec![0, 1, 2, 3, 4].into_iter());
+        let mut filtered = source.filter_map(|_, v| (v & 1 == 0).then_some(v + 5));
+        assert_eq!(filtered.next(&()), Some(5));
+        assert_eq!(filtered.next(&()), Some(7));
+        assert_eq!(filtered.next(&()), Some(9));
+        assert_eq!(filtered.next(&()), None);
+        assert_eq!(filtered.next(&()), None);
+    }
+
+    #[test]
+    fn test_map_rev_walk() {
+        let source = EagerRevWalk::new(vec![0, 1, 2].into_iter());
+        let mut mapped = source.map(|_, v| v + 5);
+        assert_eq!(mapped.next(&()), Some(5));
+        assert_eq!(mapped.next(&()), Some(6));
+        assert_eq!(mapped.next(&()), Some(7));
+        assert_eq!(mapped.next(&()), None);
+        assert_eq!(mapped.next(&()), None);
+    }
+
+    #[test]
     fn test_peekable_rev_walk() {
         let source = EagerRevWalk::new(vec![0, 1, 2, 3].into_iter());
         let mut peekable = source.peekable();
@@ -819,17 +868,6 @@ mod tests {
         let mut peekable = source.peekable();
         assert_eq!(peekable.peek(&()), None);
         assert_eq!(peekable.next(&()), None);
-    }
-
-    #[test]
-    fn test_filter_rev_walk() {
-        let source = EagerRevWalk::new(vec![0, 1, 2, 3, 4].into_iter());
-        let mut filtered = source.filter(|_, &v| v & 1 == 0);
-        assert_eq!(filtered.next(&()), Some(0));
-        assert_eq!(filtered.next(&()), Some(2));
-        assert_eq!(filtered.next(&()), Some(4));
-        assert_eq!(filtered.next(&()), None);
-        assert_eq!(filtered.next(&()), None);
     }
 
     #[test]
