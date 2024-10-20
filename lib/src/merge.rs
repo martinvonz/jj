@@ -209,11 +209,21 @@ impl<T> Merge<T> {
         self.values.get(index * 2 + 1)
     }
 
+    /// Returns the `index`-th removed value mutably
+    pub fn get_remove_mut(&mut self, index: usize) -> Option<&mut T> {
+        self.values.get_mut(index * 2 + 1)
+    }
+
     /// Returns the `index`-th added value, which is considered belonging to the
     /// `index-1`-th diff pair. The zeroth add is a diff from the non-existent
     /// state.
     pub fn get_add(&self, index: usize) -> Option<&T> {
         self.values.get(index * 2)
+    }
+
+    /// Returns the `index`-th added value mutably
+    pub fn get_add_mut(&mut self, index: usize) -> Option<&mut T> {
+        self.values.get_mut(index * 2)
     }
 
     /// Removes the specified "removed"/"added" values. The removed slots are
@@ -255,53 +265,16 @@ impl<T> Merge<T> {
         }
     }
 
-    /// Returns a vector mapping of a value's index in the simplified merge to
-    /// its original index in the unsimplified merge.
-    ///
-    /// The merge is simplified by removing identical values in add and remove
-    /// values.
-    fn get_simplified_mapping(&self) -> Vec<usize>
-    where
-        T: PartialEq,
-    {
-        let unsimplified_len = self.values.len();
-        let mut simplified_to_original_indices = (0..unsimplified_len).collect_vec();
-
-        let mut add_index = 0;
-        while add_index < simplified_to_original_indices.len() {
-            let add = &self.values[simplified_to_original_indices[add_index]];
-            let mut remove_indices = simplified_to_original_indices
-                .iter()
-                .enumerate()
-                .skip(1)
-                .step_by(2);
-            if let Some((remove_index, _)) = remove_indices
-                .find(|&(_, original_remove_index)| &self.values[*original_remove_index] == add)
-            {
-                // Align the current "add" value to the `remove_index/2`-th diff, then
-                // delete the diff pair.
-                simplified_to_original_indices.swap(remove_index + 1, add_index);
-                simplified_to_original_indices.drain(remove_index..remove_index + 2);
-            } else {
-                add_index += 2;
-            }
-        }
-
-        simplified_to_original_indices
-    }
-
     /// Simplify the merge by joining diffs like A->B and B->C into A->C.
     /// Also drops trivial diffs like A->A.
     pub fn simplify(mut self) -> Self
     where
         T: PartialEq + Clone,
     {
-        let mapping = self.get_simplified_mapping();
-        // Reorder values based on their new indices in the simplified merge.
-        self.values = mapping
-            .iter()
-            .map(|index| self.values[*index].clone())
-            .collect();
+        if self.values.len() == 1 {
+            return self;
+        }
+        self.values = simplify_internal(self.values.to_vec()).into();
         self
     }
 
@@ -310,7 +283,7 @@ impl<T> Merge<T> {
     where
         T: PartialEq,
     {
-        let mapping = self.get_simplified_mapping();
+        let mapping = get_simplified_mapping(&self.values);
         assert_eq!(mapping.len(), simplified.values.len());
         for (index, value) in mapping.into_iter().zip(simplified.values.into_iter()) {
             self.values[index] = value;
@@ -325,6 +298,22 @@ impl<T> Merge<T> {
         T: Eq + Hash,
     {
         trivial_merge_inner(self.values.iter(), self.values.len())
+    }
+
+    /// Simplify the conflict to a resolved conflict, if possible, or leave it
+    /// unchanged
+    pub fn simplify_trivial(self) -> Self
+    where
+        T: Eq + Hash,
+    {
+        match self.resolve_trivial() {
+            None => self,
+            Some(_) => {
+                let values_len = self.values.len();
+                // TODO: Is it better to clone or to run through the trivial merge twice?
+                Merge::resolved(trivial_merge_inner(self.values.into_iter(), values_len).unwrap())
+            }
+        }
     }
 
     /// Pads this merge with to the specified number of sides with the specified
@@ -658,6 +647,73 @@ fn borrow_tree_value<T: Borrow<TreeValue> + ?Sized>(term: Option<&T>) -> Option<
     term.map(|value| value.borrow())
 }
 
+/// Returns a vector mapping of a value's index in the simplified merge to
+/// its original index in the unsimplified merge.
+///
+/// The merge is simplified by removing identical values in add and remove
+/// values.
+fn get_simplified_mapping<T>(values: &[T]) -> Vec<usize>
+where
+    T: PartialEq,
+{
+    let unsimplified_len = values.len();
+    let mut simplified_to_original_indices = (0..unsimplified_len).collect_vec();
+
+    let mut add_index = 0;
+    while add_index < simplified_to_original_indices.len() {
+        let add = &values[simplified_to_original_indices[add_index]];
+        let mut remove_indices = simplified_to_original_indices
+            .iter()
+            .enumerate()
+            .skip(1)
+            .step_by(2);
+        if let Some((remove_index, _)) = remove_indices
+            .find(|&(_, original_remove_index)| &values[*original_remove_index] == add)
+        {
+            // Align the current "add" value to the `remove_index/2`-th diff, then
+            // delete the diff pair.
+            simplified_to_original_indices.swap(remove_index - 1, add_index);
+            simplified_to_original_indices.drain(remove_index - 1..remove_index + 1);
+        } else {
+            add_index += 2;
+        }
+    }
+
+    simplified_to_original_indices
+}
+
+fn simplify_internal<T>(values: Vec<T>) -> Vec<T>
+where
+    T: PartialEq + Clone,
+{
+    let mapping = get_simplified_mapping(&values);
+    // Reorder values based on their new indices in the simplified merge.
+    mapping.iter().map(|index| values[*index].clone()).collect()
+}
+
+fn get_optimize_for_distance_swaps<T>(
+    values: &[T],
+    distance: impl Fn(&T, &T) -> usize,
+) -> Vec<(usize, usize)> {
+    let mut new_removes_order: Vec<usize> = (0..values.len() / 2).map(|x| 2 * x + 1).collect_vec();
+    let mut swaps: Vec<(usize, usize)> = Vec::with_capacity(values.len() / 2);
+    for pair_index in 0..values.len() / 2 {
+        let best_remove_index = (pair_index..values.len() / 2)
+            .min_by_key(|remove_index| {
+                distance(
+                    &values[2 * pair_index],
+                    &values[new_removes_order[*remove_index]],
+                )
+            })
+            .unwrap();
+        if pair_index != best_remove_index {
+            new_removes_order.swap(pair_index, best_remove_index);
+            swaps.push((pair_index * 2 + 1, best_remove_index * 2 + 1));
+        }
+    }
+    swaps
+}
+
 fn describe_conflict_term(value: &TreeValue) -> String {
     match value {
         TreeValue::File {
@@ -687,12 +743,310 @@ fn describe_conflict_term(value: &TreeValue) -> String {
     }
 }
 
+// TODO(ilyagr): DiffOfMerges might not need to be public, might need renaming
+
+/// A sequence of diffs forming a "conflicted diff"
+///
+/// Conceptually, this is very similar to a merge, except it has the same number
+/// of positive terms (corresponding to "adds" in a merge) and negative terms
+/// (corresponding to "removes" in a merge).
+///
+/// This can represent a diff of two merges, with corresponding terms cancelling
+/// out. The adds of the negative (left-hand side) merge will then become a
+/// negative term of the DiffOfMerges. However, in this case, it is not
+/// remembered which term comes from which merge. By itself, a sequence of diffs
+/// resulting from a diff of two merges cannot tell the difference between the
+/// a) right-hand merge adding a diff (X-Y) to the left-hand side, or b) the
+/// right-hand merge subtracting the opposite diff (Y-X) that was present on the
+/// left-hand side.
+#[derive(PartialEq, Eq, Hash, Clone, Debug)]
+pub struct DiffOfMerges<T> {
+    /// Alternates between positive and negative terms, starting with positive.
+    values: Vec<T>,
+}
+impl<T> DiffOfMerges<T> {
+    /// Creates a `DiffOfMerges` from the given values, in which positive and
+    /// negative terms alternate.
+    pub fn from_vec(values: impl Into<Vec<T>>) -> Self {
+        let values = values.into();
+        assert!(
+            values.len() & 1 == 0,
+            "must have equal numbers of adds and removes"
+        );
+        DiffOfMerges { values }
+    }
+
+    /// Creates a new merge object from the given removes and adds.
+    // TODO: Rename to `from_negatives_positives` (?)
+    pub fn from_removes_adds(
+        removes: impl IntoIterator<Item = T>,
+        adds: impl IntoIterator<Item = T>,
+    ) -> Self {
+        let removes = removes.into_iter();
+        let adds = adds.into_iter();
+        let mut values = Vec::with_capacity(removes.size_hint().0 * 2);
+        for diff in removes.zip_longest(adds) {
+            let (remove, add) = diff
+                .both()
+                .expect("must have the same number of adds and removes");
+            values.extend([remove, add]);
+        }
+        DiffOfMerges { values }
+    }
+
+    /// Diff of the `left` conflict ("from" side) and the `right` conflict
+    /// ("to") side
+    pub fn diff_of(left: Merge<T>, right: Merge<T>) -> DiffOfMerges<T> {
+        // The last element of right's vector is an add and should stay an add.
+        // The first element of left's vector should become a remove.
+        let mut result_vec = right.values.into_vec();
+        result_vec.append(&mut left.values.into_vec());
+        DiffOfMerges::from_vec(result_vec)
+    }
+
+    /// Simplify the diff by removing equal positive and negative terms.
+    ///
+    /// The positive terms are allowed to be reordered freely, as are the
+    /// negative terms. The pairing of them into diffs is **not** preserved.
+    pub fn simplify(mut self) -> Self
+    where
+        T: PartialEq + Clone,
+    {
+        self.values = simplify_internal(self.values);
+        self
+    }
+
+    /// Pairs of diffs presented as (positive term, negative term)
+    ///
+    /// Note that operations such as simplifications do *not* preserve these
+    /// pairs.
+    pub fn pairs(&self) -> impl ExactSizeIterator<Item = (&T, &T)> {
+        zip(
+            self.values.iter().step_by(2),
+            self.values.iter().skip(1).step_by(2),
+        )
+    }
+
+    /// Rearranges the removes so that every pair of add and remove has as small
+    /// a distance as possible.
+    ///
+    /// TODO: Currently, this uses inefficient greedy algorithm that may not
+    /// give optimal results
+    ///
+    /// TODO: Consider generalizing this so that it's also used to optimize
+    /// conflict presentation when materializing conflicts.
+    pub fn rearranged_to_optimize_for_distance(self, distance: impl Fn(&T, &T) -> usize) -> Self {
+        let Self { mut values } = self;
+        let swaps = get_optimize_for_distance_swaps(&values, distance);
+        for (i, j) in swaps {
+            values.swap(i, j);
+        }
+        Self::from_vec(values)
+    }
+}
+
+/// Given two conflicts, compute the corresponding set of
+/// [`DiffExplanationAtom<T>`].
+///
+/// The diffs in the set are picked to minimize `distance`.
+///
+/// This returns a Vec, but the order of the resulting set is not significant.
+//
+// TODO(ilyagr): There is a question of whether we want to bias the diffs
+// towards the diffs that match the way the conflicts are presented to the user,
+// or to bias to the diffs that come from the rebased commits after a rebase.
+// Note that this can have implication on how `blame` works. I currently think
+// that we should try to improve the optimization algorithm first and see how
+// far that gets us.
+pub fn explain_diff_of_merges<T: PartialEq + Clone>(
+    left: Merge<T>,
+    right: Merge<T>,
+    distance: impl Fn(&T, &T) -> usize,
+) -> Vec<DiffExplanationAtom<T>> {
+    let left = left.simplify();
+    let right = right.simplify();
+    let optimized_diff_of_merges = DiffOfMerges::diff_of(left.clone(), right.clone())
+        .simplify()
+        .rearranged_to_optimize_for_distance(distance);
+    let mut left_seen = left.map(|_| false);
+    let mut right_seen = right.map(|_| false);
+
+    let mut result = optimized_diff_of_merges
+        .pairs()
+        .map(|(add, remove)| {
+            // The order of `if`-s does not matter since the diff_of_merges is simplified as
+            // is each conflict, so the "add" could not come from both conflicts.
+            let add_comes_from_right = if let Some((ix, _)) = right
+                .adds()
+                .enumerate()
+                .find(|(ix, elt)| !right_seen.get_add(*ix).unwrap() && *elt == add)
+            {
+                *right_seen.get_add_mut(ix).unwrap() = true;
+                true
+            } else if let Some((ix, _)) = left
+                .removes()
+                .enumerate()
+                .find(|(ix, elt)| !left_seen.get_remove(*ix).unwrap() && *elt == add)
+            {
+                *left_seen.get_remove_mut(ix).unwrap() = true;
+                false
+            } else {
+                panic!(
+                    "adds of (right - left) should be either adds on the right or removes on the \
+                     left."
+                )
+            };
+
+            let remove_comes_from_right = if let Some((ix, _)) = right
+                .removes()
+                .enumerate()
+                .find(|(ix, elt)| !right_seen.get_remove(*ix).unwrap() && *elt == remove)
+            {
+                *right_seen.get_remove_mut(ix).unwrap() = true;
+                true
+            } else if let Some((ix, _)) = left
+                .adds()
+                .enumerate()
+                .find(|(ix, elt)| !left_seen.get_add(*ix).unwrap() && *elt == remove)
+            {
+                *left_seen.get_add_mut(ix).unwrap() = true;
+                false
+            } else {
+                panic!(
+                    "removes of (right - left) should be either removes on the right or adds on \
+                     the left."
+                )
+            };
+
+            // TODO(ilyagr): Consider refactoring this to have fewer unnecessary clones.
+            match (add_comes_from_right, remove_comes_from_right) {
+                (true, true) => DiffExplanationAtom::AddedConflictDiff {
+                    conflict_add: add.clone(),
+                    conflict_remove: remove.clone(),
+                },
+                (false, false) => DiffExplanationAtom::RemovedConflictDiff {
+                    /* Instead of adding an upside-down conflict, consider this a removal of the
+                     * opposite conflict */
+                    conflict_add: remove.clone(),
+                    conflict_remove: add.clone(),
+                },
+                (true, false) => DiffExplanationAtom::ChangedConflictAdd {
+                    left_version: remove.clone(),
+                    right_version: add.clone(),
+                },
+                (false, true) => DiffExplanationAtom::ChangedConflictRemove {
+                    left_version: remove.clone(),
+                    right_version: add.clone(),
+                },
+            }
+        })
+        .collect_vec();
+
+    // Since the conflicts were simplified, and any sides we didn't yet see must
+    // have cancelled out in the diff,they are present on both left and right.
+    // So, we can forget about the left side.
+
+    // TODO(ilyagr): We might be able to have more structure, e.g. have an
+    // `UnchangedConflictDiff` category if there is both an unchanged add and an
+    // unchanged remove *and* they are reasonably close. This should be considered
+    // separately for showing to the user (where it might look confusingly similar
+    // to other diffs that mean something else) and for blame/absorb.
+    result.extend(
+        zip(right.adds(), right_seen.adds())
+            .filter(|&(_elt, seen)| (!seen))
+            .map(|(elt, _seen)| DiffExplanationAtom::UnchangedConflictAdd(elt.clone())),
+    );
+    result.extend(
+        zip(right.removes(), right_seen.removes())
+            .filter(|&(_elt, seen)| (!seen))
+            .map(|(elt, _seen)| DiffExplanationAtom::UnchangedConflictRemove(elt.clone())),
+    );
+    result
+}
+
+/// A statement about a difference of two conflicts of type `Merge<T>`
+///
+/// A (conceptually unordered) set of `DiffExplanationAtom<T>` describes a
+/// conflict `left: Merge<T>` and a sequence of operations to turn it into a
+/// different conflict `right: Merge<T>`. This is designed so that this
+/// information can be presented to the user.
+///
+/// This description is far from unique. We usually pick one by trying to
+/// minimize the complexity of the diffs in those operations that involve diffs.
+#[derive(PartialEq, Eq, Clone, Debug)]
+pub enum DiffExplanationAtom<T> {
+    /// Adds one more pair of an add + a remove to the conflict, making it more
+    /// complicated (more sides than before)
+    AddedConflictDiff {
+        /// Add of the added diff.
+        ///
+        /// This is an "add" of the right conflict that is not an "add" of the
+        /// left conflict.
+        conflict_add: T,
+        /// Remove of the added diff
+        ///
+        /// This is a "remove" of the right conflict that is not a "remove" of
+        /// the left conflict.
+        conflict_remove: T,
+    },
+    /// Removes one of the add + remove pairs in the conflict, making it less
+    /// complicated (fewer sides than before)
+    ///
+    /// In terms of conflict theory, this is equivalent to adding the opposite
+    /// diff and then simplifying the conflict. However, for the user, the
+    /// difference between these presentations is significant.
+    RemovedConflictDiff {
+        /// Add of the removed diff
+        ///
+        /// This is an "add" of the left conflict that is not an "add" of the
+        /// right conflict.
+        conflict_add: T,
+        /// Remove of the removed diff
+        ///
+        /// This is a "remove" of the left conflict that is not a "remove" of
+        /// the right conflict.
+        conflict_remove: T,
+    },
+    /// Modifies one of the adds of the conflict
+    ///
+    /// This does not change the number of sides in the conflict.
+    ChangedConflictAdd {
+        /// Add of the left conflict
+        left_version: T,
+        /// Add of the right conflict
+        right_version: T,
+    },
+    /// Modifies one of the removes of the conflict
+    ///
+    /// This does not change the number of sides in the conflict.
+    // TODO(ilyagr): While this operation is very natural from the perspective of conflict
+    // theory, I find it hard to come up with an example where it is an
+    // intuitive result of some operation. If it's too unintuitive to users, we could try to
+    // replace it with a composition of "removed diff" and "added diff".
+    ChangedConflictRemove {
+        /// Remove of the left conflict
+        left_version: T,
+        /// Remove of the right conflict
+        right_version: T,
+    },
+    /// Declares that both the left and the right conflict contain this value as
+    /// an "add"
+    UnchangedConflictAdd(T),
+    /// Declares that both the left and the right conflict contain this value as
+    /// a "remove"
+    UnchangedConflictRemove(T),
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     fn c<T: Clone>(removes: &[T], adds: &[T]) -> Merge<T> {
         Merge::from_removes_adds(removes.to_vec(), adds.to_vec())
+    }
+
+    fn d<T: Clone>(removes: &[T], adds: &[T]) -> DiffOfMerges<T> {
+        DiffOfMerges::from_removes_adds(removes.to_vec(), adds.to_vec())
     }
 
     #[test]
@@ -814,182 +1168,104 @@ mod tests {
     #[test]
     fn test_get_simplified_mapping() {
         // 1-way merge
-        assert_eq!(c(&[], &[0]).get_simplified_mapping(), vec![0]);
+        assert_eq!(get_simplified_mapping(&[0]), vec![0]);
         // 3-way merge
-        assert_eq!(c(&[0], &[0, 0]).get_simplified_mapping(), vec![2]);
-        assert_eq!(c(&[0], &[0, 1]).get_simplified_mapping(), vec![2]);
-        assert_eq!(c(&[0], &[1, 0]).get_simplified_mapping(), vec![0]);
-        assert_eq!(c(&[0], &[1, 1]).get_simplified_mapping(), vec![0, 1, 2]);
-        assert_eq!(c(&[0], &[1, 2]).get_simplified_mapping(), vec![0, 1, 2]);
+        assert_eq!(get_simplified_mapping(&[0, 0, 0]), vec![2]);
+        assert_eq!(get_simplified_mapping(&[0, 0, 1]), vec![2]);
+        assert_eq!(get_simplified_mapping(&[1, 0, 0]), vec![0]);
+        assert_eq!(get_simplified_mapping(&[1, 0, 1]), vec![0, 1, 2]);
+        assert_eq!(get_simplified_mapping(&[1, 0, 2]), vec![0, 1, 2]);
         // 5-way merge
-        assert_eq!(c(&[0, 0], &[0, 0, 0]).get_simplified_mapping(), vec![4]);
-        assert_eq!(c(&[0, 0], &[0, 0, 1]).get_simplified_mapping(), vec![4]);
-        assert_eq!(c(&[0, 0], &[0, 1, 0]).get_simplified_mapping(), vec![2]);
+        assert_eq!(get_simplified_mapping(&[0, 0, 0, 0, 0]), vec![4]);
+        assert_eq!(get_simplified_mapping(&[0, 0, 0, 0, 1]), vec![4]);
+        assert_eq!(get_simplified_mapping(&[0, 0, 1, 0, 0]), vec![2]);
+        assert_eq!(get_simplified_mapping(&[0, 0, 1, 0, 1]), vec![2, 3, 4],);
+        assert_eq!(get_simplified_mapping(&[0, 0, 1, 0, 2]), vec![2, 3, 4],);
+        assert_eq!(get_simplified_mapping(&[1, 0, 0, 0, 0]), vec![0]);
+        assert_eq!(get_simplified_mapping(&[1, 0, 0, 0, 1]), vec![0, 3, 4],);
+        assert_eq!(get_simplified_mapping(&[1, 0, 0, 0, 2]), vec![0, 3, 4],);
+        assert_eq!(get_simplified_mapping(&[1, 0, 1, 0, 0]), vec![2, 3, 0],);
         assert_eq!(
-            c(&[0, 0], &[0, 1, 1]).get_simplified_mapping(),
-            vec![2, 3, 4]
+            get_simplified_mapping(&[1, 0, 1, 0, 1]),
+            vec![0, 1, 2, 3, 4],
         );
         assert_eq!(
-            c(&[0, 0], &[0, 1, 2]).get_simplified_mapping(),
-            vec![2, 3, 4]
+            get_simplified_mapping(&[1, 0, 1, 0, 2]),
+            vec![0, 1, 2, 3, 4],
         );
-        assert_eq!(c(&[0, 0], &[1, 0, 0]).get_simplified_mapping(), vec![0]);
+        assert_eq!(get_simplified_mapping(&[1, 0, 2, 0, 0]), vec![2, 3, 0],);
         assert_eq!(
-            c(&[0, 0], &[1, 0, 1]).get_simplified_mapping(),
-            vec![0, 3, 4]
-        );
-        assert_eq!(
-            c(&[0, 0], &[1, 0, 2]).get_simplified_mapping(),
-            vec![0, 3, 4]
+            get_simplified_mapping(&[1, 0, 2, 0, 1]),
+            vec![0, 1, 2, 3, 4],
         );
         assert_eq!(
-            c(&[0, 0], &[1, 1, 0]).get_simplified_mapping(),
-            vec![0, 3, 2]
+            get_simplified_mapping(&[1, 0, 2, 0, 2]),
+            vec![0, 1, 2, 3, 4],
         );
         assert_eq!(
-            c(&[0, 0], &[1, 1, 1]).get_simplified_mapping(),
-            vec![0, 1, 2, 3, 4]
+            get_simplified_mapping(&[1, 0, 2, 0, 3]),
+            vec![0, 1, 2, 3, 4],
+        );
+        assert_eq!(get_simplified_mapping(&[0, 0, 0, 1, 0]), vec![2, 3, 4],);
+        assert_eq!(get_simplified_mapping(&[0, 0, 0, 1, 1]), vec![2]);
+        assert_eq!(get_simplified_mapping(&[0, 0, 0, 1, 2]), vec![2, 3, 4],);
+        assert_eq!(get_simplified_mapping(&[0, 0, 1, 1, 0]), vec![4]);
+        assert_eq!(get_simplified_mapping(&[0, 0, 1, 1, 1]), vec![4]);
+        assert_eq!(get_simplified_mapping(&[0, 0, 1, 1, 2]), vec![4]);
+        assert_eq!(get_simplified_mapping(&[0, 0, 2, 1, 0]), vec![2, 3, 4],);
+        assert_eq!(get_simplified_mapping(&[0, 0, 2, 1, 1]), vec![2]);
+        assert_eq!(get_simplified_mapping(&[0, 0, 2, 1, 2]), vec![2, 3, 4],);
+        assert_eq!(get_simplified_mapping(&[0, 0, 2, 1, 3]), vec![2, 3, 4],);
+        assert_eq!(get_simplified_mapping(&[1, 0, 0, 1, 0]), vec![4]);
+        assert_eq!(get_simplified_mapping(&[1, 0, 0, 1, 1]), vec![4]);
+        assert_eq!(get_simplified_mapping(&[1, 0, 0, 1, 2]), vec![4]);
+        assert_eq!(get_simplified_mapping(&[1, 0, 1, 1, 0]), vec![2]);
+        assert_eq!(get_simplified_mapping(&[1, 0, 1, 1, 1]), vec![2, 1, 4],);
+        assert_eq!(get_simplified_mapping(&[1, 0, 1, 1, 2]), vec![2, 1, 4],);
+        assert_eq!(get_simplified_mapping(&[1, 0, 2, 1, 0]), vec![2]);
+        assert_eq!(get_simplified_mapping(&[1, 0, 2, 1, 1]), vec![2, 1, 4],);
+        assert_eq!(get_simplified_mapping(&[1, 0, 2, 1, 2]), vec![2, 1, 4],);
+        assert_eq!(get_simplified_mapping(&[1, 0, 2, 1, 3]), vec![2, 1, 4],);
+        assert_eq!(get_simplified_mapping(&[2, 0, 0, 1, 0]), vec![0, 3, 4],);
+        assert_eq!(get_simplified_mapping(&[2, 0, 0, 1, 1]), vec![0]);
+        assert_eq!(get_simplified_mapping(&[2, 0, 0, 1, 2]), vec![0, 3, 4],);
+        assert_eq!(get_simplified_mapping(&[2, 0, 0, 1, 3]), vec![0, 3, 4],);
+        assert_eq!(get_simplified_mapping(&[2, 0, 1, 1, 0]), vec![0]);
+        assert_eq!(get_simplified_mapping(&[2, 0, 1, 1, 1]), vec![0, 1, 4],);
+        assert_eq!(get_simplified_mapping(&[2, 0, 1, 1, 2]), vec![0, 1, 4],);
+        assert_eq!(get_simplified_mapping(&[2, 0, 1, 1, 3]), vec![0, 1, 4],);
+        assert_eq!(get_simplified_mapping(&[2, 0, 2, 1, 0]), vec![2, 3, 0],);
+        assert_eq!(get_simplified_mapping(&[2, 0, 2, 1, 1]), vec![0, 1, 2],);
+        assert_eq!(
+            get_simplified_mapping(&[2, 0, 2, 1, 2]),
+            vec![0, 1, 2, 3, 4],
         );
         assert_eq!(
-            c(&[0, 0], &[1, 1, 2]).get_simplified_mapping(),
-            vec![0, 1, 2, 3, 4]
+            get_simplified_mapping(&[2, 0, 2, 1, 3]),
+            vec![0, 1, 2, 3, 4],
+        );
+        assert_eq!(get_simplified_mapping(&[2, 0, 3, 1, 0]), vec![2, 3, 0],);
+        assert_eq!(get_simplified_mapping(&[2, 0, 3, 1, 1]), vec![0, 1, 2],);
+        assert_eq!(
+            get_simplified_mapping(&[2, 0, 3, 1, 2]),
+            vec![0, 1, 2, 3, 4],
         );
         assert_eq!(
-            c(&[0, 0], &[1, 2, 0]).get_simplified_mapping(),
-            vec![0, 3, 2]
+            get_simplified_mapping(&[2, 0, 3, 1, 3]),
+            vec![0, 1, 2, 3, 4],
         );
         assert_eq!(
-            c(&[0, 0], &[1, 2, 1]).get_simplified_mapping(),
-            vec![0, 1, 2, 3, 4]
+            get_simplified_mapping(&[2, 0, 3, 1, 4]),
+            vec![0, 1, 2, 3, 4],
         );
         assert_eq!(
-            c(&[0, 0], &[1, 2, 2]).get_simplified_mapping(),
-            vec![0, 1, 2, 3, 4]
-        );
-        assert_eq!(
-            c(&[0, 0], &[1, 2, 3]).get_simplified_mapping(),
-            vec![0, 1, 2, 3, 4]
-        );
-        assert_eq!(
-            c(&[0, 1], &[0, 0, 0]).get_simplified_mapping(),
-            vec![2, 3, 4]
-        );
-        assert_eq!(c(&[0, 1], &[0, 0, 1]).get_simplified_mapping(), vec![2]);
-        assert_eq!(
-            c(&[0, 1], &[0, 0, 2]).get_simplified_mapping(),
-            vec![2, 3, 4]
-        );
-        assert_eq!(c(&[0, 1], &[0, 1, 0]).get_simplified_mapping(), vec![4]);
-        assert_eq!(c(&[0, 1], &[0, 1, 1]).get_simplified_mapping(), vec![4]);
-        assert_eq!(c(&[0, 1], &[0, 1, 2]).get_simplified_mapping(), vec![4]);
-        assert_eq!(
-            c(&[0, 1], &[0, 2, 0]).get_simplified_mapping(),
-            vec![2, 3, 4]
-        );
-        assert_eq!(c(&[0, 1], &[0, 2, 1]).get_simplified_mapping(), vec![2]);
-        assert_eq!(
-            c(&[0, 1], &[0, 2, 2]).get_simplified_mapping(),
-            vec![2, 3, 4]
-        );
-        assert_eq!(
-            c(&[0, 1], &[0, 2, 3]).get_simplified_mapping(),
-            vec![2, 3, 4]
-        );
-        assert_eq!(c(&[0, 1], &[1, 0, 0]).get_simplified_mapping(), vec![2]);
-        assert_eq!(c(&[0, 1], &[1, 0, 1]).get_simplified_mapping(), vec![4]);
-        assert_eq!(c(&[0, 1], &[1, 0, 2]).get_simplified_mapping(), vec![4]);
-        assert_eq!(c(&[0, 1], &[1, 1, 0]).get_simplified_mapping(), vec![2]);
-        assert_eq!(
-            c(&[0, 1], &[1, 1, 1]).get_simplified_mapping(),
-            vec![4, 1, 2]
-        );
-        assert_eq!(
-            c(&[0, 1], &[1, 1, 2]).get_simplified_mapping(),
-            vec![4, 1, 2]
-        );
-        assert_eq!(c(&[0, 1], &[1, 2, 0]).get_simplified_mapping(), vec![2]);
-        assert_eq!(
-            c(&[0, 1], &[1, 2, 1]).get_simplified_mapping(),
-            vec![4, 1, 2]
-        );
-        assert_eq!(
-            c(&[0, 1], &[1, 2, 2]).get_simplified_mapping(),
-            vec![4, 1, 2]
-        );
-        assert_eq!(
-            c(&[0, 1], &[1, 2, 3]).get_simplified_mapping(),
-            vec![4, 1, 2]
-        );
-        assert_eq!(
-            c(&[0, 1], &[2, 0, 0]).get_simplified_mapping(),
-            vec![0, 3, 4]
-        );
-        assert_eq!(c(&[0, 1], &[2, 0, 1]).get_simplified_mapping(), vec![0]);
-        assert_eq!(
-            c(&[0, 1], &[2, 0, 2]).get_simplified_mapping(),
-            vec![0, 3, 4]
-        );
-        assert_eq!(
-            c(&[0, 1], &[2, 0, 3]).get_simplified_mapping(),
-            vec![0, 3, 4]
-        );
-        assert_eq!(c(&[0, 1], &[2, 1, 0]).get_simplified_mapping(), vec![0]);
-        assert_eq!(
-            c(&[0, 1], &[2, 1, 1]).get_simplified_mapping(),
-            vec![0, 1, 4]
-        );
-        assert_eq!(
-            c(&[0, 1], &[2, 1, 2]).get_simplified_mapping(),
-            vec![0, 1, 4]
-        );
-        assert_eq!(
-            c(&[0, 1], &[2, 1, 3]).get_simplified_mapping(),
-            vec![0, 1, 4]
-        );
-        assert_eq!(
-            c(&[0, 1], &[2, 2, 0]).get_simplified_mapping(),
-            vec![0, 3, 2]
-        );
-        assert_eq!(
-            c(&[0, 1], &[2, 2, 1]).get_simplified_mapping(),
-            vec![0, 1, 2]
-        );
-        assert_eq!(
-            c(&[0, 1], &[2, 2, 2]).get_simplified_mapping(),
-            vec![0, 1, 2, 3, 4]
-        );
-        assert_eq!(
-            c(&[0, 1], &[2, 2, 3]).get_simplified_mapping(),
-            vec![0, 1, 2, 3, 4]
-        );
-        assert_eq!(
-            c(&[0, 1], &[2, 3, 0]).get_simplified_mapping(),
-            vec![0, 3, 2]
-        );
-        assert_eq!(
-            c(&[0, 1], &[2, 3, 1]).get_simplified_mapping(),
-            vec![0, 1, 2]
-        );
-        assert_eq!(
-            c(&[0, 1], &[2, 3, 2]).get_simplified_mapping(),
-            vec![0, 1, 2, 3, 4]
-        );
-        assert_eq!(
-            c(&[0, 1], &[2, 3, 3]).get_simplified_mapping(),
-            vec![0, 1, 2, 3, 4]
-        );
-        assert_eq!(
-            c(&[0, 1], &[2, 3, 4]).get_simplified_mapping(),
-            vec![0, 1, 2, 3, 4]
-        );
-        assert_eq!(
-            c(&[0, 1, 2], &[3, 4, 5, 0]).get_simplified_mapping(),
-            vec![0, 3, 4, 5, 2]
+            get_simplified_mapping(&[3, 0, 4, 1, 5, 2, 0]),
+            vec![2, 3, 4, 5, 0],
         );
     }
 
     #[test]
-    fn test_simplify() {
+    fn test_simplify_merge() {
         // 1-way merge
         assert_eq!(c(&[], &[0]).simplify(), c(&[], &[0]));
         // 3-way merge
@@ -1010,7 +1286,7 @@ mod tests {
         assert_eq!(c(&[0, 0], &[1, 1, 0]).simplify(), c(&[0], &[1, 1]));
         assert_eq!(c(&[0, 0], &[1, 1, 1]).simplify(), c(&[0, 0], &[1, 1, 1]));
         assert_eq!(c(&[0, 0], &[1, 1, 2]).simplify(), c(&[0, 0], &[1, 1, 2]));
-        assert_eq!(c(&[0, 0], &[1, 2, 0]).simplify(), c(&[0], &[1, 2]));
+        assert_eq!(c(&[0, 0], &[1, 2, 0]).simplify(), c(&[0], &[2, 1]));
         assert_eq!(c(&[0, 0], &[1, 2, 1]).simplify(), c(&[0, 0], &[1, 2, 1]));
         assert_eq!(c(&[0, 0], &[1, 2, 2]).simplify(), c(&[0, 0], &[1, 2, 2]));
         assert_eq!(c(&[0, 0], &[1, 2, 3]).simplify(), c(&[0, 0], &[1, 2, 3]));
@@ -1029,11 +1305,11 @@ mod tests {
         assert_eq!(c(&[0, 1], &[1, 0, 2]).simplify(), c(&[], &[2]));
         assert_eq!(c(&[0, 1], &[1, 1, 0]).simplify(), c(&[], &[1]));
         assert_eq!(c(&[0, 1], &[1, 1, 1]).simplify(), c(&[0], &[1, 1]));
-        assert_eq!(c(&[0, 1], &[1, 1, 2]).simplify(), c(&[0], &[2, 1]));
+        assert_eq!(c(&[0, 1], &[1, 1, 2]).simplify(), c(&[0], &[1, 2]));
         assert_eq!(c(&[0, 1], &[1, 2, 0]).simplify(), c(&[], &[2]));
-        assert_eq!(c(&[0, 1], &[1, 2, 1]).simplify(), c(&[0], &[1, 2]));
+        assert_eq!(c(&[0, 1], &[1, 2, 1]).simplify(), c(&[0], &[2, 1]));
         assert_eq!(c(&[0, 1], &[1, 2, 2]).simplify(), c(&[0], &[2, 2]));
-        assert_eq!(c(&[0, 1], &[1, 2, 3]).simplify(), c(&[0], &[3, 2]));
+        assert_eq!(c(&[0, 1], &[1, 2, 3]).simplify(), c(&[0], &[2, 3]));
         assert_eq!(c(&[0, 1], &[2, 0, 0]).simplify(), c(&[1], &[2, 0]));
         assert_eq!(c(&[0, 1], &[2, 0, 1]).simplify(), c(&[], &[2]));
         assert_eq!(c(&[0, 1], &[2, 0, 2]).simplify(), c(&[1], &[2, 2]));
@@ -1046,14 +1322,60 @@ mod tests {
         assert_eq!(c(&[0, 1], &[2, 2, 1]).simplify(), c(&[0], &[2, 2]));
         assert_eq!(c(&[0, 1], &[2, 2, 2]).simplify(), c(&[0, 1], &[2, 2, 2]));
         assert_eq!(c(&[0, 1], &[2, 2, 3]).simplify(), c(&[0, 1], &[2, 2, 3]));
-        assert_eq!(c(&[0, 1], &[2, 3, 0]).simplify(), c(&[1], &[2, 3]));
+        assert_eq!(c(&[0, 1], &[2, 3, 0]).simplify(), c(&[1], &[3, 2]));
         assert_eq!(c(&[0, 1], &[2, 3, 1]).simplify(), c(&[0], &[2, 3]));
         assert_eq!(c(&[0, 1], &[2, 3, 2]).simplify(), c(&[0, 1], &[2, 3, 2]));
         assert_eq!(c(&[0, 1], &[2, 3, 3]).simplify(), c(&[0, 1], &[2, 3, 3]));
         assert_eq!(c(&[0, 1], &[2, 3, 4]).simplify(), c(&[0, 1], &[2, 3, 4]));
         assert_eq!(
             c(&[0, 1, 2], &[3, 4, 5, 0]).simplify(),
-            c(&[1, 2], &[3, 5, 4])
+            c(&[1, 2], &[4, 5, 3])
+        );
+    }
+
+    #[test]
+    fn test_simplify_diff_of_merges() {
+        assert_eq!(d::<usize>(&[], &[]).simplify(), d(&[], &[]));
+        assert_eq!(d(&[0], &[0]).simplify(), d(&[], &[]));
+        assert_eq!(d(&[1], &[0]).simplify(), d(&[1], &[0]));
+        assert_eq!(d(&[0, 0], &[0, 0]).simplify(), d(&[], &[]));
+        assert_eq!(d(&[0, 1], &[1, 0]).simplify(), d(&[], &[]));
+        assert_eq!(d(&[0, 1], &[0, 1]).simplify(), d(&[], &[]));
+        assert_eq!(d(&[1, 1], &[0, 1]).simplify(), d(&[1], &[0]));
+        assert_eq!(d(&[1, 0], &[0, 2]).simplify(), d(&[1], &[2]));
+        assert_eq!(d(&[1, 0], &[3, 2]).simplify(), d(&[1, 0], &[3, 2]));
+    }
+
+    #[test]
+    fn test_rearrange_for_distance() {
+        let dist = |x: &usize, y: &usize| x.abs_diff(*y);
+        assert_eq!(
+            d::<usize>(&[], &[]).rearranged_to_optimize_for_distance(dist),
+            d(&[], &[])
+        );
+        assert_eq!(
+            d(&[1], &[2]).rearranged_to_optimize_for_distance(dist),
+            d(&[1], &[2])
+        );
+        assert_eq!(
+            d(&[1, 20], &[2, 21]).rearranged_to_optimize_for_distance(dist),
+            d(&[1, 20], &[2, 21])
+        );
+        assert_eq!(
+            d(&[1, 20], &[21, 2]).rearranged_to_optimize_for_distance(dist),
+            d(&[1, 20], &[2, 21])
+        );
+        assert_eq!(
+            d(&[1, 20, 200], &[2, 201, 21]).rearranged_to_optimize_for_distance(dist),
+            d(&[1, 20, 200], &[2, 21, 201])
+        );
+        assert_eq!(
+            d(&[1, 20, 200], &[201, 21, 2]).rearranged_to_optimize_for_distance(dist),
+            d(&[1, 20, 200], &[2, 21, 201])
+        );
+        assert_eq!(
+            d(&[1, 20, 200], &[201, 2, 21]).rearranged_to_optimize_for_distance(dist),
+            d(&[1, 20, 200], &[2, 21, 201])
         );
     }
 
@@ -1088,7 +1410,7 @@ mod tests {
         );
         assert_eq!(
             c(&[1, 0], &[0, 0, 0]).update_from_simplified(c(&[3], &[2, 1])),
-            c(&[3, 0], &[0, 1, 2])
+            c(&[3, 0], &[0, 2, 1])
         );
         assert_eq!(
             c(&[0, 1], &[2, 3, 4]).update_from_simplified(c(&[1, 2], &[3, 4, 5])),
@@ -1270,6 +1592,123 @@ mod tests {
         assert_eq!(
             c(&[c(&[0], &[1, 2])], &[c(&[3], &[4, 5]), c(&[6], &[7, 8])]).flatten(),
             c(&[3, 2, 1, 6], &[4, 5, 0, 7, 8])
+        );
+    }
+
+    #[test]
+    fn test_explain_diff_of_merges() {
+        let dist = |x: &usize, y: &usize| x.abs_diff(*y);
+        insta::assert_debug_snapshot!(
+            explain_diff_of_merges(c(&[], &[1]), c(&[], &[1]), dist),
+            @r#"
+        [
+            UnchangedConflictAdd(
+                1,
+            ),
+        ]
+        "#
+        );
+        insta::assert_debug_snapshot!(
+            explain_diff_of_merges(c(&[], &[1]), c(&[], &[2]), dist),
+            @r#"
+        [
+            ChangedConflictAdd {
+                left_version: 1,
+                right_version: 2,
+            },
+        ]
+        "#
+        );
+        insta::assert_debug_snapshot!(
+            // One of the conflicts gets simplified to the same case as above
+            explain_diff_of_merges(c(&[], &[1]), c(&[1], &[1,2]), dist),
+            @r#"
+        [
+            ChangedConflictAdd {
+                left_version: 1,
+                right_version: 2,
+            },
+        ]
+        "#
+        );
+        insta::assert_debug_snapshot!(
+            explain_diff_of_merges(c(&[], &[1]), c(&[0], &[1, 2]), dist),
+            @r#"
+        [
+            AddedConflictDiff {
+                conflict_add: 2,
+                conflict_remove: 0,
+            },
+            UnchangedConflictAdd(
+                1,
+            ),
+        ]
+        "#
+        );
+        insta::assert_debug_snapshot!(
+            explain_diff_of_merges(c(&[0], &[1,2]), c(&[], &[1]), dist),
+            @r#"
+        [
+            RemovedConflictDiff {
+                conflict_add: 2,
+                conflict_remove: 0,
+            },
+            UnchangedConflictAdd(
+                1,
+            ),
+        ]
+        "#
+        );
+        insta::assert_debug_snapshot!(
+            explain_diff_of_merges(c(&[0], &[1,2]), c(&[3], &[1,2]), dist),
+            @r#"
+        [
+            ChangedConflictRemove {
+                left_version: 3,
+                right_version: 0,
+            },
+            UnchangedConflictAdd(
+                1,
+            ),
+            UnchangedConflictAdd(
+                2,
+            ),
+        ]
+        "#
+        );
+        // TODO: Should the unchanged add+remove become "UnchangedConflictDiff" for
+        // nicer presentation?
+        insta::assert_debug_snapshot!(
+            explain_diff_of_merges(c(&[0], &[1,2]), c(&[0], &[1,3]), dist),
+            @r#"
+        [
+            ChangedConflictAdd {
+                left_version: 2,
+                right_version: 3,
+            },
+            UnchangedConflictAdd(
+                1,
+            ),
+            UnchangedConflictRemove(
+                0,
+            ),
+        ]
+        "#
+        );
+        insta::assert_debug_snapshot!(
+            // Simplifies
+            explain_diff_of_merges(c(&[0], &[1,2]), c(&[2], &[1,2]), dist),
+            @r#"
+        [
+            RemovedConflictDiff {
+                conflict_add: 2,
+                conflict_remove: 0,
+            },
+            UnchangedConflictAdd(
+                1,
+            ),
+        ]
+        "#
         );
     }
 }
