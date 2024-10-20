@@ -377,15 +377,15 @@ impl<'a> RevWalkBuilder<'a> {
         }
     }
 
-    /// Adds head positions to be included.
-    pub fn wanted_heads(mut self, positions: impl IntoIterator<Item = IndexPosition>) -> Self {
-        self.wanted.extend(positions);
+    /// Sets head positions to be included.
+    pub fn wanted_heads(mut self, positions: Vec<IndexPosition>) -> Self {
+        self.wanted = positions;
         self
     }
 
-    /// Adds root positions to be excluded. The roots precede the heads.
-    pub fn unwanted_roots(mut self, positions: impl IntoIterator<Item = IndexPosition>) -> Self {
-        self.unwanted.extend(positions);
+    /// Sets root positions to be excluded. The roots precede the heads.
+    pub fn unwanted_roots(mut self, positions: Vec<IndexPosition>) -> Self {
+        self.unwanted = positions;
         self
     }
 
@@ -449,12 +449,8 @@ impl<'a> RevWalkBuilder<'a> {
     ///
     /// The returned iterator yields entries in order of ascending index
     /// position.
-    pub fn descendants(
-        self,
-        root_positions: impl IntoIterator<Item = IndexPosition>,
-    ) -> RevWalkDescendants<'a> {
+    pub fn descendants(self, root_positions: HashSet<IndexPosition>) -> RevWalkDescendants<'a> {
         let index = self.index;
-        let root_positions = HashSet::from_iter(root_positions);
         let candidate_positions = self
             .ancestors_until_roots(root_positions.iter().copied())
             .collect();
@@ -477,11 +473,10 @@ impl<'a> RevWalkBuilder<'a> {
     /// position.
     pub fn descendants_filtered_by_generation(
         self,
-        root_positions: impl IntoIterator<Item = IndexPosition>,
+        root_positions: Vec<IndexPosition>,
         generation_range: Range<u32>,
     ) -> RevWalkDescendantsGenerationRange {
         let index = self.index;
-        let root_positions = Vec::from_iter(root_positions);
         let positions = self.ancestors_until_roots(root_positions.iter().copied());
         let descendants_index = RevWalkDescendantsIndex::build(index, positions);
 
