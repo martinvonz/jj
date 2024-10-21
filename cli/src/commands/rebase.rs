@@ -30,6 +30,7 @@ use jj_lib::revset::RevsetIteratorExt;
 use jj_lib::rewrite::move_commits;
 use jj_lib::rewrite::EmptyBehaviour;
 use jj_lib::rewrite::MoveCommitsStats;
+use jj_lib::rewrite::MoveCommitsTarget;
 use jj_lib::rewrite::RebaseOptions;
 use jj_lib::settings::UserSettings;
 use tracing::instrument;
@@ -325,7 +326,7 @@ fn rebase_revisions(
         workspace_command,
         &new_parents.iter().ids().cloned().collect_vec(),
         &new_children,
-        &target_commits,
+        target_commits,
         rebase_options,
     )
 }
@@ -358,7 +359,7 @@ fn rebase_source(
         workspace_command,
         &new_parents.iter().ids().cloned().collect_vec(),
         &new_children,
-        &source_commits,
+        source_commits,
         rebase_options,
     )
 }
@@ -396,7 +397,7 @@ fn rebase_branch(
         workspace_command,
         &parent_ids,
         &[],
-        &root_commits,
+        root_commits,
         &rebase_options,
     )
 }
@@ -407,7 +408,7 @@ fn rebase_descendants_transaction(
     workspace_command: &mut WorkspaceCommandHelper,
     new_parent_ids: &[CommitId],
     new_children: &[Commit],
-    target_roots: &[Commit],
+    target_roots: Vec<Commit>,
     rebase_options: &RebaseOptions,
 ) -> Result<(), CommandError> {
     if target_roots.is_empty() {
@@ -427,15 +428,6 @@ fn rebase_descendants_transaction(
         )
     };
 
-    let target_commits: Vec<_> =
-        RevsetExpression::commits(target_roots.iter().ids().cloned().collect_vec())
-            .descendants()
-            .evaluate_programmatic(tx.repo())?
-            .iter()
-            .commits(tx.repo().store())
-            .try_collect()?;
-    let target_roots = target_roots.iter().ids().cloned().collect_vec();
-
     let MoveCommitsStats {
         num_rebased_targets,
         num_rebased_descendants,
@@ -446,8 +438,7 @@ fn rebase_descendants_transaction(
         tx.repo_mut(),
         new_parent_ids,
         new_children,
-        &target_commits,
-        Some(&target_roots),
+        &MoveCommitsTarget::Roots(target_roots),
         rebase_options,
     )?;
 
@@ -551,7 +542,7 @@ fn rebase_revisions_transaction(
     workspace_command: &mut WorkspaceCommandHelper,
     new_parent_ids: &[CommitId],
     new_children: &[Commit],
-    target_commits: &[Commit],
+    target_commits: Vec<Commit>,
     rebase_options: &RebaseOptions,
 ) -> Result<(), CommandError> {
     if target_commits.is_empty() {
@@ -579,8 +570,7 @@ fn rebase_revisions_transaction(
         tx.repo_mut(),
         new_parent_ids,
         new_children,
-        target_commits,
-        None,
+        &MoveCommitsTarget::Commits(target_commits),
         rebase_options,
     )?;
     // TODO(ilyagr): Consider making it possible for descendants of the target set
