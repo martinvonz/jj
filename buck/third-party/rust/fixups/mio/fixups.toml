@@ -1,0 +1,1 @@
+extra_srcs = ["src/**/*.rs"]
