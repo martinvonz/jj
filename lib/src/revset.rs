@@ -37,7 +37,7 @@ use crate::dsl_util::AliasExpandError as _;
 use crate::fileset;
 use crate::fileset::FilesetDiagnostics;
 use crate::fileset::FilesetExpression;
-use crate::graph::GraphNodeResult;
+use crate::graph::GraphNode;
 use crate::hex_util::to_forward_hex;
 use crate::id_prefix::IdPrefixContext;
 use crate::id_prefix::IdPrefixIndex;
@@ -2203,7 +2203,7 @@ pub trait Revset: fmt::Debug {
 
     fn iter_graph<'a>(
         &self,
-    ) -> Box<dyn Iterator<Item = GraphNodeResult<CommitId, RevsetEvaluationError>> + 'a>
+    ) -> Box<dyn Iterator<Item = Result<GraphNode<CommitId>, RevsetEvaluationError>> + 'a>
     where
         Self: 'a;
 

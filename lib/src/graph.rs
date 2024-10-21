@@ -21,13 +21,14 @@ use std::hash::Hash;
 
 use crate::revset::RevsetEvaluationError;
 
+/// Node and edges pair of type `N`.
+pub type GraphNode<N> = (N, Vec<GraphEdge<N>>);
+
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub struct GraphEdge<N> {
     pub target: N,
     pub edge_type: GraphEdgeType,
 }
-
-pub type GraphNodeResult<N, E> = Result<(N, Vec<GraphEdge<N>>), E>;
 
 impl<N> GraphEdge<N> {
     pub fn missing(target: N) -> Self {
@@ -74,7 +75,7 @@ fn reachable_targets<N>(edges: &[GraphEdge<N>]) -> impl DoubleEndedIterator<Item
 }
 
 pub struct ReverseGraphIterator<N> {
-    items: Vec<(N, Vec<GraphEdge<N>>)>,
+    items: Vec<GraphNode<N>>,
 }
 
 impl<N> ReverseGraphIterator<N>
@@ -82,7 +83,7 @@ where
     N: Hash + Eq + Clone,
 {
     pub fn new(
-        input: impl Iterator<Item = Result<(N, Vec<GraphEdge<N>>), RevsetEvaluationError>>,
+        input: impl Iterator<Item = Result<GraphNode<N>, RevsetEvaluationError>>,
     ) -> Result<Self, RevsetEvaluationError> {
         let mut entries = vec![];
         let mut reverse_edges: HashMap<N, Vec<GraphEdge<N>>> = HashMap::new();
@@ -107,7 +108,7 @@ where
 }
 
 impl<N> Iterator for ReverseGraphIterator<N> {
-    type Item = Result<(N, Vec<GraphEdge<N>>), RevsetEvaluationError>;
+    type Item = Result<GraphNode<N>, RevsetEvaluationError>;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.items.pop().map(Ok)
@@ -155,12 +156,10 @@ impl<N> Default for TopoGroupedGraphNode<N> {
     }
 }
 
-type NextNodeResult<N, E> = Result<Option<(N, Vec<GraphEdge<N>>)>, E>;
-
 impl<N, E, I> TopoGroupedGraphIterator<N, I>
 where
     N: Clone + Hash + Eq,
-    I: Iterator<Item = Result<(N, Vec<GraphEdge<N>>), E>>,
+    I: Iterator<Item = Result<GraphNode<N>, E>>,
 {
     /// Wraps the given iterator to group topological branches. The input
     /// iterator must be topologically ordered.
@@ -262,7 +261,7 @@ where
         self.emittable_ids.push(new_head_id);
     }
 
-    fn next_node(&mut self) -> NextNodeResult<N, E> {
+    fn next_node(&mut self) -> Result<Option<GraphNode<N>>, E> {
         // Based on Kahn's algorithm
         loop {
             if let Some(current_id) = self.emittable_ids.last() {
@@ -312,9 +311,9 @@ where
 impl<N, E, I> Iterator for TopoGroupedGraphIterator<N, I>
 where
     N: Clone + Hash + Eq,
-    I: Iterator<Item = Result<(N, Vec<GraphEdge<N>>), E>>,
+    I: Iterator<Item = Result<GraphNode<N>, E>>,
 {
-    type Item = Result<(N, Vec<GraphEdge<N>>), E>;
+    type Item = Result<GraphNode<N>, E>;
 
     fn next(&mut self) -> Option<Self::Item> {
         match self.next_node() {
@@ -360,7 +359,7 @@ mod tests {
         }
     }
 
-    fn format_graph(graph_iter: impl IntoIterator<Item = (char, Vec<GraphEdge<char>>)>) -> String {
+    fn format_graph(graph_iter: impl IntoIterator<Item = GraphNode<char>>) -> String {
         let mut renderer = GraphRowRenderer::new()
             .output()
             .with_min_row_height(2)
@@ -407,14 +406,12 @@ mod tests {
 
     fn topo_grouped<I, E>(graph_iter: I) -> TopoGroupedGraphIterator<char, I::IntoIter>
     where
-        I: IntoIterator<Item = Result<(char, Vec<GraphEdge<char>>), E>>,
+        I: IntoIterator<Item = Result<GraphNode<char>, E>>,
     {
         TopoGroupedGraphIterator::new(graph_iter.into_iter())
     }
 
-    fn infallible(
-        input: (char, Vec<GraphEdge<char>>),
-    ) -> Result<(char, Vec<GraphEdge<char>>), Infallible> {
+    fn infallible(input: GraphNode<char>) -> Result<GraphNode<char>, Infallible> {
         Ok(input)
     }
 
@@ -684,7 +681,7 @@ mod tests {
         fn sub_graph(
             chars: impl IntoIterator<Item = char>,
             root_edges: Vec<GraphEdge<char>>,
-        ) -> Vec<(char, Vec<GraphEdge<char>>)> {
+        ) -> Vec<GraphNode<char>> {
             let [b, c, d, e, f]: [char; 5] = chars.into_iter().collect_vec().try_into().unwrap();
             vec![
                 (f, vec![direct(c)]),
