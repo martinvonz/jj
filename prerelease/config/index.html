@@ -2724,8 +2724,8 @@ invocations as follows:</p>
 <code>revset-aliases."immutable_heads()"</code>. The default set of immutable heads is
 <code>builtin_immutable_heads()</code>, which in turn is defined as
 <code>present(trunk()) | tags() | untracked_remote_bookmarks()</code>. For example, to
-also consider the <code>maint@origin</code> bookmark immutable:</p>
-<div class="highlight"><pre><span></span><code><span class="n">revset-aliases</span><span class="p">.</span><span class="s2">&quot;immutable_heads()&quot;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;builtin_immutable_heads() | maint@origin&quot;</span>
+also consider the <code>main@origin</code> bookmark immutable:</p>
+<div class="highlight"><pre><span></span><code><span class="n">revset-aliases</span><span class="p">.</span><span class="s2">&quot;immutable_heads()&quot;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;builtin_immutable_heads() | main@origin&quot;</span>
 </code></pre></div>
 <p>To prevent rewriting commits authored by other users:</p>
 <div class="highlight"><pre><span></span><code><span class="c1"># The `trunk().. &amp;` bit is an optimization to scan for non-`mine()` commits</span>
