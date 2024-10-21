@@ -36,7 +36,7 @@ use crate::command_error::CommandError;
 use crate::commands::git::maybe_add_gitignore;
 use crate::config::write_config_value_to_file;
 use crate::config::ConfigNamePathBuf;
-use crate::git_util::get_git_repo;
+use crate::git_util::get_git_backend_repo;
 use crate::git_util::is_colocated_git_workspace;
 use crate::git_util::print_failed_git_export;
 use crate::git_util::print_git_import_stats;
@@ -167,15 +167,20 @@ pub fn do_init(
                 Workspace::init_external_git(command.settings(), workspace_root, git_repo_path)?;
             // Import refs first so all the reachable commits are indexed in
             // chronological order.
-            let colocated = is_colocated_git_workspace(&workspace, &repo);
+            // No UI, because we're about to call this function again in the workspace
+            // command helper, and warnings can be shown then.
+            let colocated = is_colocated_git_workspace(None, &workspace, &repo);
             let repo = init_git_refs(ui, command, repo, colocated)?;
             let mut workspace_command = command.for_workable_repo(ui, workspace, repo)?;
             maybe_add_gitignore(&workspace_command)?;
             workspace_command.maybe_snapshot(ui)?;
             maybe_set_repository_level_trunk_alias(ui, &workspace_command)?;
             if !workspace_command.working_copy_shared_with_git() {
+                let git_repo = workspace_command
+                    .git_backend_repo()
+                    .expect("Just initialised with the git backend");
                 let mut tx = workspace_command.start_transaction();
-                jj_lib::git::import_head(tx.repo_mut())?;
+                jj_lib::git::import_head(tx.repo_mut(), &git_repo)?;
                 if let Some(git_head_id) = tx.repo().view().git_head().as_normal().cloned() {
                     let git_head_commit = tx.repo().store().get_commit(&git_head_id)?;
                     tx.check_out(&git_head_commit)?;
@@ -237,7 +242,7 @@ pub fn maybe_set_repository_level_trunk_alias(
     ui: &Ui,
     workspace_command: &WorkspaceCommandHelper,
 ) -> Result<(), CommandError> {
-    let git_repo = get_git_repo(workspace_command.repo().store())?;
+    let git_repo = get_git_backend_repo(workspace_command.repo().store())?;
     if let Ok(reference) = git_repo.find_reference("refs/remotes/origin/HEAD") {
         if let Some(reference_name) = reference.symbolic_target() {
             if let Some(RefName::RemoteBranch {

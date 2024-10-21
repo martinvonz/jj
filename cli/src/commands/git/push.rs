@@ -48,7 +48,7 @@ use crate::command_error::CommandError;
 use crate::commands::git::get_single_remote;
 use crate::commands::git::map_git_error;
 use crate::formatter::Formatter;
-use crate::git_util::get_git_repo;
+use crate::git_util::get_git_backend_repo;
 use crate::git_util::with_remote_git_callbacks;
 use crate::git_util::GitSidebandProgressMessageWriter;
 use crate::ui::Ui;
@@ -143,7 +143,7 @@ pub fn cmd_git_push(
     args: &GitPushArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let git_repo = get_git_repo(workspace_command.repo().store())?;
+    let git_repo = get_git_backend_repo(workspace_command.repo().store())?;
 
     let remote = if let Some(name) = &args.remote {
         name.clone()

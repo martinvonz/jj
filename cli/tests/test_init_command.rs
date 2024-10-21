@@ -470,26 +470,33 @@ fn test_init_git_external_but_git_dir_exists() {
         &["init", "--git-repo", git_repo_path.to_str().unwrap()],
     );
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
+    insta::assert_snapshot!(stderr, @r#"
+    Warning: This workspace has a .git directory that isn't managed by JJ.
     Warning: `--git` and `--git-repo` are deprecated.
     Use `jj git init` instead
     Initialized repo in "."
-    "###);
+    "#);
 
     // The local ".git" repository is unrelated, so no commits should be imported
-    let stdout = test_env.jj_cmd_success(&workspace_root, &["log", "-r", "@-"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["log", "-r", "@-"]);
     insta::assert_snapshot!(stdout, @r###"
     ◆  zzzzzzzz root() 00000000
     "###);
+    insta::assert_snapshot!(stderr, @r#"
+    Warning: This workspace has a .git directory that isn't managed by JJ.
+    "#);
 
     // Check that Git HEAD is not set because this isn't a colocated repo
     test_env.jj_cmd_ok(&workspace_root, &["new"]);
-    let stdout = test_env.jj_cmd_success(&workspace_root, &["log", "-r", "@-"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["log", "-r", "@-"]);
     insta::assert_snapshot!(stdout, @r###"
     ○  qpvuntsm test.user@example.com 2001-02-03 08:05:07 230dd059
     │  (empty) (no description set)
     ~
     "###);
+    insta::assert_snapshot!(stderr, @r#"
+    Warning: This workspace has a .git directory that isn't managed by JJ.
+    "#);
 }
 
 #[test]
