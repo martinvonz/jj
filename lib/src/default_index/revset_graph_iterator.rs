@@ -28,6 +28,7 @@ use super::revset_engine::BoxedRevWalk;
 use crate::backend::CommitId;
 use crate::graph::GraphEdge;
 use crate::graph::GraphEdgeType;
+use crate::graph::GraphNode;
 
 // This can be cheaply allocated and hashed compared to `CommitId`-based type.
 type IndexGraphEdge = GraphEdge<IndexPosition>;
@@ -308,7 +309,7 @@ impl<'a> RevsetGraphWalk<'a> {
 }
 
 impl RevWalk<CompositeIndex> for RevsetGraphWalk<'_> {
-    type Item = (CommitId, Vec<GraphEdge<CommitId>>);
+    type Item = GraphNode<CommitId>;
 
     fn next(&mut self, index: &CompositeIndex) -> Option<Self::Item> {
         let position = self.next_index_position(index)?;

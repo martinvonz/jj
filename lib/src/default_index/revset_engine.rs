@@ -48,8 +48,7 @@ use crate::conflicts::MaterializedTreeValue;
 use crate::default_index::AsCompositeIndex;
 use crate::default_index::CompositeIndex;
 use crate::default_index::IndexPosition;
-use crate::graph::GraphEdge;
-use crate::graph::GraphNodeResult;
+use crate::graph::GraphNode;
 use crate::matchers::Matcher;
 use crate::matchers::Visit;
 use crate::merged_tree::resolve_file_values;
@@ -58,6 +57,7 @@ use crate::repo_path::RepoPath;
 use crate::revset::ResolvedExpression;
 use crate::revset::ResolvedPredicateExpression;
 use crate::revset::Revset;
+use crate::revset::RevsetContainingFn;
 use crate::revset::RevsetEvaluationError;
 use crate::revset::RevsetFilterPredicate;
 use crate::revset::GENERATION_RANGE_FULL;
@@ -131,8 +131,7 @@ impl<I: AsCompositeIndex + Clone> RevsetImpl<I> {
     pub fn iter_graph_impl(
         &self,
         skip_transitive_edges: bool,
-    ) -> impl Iterator<Item = Result<(CommitId, Vec<GraphEdge<CommitId>>), RevsetEvaluationError>>
-    {
+    ) -> impl Iterator<Item = Result<GraphNode<CommitId>, RevsetEvaluationError>> {
         let index = self.index.clone();
         let walk = self.inner.positions();
         let mut graph_walk = RevsetGraphWalk::new(walk, skip_transitive_edges);
@@ -180,7 +179,7 @@ impl<I: AsCompositeIndex + Clone> Revset for RevsetImpl<I> {
 
     fn iter_graph<'a>(
         &self,
-    ) -> Box<dyn Iterator<Item = GraphNodeResult<CommitId, RevsetEvaluationError>> + 'a>
+    ) -> Box<dyn Iterator<Item = Result<GraphNode<CommitId>, RevsetEvaluationError>> + 'a>
     where
         Self: 'a,
     {
@@ -192,29 +191,30 @@ impl<I: AsCompositeIndex + Clone> Revset for RevsetImpl<I> {
         self.positions().next().is_none()
     }
 
-    fn count_estimate(&self) -> (usize, Option<usize>) {
+    fn count_estimate(&self) -> Result<(usize, Option<usize>), RevsetEvaluationError> {
         if cfg!(feature = "testing") {
             // Exercise the estimation feature in tests. (If we ever have a Revset
             // implementation in production code that returns estimates, we can probably
             // remove this and rewrite the associated tests.)
             let count = self.positions().take(10).count();
             if count < 10 {
-                (count, Some(count))
+                Ok((count, Some(count)))
             } else {
-                (10, None)
+                Ok((10, None))
             }
         } else {
+            // TODO: propagate error
             let count = self.positions().count();
-            (count, Some(count))
+            Ok((count, Some(count)))
         }
     }
 
-    fn containing_fn<'a>(&self) -> Box<dyn Fn(&CommitId) -> bool + 'a>
+    fn containing_fn<'a>(&self) -> Box<RevsetContainingFn<'a>>
     where
         Self: 'a,
     {
         let positions = PositionsAccumulator::new(self.index.clone(), self.inner.positions());
-        Box::new(move |commit_id| positions.contains(commit_id))
+        Box::new(move |commit_id| Ok(positions.contains(commit_id)))
     }
 }
 

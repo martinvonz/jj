@@ -37,7 +37,7 @@ use crate::dsl_util::AliasExpandError as _;
 use crate::fileset;
 use crate::fileset::FilesetDiagnostics;
 use crate::fileset::FilesetExpression;
-use crate::graph::GraphNodeResult;
+use crate::graph::GraphNode;
 use crate::hex_util::to_forward_hex;
 use crate::id_prefix::IdPrefixContext;
 use crate::id_prefix::IdPrefixIndex;
@@ -2203,27 +2203,31 @@ pub trait Revset: fmt::Debug {
 
     fn iter_graph<'a>(
         &self,
-    ) -> Box<dyn Iterator<Item = GraphNodeResult<CommitId, RevsetEvaluationError>> + 'a>
+    ) -> Box<dyn Iterator<Item = Result<GraphNode<CommitId>, RevsetEvaluationError>> + 'a>
     where
         Self: 'a;
 
+    /// Returns true if iterator will emit at least one commit or error.
     fn is_empty(&self) -> bool;
 
     /// Inclusive lower bound and, optionally, inclusive upper bound of how many
     /// commits are in the revset. The implementation can use its discretion as
     /// to how much effort should be put into the estimation, and how accurate
     /// the resulting estimate should be.
-    fn count_estimate(&self) -> (usize, Option<usize>);
+    fn count_estimate(&self) -> Result<(usize, Option<usize>), RevsetEvaluationError>;
 
     /// Returns a closure that checks if a commit is contained within the
     /// revset.
     ///
     /// The implementation may construct and maintain any necessary internal
     /// context to optimize the performance of the check.
-    fn containing_fn<'a>(&self) -> Box<dyn Fn(&CommitId) -> bool + 'a>
+    fn containing_fn<'a>(&self) -> Box<RevsetContainingFn<'a>>
     where
         Self: 'a;
 }
+
+/// Function that checks if a commit is contained within the revset.
+pub type RevsetContainingFn<'a> = dyn Fn(&CommitId) -> Result<bool, RevsetEvaluationError> + 'a;
 
 pub trait RevsetIteratorExt<'index, I> {
     fn commits(self, store: &Arc<Store>) -> RevsetCommitIterator<I>;

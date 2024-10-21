@@ -104,22 +104,25 @@ fn find_local_bookmarks<'a>(
     name_patterns: &[StringPattern],
 ) -> Result<Vec<(&'a str, &'a RefTarget)>, CommandError> {
     find_bookmarks_with(name_patterns, |pattern| {
-        view.local_bookmarks_matching(pattern)
+        view.local_bookmarks_matching(pattern).map(Ok)
     })
 }
 
-fn find_bookmarks_with<'a, 'b, V, I: Iterator<Item = (&'a str, V)>>(
+fn find_bookmarks_with<'a, 'b, V, I>(
     name_patterns: &'b [StringPattern],
     mut find_matches: impl FnMut(&'b StringPattern) -> I,
-) -> Result<Vec<I::Item>, CommandError> {
-    let mut matching_bookmarks: Vec<I::Item> = vec![];
+) -> Result<Vec<(&'a str, V)>, CommandError>
+where
+    I: Iterator<Item = Result<(&'a str, V), CommandError>>,
+{
+    let mut matching_bookmarks: Vec<(&'a str, V)> = vec![];
     let mut unmatched_patterns = vec![];
     for pattern in name_patterns {
         let mut matches = find_matches(pattern).peekable();
         if matches.peek().is_none() {
             unmatched_patterns.push(pattern);
         }
-        matching_bookmarks.extend(matches);
+        matches.process_results(|iter| matching_bookmarks.extend(iter))?;
     }
     match &unmatched_patterns[..] {
         [] => {

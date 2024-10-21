@@ -42,6 +42,7 @@ use jj_lib::repo::Repo;
 use jj_lib::repo_path::RepoPathUiConverter;
 use jj_lib::revset;
 use jj_lib::revset::Revset;
+use jj_lib::revset::RevsetContainingFn;
 use jj_lib::revset::RevsetDiagnostics;
 use jj_lib::revset::RevsetExpression;
 use jj_lib::revset::RevsetModifier;
@@ -742,7 +743,7 @@ fn builtin_commit_methods<'repo>() -> CommitTemplateBuildMethodFnMap<'repo, Comm
                 .keyword_cache
                 .is_immutable_fn(language, function.name_span)?
                 .clone();
-            let out_property = self_property.map(move |commit| is_immutable(commit.id()));
+            let out_property = self_property.and_then(move |commit| Ok(is_immutable(commit.id())?));
             Ok(L::wrap_boolean(out_property))
         },
     );
@@ -756,7 +757,7 @@ fn builtin_commit_methods<'repo>() -> CommitTemplateBuildMethodFnMap<'repo, Comm
                     Ok(evaluate_user_revset(language, diagnostics, span, revset)?.containing_fn())
                 })?;
 
-            let out_property = self_property.map(move |commit| is_contained(commit.id()));
+            let out_property = self_property.and_then(move |commit| Ok(is_contained(commit.id())?));
             Ok(L::wrap_boolean(out_property))
         },
     );
@@ -840,8 +841,6 @@ fn expect_fileset_literal(
         Ok(expression)
     })
 }
-
-type RevsetContainingFn<'repo> = dyn Fn(&CommitId) -> bool + 'repo;
 
 fn evaluate_revset_expression<'repo>(
     language: &CommitTemplateLanguage<'repo>,
@@ -1021,7 +1020,7 @@ impl RefName {
             .get_or_try_init(|| {
                 let self_ids = self.target.added_ids().cloned().collect_vec();
                 let other_ids = tracking.target.added_ids().cloned().collect_vec();
-                Ok(revset::walk_revs(repo, &self_ids, &other_ids)?.count_estimate())
+                Ok(revset::walk_revs(repo, &self_ids, &other_ids)?.count_estimate()?)
             })
             .copied()
     }
@@ -1036,7 +1035,7 @@ impl RefName {
             .get_or_try_init(|| {
                 let self_ids = self.target.added_ids().cloned().collect_vec();
                 let other_ids = tracking.target.added_ids().cloned().collect_vec();
-                Ok(revset::walk_revs(repo, &other_ids, &self_ids)?.count_estimate())
+                Ok(revset::walk_revs(repo, &other_ids, &self_ids)?.count_estimate()?)
             })
             .copied()
     }
