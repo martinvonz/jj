@@ -428,8 +428,9 @@ fn sparse_patterns_from_proto(
 /// Creates intermediate directories from the `working_copy_path` to the
 /// `repo_path` parent. Returns disk path for the `repo_path` file.
 ///
-/// If an intermediate directory exists and if it is a symlink, this function
-/// will return an error. The `working_copy_path` directory may be a symlink.
+/// If an intermediate directory exists and if it is a file or symlink, this
+/// function returns `Ok(None)` to signal that the path should be skipped.
+/// The `working_copy_path` directory may be a symlink.
 ///
 /// Note that this does not prevent TOCTOU bugs caused by concurrent checkouts.
 /// Another process may remove the directory created by this function and put a
@@ -443,24 +444,22 @@ fn create_parent_dirs(
     for c in parent_path.components() {
         dir_path.push(c.to_fs_name().map_err(|err| err.with_path(repo_path))?);
         match fs::create_dir(&dir_path) {
-            Ok(()) => {}
-            Err(_)
-                if dir_path
-                    .symlink_metadata()
-                    .map(|m| m.is_dir())
-                    .unwrap_or(false) => {}
-            Err(err) => {
-                if dir_path.is_file() {
-                    return Ok(None);
+            Ok(()) => {} // New directory
+            Err(err) => match dir_path.symlink_metadata() {
+                Ok(m) if m.is_dir() => {} // Existing directory
+                Ok(_) => {
+                    return Ok(None); // Skip existing file or symlink
                 }
-                return Err(CheckoutError::Other {
-                    message: format!(
-                        "Failed to create parent directories for {}",
-                        repo_path.to_fs_path_unchecked(working_copy_path).display(),
-                    ),
-                    err: err.into(),
-                });
-            }
+                Err(_) => {
+                    return Err(CheckoutError::Other {
+                        message: format!(
+                            "Failed to create parent directories for {}",
+                            repo_path.to_fs_path_unchecked(working_copy_path).display(),
+                        ),
+                        err: err.into(),
+                    })
+                }
+            },
         }
     }
 
@@ -480,6 +479,23 @@ fn remove_old_file(disk_path: &Path) -> Result<(), CheckoutError> {
         Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(()),
         Err(err) => Err(CheckoutError::Other {
             message: format!("Failed to remove file {}", disk_path.display()),
+            err: err.into(),
+        }),
+    }
+}
+
+/// Checks if new file or symlink named `disk_path` can be created.
+///
+/// If the file already exists, this function return `Ok(false)` to signal
+/// that the path should be skipped.
+///
+/// This function can fail if `disk_path.parent()` isn't a directory.
+fn can_create_new_file(disk_path: &Path) -> Result<bool, CheckoutError> {
+    match disk_path.symlink_metadata() {
+        Ok(_) => Ok(false),
+        Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(true),
+        Err(err) => Err(CheckoutError::Other {
+            message: format!("Failed to stat {}", disk_path.display()),
             err: err.into(),
         }),
     }
@@ -1441,11 +1457,12 @@ impl TreeState {
             };
             if present_before {
                 remove_old_file(&disk_path)?;
-            } else if disk_path.exists() {
+            } else if !can_create_new_file(&disk_path)? {
                 changed_file_states.push((path, FileState::placeholder()));
                 stats.skipped_files += 1;
                 continue;
             }
+
             // TODO: Check that the file has not changed before overwriting/removing it.
             let file_state = match after {
                 MaterializedTreeValue::Absent | MaterializedTreeValue::AccessDenied(_) => {

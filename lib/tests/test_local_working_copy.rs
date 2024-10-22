@@ -57,6 +57,17 @@ use testutils::write_random_commit;
 use testutils::TestRepoBackend;
 use testutils::TestWorkspace;
 
+fn check_icase_fs(dir: &Path) -> bool {
+    let test_file = tempfile::Builder::new()
+        .prefix("icase-")
+        .tempfile_in(dir)
+        .unwrap();
+    let orig_name = test_file.path().file_name().unwrap().to_str().unwrap();
+    let upper_name = orig_name.to_ascii_uppercase();
+    assert_ne!(orig_name, upper_name);
+    dir.join(upper_name).try_exists().unwrap()
+}
+
 fn to_owned_path_vec(paths: &[&RepoPath]) -> Vec<RepoPathBuf> {
     paths.iter().map(|&path| path.to_owned()).collect()
 }
@@ -1212,30 +1223,110 @@ fn test_check_out_existing_file_cannot_be_removed() {
 }
 
 #[test]
-fn test_existing_directory_symlink() {
+fn test_check_out_existing_directory_symlink() {
+    if !check_symlink_support().unwrap() {
+        eprintln!("Skipping test because symlink isn't supported");
+        return;
+    }
+
     let settings = testutils::user_settings();
     let mut test_workspace = TestWorkspace::init(&settings);
     let repo = &test_workspace.repo;
     let workspace_root = test_workspace.workspace.workspace_root().to_owned();
 
-    // Creates a symlink in working directory, and a tree that will add a file under
-    // the symlinked directory.
-    if check_symlink_support().unwrap_or(false) {
-        try_symlink("..", workspace_root.join("parent")).unwrap();
-    } else {
-        return;
-    }
+    // Creates a symlink in working directory, and a tree that will add a file
+    // under the symlinked directory.
+    try_symlink("..", workspace_root.join("parent")).unwrap();
 
     let file_path = RepoPath::from_internal_string("parent/escaped");
     let tree = create_tree(repo, &[(file_path, "contents")]);
     let commit = commit_with_tree(repo.store(), tree.id());
 
-    // Checkout should fail because "parent" already exists and is a symlink.
+    // Checkout doesn't fail, but the file should be skipped.
     let ws = &mut test_workspace.workspace;
-    assert!(ws.check_out(repo.op_id().clone(), None, &commit).is_err());
+    let stats = ws.check_out(repo.op_id().clone(), None, &commit).unwrap();
+    assert_eq!(stats.skipped_files, 1);
 
     // Therefore, "../escaped" shouldn't be created.
     assert!(!workspace_root.parent().unwrap().join("escaped").exists());
+}
+
+#[test]
+fn test_check_out_existing_directory_symlink_icase_fs() {
+    if !check_symlink_support().unwrap() {
+        eprintln!("Skipping test because symlink isn't supported");
+        return;
+    }
+
+    let settings = testutils::user_settings();
+    let mut test_workspace = TestWorkspace::init(&settings);
+    let repo = &test_workspace.repo;
+    let workspace_root = test_workspace.workspace.workspace_root().to_owned();
+    let is_icase_fs = check_icase_fs(&workspace_root);
+
+    // Creates a symlink in working directory, and a tree that will add a file
+    // under the symlinked directory.
+    try_symlink("..", workspace_root.join("parent")).unwrap();
+
+    let file_path = RepoPath::from_internal_string("PARENT/escaped");
+    let tree = create_tree(repo, &[(file_path, "contents")]);
+    let commit = commit_with_tree(repo.store(), tree.id());
+
+    // Checkout doesn't fail, but the file should be skipped on icase fs.
+    let ws = &mut test_workspace.workspace;
+    let stats = ws.check_out(repo.op_id().clone(), None, &commit).unwrap();
+    if is_icase_fs {
+        assert_eq!(stats.skipped_files, 1);
+    } else {
+        assert_eq!(stats.skipped_files, 0);
+    }
+
+    // Therefore, "../escaped" shouldn't be created.
+    assert!(!workspace_root.parent().unwrap().join("escaped").exists());
+}
+
+#[test_case(false; "symlink target does not exist")]
+#[test_case(true; "symlink target exists")]
+fn test_check_out_existing_file_symlink_icase_fs(victim_exists: bool) {
+    if !check_symlink_support().unwrap() {
+        eprintln!("Skipping test because symlink isn't supported");
+        return;
+    }
+
+    let settings = testutils::user_settings();
+    let mut test_workspace = TestWorkspace::init(&settings);
+    let repo = &test_workspace.repo;
+    let workspace_root = test_workspace.workspace.workspace_root().to_owned();
+    let is_icase_fs = check_icase_fs(&workspace_root);
+
+    // Creates a symlink in working directory, and a tree that will overwrite
+    // the symlink content.
+    try_symlink("../pwned", workspace_root.join("parent")).unwrap();
+    let victim_file_path = workspace_root.parent().unwrap().join("pwned");
+    if victim_exists {
+        std::fs::write(&victim_file_path, "old").unwrap();
+    }
+    assert_eq!(workspace_root.join("parent").exists(), victim_exists);
+
+    let file_path = RepoPath::from_internal_string("PARENT");
+    let tree = create_tree(repo, &[(file_path, "bad")]);
+    let commit = commit_with_tree(repo.store(), tree.id());
+
+    // Checkout doesn't fail, but the file should be skipped on icase fs.
+    let ws = &mut test_workspace.workspace;
+    let stats = ws.check_out(repo.op_id().clone(), None, &commit).unwrap();
+    if is_icase_fs {
+        assert_eq!(stats.skipped_files, 1);
+    } else {
+        assert_eq!(stats.skipped_files, 0);
+    }
+
+    // Therefore, "../pwned" shouldn't be updated.
+    if victim_exists {
+        assert_eq!(std::fs::read(&victim_file_path).unwrap(), b"old");
+    } else {
+        assert!(!victim_file_path.exists());
+    }
 }
 
 #[test]
@@ -1271,11 +1362,8 @@ fn test_check_out_file_removal_over_existing_directory_symlink() {
     assert!(file_path.to_fs_path_unchecked(&workspace_root).exists());
 
     // Check out empty tree, which tries to remove "parent/escaped".
-    let result = ws.check_out(repo.op_id().clone(), None, &commit2);
-    assert_matches!(
-        result,
-        Err(CheckoutError::Other { message, .. }) if message.contains("create parent dir")
-    );
+    let stats = ws.check_out(repo.op_id().clone(), None, &commit2).unwrap();
+    assert_eq!(stats.skipped_files, 1);
 
     // "../escaped" shouldn't be removed.
     assert!(victim_file_path.exists());
