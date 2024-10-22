@@ -953,7 +953,7 @@ To configure the Watchman filesystem monitor, set
 executable on your system](https://facebook.github.io/watchman/docs/install).
 
 You can configure `jj` to use watchman triggers to automatically create
-snapshots on filestem changes by setting
+snapshots on filesystem changes by setting
 `core.watchman.register_snapshot_trigger = true`.
 
 You can check whether Watchman is enabled and whether it is installed correctly
