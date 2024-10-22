@@ -253,7 +253,7 @@ pub enum DiffRenderError {
     DiffGenerate(#[source] DiffGenerateError),
     #[error(transparent)]
     Backend(#[from] BackendError),
-    #[error("Access denied to {path}: {source}")]
+    #[error("Access denied to {path}")]
     AccessDenied {
         path: String,
         source: Box<dyn std::error::Error + Send + Sync>,
