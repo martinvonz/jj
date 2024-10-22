@@ -92,10 +92,10 @@ fn test_diff() {
     -foo
     +bar
     "###);
-    insta::assert_snapshot!(get_stderr_string(&assert), @r###"
-    Error: Access denied to added-secret: No access
+    insta::assert_snapshot!(get_stderr_string(&assert), @r#"
+    Error: Access denied to added-secret
     Caused by: No access
-    "###);
+    "#);
 
     // TODO: Test external tool
 }
