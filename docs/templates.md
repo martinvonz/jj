@@ -210,6 +210,8 @@ The following methods are defined.
 * `.name() -> String`
 * `.email() -> String`
 * `.username() -> String`
+* `.email_domain() -> String`: The part of the email after the `@`. May be empty
+  and may contain `@` for abnormal emails.
 * `.timestamp() -> Timestamp`
 
 ### SizeHint type
