@@ -19,6 +19,7 @@ use std::os::unix::net::UnixListener;
 use std::path::Path;
 use std::sync::Arc;
 
+use assert_matches::assert_matches;
 use indoc::indoc;
 use itertools::Itertools;
 use jj_lib::backend::MergedTreeId;
@@ -41,6 +42,7 @@ use jj_lib::repo_path::RepoPathBuf;
 use jj_lib::repo_path::RepoPathComponent;
 use jj_lib::secret_backend::SecretBackend;
 use jj_lib::settings::UserSettings;
+use jj_lib::working_copy::CheckoutError;
 use jj_lib::working_copy::CheckoutStats;
 use jj_lib::working_copy::SnapshotError;
 use jj_lib::working_copy::SnapshotOptions;
@@ -1207,6 +1209,56 @@ fn test_existing_directory_symlink() {
 
     // Therefore, "../escaped" shouldn't be created.
     assert!(!workspace_root.parent().unwrap().join("escaped").exists());
+}
+
+#[test_case("../pwned"; "escape from root")]
+#[test_case("sub/../../pwned"; "escape from sub dir")]
+fn test_check_out_malformed_file_path(file_path_str: &str) {
+    let settings = testutils::user_settings();
+    let mut test_workspace = TestWorkspace::init(&settings);
+    let repo = &test_workspace.repo;
+    let workspace_root = test_workspace.workspace.workspace_root().to_owned();
+
+    let file_path = RepoPath::from_internal_string(file_path_str);
+    let tree = create_tree(repo, &[(file_path, "contents")]);
+    let commit = commit_with_tree(repo.store(), tree.id());
+
+    // Checkout should fail
+    let ws = &mut test_workspace.workspace;
+    let result = ws.check_out(repo.op_id().clone(), None, &commit);
+    assert_matches!(result, Err(CheckoutError::InvalidRepoPath(_)));
+
+    // Therefore, "pwned" file shouldn't be created.
+    assert!(!workspace_root.join(file_path_str).exists());
+    assert!(!workspace_root.parent().unwrap().join("pwned").exists());
+}
+
+#[test_case(r"sub\..\../pwned"; "path separator")]
+#[test_case("d:/pwned"; "drive letter")]
+fn test_check_out_malformed_file_path_windows(file_path_str: &str) {
+    let settings = testutils::user_settings();
+    let mut test_workspace = TestWorkspace::init(&settings);
+    let repo = &test_workspace.repo;
+    let workspace_root = test_workspace.workspace.workspace_root().to_owned();
+
+    let file_path = RepoPath::from_internal_string(file_path_str);
+    let tree = create_tree(repo, &[(file_path, "contents")]);
+    let commit = commit_with_tree(repo.store(), tree.id());
+
+    // Checkout should fail on Windows
+    let ws = &mut test_workspace.workspace;
+    let result = ws.check_out(repo.op_id().clone(), None, &commit);
+    if cfg!(windows) {
+        assert_matches!(result, Err(CheckoutError::InvalidRepoPath(_)));
+    } else {
+        assert_matches!(result, Ok(_));
+    }
+
+    // Therefore, "pwned" file shouldn't be created.
+    if cfg!(windows) {
+        assert!(!workspace_root.join(file_path_str).exists());
+    }
+    assert!(!workspace_root.parent().unwrap().join("pwned").exists());
 }
 
 #[test]

@@ -97,6 +97,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   [0.4.0](https://github.com/arxanas/scm-record/releases/tag/v0.4.0), which
   includes multiple fixes.
 
+* Fixed path traversal by cloning/checking out crafted Git repository containing
+  `..` paths.
+
 ## [0.22.0] - 2024-10-02
 
 ### Breaking changes

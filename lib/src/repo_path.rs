@@ -65,9 +65,19 @@ impl RepoPathComponent {
         &self.value
     }
 
-    /// Returns a normal filesystem entry name.
+    /// Returns a normal filesystem entry name if this path component is valid
+    /// as a file/directory name.
     pub fn to_fs_name(&self) -> Result<&str, InvalidRepoPathComponentError> {
-        Ok(&self.value) // TODO: reject invalid component
+        let mut components = Path::new(&self.value).components().fuse();
+        match (components.next(), components.next()) {
+            // Trailing "." can be normalized by Path::components(), so compare
+            // component name. e.g. "foo\." (on Windows) should be rejected.
+            (Some(Component::Normal(name)), None) if name == &self.value => Ok(&self.value),
+            // e.g. ".", "..", "foo\bar" (on Windows)
+            _ => Err(InvalidRepoPathComponentError {
+                component: self.value.into(),
+            }),
+        }
     }
 }
 
@@ -325,6 +335,9 @@ impl RepoPath {
     }
 
     /// Converts repository path to filesystem path relative to the `base`.
+    ///
+    /// The returned path should never contain `..`, `C:` (on Windows), etc.
+    /// However, it may contain reserved working-copy directories such as `.jj`.
     pub fn to_fs_path(&self, base: &Path) -> Result<PathBuf, InvalidRepoPathError> {
         let mut result = PathBuf::with_capacity(base.as_os_str().len() + self.value.len() + 1);
         result.push(base);
@@ -856,6 +869,64 @@ mod tests {
             repo_path("dir/file").to_fs_path(Path::new("")).unwrap(),
             Path::new("dir/file")
         );
+
+        // Current/parent dir component
+        assert!(repo_path(".").to_fs_path(Path::new("base")).is_err());
+        assert!(repo_path("..").to_fs_path(Path::new("base")).is_err());
+        assert!(repo_path("dir/../file")
+            .to_fs_path(Path::new("base"))
+            .is_err());
+        assert!(repo_path("./file").to_fs_path(Path::new("base")).is_err());
+        assert!(repo_path("file/.").to_fs_path(Path::new("base")).is_err());
+        assert!(repo_path("../file").to_fs_path(Path::new("base")).is_err());
+        assert!(repo_path("file/..").to_fs_path(Path::new("base")).is_err());
+
+        // Empty component (which is invalid as a repo path)
+        assert!(RepoPath::from_internal_string_unchecked("/")
+            .to_fs_path(Path::new("base"))
+            .is_err());
+        assert_eq!(
+            // Iterator omits empty component after "/", which is fine so long
+            // as the returned path doesn't escape.
+            RepoPath::from_internal_string_unchecked("a/")
+                .to_fs_path(Path::new("base"))
+                .unwrap(),
+            Path::new("base/a")
+        );
+        assert!(RepoPath::from_internal_string_unchecked("/b")
+            .to_fs_path(Path::new("base"))
+            .is_err());
+        assert!(RepoPath::from_internal_string_unchecked("a//b")
+            .to_fs_path(Path::new("base"))
+            .is_err());
+
+        // Component containing slash (simulating Windows path separator)
+        assert!(RepoPathComponent::new_unchecked("win/dows")
+            .to_fs_name()
+            .is_err());
+        assert!(RepoPathComponent::new_unchecked("./file")
+            .to_fs_name()
+            .is_err());
+        assert!(RepoPathComponent::new_unchecked("file/.")
+            .to_fs_name()
+            .is_err());
+        assert!(RepoPathComponent::new_unchecked("/").to_fs_name().is_err());
+
+        // Windows path separator and drive letter
+        if cfg!(windows) {
+            assert!(repo_path(r#"win\dows"#)
+                .to_fs_path(Path::new("base"))
+                .is_err());
+            assert!(repo_path(r#".\file"#)
+                .to_fs_path(Path::new("base"))
+                .is_err());
+            assert!(repo_path(r#"file\."#)
+                .to_fs_path(Path::new("base"))
+                .is_err());
+            assert!(repo_path(r#"c:/foo"#)
+                .to_fs_path(Path::new("base"))
+                .is_err());
+        }
     }
 
     #[test]
