@@ -466,6 +466,18 @@ fn create_parent_dirs(
     Ok(false)
 }
 
+/// Removes existing file named `disk_path` if any.
+fn remove_old_file(disk_path: &Path) -> Result<(), CheckoutError> {
+    match fs::remove_file(disk_path) {
+        Ok(()) => Ok(()),
+        Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(()),
+        Err(err) => Err(CheckoutError::Other {
+            message: format!("Failed to remove file {}", disk_path.display()),
+            err: err.into(),
+        }),
+    }
+}
+
 fn mtime_from_metadata(metadata: &Metadata) -> MillisSinceEpoch {
     let time = metadata
         .modified()
@@ -1415,7 +1427,7 @@ impl TreeState {
             let disk_path = path.to_fs_path(&self.working_copy_path)?;
 
             if present_before {
-                fs::remove_file(&disk_path).ok();
+                remove_old_file(&disk_path)?;
             } else if disk_path.exists() {
                 changed_file_states.push((path, FileState::placeholder()));
                 stats.skipped_files += 1;
