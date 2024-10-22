@@ -2207,7 +2207,7 @@ pub trait Revset: fmt::Debug {
     where
         Self: 'a;
 
-    /// Returns true if iterator will emit at least one commit or error.
+    /// Returns true if iterator will emit no commit nor error.
     fn is_empty(&self) -> bool;
 
     /// Inclusive lower bound and, optionally, inclusive upper bound of how many
