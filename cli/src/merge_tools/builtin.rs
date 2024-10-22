@@ -435,7 +435,8 @@ pub fn make_diff_files(
 
         files.push(scm_record::File {
             old_path: None,
-            path: Cow::Owned(changed_path.to_fs_path(Path::new(""))),
+            // Path for displaying purposes, not for file access.
+            path: Cow::Owned(changed_path.to_fs_path_unchecked(Path::new(""))),
             file_mode: Some(left_info.file_mode),
             sections,
         });
@@ -640,7 +641,8 @@ pub fn edit_merge_builtin(
             is_read_only: false,
             files: vec![scm_record::File {
                 old_path: None,
-                path: Cow::Owned(path.to_fs_path(Path::new(""))),
+                // Path for displaying purposes, not for file access.
+                path: Cow::Owned(path.to_fs_path_unchecked(Path::new(""))),
                 file_mode: None,
                 sections,
             }],

@@ -441,7 +441,7 @@ fn create_parent_dirs(
     let parent_path = repo_path.parent().expect("repo path shouldn't be root");
     let mut dir_path = working_copy_path.to_owned();
     for c in parent_path.components() {
-        dir_path.push(c.as_str());
+        dir_path.push(c.to_fs_name().map_err(|err| err.with_path(repo_path))?);
         match fs::create_dir(&dir_path) {
             Ok(()) => {}
             Err(_)
@@ -456,7 +456,7 @@ fn create_parent_dirs(
                 return Err(CheckoutError::Other {
                     message: format!(
                         "Failed to create parent directories for {}",
-                        repo_path.to_fs_path(working_copy_path).display(),
+                        repo_path.to_fs_path_unchecked(working_copy_path).display(),
                     ),
                     err: err.into(),
                 });
@@ -970,7 +970,7 @@ impl TreeState {
                             if !matcher.matches(tracked_path) {
                                 continue;
                             }
-                            let disk_path = tracked_path.to_fs_path(&self.working_copy_path);
+                            let disk_path = tracked_path.to_fs_path(&self.working_copy_path)?;
                             let metadata = match disk_path.symlink_metadata() {
                                 Ok(metadata) => metadata,
                                 Err(err) if err.kind() == io::ErrorKind::NotFound => {
@@ -1412,7 +1412,7 @@ impl TreeState {
             } else {
                 stats.updated_files += 1;
             }
-            let disk_path = path.to_fs_path(&self.working_copy_path);
+            let disk_path = path.to_fs_path(&self.working_copy_path)?;
 
             if present_before {
                 fs::remove_file(&disk_path).ok();

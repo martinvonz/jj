@@ -163,7 +163,7 @@ fn test_racy_checkout() {
         let ws = &mut test_workspace.workspace;
         ws.check_out(op_id.clone(), None, &commit).unwrap();
         assert_eq!(
-            std::fs::read(path.to_fs_path(&workspace_root)).unwrap(),
+            std::fs::read(path.to_fs_path_unchecked(&workspace_root)).unwrap(),
             b"1".to_vec()
         );
         // A file written right after checkout (hopefully, from the test's perspective,

@@ -108,7 +108,11 @@ fn cmd_sparse_list(
 ) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
     for path in workspace_command.working_copy().sparse_patterns()? {
-        writeln!(ui.stdout(), "{}", path.to_fs_path(Path::new("")).display())?;
+        writeln!(
+            ui.stdout(),
+            "{}",
+            path.to_fs_path_unchecked(Path::new("")).display()
+        )?;
     }
     Ok(())
 }
@@ -170,7 +174,8 @@ fn edit_sparse(
 ) -> Result<Vec<RepoPathBuf>, CommandError> {
     let mut content = String::new();
     for sparse_path in sparse {
-        let workspace_relative_sparse_path = sparse_path.to_fs_path(Path::new(""));
+        // Invalid path shouldn't block editing. Edited paths will be validated.
+        let workspace_relative_sparse_path = sparse_path.to_fs_path_unchecked(Path::new(""));
         let path_string = workspace_relative_sparse_path.to_str().ok_or_else(|| {
             internal_error(format!(
                 "Stored sparse path is not valid utf-8: {}",

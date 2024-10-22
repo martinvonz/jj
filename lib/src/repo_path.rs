@@ -60,8 +60,14 @@ impl RepoPathComponent {
     #[ref_cast_custom]
     const fn new_unchecked(value: &str) -> &Self;
 
-    pub fn as_str(&self) -> &str {
+    /// Returns the underlying string representation.
+    pub fn as_internal_str(&self) -> &str {
         &self.value
+    }
+
+    /// Returns a normal filesystem entry name.
+    pub fn to_fs_name(&self) -> Result<&str, InvalidRepoPathComponentError> {
+        Ok(&self.value) // TODO: reject invalid component
     }
 }
 
@@ -318,10 +324,28 @@ impl RepoPath {
         &self.value
     }
 
-    pub fn to_fs_path(&self, base: &Path) -> PathBuf {
+    /// Converts repository path to filesystem path relative to the `base`.
+    pub fn to_fs_path(&self, base: &Path) -> Result<PathBuf, InvalidRepoPathError> {
         let mut result = PathBuf::with_capacity(base.as_os_str().len() + self.value.len() + 1);
         result.push(base);
-        result.extend(self.components().map(RepoPathComponent::as_str));
+        for c in self.components() {
+            result.push(c.to_fs_name().map_err(|err| err.with_path(self))?);
+        }
+        if result.as_os_str().is_empty() {
+            result.push(".");
+        }
+        Ok(result)
+    }
+
+    /// Converts repository path to filesystem path relative to the `base`,
+    /// without checking invalid path components.
+    ///
+    /// The returned path may point outside of the `base` directory. Use this
+    /// function only for displaying or testing purposes.
+    pub fn to_fs_path_unchecked(&self, base: &Path) -> PathBuf {
+        let mut result = PathBuf::with_capacity(base.as_os_str().len() + self.value.len() + 1);
+        result.push(base);
+        result.extend(self.components().map(RepoPathComponent::as_internal_str));
         if result.as_os_str().is_empty() {
             result.push(".");
         }
@@ -370,9 +394,9 @@ impl RepoPath {
 
     pub fn join(&self, entry: &RepoPathComponent) -> RepoPathBuf {
         let value = if self.value.is_empty() {
-            entry.as_str().to_owned()
+            entry.as_internal_str().to_owned()
         } else {
-            [&self.value, "/", entry.as_str()].concat()
+            [&self.value, "/", entry.as_internal_str()].concat()
         };
         RepoPathBuf { value }
     }
@@ -444,6 +468,33 @@ impl PartialOrd for RepoPathBuf {
     }
 }
 
+/// `RepoPath` contained invalid file/directory component such as `..`.
+#[derive(Clone, Debug, Eq, Error, PartialEq)]
+#[error(r#"Invalid repository path "{}""#, path.as_internal_file_string())]
+pub struct InvalidRepoPathError {
+    /// Path containing an error.
+    pub path: RepoPathBuf,
+    /// Source error.
+    pub source: InvalidRepoPathComponentError,
+}
+
+/// `RepoPath` component was invalid. (e.g. `..`)
+#[derive(Clone, Debug, Eq, Error, PartialEq)]
+#[error(r#"Invalid path component "{component}""#)]
+pub struct InvalidRepoPathComponentError {
+    pub component: Box<str>,
+}
+
+impl InvalidRepoPathComponentError {
+    /// Attaches the `path` that caused the error.
+    pub fn with_path(self, path: &RepoPath) -> InvalidRepoPathError {
+        InvalidRepoPathError {
+            path: path.to_owned(),
+            source: self,
+        }
+    }
+}
+
 #[derive(Clone, Debug, Eq, Error, PartialEq)]
 pub enum RelativePathParseError {
     #[error(r#"Invalid component "{component}" in repo-relative path "{path}""#)]
@@ -500,7 +551,7 @@ impl RepoPathUiConverter {
     pub fn format_file_path(&self, file: &RepoPath) -> String {
         match self {
             RepoPathUiConverter::Fs { cwd, base } => {
-                file_util::relative_path(cwd, &file.to_fs_path(base))
+                file_util::relative_path(cwd, &file.to_fs_path_unchecked(base))
                     .to_str()
                     .unwrap()
                     .to_owned()
@@ -520,8 +571,8 @@ impl RepoPathUiConverter {
         let mut formatted = String::new();
         match self {
             RepoPathUiConverter::Fs { cwd, base } => {
-                let source_path = file_util::relative_path(cwd, &source.to_fs_path(base));
-                let target_path = file_util::relative_path(cwd, &target.to_fs_path(base));
+                let source_path = file_util::relative_path(cwd, &source.to_fs_path_unchecked(base));
+                let target_path = file_util::relative_path(cwd, &target.to_fs_path_unchecked(base));
 
                 let source_components = source_path.components().collect_vec();
                 let target_components = target_path.components().collect_vec();
@@ -784,20 +835,49 @@ mod tests {
     #[test]
     fn test_to_fs_path() {
         assert_eq!(
-            repo_path("").to_fs_path(Path::new("base/dir")),
+            repo_path("").to_fs_path(Path::new("base/dir")).unwrap(),
             Path::new("base/dir")
         );
-        assert_eq!(repo_path("").to_fs_path(Path::new("")), Path::new("."));
         assert_eq!(
-            repo_path("file").to_fs_path(Path::new("base/dir")),
+            repo_path("").to_fs_path(Path::new("")).unwrap(),
+            Path::new(".")
+        );
+        assert_eq!(
+            repo_path("file").to_fs_path(Path::new("base/dir")).unwrap(),
             Path::new("base/dir/file")
         );
         assert_eq!(
-            repo_path("some/deep/dir/file").to_fs_path(Path::new("base/dir")),
+            repo_path("some/deep/dir/file")
+                .to_fs_path(Path::new("base/dir"))
+                .unwrap(),
             Path::new("base/dir/some/deep/dir/file")
         );
         assert_eq!(
-            repo_path("dir/file").to_fs_path(Path::new("")),
+            repo_path("dir/file").to_fs_path(Path::new("")).unwrap(),
+            Path::new("dir/file")
+        );
+    }
+
+    #[test]
+    fn test_to_fs_path_unchecked() {
+        assert_eq!(
+            repo_path("").to_fs_path_unchecked(Path::new("base/dir")),
+            Path::new("base/dir")
+        );
+        assert_eq!(
+            repo_path("").to_fs_path_unchecked(Path::new("")),
+            Path::new(".")
+        );
+        assert_eq!(
+            repo_path("file").to_fs_path_unchecked(Path::new("base/dir")),
+            Path::new("base/dir/file")
+        );
+        assert_eq!(
+            repo_path("some/deep/dir/file").to_fs_path_unchecked(Path::new("base/dir")),
+            Path::new("base/dir/some/deep/dir/file")
+        );
+        assert_eq!(
+            repo_path("dir/file").to_fs_path_unchecked(Path::new("")),
             Path::new("dir/file")
         );
     }

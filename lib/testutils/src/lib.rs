@@ -475,7 +475,7 @@ pub fn write_random_commit(mut_repo: &mut MutableRepo, settings: &UserSettings) 
 }
 
 pub fn write_working_copy_file(workspace_root: &Path, path: &RepoPath, contents: &str) {
-    let path = path.to_fs_path(workspace_root);
+    let path = path.to_fs_path(workspace_root).unwrap();
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).unwrap();
     }

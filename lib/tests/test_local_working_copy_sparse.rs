@@ -86,14 +86,24 @@ fn test_sparse_checkout() {
         locked_ws.locked_wc().sparse_patterns().unwrap(),
         sparse_patterns
     );
-    assert!(!root_file1_path.to_fs_path(&working_copy_path).exists());
-    assert!(!root_file2_path.to_fs_path(&working_copy_path).exists());
-    assert!(dir1_file1_path.to_fs_path(&working_copy_path).exists());
-    assert!(dir1_file2_path.to_fs_path(&working_copy_path).exists());
-    assert!(dir1_subdir1_file1_path
-        .to_fs_path(&working_copy_path)
+    assert!(!root_file1_path
+        .to_fs_path_unchecked(&working_copy_path)
         .exists());
-    assert!(!dir2_file1_path.to_fs_path(&working_copy_path).exists());
+    assert!(!root_file2_path
+        .to_fs_path_unchecked(&working_copy_path)
+        .exists());
+    assert!(dir1_file1_path
+        .to_fs_path_unchecked(&working_copy_path)
+        .exists());
+    assert!(dir1_file2_path
+        .to_fs_path_unchecked(&working_copy_path)
+        .exists());
+    assert!(dir1_subdir1_file1_path
+        .to_fs_path_unchecked(&working_copy_path)
+        .exists());
+    assert!(!dir2_file1_path
+        .to_fs_path_unchecked(&working_copy_path)
+        .exists());
 
     // Write the new state to disk
     locked_ws.finish(repo.op_id().clone()).unwrap();
@@ -132,14 +142,24 @@ fn test_sparse_checkout() {
         }
     );
     assert_eq!(locked_wc.sparse_patterns().unwrap(), sparse_patterns);
-    assert!(root_file1_path.to_fs_path(&working_copy_path).exists());
-    assert!(!root_file2_path.to_fs_path(&working_copy_path).exists());
-    assert!(!dir1_file1_path.to_fs_path(&working_copy_path).exists());
-    assert!(!dir1_file2_path.to_fs_path(&working_copy_path).exists());
-    assert!(dir1_subdir1_file1_path
-        .to_fs_path(&working_copy_path)
+    assert!(root_file1_path
+        .to_fs_path_unchecked(&working_copy_path)
         .exists());
-    assert!(dir2_file1_path.to_fs_path(&working_copy_path).exists());
+    assert!(!root_file2_path
+        .to_fs_path_unchecked(&working_copy_path)
+        .exists());
+    assert!(!dir1_file1_path
+        .to_fs_path_unchecked(&working_copy_path)
+        .exists());
+    assert!(!dir1_file2_path
+        .to_fs_path_unchecked(&working_copy_path)
+        .exists());
+    assert!(dir1_subdir1_file1_path
+        .to_fs_path_unchecked(&working_copy_path)
+        .exists());
+    assert!(dir2_file1_path
+        .to_fs_path_unchecked(&working_copy_path)
+        .exists());
     let wc = locked_wc.finish(repo.op_id().clone()).unwrap();
     let wc: &LocalWorkingCopy = wc.as_any().downcast_ref().unwrap();
     assert_eq!(
@@ -192,10 +212,22 @@ fn test_sparse_commit() {
 
     // Write modified version of all files, including files that are not in the
     // sparse patterns.
-    std::fs::write(root_file1_path.to_fs_path(&working_copy_path), "modified").unwrap();
-    std::fs::write(dir1_file1_path.to_fs_path(&working_copy_path), "modified").unwrap();
-    std::fs::create_dir(dir2_path.to_fs_path(&working_copy_path)).unwrap();
-    std::fs::write(dir2_file1_path.to_fs_path(&working_copy_path), "modified").unwrap();
+    std::fs::write(
+        root_file1_path.to_fs_path_unchecked(&working_copy_path),
+        "modified",
+    )
+    .unwrap();
+    std::fs::write(
+        dir1_file1_path.to_fs_path_unchecked(&working_copy_path),
+        "modified",
+    )
+    .unwrap();
+    std::fs::create_dir(dir2_path.to_fs_path_unchecked(&working_copy_path)).unwrap();
+    std::fs::write(
+        dir2_file1_path.to_fs_path_unchecked(&working_copy_path),
+        "modified",
+    )
+    .unwrap();
 
     // Create a tree from the working copy. Only dir1/file1 should be updated in the
     // tree.
@@ -257,9 +289,17 @@ fn test_sparse_commit_gitignore() {
 
     // Write dir1/file1 and dir1/file2 and a .gitignore saying to ignore dir1/file1
     std::fs::write(working_copy_path.join(".gitignore"), "dir1/file1").unwrap();
-    std::fs::create_dir(dir1_path.to_fs_path(&working_copy_path)).unwrap();
-    std::fs::write(dir1_file1_path.to_fs_path(&working_copy_path), "contents").unwrap();
-    std::fs::write(dir1_file2_path.to_fs_path(&working_copy_path), "contents").unwrap();
+    std::fs::create_dir(dir1_path.to_fs_path_unchecked(&working_copy_path)).unwrap();
+    std::fs::write(
+        dir1_file1_path.to_fs_path_unchecked(&working_copy_path),
+        "contents",
+    )
+    .unwrap();
+    std::fs::write(
+        dir1_file2_path.to_fs_path_unchecked(&working_copy_path),
+        "contents",
+    )
+    .unwrap();
 
     // Create a tree from the working copy. Only dir1/file2 should be updated in the
     // tree because dir1/file1 is ignored.

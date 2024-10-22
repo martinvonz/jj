@@ -2216,7 +2216,7 @@ fn test_reset_head_with_index() {
     git_repo
         .index()
         .unwrap()
-        .add_path(&file_path.to_fs_path(Path::new("")))
+        .add_path(&file_path.to_fs_path_unchecked(Path::new("")))
         .unwrap();
     assert!(!git_repo.index().unwrap().is_empty());
 

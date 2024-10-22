@@ -32,6 +32,7 @@ use crate::matchers::EverythingMatcher;
 use crate::matchers::Matcher;
 use crate::op_store::OperationId;
 use crate::op_store::WorkspaceId;
+use crate::repo_path::InvalidRepoPathError;
 use crate::repo_path::RepoPath;
 use crate::repo_path::RepoPathBuf;
 use crate::settings::HumanByteSize;
@@ -142,6 +143,9 @@ pub trait LockedWorkingCopy {
 /// An error while snapshotting the working copy.
 #[derive(Debug, Error)]
 pub enum SnapshotError {
+    /// A tracked path contained invalid component such as `..`.
+    #[error(transparent)]
+    InvalidRepoPath(#[from] InvalidRepoPathError),
     /// A path in the working copy was not valid UTF-8.
     #[error("Working copy path {} is not valid UTF-8", path.to_string_lossy())]
     InvalidUtf8Path {
@@ -257,6 +261,9 @@ pub enum CheckoutError {
     /// running (after the working copy was read by the current process).
     #[error("Concurrent checkout")]
     ConcurrentCheckout,
+    /// Path in the commit contained invalid component such as `..`.
+    #[error(transparent)]
+    InvalidRepoPath(#[from] InvalidRepoPathError),
     /// Reading or writing from the commit backend failed.
     #[error("Internal backend error")]
     InternalBackendError(#[from] BackendError),

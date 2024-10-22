@@ -174,13 +174,16 @@ pub fn run_mergetool_external(
     };
 
     let temp_dir = new_utf8_temp_dir("jj-resolve-").map_err(ExternalToolError::SetUpDir)?;
-    let suffix = repo_path
-        .components()
-        .last()
-        .map(|filename| format!("_{}", filename.as_str()))
-        // The default case below should never actually trigger, but we support it just in case
+    let suffix = if let Some(filename) = repo_path.components().last() {
+        let name = filename
+            .to_fs_name()
+            .map_err(|err| err.with_path(repo_path))?;
+        format!("_{name}")
+    } else {
+        // This should never actually trigger, but we support it just in case
         // resolving the root path ever makes sense.
-        .unwrap_or_default();
+        "".to_owned()
+    };
     let paths: HashMap<&str, _> = files
         .iter()
         .map(|(role, contents)| -> Result<_, ConflictResolveError> {

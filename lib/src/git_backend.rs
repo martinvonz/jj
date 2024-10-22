@@ -1060,7 +1060,7 @@ impl Backend for GitBackend {
         let entries = contents
             .entries()
             .map(|entry| {
-                let name = entry.name().as_str();
+                let name = entry.name().as_internal_str();
                 match entry.value() {
                     TreeValue::File {
                         id,
@@ -1660,7 +1660,7 @@ mod tests {
         let mut root_entries = root_tree.entries();
         let dir = root_entries.next().unwrap();
         assert_eq!(root_entries.next(), None);
-        assert_eq!(dir.name().as_str(), "dir");
+        assert_eq!(dir.name().as_internal_str(), "dir");
         assert_eq!(
             dir.value(),
             &TreeValue::Tree(TreeId::from_bytes(dir_tree_id.as_bytes()))
@@ -1677,7 +1677,7 @@ mod tests {
         let file = entries.next().unwrap();
         let symlink = entries.next().unwrap();
         assert_eq!(entries.next(), None);
-        assert_eq!(file.name().as_str(), "normal");
+        assert_eq!(file.name().as_internal_str(), "normal");
         assert_eq!(
             file.value(),
             &TreeValue::File {
@@ -1685,7 +1685,7 @@ mod tests {
                 executable: false
             }
         );
-        assert_eq!(symlink.name().as_str(), "symlink");
+        assert_eq!(symlink.name().as_internal_str(), "symlink");
         assert_eq!(
             symlink.value(),
             &TreeValue::Symlink(SymlinkId::from_bytes(blob2.as_bytes()))

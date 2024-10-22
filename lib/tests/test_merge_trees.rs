@@ -78,7 +78,7 @@ fn test_same_type() {
     // Check that we have exactly the paths we expect in the merged tree
     let names = merged_tree
         .entries_non_recursive()
-        .map(|entry| entry.name().as_str())
+        .map(|entry| entry.name().as_internal_str())
         .collect_vec();
     assert_eq!(
         names,
@@ -499,7 +499,10 @@ fn test_simplify_conflict() {
     match further_rebased_tree.value(component).unwrap() {
         TreeValue::Conflict(id) => {
             let conflict = store
-                .read_conflict(RepoPath::from_internal_string(component.as_str()), id)
+                .read_conflict(
+                    RepoPath::from_internal_string(component.as_internal_str()),
+                    id,
+                )
                 .unwrap();
             assert_eq!(
                 conflict.removes().map(|v| v.as_ref()).collect_vec(),

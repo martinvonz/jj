@@ -55,6 +55,7 @@ use jj_lib::merge::MergedTreeValue;
 use jj_lib::merged_tree::MergedTree;
 use jj_lib::object_id::ObjectId;
 use jj_lib::repo::Repo;
+use jj_lib::repo_path::InvalidRepoPathError;
 use jj_lib::repo_path::RepoPath;
 use jj_lib::repo_path::RepoPathUiConverter;
 use jj_lib::rewrite::rebase_to_dest_parent;
@@ -258,6 +259,8 @@ pub enum DiffRenderError {
         path: String,
         source: Box<dyn std::error::Error + Send + Sync>,
     },
+    #[error(transparent)]
+    InvalidRepoPath(#[from] InvalidRepoPathError),
     #[error(transparent)]
     Io(#[from] io::Error),
 }
@@ -1060,7 +1063,7 @@ pub fn show_file_by_file_diff(
         wc_dir: &Path,
         value: MaterializedTreeValue,
     ) -> Result<PathBuf, DiffRenderError> {
-        let fs_path = path.to_fs_path(wc_dir);
+        let fs_path = path.to_fs_path(wc_dir)?;
         std::fs::create_dir_all(fs_path.parent().unwrap())?;
         let content = diff_content(path, value)?;
         std::fs::write(&fs_path, content.contents)?;

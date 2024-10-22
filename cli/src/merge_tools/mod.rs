@@ -24,6 +24,7 @@ use jj_lib::conflicts::extract_as_single_hunk;
 use jj_lib::gitignore::GitIgnoreFile;
 use jj_lib::matchers::Matcher;
 use jj_lib::merged_tree::MergedTree;
+use jj_lib::repo_path::InvalidRepoPathError;
 use jj_lib::repo_path::RepoPath;
 use jj_lib::repo_path::RepoPathBuf;
 use jj_lib::settings::ConfigResultExt as _;
@@ -76,6 +77,8 @@ pub enum ConflictResolveError {
     InternalTool(#[from] Box<BuiltinToolError>),
     #[error(transparent)]
     ExternalTool(#[from] ExternalToolError),
+    #[error(transparent)]
+    InvalidRepoPath(#[from] InvalidRepoPathError),
     #[error("Couldn't find the path {0:?} in this revision")]
     PathNotFound(RepoPathBuf),
     #[error("Couldn't find any conflicts at {0:?} in this revision")]
