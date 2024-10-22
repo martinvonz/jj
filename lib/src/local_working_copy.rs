@@ -22,6 +22,7 @@ use std::fs;
 use std::fs::File;
 use std::fs::Metadata;
 use std::fs::OpenOptions;
+use std::io;
 use std::io::Read;
 use std::io::Write;
 use std::iter;
@@ -523,25 +524,16 @@ struct DirectoryToVisit<'a> {
 #[derive(Debug, Error)]
 pub enum TreeStateError {
     #[error("Reading tree state from {path}")]
-    ReadTreeState {
-        path: PathBuf,
-        source: std::io::Error,
-    },
+    ReadTreeState { path: PathBuf, source: io::Error },
     #[error("Decoding tree state from {path}")]
     DecodeTreeState {
         path: PathBuf,
         source: prost::DecodeError,
     },
     #[error("Writing tree state to temporary file {path}")]
-    WriteTreeState {
-        path: PathBuf,
-        source: std::io::Error,
-    },
+    WriteTreeState { path: PathBuf, source: io::Error },
     #[error("Persisting tree state to file {path}")]
-    PersistTreeState {
-        path: PathBuf,
-        source: std::io::Error,
-    },
+    PersistTreeState { path: PathBuf, source: io::Error },
     #[error("Filesystem monitor error")]
     Fsmonitor(#[source] Box<dyn Error + Send + Sync>),
 }
@@ -599,7 +591,7 @@ impl TreeState {
     ) -> Result<TreeState, TreeStateError> {
         let tree_state_path = state_path.join("tree_state");
         let file = match File::open(&tree_state_path) {
-            Err(ref err) if err.kind() == std::io::ErrorKind::NotFound => {
+            Err(ref err) if err.kind() == io::ErrorKind::NotFound => {
                 return TreeState::init(store, working_copy_path, state_path);
             }
             Err(err) => {
@@ -981,7 +973,7 @@ impl TreeState {
                             let disk_path = tracked_path.to_fs_path(&self.working_copy_path);
                             let metadata = match disk_path.symlink_metadata() {
                                 Ok(metadata) => metadata,
-                                Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
+                                Err(err) if err.kind() == io::ErrorKind::NotFound => {
                                     continue;
                                 }
                                 Err(err) => {
@@ -1265,7 +1257,7 @@ impl TreeState {
                 message: format!("Failed to open file {} for writing", disk_path.display()),
                 err: err.into(),
             })?;
-        let size = std::io::copy(contents, &mut file).map_err(|err| CheckoutError::Other {
+        let size = io::copy(contents, &mut file).map_err(|err| CheckoutError::Other {
             message: format!("Failed to write file {}", disk_path.display()),
             err: err.into(),
         })?;
@@ -1557,7 +1549,7 @@ impl TreeState {
     }
 }
 
-fn checkout_error_for_stat_error(err: std::io::Error, path: &Path) -> CheckoutError {
+fn checkout_error_for_stat_error(err: io::Error, path: &Path) -> CheckoutError {
     CheckoutError::Other {
         message: format!("Failed to stat file {}", path.display()),
         err: err.into(),
