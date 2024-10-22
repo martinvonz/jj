@@ -21,12 +21,16 @@ use crate::common::get_stdout_string;
 use crate::common::TestEnvironment;
 
 fn set_up_non_empty_git_repo(git_repo: &git2::Repository) {
+    set_up_git_repo_with_file(git_repo, "file");
+}
+
+fn set_up_git_repo_with_file(git_repo: &git2::Repository, filename: &str) {
     let signature =
         git2::Signature::new("Some One", "some.one@example.com", &git2::Time::new(0, 0)).unwrap();
     let mut tree_builder = git_repo.treebuilder(None).unwrap();
     let file_oid = git_repo.blob(b"content").unwrap();
     tree_builder
-        .insert("file", file_oid, git2::FileMode::Blob.into())
+        .insert(filename, file_oid, git2::FileMode::Blob.into())
         .unwrap();
     let tree_oid = tree_builder.write().unwrap();
     let tree = git_repo.find_tree(tree_oid).unwrap();
@@ -574,6 +578,53 @@ fn test_git_clone_with_depth() {
     insta::assert_snapshot!(stderr, @r#"
     Fetching into new repo in "$TEST_ENV/clone"
     Error: shallow fetch is not supported by the local transport; class=Net (12)
+    "#);
+}
+
+#[test]
+fn test_git_clone_malformed() {
+    let test_env = TestEnvironment::default();
+    let git_repo_path = test_env.env_root().join("source");
+    let git_repo = git2::Repository::init(git_repo_path).unwrap();
+    let clone_path = test_env.env_root().join("clone");
+    // libgit2 doesn't allow to create a malformed repo containing ".git", etc.,
+    // but we can insert ".jj" entry.
+    set_up_git_repo_with_file(&git_repo, ".jj");
+
+    // TODO: Perhaps, this should be a user error, not an internal error.
+    let stderr =
+        test_env.jj_cmd_internal_error(test_env.env_root(), &["git", "clone", "source", "clone"]);
+    insta::assert_snapshot!(stderr, @r#"
+    Fetching into new repo in "$TEST_ENV/clone"
+    bookmark: main@origin [new] untracked
+    Setting the revset alias "trunk()" to "main@origin"
+    Internal error: Failed to check out commit 039a1eae03465fd3be0fbad87c9ca97303742677
+    Caused by: Reserved path component .jj in $TEST_ENV/clone/.jj
+    "#);
+
+    // The cloned workspace isn't usable.
+    let stderr = test_env.jj_cmd_failure(&clone_path, &["status"]);
+    insta::assert_snapshot!(stderr, @r##"
+    Error: The working copy is stale (not updated since operation 4a8ddda0ff63).
+    Hint: Run `jj workspace update-stale` to update it.
+    See https://martinvonz.github.io/jj/latest/working-copy/#stale-working-copy for more information.
+    "##);
+
+    // The error can be somehow recovered.
+    // TODO: add an update-stale flag to reset the working-copy?
+    let stderr = test_env.jj_cmd_internal_error(&clone_path, &["workspace", "update-stale"]);
+    insta::assert_snapshot!(stderr, @r#"
+    Internal error: Failed to check out commit 039a1eae03465fd3be0fbad87c9ca97303742677
+    Caused by: Reserved path component .jj in $TEST_ENV/clone/.jj
+    "#);
+    let (_stdout, stderr) =
+        test_env.jj_cmd_ok(&clone_path, &["new", "root()", "--ignore-working-copy"]);
+    insta::assert_snapshot!(stderr, @"");
+    let stdout = test_env.jj_cmd_success(&clone_path, &["status"]);
+    insta::assert_snapshot!(stdout, @r#"
+    The working copy is clean
+    Working copy : zsuskuln f652c321 (empty) (no description set)
+    Parent commit: zzzzzzzz 00000000 (empty) (no description set)
     "#);
 }
 

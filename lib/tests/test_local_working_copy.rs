@@ -68,6 +68,29 @@ fn check_icase_fs(dir: &Path) -> bool {
     dir.join(upper_name).try_exists().unwrap()
 }
 
+/// Returns true if the directory appears to ignore some unicode zero-width
+/// characters, as in HFS+.
+fn check_hfs_plus(dir: &Path) -> bool {
+    let test_file = tempfile::Builder::new()
+        .prefix("hfs-plus-\u{200c}-")
+        .tempfile_in(dir)
+        .unwrap();
+    let orig_name = test_file.path().file_name().unwrap().to_str().unwrap();
+    let stripped_name = orig_name.replace('\u{200c}', "");
+    assert_ne!(orig_name, stripped_name);
+    dir.join(stripped_name).try_exists().unwrap()
+}
+
+/// Returns true if the directory appears to support Windows short file names.
+fn check_vfat(dir: &Path) -> bool {
+    let _test_file = tempfile::Builder::new()
+        .prefix("vfattest-")
+        .tempfile_in(dir)
+        .unwrap();
+    let short_name = "VFATTE~1";
+    dir.join(short_name).try_exists().unwrap()
+}
+
 fn to_owned_path_vec(paths: &[&RepoPath]) -> Vec<RepoPathBuf> {
     paths.iter().map(|&path| path.to_owned()).collect()
 }
@@ -1417,6 +1440,244 @@ fn test_check_out_malformed_file_path_windows(file_path_str: &str) {
         assert!(!workspace_root.join(file_path_str).exists());
     }
     assert!(!workspace_root.parent().unwrap().join("pwned").exists());
+}
+
+#[test_case(".git"; "root .git file")]
+#[test_case(".jj"; "root .jj file")]
+#[test_case(".git/pwned"; "root .git dir")]
+#[test_case(".jj/pwned"; "root .jj dir")]
+#[test_case("sub/.git"; "sub .git file")]
+#[test_case("sub/.jj"; "sub .jj file")]
+#[test_case("sub/.git/pwned"; "sub .git dir")]
+#[test_case("sub/.jj/pwned"; "sub .jj dir")]
+fn test_check_out_reserved_file_path(file_path_str: &str) {
+    let settings = testutils::user_settings();
+    let mut test_workspace = TestWorkspace::init(&settings);
+    let repo = &test_workspace.repo;
+    let workspace_root = test_workspace.workspace.workspace_root().to_owned();
+    std::fs::create_dir(workspace_root.join(".git")).unwrap();
+
+    let file_path = RepoPath::from_internal_string(file_path_str);
+    let disk_path = file_path.to_fs_path_unchecked(&workspace_root);
+    let tree1 = create_tree(repo, &[(file_path, "contents")]);
+    let tree2 = create_tree(repo, &[]);
+    let commit1 = commit_with_tree(repo.store(), tree1.id());
+    let commit2 = commit_with_tree(repo.store(), tree2.id());
+
+    // Checkout should fail.
+    let ws = &mut test_workspace.workspace;
+    let result = ws.check_out(repo.op_id().clone(), None, &commit1);
+    assert_matches!(result, Err(CheckoutError::ReservedPathComponent { .. }));
+
+    // Therefore, "pwned" file shouldn't be created.
+    if ![".git", ".jj"].contains(&file_path_str) {
+        assert!(!disk_path.exists());
+    }
+    assert!(!workspace_root.join(".git").join("pwned").exists());
+    assert!(!workspace_root.join(".jj").join("pwned").exists());
+    assert!(!workspace_root.join("sub").join(".git").exists());
+    assert!(!workspace_root.join("sub").join(".jj").exists());
+
+    // Pretend that the checkout somehow succeeded.
+    let mut locked_ws = ws.start_working_copy_mutation().unwrap();
+    locked_ws.locked_wc().reset(&commit1).unwrap();
+    locked_ws.finish(repo.op_id().clone()).unwrap();
+    if ![".git", ".jj"].contains(&file_path_str) {
+        std::fs::create_dir_all(disk_path.parent().unwrap()).unwrap();
+        std::fs::write(&disk_path, "").unwrap();
+    }
+
+    // Check out empty tree, which tries to remove the file.
+    let result = ws.check_out(repo.op_id().clone(), None, &commit2);
+    assert_matches!(result, Err(CheckoutError::ReservedPathComponent { .. }));
+
+    // The existing file shouldn't be removed.
+    assert!(disk_path.exists());
+}
+
+#[test_case(".Git/pwned"; "root .git dir")]
+#[test_case(".jJ/pwned"; "root .jj dir")]
+#[test_case("sub/.GIt"; "sub .git file")]
+#[test_case("sub/.JJ"; "sub .jj file")]
+#[test_case("sub/.gIT/pwned"; "sub .git dir")]
+#[test_case("sub/.Jj/pwned"; "sub .jj dir")]
+fn test_check_out_reserved_file_path_icase_fs(file_path_str: &str) {
+    let settings = testutils::user_settings();
+    let mut test_workspace = TestWorkspace::init(&settings);
+    let repo = &test_workspace.repo;
+    let workspace_root = test_workspace.workspace.workspace_root().to_owned();
+    std::fs::create_dir(workspace_root.join(".git")).unwrap();
+    let is_icase_fs = check_icase_fs(&workspace_root);
+
+    let file_path = RepoPath::from_internal_string(file_path_str);
+    let disk_path = file_path.to_fs_path_unchecked(&workspace_root);
+    let tree1 = create_tree(repo, &[(file_path, "contents")]);
+    let tree2 = create_tree(repo, &[]);
+    let commit1 = commit_with_tree(repo.store(), tree1.id());
+    let commit2 = commit_with_tree(repo.store(), tree2.id());
+
+    // Checkout should fail on icase fs.
+    let ws = &mut test_workspace.workspace;
+    let result = ws.check_out(repo.op_id().clone(), None, &commit1);
+    if is_icase_fs {
+        assert_matches!(result, Err(CheckoutError::ReservedPathComponent { .. }));
+    } else {
+        assert_matches!(result, Ok(_));
+    }
+
+    // Therefore, "pwned" file shouldn't be created.
+    if is_icase_fs {
+        assert!(!disk_path.exists());
+    }
+    assert!(!workspace_root.join(".git").join("pwned").exists());
+    assert!(!workspace_root.join(".jj").join("pwned").exists());
+    assert!(!workspace_root.join("sub").join(".git").exists());
+    assert!(!workspace_root.join("sub").join(".jj").exists());
+
+    // Pretend that the checkout somehow succeeded.
+    let mut locked_ws = ws.start_working_copy_mutation().unwrap();
+    locked_ws.locked_wc().reset(&commit1).unwrap();
+    locked_ws.finish(repo.op_id().clone()).unwrap();
+    std::fs::create_dir_all(disk_path.parent().unwrap()).unwrap();
+    std::fs::write(&disk_path, "").unwrap();
+
+    // Check out empty tree, which tries to remove the file.
+    let result = ws.check_out(repo.op_id().clone(), None, &commit2);
+    if is_icase_fs {
+        assert_matches!(result, Err(CheckoutError::ReservedPathComponent { .. }));
+    } else {
+        assert_matches!(result, Ok(_));
+    }
+
+    // The existing file shouldn't be removed on icase fs.
+    if is_icase_fs {
+        assert!(disk_path.exists());
+    }
+}
+
+// Here we don't test ignored characters exhaustively because our implementation
+// isn't using deny list.
+#[test_case("\u{200c}.git/pwned"; "root .git dir")]
+#[test_case(".\u{200d}jj/pwned"; "root .jj dir")]
+#[test_case("sub/.g\u{200c}it"; "sub .git file")]
+#[test_case("sub/.jj\u{200d}"; "sub .jj file")]
+#[test_case("sub/.gi\u{200e}t/pwned"; "sub .git dir")]
+#[test_case("sub/.jj\u{200f}/pwned"; "sub .jj dir")]
+fn test_check_out_reserved_file_path_hfs_plus(file_path_str: &str) {
+    let settings = testutils::user_settings();
+    let mut test_workspace = TestWorkspace::init(&settings);
+    let repo = &test_workspace.repo;
+    let workspace_root = test_workspace.workspace.workspace_root().to_owned();
+    std::fs::create_dir(workspace_root.join(".git")).unwrap();
+    let is_hfs_plus = check_hfs_plus(&workspace_root);
+
+    let file_path = RepoPath::from_internal_string(file_path_str);
+    let disk_path = file_path.to_fs_path_unchecked(&workspace_root);
+    let tree1 = create_tree(repo, &[(file_path, "contents")]);
+    let tree2 = create_tree(repo, &[]);
+    let commit1 = commit_with_tree(repo.store(), tree1.id());
+    let commit2 = commit_with_tree(repo.store(), tree2.id());
+
+    // Checkout should fail on HFS+-like fs.
+    let ws = &mut test_workspace.workspace;
+    let result = ws.check_out(repo.op_id().clone(), None, &commit1);
+    if is_hfs_plus {
+        assert_matches!(result, Err(CheckoutError::ReservedPathComponent { .. }));
+    } else {
+        assert_matches!(result, Ok(_));
+    }
+
+    // Therefore, "pwned" file shouldn't be created.
+    if is_hfs_plus {
+        assert!(!disk_path.exists());
+    }
+    assert!(!workspace_root.join(".git").join("pwned").exists());
+    assert!(!workspace_root.join(".jj").join("pwned").exists());
+    assert!(!workspace_root.join("sub").join(".git").exists());
+    assert!(!workspace_root.join("sub").join(".jj").exists());
+
+    // Pretend that the checkout somehow succeeded.
+    let mut locked_ws = ws.start_working_copy_mutation().unwrap();
+    locked_ws.locked_wc().reset(&commit1).unwrap();
+    locked_ws.finish(repo.op_id().clone()).unwrap();
+    std::fs::create_dir_all(disk_path.parent().unwrap()).unwrap();
+    std::fs::write(&disk_path, "").unwrap();
+
+    // Check out empty tree, which tries to remove the file.
+    let result = ws.check_out(repo.op_id().clone(), None, &commit2);
+    if is_hfs_plus {
+        assert_matches!(result, Err(CheckoutError::ReservedPathComponent { .. }));
+    } else {
+        assert_matches!(result, Ok(_));
+    }
+
+    // The existing file shouldn't be removed on HFS+-like fs.
+    if is_hfs_plus {
+        assert!(disk_path.exists());
+    }
+}
+
+#[test_case("GIT~1/pwned"; "root .git dir short name")]
+#[test_case("JJ~1/pwned"; "root .jj dir short name")]
+#[test_case(".GIT./pwned"; "root .git dir trailing dots")]
+#[test_case(".JJ../pwned"; "root .jj dir trailing dots")]
+#[test_case("sub/.GIT.."; "sub .git file trailing dots")]
+#[test_case("sub/.JJ."; "sub .jj file trailing dots")]
+// TODO: Add more weird patterns?
+// - https://en.wikipedia.org/wiki/8.3_filename ".GIxxxx~2"
+// - See is_ntfs_dotgit() of Git and pathauditor of Mercurial
+fn test_check_out_reserved_file_path_vfat(file_path_str: &str) {
+    let settings = testutils::user_settings();
+    let mut test_workspace = TestWorkspace::init(&settings);
+    let repo = &test_workspace.repo;
+    let workspace_root = test_workspace.workspace.workspace_root().to_owned();
+    std::fs::create_dir(workspace_root.join(".git")).unwrap();
+    let is_vfat = check_vfat(&workspace_root);
+
+    let file_path = RepoPath::from_internal_string(file_path_str);
+    let disk_path = file_path.to_fs_path_unchecked(&workspace_root);
+    let tree1 = create_tree(repo, &[(file_path, "contents")]);
+    let tree2 = create_tree(repo, &[]);
+    let commit1 = commit_with_tree(repo.store(), tree1.id());
+    let commit2 = commit_with_tree(repo.store(), tree2.id());
+
+    // Checkout should fail on VFAT-like fs.
+    let ws = &mut test_workspace.workspace;
+    let result = ws.check_out(repo.op_id().clone(), None, &commit1);
+    if is_vfat {
+        assert_matches!(result, Err(CheckoutError::ReservedPathComponent { .. }));
+    } else {
+        assert_matches!(result, Ok(_));
+    }
+
+    // Therefore, "pwned" file shouldn't be created.
+    if is_vfat {
+        assert!(!disk_path.exists());
+    }
+    assert!(!workspace_root.join(".git").join("pwned").exists());
+    assert!(!workspace_root.join(".jj").join("pwned").exists());
+    assert!(!workspace_root.join("sub").join(".git").exists());
+    assert!(!workspace_root.join("sub").join(".jj").exists());
+
+    // Pretend that the checkout somehow succeeded.
+    let mut locked_ws = ws.start_working_copy_mutation().unwrap();
+    locked_ws.locked_wc().reset(&commit1).unwrap();
+    locked_ws.finish(repo.op_id().clone()).unwrap();
+    std::fs::create_dir_all(disk_path.parent().unwrap()).unwrap();
+    std::fs::write(&disk_path, "").unwrap();
+
+    // Check out empty tree, which tries to remove the file.
+    let result = ws.check_out(repo.op_id().clone(), None, &commit2);
+    if is_vfat {
+        assert_matches!(result, Err(CheckoutError::ReservedPathComponent { .. }));
+    } else {
+        assert_matches!(result, Ok(_));
+    }
+
+    // The existing file shouldn't be removed on VFAT-like fs.
+    if is_vfat {
+        assert!(disk_path.exists());
+    }
 }
 
 #[test]

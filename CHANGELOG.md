@@ -98,7 +98,7 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   includes multiple fixes.
 
 * Fixed path traversal by cloning/checking out crafted Git repository containing
-  `..` paths.
+  `..`, `.jj`, `.git` paths.
 
 ## [0.22.0] - 2024-10-02
 

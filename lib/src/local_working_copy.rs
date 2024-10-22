@@ -432,6 +432,9 @@ fn sparse_patterns_from_proto(
 /// function returns `Ok(None)` to signal that the path should be skipped.
 /// The `working_copy_path` directory may be a symlink.
 ///
+/// If an existing or newly-created sub directory points to ".git" or ".jj",
+/// this function returns an error.
+///
 /// Note that this does not prevent TOCTOU bugs caused by concurrent checkouts.
 /// Another process may remove the directory created by this function and put a
 /// symlink there.
@@ -442,11 +445,15 @@ fn create_parent_dirs(
     let (parent_path, basename) = repo_path.split().expect("repo path shouldn't be root");
     let mut dir_path = working_copy_path.to_owned();
     for c in parent_path.components() {
+        // Ensure that the name is a normal entry of the current dir_path.
         dir_path.push(c.to_fs_name().map_err(|err| err.with_path(repo_path))?);
-        match fs::create_dir(&dir_path) {
-            Ok(()) => {} // New directory
+        // A directory named ".git" or ".jj" can be temporarily created. It
+        // might trick workspace path discovery, but is harmless so long as the
+        // directory is empty.
+        let new_dir_created = match fs::create_dir(&dir_path) {
+            Ok(()) => true, // New directory
             Err(err) => match dir_path.symlink_metadata() {
-                Ok(m) if m.is_dir() => {} // Existing directory
+                Ok(m) if m.is_dir() => false, // Existing directory
                 Ok(_) => {
                     return Ok(None); // Skip existing file or symlink
                 }
@@ -460,7 +467,14 @@ fn create_parent_dirs(
                     })
                 }
             },
-        }
+        };
+        // Invalid component (e.g. "..") should have been rejected.
+        // The current dir_path should be an entry of dir_path.parent().
+        reject_reserved_existing_path(&dir_path).inspect_err(|_| {
+            if new_dir_created {
+                fs::remove_dir(&dir_path).ok();
+            }
+        })?;
     }
 
     let mut file_path = dir_path;
@@ -472,11 +486,16 @@ fn create_parent_dirs(
     Ok(Some(file_path))
 }
 
-/// Removes existing file named `disk_path` if any.
-fn remove_old_file(disk_path: &Path) -> Result<(), CheckoutError> {
+/// Removes existing file named `disk_path` if any. Returns `Ok(true)` if the
+/// file was there and got removed.
+///
+/// If the existing file points to ".git" or ".jj", this function returns an
+/// error.
+fn remove_old_file(disk_path: &Path) -> Result<bool, CheckoutError> {
+    reject_reserved_existing_path(disk_path)?;
     match fs::remove_file(disk_path) {
-        Ok(()) => Ok(()),
-        Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(()),
+        Ok(()) => Ok(true),
+        Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(false),
         Err(err) => Err(CheckoutError::Other {
             message: format!("Failed to remove file {}", disk_path.display()),
             err: err.into(),
@@ -489,16 +508,71 @@ fn remove_old_file(disk_path: &Path) -> Result<(), CheckoutError> {
 /// If the file already exists, this function return `Ok(false)` to signal
 /// that the path should be skipped.
 ///
+/// If the path may point to ".git" or ".jj" entry, this function returns an
+/// error.
+///
 /// This function can fail if `disk_path.parent()` isn't a directory.
 fn can_create_new_file(disk_path: &Path) -> Result<bool, CheckoutError> {
-    match disk_path.symlink_metadata() {
-        Ok(_) => Ok(false),
-        Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(true),
-        Err(err) => Err(CheckoutError::Other {
-            message: format!("Failed to stat {}", disk_path.display()),
+    // New file or symlink will be created by caller. If it were pointed to by
+    // name ".git" or ".jj", git/jj CLI could be tricked to load configuration
+    // from an attacker-controlled location. So we first test the path by
+    // creating an empty file.
+    let new_file_created = match OpenOptions::new()
+        .write(true)
+        .create_new(true) // Don't overwrite, don't follow symlink
+        .open(disk_path)
+    {
+        Ok(_) => true,
+        Err(err) if err.kind() == io::ErrorKind::AlreadyExists => false,
+        Err(err) => {
+            return Err(CheckoutError::Other {
+                message: format!("Failed to create temporary file {}", disk_path.display()),
+                err: err.into(),
+            });
+        }
+    };
+    reject_reserved_existing_path(disk_path).inspect_err(|_| {
+        if new_file_created {
+            fs::remove_file(disk_path).ok();
+        }
+    })?;
+    if new_file_created {
+        fs::remove_file(disk_path).map_err(|err| CheckoutError::Other {
+            message: format!("Failed to remove temporary file {}", disk_path.display()),
             err: err.into(),
-        }),
+        })?;
     }
+    Ok(new_file_created)
+}
+
+const RESERVED_DIR_NAMES: &[&str] = &[".git", ".jj"];
+
+/// Suppose the `disk_path` exists, checks if the last component points to
+/// ".git" or ".jj" in the same parent directory.
+fn reject_reserved_existing_path(disk_path: &Path) -> Result<(), CheckoutError> {
+    let parent_dir_path = disk_path.parent().expect("content path shouldn't be root");
+    for name in RESERVED_DIR_NAMES {
+        let reserved_path = parent_dir_path.join(name);
+        match same_file::is_same_file(disk_path, &reserved_path) {
+            Ok(true) => {
+                return Err(CheckoutError::ReservedPathComponent {
+                    path: disk_path.to_owned(),
+                    name,
+                });
+            }
+            Ok(false) => {}
+            // If the existing disk_path pointed to the reserved path, the
+            // reserved path would exist.
+            Err(err) if err.kind() == io::ErrorKind::NotFound => {}
+            Err(err) => {
+                return Err(CheckoutError::Other {
+                    message: format!("Failed to validate path {}", disk_path.display()),
+                    err: err.into(),
+                });
+            }
+        }
+    }
+    Ok(())
 }
 
 fn mtime_from_metadata(metadata: &Metadata) -> MillisSinceEpoch {
@@ -980,7 +1054,7 @@ impl TreeState {
                         path: file_name.clone(),
                     })?;
 
-                if name == ".jj" || name == ".git" {
+                if RESERVED_DIR_NAMES.contains(&name) {
                     return Ok(());
                 }
                 let path = dir.join(RepoPathComponent::new(name));
@@ -1455,9 +1529,10 @@ impl TreeState {
                 stats.skipped_files += 1;
                 continue;
             };
-            if present_before {
-                remove_old_file(&disk_path)?;
-            } else if !can_create_new_file(&disk_path)? {
+            // If the path was present, check reserved path first and delete it.
+            let was_present = present_before && remove_old_file(&disk_path)?;
+            // If not, create temporary file to test the path validity.
+            if !was_present && !can_create_new_file(&disk_path)? {
                 changed_file_states.push((path, FileState::placeholder()));
                 stats.skipped_files += 1;
                 continue;

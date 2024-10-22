@@ -264,6 +264,14 @@ pub enum CheckoutError {
     /// Path in the commit contained invalid component such as `..`.
     #[error(transparent)]
     InvalidRepoPath(#[from] InvalidRepoPathError),
+    /// Path contained reserved name which cannot be checked out to disk.
+    #[error("Reserved path component {name} in {path}")]
+    ReservedPathComponent {
+        /// The file or directory path.
+        path: PathBuf,
+        /// The reserved path component.
+        name: &'static str,
+    },
     /// Reading or writing from the commit backend failed.
     #[error("Internal backend error")]
     InternalBackendError(#[from] BackendError),
