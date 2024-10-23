@@ -578,6 +578,15 @@ you can set the option to change the default. This requires that you have an
 appropriate tool installed, e.g. [Meld](https://meldmerge.org/) to use the
 `meld` diff editor.
 
+**Suggestion:** If possible, it is recommended to try an external diff tool like
+`meld` (see below for some other possibilities) for splitting commits and other
+diff editing, in addition to the built-in diff editor. It is good to know the
+capabilities of both. The built-in diff editor does not require external tools
+to be available, is faster for tasks like picking hunks, and does not require
+leaving the terminal. External tools give you the flexibility of picking out
+portions of lines from the diff or even arbitrarily editing the text of the
+files.
+
 If `ui.diff-editor` is a string, e.g. `"meld"`, the arguments will be read from
 the following config keys.
 
