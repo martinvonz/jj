@@ -235,7 +235,7 @@ Apply the reverse of a revision on top of another revision
 
 Manage bookmarks
 
-For information about bookmarks, see https://martinvonz.github.io/jj/latest/docs/bookmarks.md.
+For information about bookmarks, see https://martinvonz.github.io/jj/latest/bookmarks.
 
 **Usage:** `jj bookmark <COMMAND>`
 
@@ -313,7 +313,7 @@ For information about bookmarks, see https://martinvonz.github.io/jj/latest/book
 
 * `<NAMES>` — Show bookmarks whose local name matches
 
-   By default, the specified name matches exactly. Use `glob:` prefix to select bookmarks by wildcard pattern. For details, see https://martinvonz.github.io/jj/docs/revsets.md#string-patterns.
+   By default, the specified name matches exactly. Use `glob:` prefix to select bookmarks by wildcard pattern. For details, see https://martinvonz.github.io/jj/latest/revsets/#string-patterns.
 
 ###### **Options:**
 
