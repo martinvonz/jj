@@ -35,7 +35,7 @@ use crate::ui::Ui;
 /// "+".
 ///
 /// For information about bookmarks, see
-/// https://martinvonz.github.io/jj/docs/bookmarks.md.
+/// https://martinvonz.github.io/jj/latest/bookmarks/.
 #[derive(clap::Args, Clone, Debug)]
 pub struct BookmarkListArgs {
     /// Show all tracking and non-tracking remote bookmarks including the ones
@@ -71,7 +71,7 @@ pub struct BookmarkListArgs {
     ///
     /// All 0-argument methods of the `RefName` type are available as keywords.
     ///
-    /// For the syntax, see https://martinvonz.github.io/jj/latest/docs/templates.md
+    /// For the syntax, see https://martinvonz.github.io/jj/latest/templates/
     #[arg(long, short = 'T')]
     template: Option<String>,
 }
