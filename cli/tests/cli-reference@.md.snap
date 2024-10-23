@@ -305,7 +305,7 @@ List bookmarks and their targets
 
 By default, a tracking remote bookmark will be included only if its target is different from the local target. A non-tracking remote bookmark won't be listed. For a conflicted bookmark (both local and remote), old target revisions are preceded by a "-" and new target revisions are preceded by a "+".
 
-For information about bookmarks, see https://martinvonz.github.io/jj/docs/bookmarks.md.
+For information about bookmarks, see https://martinvonz.github.io/jj/latest/bookmarks/.
 
 **Usage:** `jj bookmark list [OPTIONS] [NAMES]...`
 
@@ -327,7 +327,7 @@ For information about bookmarks, see https://martinvonz.github.io/jj/docs/bookma
 
    All 0-argument methods of the `RefName` type are available as keywords.
 
-   For the syntax, see https://martinvonz.github.io/jj/latest/docs/templates.md
+   For the syntax, see https://martinvonz.github.io/jj/latest/templates/
 
 
 
