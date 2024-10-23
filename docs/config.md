@@ -566,37 +566,47 @@ Obviously, you would only set one line, don't copy them all in!
 
 ## Editing diffs
 
-The `ui.diff-editor` setting affects the tool used for editing diffs (e.g.  `jj
-split`, `jj squash -i`). The default is the special value `:builtin`, which
-launches a built-in TUI tool (known as [scm-diff-editor]) to edit the diff in
-your terminal.
+The `ui.diff-editor` setting affects the default tool used for editing diffs
+(e.g.  `jj split`, `jj squash -i`). If it is not set, the special value
+`:builtin` is used. It launches a built-in TUI tool (known as [scm-diff-editor])
+to edit the diff in your terminal.
 
 [scm-diff-editor]: https://github.com/arxanas/scm-record?tab=readme-ov-file#scm-diff-editor
+
+You can try a different tool temporarily by doing e.g. `jj split --tool meld` or
+you can set the option to change the default. This requires that you have an
+appropriate tool installed, e.g. [Meld](https://meldmerge.org/) to use the
+`meld` diff editor.
+
+If `ui.diff-editor` is a string, e.g. `"meld"`, the arguments will be read from
+the following config keys.
+
+```toml
+# merge-tools.meld.program = "meld"      # Defaults to the name of the tool if not specified
+merge-tools.meld.program = "/path/to/meld" # May be necessary if `meld` is not in the PATH
+merge-tools.meld.edit-args = ["--newtab", "$left", "$right"]
+```
 
 `jj` makes the following substitutions:
 
 - `$left` and `$right` are replaced with the paths to the left and right
   directories to diff respectively.
 
-If no arguments are specified, `["$left", "$right"]` are set by default.
+- If no `edit-args` are specified, `["$left", "$right"]` are set by default.
 
-For example:
+Finally, `ui.diff-editor` can be a list that specifies a command and its arguments.
+
+Some examples:
 
 ```toml
-# Use merge-tools.kdiff3.edit-args
-ui.diff-editor = "kdiff3"
+# Use merge-tools.meld.edit-args
+ui.diff-editor = "meld"  # Or `kdiff3`, or `diffedit3`, ...
 # Specify edit-args inline
-ui.diff-editor = ["kdiff3", "--merge", "$left", "$right"]
+ui.diff-editor = ["/path/to/binary", "--be-helpful", "$left", "$right"]
+# Equivalent to ["binary", "$left", "$right"] arguments by default
+ui.diff-editor = "binary"
 ```
 
-If `ui.diff-editor` consists of a single word, e.g. `"kdiff3"`, the arguments
-will be read from the following config keys.
-
-```toml
-# merge-tools.kdiff3.program = "kdiff3"      # Defaults to the name of the tool if not specified
-merge-tools.kdiff3.edit-args = [
-    "--merge", "--cs", "CreateBakFiles=0", "$left", "$right"]
-```
 
 ### Experimental 3-pane diff editing
 
