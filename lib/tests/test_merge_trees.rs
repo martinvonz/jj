@@ -527,8 +527,8 @@ fn test_simplify_conflict() {
             assert_eq!(
                 conflict.adds().map(|v| v.as_ref()).collect_vec(),
                 vec![
+                    branch_tree.value(component),
                     upstream2_tree.value(component),
-                    branch_tree.value(component)
                 ]
             );
         }
