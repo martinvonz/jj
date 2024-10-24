@@ -69,6 +69,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * New template functions `pad_start()`, `pad_end()`, `truncate_start()`, and
   `truncate_end()` are added.
 
+* `jj bookmark list` gained a `--remote REMOTE` option to display bookmarks
+   belonging to a remote. This option can be combined with `--tracked` or
+   `--conflicted`.
+
 ### Fixed bugs
 
 * Error on `trunk()` revset resolution is now handled gracefully.

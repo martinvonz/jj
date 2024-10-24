@@ -1533,6 +1533,47 @@ fn test_bookmark_list_filtered() {
     "###);
     insta::assert_snapshot!(stderr, @"");
 
+    // Select bookmarks with --remote
+    let (stdout, stderr) = query(&["--remote", "origin"]);
+    insta::assert_snapshot!(stdout, @r#"
+    local-keep: kpqxywon c7b4c09c (empty) local-keep
+    remote-delete (deleted)
+      @origin: yxusvupt dad5f298 (empty) remote-delete
+    remote-keep: nlwprzpn 911e9120 (empty) remote-keep
+      @origin: nlwprzpn 911e9120 (empty) remote-keep
+    remote-rewrite: xyxluytn e31634b6 (empty) rewritten
+      @origin (ahead by 1 commits, behind by 1 commits): xyxluytn hidden 3e9a5af6 (empty) remote-rewrite
+    "#);
+    insta::assert_snapshot!(stderr, @r#"
+    Hint: Bookmarks marked as deleted will be *deleted permanently* on the remote on the next `jj git push`. Use `jj bookmark forget` to prevent this.
+    "#);
+    let (stdout, stderr) = query(&["--remote", "git"]);
+    insta::assert_snapshot!(stdout, @r#"
+    local-keep: kpqxywon c7b4c09c (empty) local-keep
+      @git: kpqxywon c7b4c09c (empty) local-keep
+    remote-keep: nlwprzpn 911e9120 (empty) remote-keep
+      @git: nlwprzpn 911e9120 (empty) remote-keep
+    remote-rewrite: xyxluytn e31634b6 (empty) rewritten
+      @git: xyxluytn e31634b6 (empty) rewritten
+    "#);
+    insta::assert_snapshot!(stderr, @"");
+    let (stdout, stderr) = query(&["--remote", "origin", "--remote", "git"]);
+    insta::assert_snapshot!(stdout, @r#"
+    local-keep: kpqxywon c7b4c09c (empty) local-keep
+      @git: kpqxywon c7b4c09c (empty) local-keep
+    remote-delete (deleted)
+      @origin: yxusvupt dad5f298 (empty) remote-delete
+    remote-keep: nlwprzpn 911e9120 (empty) remote-keep
+      @git: nlwprzpn 911e9120 (empty) remote-keep
+      @origin: nlwprzpn 911e9120 (empty) remote-keep
+    remote-rewrite: xyxluytn e31634b6 (empty) rewritten
+      @git: xyxluytn e31634b6 (empty) rewritten
+      @origin (ahead by 1 commits, behind by 1 commits): xyxluytn hidden 3e9a5af6 (empty) remote-rewrite
+    "#);
+    insta::assert_snapshot!(stderr, @r#"
+    Hint: Bookmarks marked as deleted will be *deleted permanently* on the remote on the next `jj git push`. Use `jj bookmark forget` to prevent this.
+    "#);
+
     // Can select deleted bookmark by name pattern, but not by revset.
     let (stdout, stderr) = query(&["remote-delete"]);
     insta::assert_snapshot!(stdout, @r###"
@@ -1577,6 +1618,21 @@ fn test_bookmark_list_filtered() {
     remote-rewrite: xyxluytn e31634b6 (empty) rewritten
       @origin (ahead by 1 commits, behind by 1 commits): xyxluytn hidden 3e9a5af6 (empty) remote-rewrite
     "###);
+    insta::assert_snapshot!(stderr, @"");
+
+    // … but still filtered by --remote
+    let (stdout, stderr) = query(&[
+        "local-keep",
+        "-rbookmarks(remote-rewrite)",
+        "--remote",
+        "git",
+    ]);
+    insta::assert_snapshot!(stdout, @r#"
+    local-keep: kpqxywon c7b4c09c (empty) local-keep
+      @git: kpqxywon c7b4c09c (empty) local-keep
+    remote-rewrite: xyxluytn e31634b6 (empty) rewritten
+      @git: xyxluytn e31634b6 (empty) rewritten
+    "#);
     insta::assert_snapshot!(stderr, @"");
 }
 
@@ -1747,6 +1803,24 @@ fn test_bookmark_list_tracked() {
     upstream-sync: lolpmnqw 32fa6da0 (empty) upstream-sync
       @upstream: lolpmnqw 32fa6da0 (empty) upstream-sync
     "###
+    );
+    insta::assert_snapshot!(stderr, @r###"
+    Hint: Bookmarks marked as deleted will be *deleted permanently* on the remote on the next `jj git push`. Use `jj bookmark forget` to prevent this.
+    "###);
+
+    let (stdout, stderr) = test_env.jj_cmd_ok(
+        &local_path,
+        &["bookmark", "list", "--tracked", "--remote", "origin"],
+    );
+    insta::assert_snapshot!(stdout, @r#"
+    remote-delete (deleted)
+      @origin: mnmymoky 203e60eb (empty) remote-delete
+    remote-sync: zwtyzrop c761c7ea (empty) remote-sync
+      @origin: zwtyzrop c761c7ea (empty) remote-sync
+    remote-unsync: nmzmmopx e1da745b (empty) local-only
+      @origin (ahead by 1 commits, behind by 1 commits): qpsqxpyq 38ef8af7 (empty) remote-unsync
+    remote-untrack@origin: vmortlor 71a16b05 (empty) remote-untrack
+    "#
     );
     insta::assert_snapshot!(stderr, @r###"
     Hint: Bookmarks marked as deleted will be *deleted permanently* on the remote on the next `jj git push`. Use `jj bookmark forget` to prevent this.

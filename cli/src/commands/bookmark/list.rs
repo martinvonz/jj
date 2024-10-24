@@ -43,6 +43,12 @@ pub struct BookmarkListArgs {
     #[arg(long, short, alias = "all")]
     all_remotes: bool,
 
+    /// Show all tracking and non-tracking remote bookmarks belonging
+    /// to this remote. Can be combined with `--tracked` or
+    /// `--conflicted` to filter the bookmarks shown (can be repeated)
+    #[arg(long = "remote", value_name = "REMOTE", conflicts_with_all = ["all_remotes"])]
+    remotes: Vec<String>,
+
     /// Show remote tracked bookmarks only. Omits local Git-tracking bookmarks
     /// by default
     #[arg(long, short, conflicts_with_all = ["all_remotes"])]
@@ -141,15 +147,22 @@ pub fn cmd_bookmark_list(
     for (name, bookmark_target) in bookmarks_to_list {
         let local_target = bookmark_target.local_target;
         let remote_refs = bookmark_target.remote_refs;
-        let (mut tracking_remote_refs, untracked_remote_refs) = remote_refs
+        let (mut tracking_remote_refs, mut untracked_remote_refs) = remote_refs
             .iter()
             .copied()
             .partition::<Vec<_>, _>(|&(_, remote_ref)| remote_ref.is_tracking());
 
+        if !args.remotes.is_empty() {
+            let filter = |refs: &mut Vec<_>| {
+                refs.retain(|&(remote_name, _)| args.remotes.iter().any(|r| r == remote_name));
+            };
+            filter(&mut tracking_remote_refs);
+            filter(&mut untracked_remote_refs);
+        }
         if args.tracked {
             tracking_remote_refs
                 .retain(|&(remote, _)| remote != git::REMOTE_NAME_FOR_LOCAL_GIT_REPO);
-        } else if !args.all_remotes {
+        } else if !args.all_remotes && args.remotes.is_empty() {
             tracking_remote_refs.retain(|&(_, remote_ref)| remote_ref.target != *local_target);
         }
 
@@ -174,7 +187,7 @@ pub fn cmd_bookmark_list(
                 .any(|&(remote, _)| remote != git::REMOTE_NAME_FOR_LOCAL_GIT_REPO);
         }
 
-        if args.all_remotes {
+        if args.all_remotes || !args.remotes.is_empty() {
             for &(remote, remote_ref) in &untracked_remote_refs {
                 let ref_name = RefName::remote_only(name, remote, remote_ref.target.clone());
                 template.format(&ref_name, formatter.as_mut())?;
