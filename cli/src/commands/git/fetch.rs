@@ -46,7 +46,7 @@ pub struct GitFetchArgs {
     branch: Vec<StringPattern>,
     /// The remote to fetch from (only named remotes are supported, can be
     /// repeated)
-    #[arg(long = "remote", value_name = "remote")]
+    #[arg(long = "remote", value_name = "REMOTE")]
     remotes: Vec<String>,
     /// Fetch from all remotes
     #[arg(long, conflicts_with = "remotes")]
