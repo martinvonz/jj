@@ -89,6 +89,22 @@ jobs:
     - name: Build
       run: cargo build -p jj-lib --no-default-features --verbose
 
+  build-wasi:
+    name: Build jj-lib for wasi
+    # This requires the nightly compiler as many wasi pieces (like symlinks) are behind a flag.
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@1482605bfc5719782e1267fd0c0cc350fe7646b8
+      with:
+        toolchain: nightly
+        targets: wasm32-wasip1
+    - name: Build
+      run: cargo +nightly build -p jj-lib --no-default-features --target wasm32-wasip1 --verbose
+
   check-protos:
     name: Check protos
     runs-on: ubuntu-latest
