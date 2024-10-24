@@ -1919,6 +1919,7 @@ dependencies = [
  "ref-cast",
  "regex",
  "rustix",
+ "same-file",
  "serde",
  "serde_json",
  "smallvec",

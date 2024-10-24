@@ -65,6 +65,7 @@ rand_chacha = { workspace = true }
 rayon = { workspace = true }
 ref-cast = { workspace = true }
 regex = { workspace = true }
+same-file = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 smallvec = { workspace = true }
