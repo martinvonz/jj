@@ -318,6 +318,7 @@ For information about bookmarks, see https://martinvonz.github.io/jj/latest/book
 ###### **Options:**
 
 * `-a`, `--all-remotes` — Show all tracking and non-tracking remote bookmarks including the ones whose targets are synchronized with the local bookmarks
+* `--remote <REMOTE>` — Show all tracking and non-tracking remote bookmarks belonging to this remote. Can be combined with `--tracked` or `--conflicted` to filter the bookmarks shown (can be repeated)
 * `-t`, `--tracked` — Show remote tracked bookmarks only. Omits local Git-tracking bookmarks by default
 * `-c`, `--conflicted` — Show conflicted bookmarks only
 * `-r`, `--revisions <REVISIONS>` — Show bookmarks whose local targets are in the given revisions
