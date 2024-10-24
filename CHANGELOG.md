@@ -69,6 +69,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * New template functions `pad_start()`, `pad_end()`, `truncate_start()`, and
   `truncate_end()` are added.
 
+* New command `jj config unset` that unsets config values. For example,
+  `jj config unset --user user.name`.
+
 ### Fixed bugs
 
 * Error on `trunk()` revset resolution is now handled gracefully.
