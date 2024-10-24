@@ -13,12 +13,18 @@
 // limitations under the License.
 
 use std::io::Write;
+use std::rc::Rc;
 
-use indexmap::IndexMap;
+use clap::ArgGroup;
 use itertools::Itertools;
 use jj_lib::backend::CommitId;
-use jj_lib::commit::Commit;
+use jj_lib::commit::CommitIteratorExt;
+use jj_lib::repo::ReadonlyRepo;
 use jj_lib::repo::Repo;
+use jj_lib::revset::RevsetExpression;
+use jj_lib::rewrite::duplicate_commits;
+use jj_lib::rewrite::DuplicateCommitsDestination;
+use jj_lib::rewrite::DuplicateCommitsResult;
 use tracing::instrument;
 
 use crate::cli_util::short_commit_hash;
@@ -30,6 +36,7 @@ use crate::ui::Ui;
 
 /// Create a new change with the same content as an existing one
 #[derive(clap::Args, Clone, Debug)]
+#[command(group(ArgGroup::new("target").args(&["destination", "insert_after", "insert_before"]).multiple(true)))]
 pub(crate) struct DuplicateArgs {
     /// The revision(s) to duplicate
     #[arg(default_value = "@")]
@@ -37,6 +44,28 @@ pub(crate) struct DuplicateArgs {
     /// Ignored (but lets you pass `-r` for consistency with other commands)
     #[arg(short = 'r', hide = true, action = clap::ArgAction::Count)]
     unused_revision: u8,
+    /// The revision(s) to duplicate onto (can be repeated to create a merge
+    /// commit)
+    #[arg(long, short)]
+    destination: Vec<RevisionArg>,
+    /// The revision(s) to insert after (can be repeated to create a merge
+    /// commit)
+    #[arg(
+        long,
+        short = 'A',
+        visible_alias = "after",
+        conflicts_with = "destination"
+    )]
+    insert_after: Vec<RevisionArg>,
+    /// The revision(s) to insert before (can be repeated to create a merge
+    /// commit)
+    #[arg(
+        long,
+        short = 'B',
+        visible_alias = "before",
+        conflicts_with = "destination"
+    )]
+    insert_before: Vec<RevisionArg>,
 }
 
 #[instrument(skip_all)]
@@ -57,37 +86,166 @@ pub(crate) fn cmd_duplicate(
     if to_duplicate.last() == Some(workspace_command.repo().store().root_commit_id()) {
         return Err(user_error("Cannot duplicate the root commit"));
     }
-    let mut duplicated_old_to_new: IndexMap<&CommitId, Commit> = IndexMap::new();
+
+    let parent_commit_ids: Vec<CommitId>;
+    let children_commit_ids: Vec<CommitId>;
+
+    if !args.insert_before.is_empty() && !args.insert_after.is_empty() {
+        let parent_commits = workspace_command
+            .resolve_some_revsets_default_single(ui, &args.insert_after)?
+            .into_iter()
+            .collect_vec();
+        parent_commit_ids = parent_commits.iter().ids().cloned().collect();
+        let children_commits = workspace_command
+            .resolve_some_revsets_default_single(ui, &args.insert_before)?
+            .into_iter()
+            .collect_vec();
+        children_commit_ids = children_commits.iter().ids().cloned().collect();
+        workspace_command.check_rewritable(&children_commit_ids)?;
+        let children_expression = RevsetExpression::commits(children_commit_ids.clone());
+        let parents_expression = RevsetExpression::commits(parent_commit_ids.clone());
+        ensure_no_commit_loop(
+            workspace_command.repo(),
+            &children_expression,
+            &parents_expression,
+        )?;
+    } else if !args.insert_before.is_empty() {
+        let children_commits = workspace_command
+            .resolve_some_revsets_default_single(ui, &args.insert_before)?
+            .into_iter()
+            .collect_vec();
+        children_commit_ids = children_commits.iter().ids().cloned().collect();
+        workspace_command.check_rewritable(&children_commit_ids)?;
+        let children_expression = RevsetExpression::commits(children_commit_ids.clone());
+        let parents_expression = children_expression.parents();
+        ensure_no_commit_loop(
+            workspace_command.repo(),
+            &children_expression,
+            &parents_expression,
+        )?;
+        // Manually collect the parent commit IDs to preserve the order of parents.
+        parent_commit_ids = children_commits
+            .iter()
+            .flat_map(|commit| commit.parent_ids())
+            .unique()
+            .cloned()
+            .collect_vec();
+    } else if !args.insert_after.is_empty() {
+        let parent_commits = workspace_command
+            .resolve_some_revsets_default_single(ui, &args.insert_after)?
+            .into_iter()
+            .collect_vec();
+        parent_commit_ids = parent_commits.iter().ids().cloned().collect();
+        let parents_expression = RevsetExpression::commits(parent_commit_ids.clone());
+        let children_expression = parents_expression.children();
+        children_commit_ids = children_expression
+            .clone()
+            .evaluate_programmatic(workspace_command.repo().as_ref())
+            .map_err(|err| err.expect_backend_error())?
+            .iter()
+            .try_collect()?;
+        workspace_command.check_rewritable(&children_commit_ids)?;
+        ensure_no_commit_loop(
+            workspace_command.repo(),
+            &children_expression,
+            &parents_expression,
+        )?;
+    } else if !args.destination.is_empty() {
+        let parent_commits = workspace_command
+            .resolve_some_revsets_default_single(ui, &args.destination)?
+            .into_iter()
+            .collect_vec();
+        parent_commit_ids = parent_commits.iter().ids().cloned().collect();
+        children_commit_ids = vec![];
+    } else {
+        parent_commit_ids = vec![];
+        children_commit_ids = vec![];
+    };
 
     let mut tx = workspace_command.start_transaction();
-    let base_repo = tx.base_repo().clone();
-    let store = base_repo.store();
-    let mut_repo = tx.repo_mut();
 
-    for original_commit_id in to_duplicate.iter().rev() {
-        // Topological order ensures that any parents of `original_commit` are
-        // either not in `to_duplicate` or were already duplicated.
-        let original_commit = store.get_commit(original_commit_id)?;
-        let new_parents = original_commit
-            .parent_ids()
-            .iter()
-            .map(|id| duplicated_old_to_new.get(id).map_or(id, |c| c.id()).clone())
-            .collect();
-        let new_commit = mut_repo
-            .rewrite_commit(command.settings(), &original_commit)
-            .generate_new_change_id()
-            .set_parents(new_parents)
-            .write()?;
-        duplicated_old_to_new.insert(original_commit_id, new_commit);
+    if !parent_commit_ids.is_empty() {
+        for commit_id in &to_duplicate {
+            for parent_commit_id in &parent_commit_ids {
+                if tx.repo().index().is_ancestor(commit_id, parent_commit_id) {
+                    writeln!(
+                        ui.warning_default(),
+                        "Duplicating commit {} as a descendant of itself",
+                        short_commit_hash(commit_id)
+                    )?;
+                    break;
+                }
+            }
+        }
+
+        for commit_id in &to_duplicate {
+            for child_commit_id in &children_commit_ids {
+                if tx.repo().index().is_ancestor(child_commit_id, commit_id) {
+                    writeln!(
+                        ui.warning_default(),
+                        "Duplicating commit {} as an ancestor of itself",
+                        short_commit_hash(commit_id)
+                    )?;
+                    break;
+                }
+            }
+        }
     }
 
+    let num_to_duplicate = to_duplicate.len();
+    let DuplicateCommitsResult {
+        duplicated_commits,
+        num_rebased,
+    } = duplicate_commits(
+        command.settings(),
+        tx.repo_mut(),
+        to_duplicate,
+        if parent_commit_ids.is_empty() {
+            DuplicateCommitsDestination::Parents
+        } else {
+            DuplicateCommitsDestination::Destination {
+                parent_commit_ids,
+                children_commit_ids,
+            }
+        },
+    )?;
+
     if let Some(mut formatter) = ui.status_formatter() {
-        for (old_id, new_commit) in &duplicated_old_to_new {
+        for (old_id, new_commit) in &duplicated_commits {
             write!(formatter, "Duplicated {} as ", short_commit_hash(old_id))?;
             tx.write_commit_summary(formatter.as_mut(), new_commit)?;
             writeln!(formatter)?;
         }
+        if num_rebased > 0 {
+            writeln!(
+                ui.status(),
+                "Rebased {num_rebased} commits onto duplicated commits"
+            )?;
+        }
     }
-    tx.finish(ui, format!("duplicate {} commit(s)", to_duplicate.len()))?;
+    tx.finish(ui, format!("duplicate {num_to_duplicate} commit(s)"))?;
+    Ok(())
+}
+
+/// Ensure that there is no possible cycle between the potential children and
+/// parents of the duplicated commits.
+fn ensure_no_commit_loop(
+    repo: &ReadonlyRepo,
+    children_expression: &Rc<RevsetExpression>,
+    parents_expression: &Rc<RevsetExpression>,
+) -> Result<(), CommandError> {
+    if let Some(commit_id) = children_expression
+        .dag_range_to(parents_expression)
+        .evaluate_programmatic(repo)?
+        .iter()
+        .next()
+    {
+        let commit_id = commit_id?;
+        return Err(user_error(format!(
+            "Refusing to create a loop: commit {} would be both an ancestor and a descendant of \
+             the duplicated commits",
+            short_commit_hash(&commit_id),
+        )));
+    }
     Ok(())
 }

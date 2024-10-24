@@ -69,6 +69,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * New template functions `pad_start()`, `pad_end()`, `truncate_start()`, and
   `truncate_end()` are added.
 
+* `jj duplicate` now accepts `--destination`, `--insert-after` and
+  `--insert-before` options to customize the location of the duplicated
+  revisions.
+
 ### Fixed bugs
 
 * Error on `trunk()` revset resolution is now handled gracefully.
