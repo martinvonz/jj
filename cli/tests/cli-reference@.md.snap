@@ -1031,7 +1031,7 @@ If a working-copy commit gets abandoned, it will be given a new, empty commit. T
    By default, the specified name matches exactly. Use `glob:` prefix to expand `*` as a glob. The other wildcard characters aren't supported.
 
   Default value: `glob:*`
-* `--remote <remote>` — The remote to fetch from (only named remotes are supported, can be repeated)
+* `--remote <REMOTE>` — The remote to fetch from (only named remotes are supported, can be repeated)
 * `--all-remotes` — Fetch from all remotes
 
 
