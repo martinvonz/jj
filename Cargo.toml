@@ -30,7 +30,7 @@ clap = { version = "4.5.20", features = [
     "wrap_help",
     "string",
 ] }
-clap_complete = "4.5.33"
+clap_complete = "4.5.35"
 clap_complete_nushell = "4.5.4"
 clap-markdown = "0.1.4"
 clap_mangen = "0.2.10"
@@ -90,7 +90,7 @@ rand = "0.8.5"
 rand_chacha = "0.3.1"
 rayon = "1.10.0"
 ref-cast = "1.0.23"
-regex = "1.11.0"
+regex = "1.11.1"
 rpassword = "7.3.1"
 rustix = { version = "0.38.37", features = ["fs"] }
 scm-record = "0.4.0"
@@ -103,7 +103,7 @@ smallvec = { version = "1.13.2", features = [
     "union",
 ] }
 strsim = "0.11.1"
-syn = "2.0.82"
+syn = "2.0.85"
 tempfile = "3.13.0"
 test-case = "3.3.1"
 textwrap = "0.16.1"
