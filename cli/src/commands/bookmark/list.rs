@@ -44,10 +44,21 @@ pub struct BookmarkListArgs {
     all_remotes: bool,
 
     /// Show all tracking and non-tracking remote bookmarks belonging
-    /// to this remote. Can be combined with `--tracked` or
-    /// `--conflicted` to filter the bookmarks shown (can be repeated)
-    #[arg(long = "remote", value_name = "REMOTE", conflicts_with_all = ["all_remotes"])]
-    remotes: Option<Vec<String>>,
+    /// to this remote
+    ///
+    /// Can be combined with `--tracked` or `--conflicted` to filter the
+    /// bookmarks shown (can be repeated.)
+    ///
+    /// By default, the specified remote name matches exactly. Use `glob:`
+    /// prefix to select remotes by wildcard pattern. For details, see
+    /// https://martinvonz.github.io/jj/latest/revsets/#string-patterns.
+    #[arg(
+        long = "remote",
+        value_name = "REMOTE",
+        conflicts_with_all = ["all_remotes"],
+        value_parser = StringPattern::parse,
+    )]
+    remotes: Option<Vec<StringPattern>>,
 
     /// Show remote tracked bookmarks only. Omits local Git-tracking bookmarks
     /// by default
@@ -151,9 +162,9 @@ pub fn cmd_bookmark_list(
             .iter()
             .copied()
             .filter(|&(remote_name, _)| {
-                args.remotes
-                    .as_ref()
-                    .map_or(true, |names| names.iter().any(|r| r == remote_name))
+                args.remotes.as_ref().map_or(true, |patterns| {
+                    patterns.iter().any(|pattern| pattern.matches(remote_name))
+                })
             })
             .partition::<Vec<_>, _>(|&(_, remote_ref)| remote_ref.is_tracking());
 
