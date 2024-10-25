@@ -73,6 +73,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
    belonging to a remote. This option can be combined with `--tracked` or
    `--conflicted`.
 
+* Added the config settings `diff.color-words.context` and `diff.git.context` to
+  control the default number of lines of context shown.
+
 ### Fixed bugs
 
 * Error on `trunk()` revset resolution is now handled gracefully.

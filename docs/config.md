@@ -204,7 +204,8 @@ ui.diff.format = "git"
 
 In color-words diffs, changed words are displayed inline by default. Because
 it's difficult to read a diff line with many removed/added words, there's a
-threshold to switch to traditional separate-line format.
+threshold to switch to traditional separate-line format. You can also change
+the default number of lines of context shown.
 
 * `max-inline-alternation`: Maximum number of removed/added word alternation to
   inline. For example, `<added> ... <added>` sequence has 1 alternation, so the
@@ -219,10 +220,23 @@ threshold to switch to traditional separate-line format.
   The default is `3`.
 
   **This parameter is experimental.** The definition is subject to change.
+* `context`: Number of lines of context to show in the diff. The default is `3`.
 
 ```toml
 [diff.color-words]
 max-inline-alternation = 3
+context = 3
+```
+
+#### Git diff options
+
+In git diffs you can change the default number of lines of context shown.
+
+* `context`: Number of lines of context to show in the diff. The default is `3`.
+
+```toml
+[diff.git]
+context = 3
 ```
 
 ### Generating diffs by external command

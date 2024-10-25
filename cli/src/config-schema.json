@@ -288,6 +288,22 @@
                             "type": "integer",
                             "description": "Maximum number of removed/added word alternation to inline",
                             "default": 3
+                        },
+                        "context": {
+                            "type": "integer",
+                            "description": "Number of lines of context to show",
+                            "default": 3
+                        }
+                    }
+                },
+                "git": {
+                    "type": "object",
+                    "description": "Options for git diffs",
+                    "properties": {
+                        "context": {
+                            "type": "integer",
+                            "description": "Number of lines of context to show",
+                            "default": 3
                         }
                     }
                 }
