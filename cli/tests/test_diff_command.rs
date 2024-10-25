@@ -1737,6 +1737,100 @@ fn test_diff_skipped_context() {
 }
 
 #[test]
+fn test_diff_skipped_context_from_settings_color_words() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    test_env.add_config(
+        r#"
+[diff.color-words]
+context = 0
+        "#,
+    );
+
+    std::fs::write(repo_path.join("file1"), "a\nb\nc\nd\ne").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "=== First commit"]);
+
+    test_env.jj_cmd_ok(&repo_path, &["new", "@", "-m", "=== Must show 0 context"]);
+    std::fs::write(repo_path.join("file1"), "a\nb\nC\nd\ne").unwrap();
+
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &["log", "-Tdescription", "-p", "--no-graph", "--reversed"],
+    );
+    insta::assert_snapshot!(stdout, @r#"
+    === First commit
+    Added regular file file1:
+            1: a
+            2: b
+            3: c
+            4: d
+            5: e
+    === Must show 0 context
+    Modified regular file file1:
+        ...
+       3    3: cC
+        ...
+    "#);
+}
+
+#[test]
+fn test_diff_skipped_context_from_settings_git() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    test_env.add_config(
+        r#"
+[diff.git]
+context = 0
+        "#,
+    );
+
+    std::fs::write(repo_path.join("file1"), "a\nb\nc\nd\ne").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "=== First commit"]);
+
+    test_env.jj_cmd_ok(&repo_path, &["new", "@", "-m", "=== Must show 0 context"]);
+    std::fs::write(repo_path.join("file1"), "a\nb\nC\nd\ne").unwrap();
+
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &[
+            "log",
+            "-Tdescription",
+            "-p",
+            "--git",
+            "--no-graph",
+            "--reversed",
+        ],
+    );
+    insta::assert_snapshot!(stdout, @r#"
+    === First commit
+    diff --git a/file1 b/file1
+    new file mode 100644
+    index 0000000000..0fec236860
+    --- /dev/null
+    +++ b/file1
+    @@ -1,0 +1,5 @@
+    +a
+    +b
+    +c
+    +d
+    +e
+    \ No newline at end of file
+    === Must show 0 context
+    diff --git a/file1 b/file1
+    index 0fec236860..b7615dae52 100644
+    --- a/file1
+    +++ b/file1
+    @@ -3,1 +3,1 @@
+    -c
+    +C
+    "#);
+}
+
+#[test]
 fn test_diff_skipped_context_nondefault() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);

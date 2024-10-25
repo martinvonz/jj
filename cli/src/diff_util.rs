@@ -184,7 +184,7 @@ fn diff_formats_from_args(
         formats.push(DiffFormat::NameOnly);
     }
     if args.git {
-        let options = UnifiedDiffOptions::from_args(args);
+        let options = UnifiedDiffOptions::from_settings_and_args(settings, args)?;
         formats.push(DiffFormat::Git(Box::new(options)));
     }
     if args.color_words {
@@ -230,7 +230,7 @@ fn default_diff_format(
         "types" => Ok(DiffFormat::Types),
         "name-only" => Ok(DiffFormat::NameOnly),
         "git" => {
-            let options = UnifiedDiffOptions::from_args(args);
+            let options = UnifiedDiffOptions::from_settings_and_args(settings, args)?;
             Ok(DiffFormat::Git(Box::new(options)))
         }
         "color-words" => {
@@ -520,8 +520,11 @@ impl ColorWordsDiffOptions {
                 })?),
             }
         };
+        let context = args
+            .context
+            .map_or_else(|| config.get("diff.color-words.context"), Ok)?;
         Ok(ColorWordsDiffOptions {
-            context: args.context.unwrap_or(DEFAULT_CONTEXT_LINES),
+            context,
             line_diff: LineDiffOptions::from_args(args),
             max_inline_alternation,
         })
@@ -1212,11 +1215,17 @@ pub struct UnifiedDiffOptions {
 }
 
 impl UnifiedDiffOptions {
-    fn from_args(args: &DiffFormatArgs) -> Self {
-        UnifiedDiffOptions {
-            context: args.context.unwrap_or(DEFAULT_CONTEXT_LINES),
+    fn from_settings_and_args(
+        settings: &UserSettings,
+        args: &DiffFormatArgs,
+    ) -> Result<Self, config::ConfigError> {
+        let context = args
+            .context
+            .map_or_else(|| settings.config().get("diff.git.context"), Ok)?;
+        Ok(UnifiedDiffOptions {
+            context,
             line_diff: LineDiffOptions::from_args(args),
-        }
+        })
     }
 }
 
