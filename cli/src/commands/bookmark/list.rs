@@ -175,7 +175,8 @@ pub fn cmd_bookmark_list(
             tracking_remote_refs.retain(|&(_, remote_ref)| remote_ref.target != *local_target);
         }
 
-        if !args.tracked && local_target.is_present() || !tracking_remote_refs.is_empty() {
+        let include_local_only = !args.tracked && args.remotes.is_none();
+        if include_local_only && local_target.is_present() || !tracking_remote_refs.is_empty() {
             let ref_name = RefName::local(
                 name,
                 local_target.clone(),

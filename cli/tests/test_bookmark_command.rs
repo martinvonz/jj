@@ -1536,7 +1536,6 @@ fn test_bookmark_list_filtered() {
     // Select bookmarks with --remote
     let (stdout, stderr) = query(&["--remote", "origin"]);
     insta::assert_snapshot!(stdout, @r#"
-    local-keep: kpqxywon c7b4c09c (empty) local-keep
     remote-delete (deleted)
       @origin: yxusvupt dad5f298 (empty) remote-delete
     remote-keep: nlwprzpn 911e9120 (empty) remote-keep
