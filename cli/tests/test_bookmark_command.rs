@@ -1819,7 +1819,6 @@ fn test_bookmark_list_tracked() {
       @origin: zwtyzrop c761c7ea (empty) remote-sync
     remote-unsync: nmzmmopx e1da745b (empty) local-only
       @origin (ahead by 1 commits, behind by 1 commits): qpsqxpyq 38ef8af7 (empty) remote-unsync
-    remote-untrack@origin: vmortlor 71a16b05 (empty) remote-untrack
     "#
     );
     insta::assert_snapshot!(stderr, @r###"
