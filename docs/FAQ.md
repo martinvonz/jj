@@ -219,16 +219,21 @@ Now you're ready to work:
 - The private commit _wwwwwwww_ is the second parent of the merge commit.
 - The working copy (_vvvvvvvv_) contains changes from both.
 
-As you work, squash your changes using `jj squash --into xxxxxxxx`. Or you can
-keep your changes in a separate commit without the private commit _wwwwwwww_ as a
-parent:
+As you work, squash your changes using `jj squash --into xxxxxxxx`.
+
+If you need a new empty commit on top of `xxxxxxxx` you can use the
+`--insert-after` and `--insert-before` options (`-A` and `-B` for short):
 
 ```shell
-# Remove the private commit as a parent
-$ jj rebase -r vvvvvvvv -d xxxxxxxx
+# Insert a new commit after xxxxxxxx
+$ jj new --no-edit -A xxxxxxxx -m "Another feature"
+Working copy now at: uuuuuuuu 1c3cff09 (empty) Another feature
+Parent commit      : xxxxxxxx ef612875 Add new feature
 
-# Create a new merge commit to work in
-$ jj new vvvvvvvv wwwwwwww
+# Insert a new commit between yyyyyyyy and vvvvvvvv
+$ jj new --no-edit -A yyyyyyyy -B vvvvvvvv -m "Yet another feature"
+Working copy now at: tttttttt 938ab831 (empty) Yet another feature
+Parent commit      : yyyyyyyy b624cf12 Existing work
 ```
 
 To avoid pushing change _wwwwwwww_ by mistake, use the configuration
