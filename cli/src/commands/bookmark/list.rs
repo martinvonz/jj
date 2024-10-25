@@ -147,18 +147,16 @@ pub fn cmd_bookmark_list(
     for (name, bookmark_target) in bookmarks_to_list {
         let local_target = bookmark_target.local_target;
         let remote_refs = bookmark_target.remote_refs;
-        let (mut tracking_remote_refs, mut untracked_remote_refs) = remote_refs
+        let (mut tracking_remote_refs, untracked_remote_refs) = remote_refs
             .iter()
             .copied()
+            .filter(|&(remote_name, _)| {
+                args.remotes
+                    .as_ref()
+                    .map_or(true, |names| names.iter().any(|r| r == remote_name))
+            })
             .partition::<Vec<_>, _>(|&(_, remote_ref)| remote_ref.is_tracking());
 
-        if let Some(names) = &args.remotes {
-            let filter = |refs: &mut Vec<_>| {
-                refs.retain(|&(remote_name, _)| names.iter().any(|r| r == remote_name));
-            };
-            filter(&mut tracking_remote_refs);
-            filter(&mut untracked_remote_refs);
-        }
         if args.tracked {
             tracking_remote_refs
                 .retain(|&(remote, _)| remote != git::REMOTE_NAME_FOR_LOCAL_GIT_REPO);
