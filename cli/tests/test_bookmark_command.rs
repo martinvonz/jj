@@ -1547,7 +1547,7 @@ fn test_bookmark_list_filtered() {
     insta::assert_snapshot!(stderr, @r#"
     Hint: Bookmarks marked as deleted will be *deleted permanently* on the remote on the next `jj git push`. Use `jj bookmark forget` to prevent this.
     "#);
-    let (stdout, stderr) = query(&["--remote", "git"]);
+    let (stdout, stderr) = query(&["--remote", "glob:gi?"]);
     insta::assert_snapshot!(stdout, @r#"
     local-keep: kpqxywon c7b4c09c (empty) local-keep
       @git: kpqxywon c7b4c09c (empty) local-keep
