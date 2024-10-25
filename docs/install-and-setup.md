@@ -128,7 +128,7 @@ or:
 
 ```shell
 # To install the latest release
-cargo install --features vendored-openssl -locked --bin jj jj-cli
+cargo install --features vendored-openssl --locked --bin jj jj-cli
 ```
 
 #### From Source, Homebrew OpenSSL
