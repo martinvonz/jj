@@ -47,7 +47,7 @@ pub struct BookmarkListArgs {
     /// to this remote. Can be combined with `--tracked` or
     /// `--conflicted` to filter the bookmarks shown (can be repeated)
     #[arg(long = "remote", value_name = "REMOTE", conflicts_with_all = ["all_remotes"])]
-    remotes: Vec<String>,
+    remotes: Option<Vec<String>>,
 
     /// Show remote tracked bookmarks only. Omits local Git-tracking bookmarks
     /// by default
@@ -64,14 +64,14 @@ pub struct BookmarkListArgs {
     /// select bookmarks by wildcard pattern. For details, see
     /// https://martinvonz.github.io/jj/latest/revsets/#string-patterns.
     #[arg(value_parser = StringPattern::parse)]
-    names: Vec<StringPattern>,
+    names: Option<Vec<StringPattern>>,
 
     /// Show bookmarks whose local targets are in the given revisions
     ///
     /// Note that `-r deleted_bookmark` will not work since `deleted_bookmark`
     /// wouldn't have a local target.
     #[arg(long, short)]
-    revisions: Vec<RevisionArg>,
+    revisions: Option<Vec<RevisionArg>>,
 
     /// Render each bookmark using the given template
     ///
@@ -92,18 +92,18 @@ pub fn cmd_bookmark_list(
     let view = repo.view();
 
     // Like cmd_git_push(), names and revisions are OR-ed.
-    let bookmark_names_to_list = if !args.names.is_empty() || !args.revisions.is_empty() {
+    let bookmark_names_to_list = if args.names.is_some() || args.revisions.is_some() {
         let mut bookmark_names: HashSet<&str> = HashSet::new();
-        if !args.names.is_empty() {
+        if let Some(patterns) = &args.names {
             bookmark_names.extend(
                 view.bookmarks()
-                    .filter(|&(name, _)| args.names.iter().any(|pattern| pattern.matches(name)))
+                    .filter(|&(name, _)| patterns.iter().any(|pattern| pattern.matches(name)))
                     .map(|(name, _)| name),
             );
         }
-        if !args.revisions.is_empty() {
+        if let Some(revisions) = &args.revisions {
             // Match against local targets only, which is consistent with "jj git push".
-            let mut expression = workspace_command.parse_union_revsets(ui, &args.revisions)?;
+            let mut expression = workspace_command.parse_union_revsets(ui, revisions)?;
             // Intersects with the set of local bookmark targets to minimize the lookup
             // space.
             expression.intersect_with(&RevsetExpression::bookmarks(StringPattern::everything()));
@@ -152,9 +152,9 @@ pub fn cmd_bookmark_list(
             .copied()
             .partition::<Vec<_>, _>(|&(_, remote_ref)| remote_ref.is_tracking());
 
-        if !args.remotes.is_empty() {
+        if let Some(names) = &args.remotes {
             let filter = |refs: &mut Vec<_>| {
-                refs.retain(|&(remote_name, _)| args.remotes.iter().any(|r| r == remote_name));
+                refs.retain(|&(remote_name, _)| names.iter().any(|r| r == remote_name));
             };
             filter(&mut tracking_remote_refs);
             filter(&mut untracked_remote_refs);
@@ -162,7 +162,7 @@ pub fn cmd_bookmark_list(
         if args.tracked {
             tracking_remote_refs
                 .retain(|&(remote, _)| remote != git::REMOTE_NAME_FOR_LOCAL_GIT_REPO);
-        } else if !args.all_remotes && args.remotes.is_empty() {
+        } else if !args.all_remotes && args.remotes.is_none() {
             tracking_remote_refs.retain(|&(_, remote_ref)| remote_ref.target != *local_target);
         }
 
@@ -187,7 +187,7 @@ pub fn cmd_bookmark_list(
                 .any(|&(remote, _)| remote != git::REMOTE_NAME_FOR_LOCAL_GIT_REPO);
         }
 
-        if args.all_remotes || !args.remotes.is_empty() {
+        if args.all_remotes || args.remotes.is_some() {
             for &(remote, remote_ref) in &untracked_remote_refs {
                 let ref_name = RefName::remote_only(name, remote, remote_ref.target.clone());
                 template.format(&ref_name, formatter.as_mut())?;
