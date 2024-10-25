@@ -1238,6 +1238,49 @@ fn test_existing_directory_symlink() {
     assert!(!workspace_root.parent().unwrap().join("escaped").exists());
 }
 
+#[test]
+fn test_check_out_file_removal_over_existing_directory_symlink() {
+    if !check_symlink_support().unwrap() {
+        eprintln!("Skipping test because symlink isn't supported");
+        return;
+    }
+
+    let settings = testutils::user_settings();
+    let mut test_workspace = TestWorkspace::init(&settings);
+    let repo = &test_workspace.repo;
+    let workspace_root = test_workspace.workspace.workspace_root().to_owned();
+
+    let file_path = RepoPath::from_internal_string("parent/escaped");
+    let tree1 = create_tree(repo, &[(file_path, "contents")]);
+    let tree2 = create_tree(repo, &[]);
+    let commit1 = commit_with_tree(repo.store(), tree1.id());
+    let commit2 = commit_with_tree(repo.store(), tree2.id());
+
+    // Check out "parent/escaped".
+    let ws = &mut test_workspace.workspace;
+    ws.check_out(repo.op_id().clone(), None, &commit1).unwrap();
+
+    // Pretend that "parent" was a symlink, which might be created by
+    // e.g. checking out "PARENT" on case-insensitive fs. The file
+    // "parent/escaped" would be skipped in that case.
+    std::fs::remove_file(file_path.to_fs_path_unchecked(&workspace_root)).unwrap();
+    std::fs::remove_dir(workspace_root.join("parent")).unwrap();
+    try_symlink("..", workspace_root.join("parent")).unwrap();
+    let victim_file_path = workspace_root.parent().unwrap().join("escaped");
+    std::fs::write(&victim_file_path, "").unwrap();
+    assert!(file_path.to_fs_path_unchecked(&workspace_root).exists());
+
+    // Check out empty tree, which tries to remove "parent/escaped".
+    let result = ws.check_out(repo.op_id().clone(), None, &commit2);
+    assert_matches!(
+        result,
+        Err(CheckoutError::Other { message, .. }) if message.contains("create parent dir")
+    );
+
+    // "../escaped" shouldn't be removed.
+    assert!(victim_file_path.exists());
+}
+
 #[test_case("../pwned"; "escape from root")]
 #[test_case("sub/../../pwned"; "escape from sub dir")]
 fn test_check_out_malformed_file_path(file_path_str: &str) {

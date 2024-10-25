@@ -426,7 +426,7 @@ fn sparse_patterns_from_proto(
 }
 
 /// Creates intermediate directories from the `working_copy_path` to the
-/// `repo_path` parent.
+/// `repo_path` parent. Returns disk path for the `repo_path` file.
 ///
 /// If an intermediate directory exists and if it is a symlink, this function
 /// will return an error. The `working_copy_path` directory may be a symlink.
@@ -437,8 +437,8 @@ fn sparse_patterns_from_proto(
 fn create_parent_dirs(
     working_copy_path: &Path,
     repo_path: &RepoPath,
-) -> Result<bool, CheckoutError> {
-    let parent_path = repo_path.parent().expect("repo path shouldn't be root");
+) -> Result<Option<PathBuf>, CheckoutError> {
+    let (parent_path, basename) = repo_path.split().expect("repo path shouldn't be root");
     let mut dir_path = working_copy_path.to_owned();
     for c in parent_path.components() {
         dir_path.push(c.to_fs_name().map_err(|err| err.with_path(repo_path))?);
@@ -451,7 +451,7 @@ fn create_parent_dirs(
                     .unwrap_or(false) => {}
             Err(err) => {
                 if dir_path.is_file() {
-                    return Ok(true);
+                    return Ok(None);
                 }
                 return Err(CheckoutError::Other {
                     message: format!(
@@ -463,7 +463,14 @@ fn create_parent_dirs(
             }
         }
     }
-    Ok(false)
+
+    let mut file_path = dir_path;
+    file_path.push(
+        basename
+            .to_fs_name()
+            .map_err(|err| err.with_path(repo_path))?,
+    );
+    Ok(Some(file_path))
 }
 
 /// Removes existing file named `disk_path` if any.
@@ -1424,22 +1431,20 @@ impl TreeState {
             } else {
                 stats.updated_files += 1;
             }
-            let disk_path = path.to_fs_path(&self.working_copy_path)?;
 
+            // Create parent directories no matter if after.is_present(). This
+            // ensures that the path never traverses symlinks.
+            let Some(disk_path) = create_parent_dirs(&self.working_copy_path, &path)? else {
+                changed_file_states.push((path, FileState::placeholder()));
+                stats.skipped_files += 1;
+                continue;
+            };
             if present_before {
                 remove_old_file(&disk_path)?;
             } else if disk_path.exists() {
                 changed_file_states.push((path, FileState::placeholder()));
                 stats.skipped_files += 1;
                 continue;
-            }
-            if after.is_present() {
-                let skip = create_parent_dirs(&self.working_copy_path, &path)?;
-                if skip {
-                    changed_file_states.push((path, FileState::placeholder()));
-                    stats.skipped_files += 1;
-                    continue;
-                }
             }
             // TODO: Check that the file has not changed before overwriting/removing it.
             let file_state = match after {
