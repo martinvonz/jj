@@ -196,7 +196,7 @@ pub fn cmd_bookmark_list(
                 .any(|&(remote, _)| remote != git::REMOTE_NAME_FOR_LOCAL_GIT_REPO);
         }
 
-        if args.all_remotes || args.remotes.is_some() {
+        if !args.tracked && (args.all_remotes || args.remotes.is_some()) {
             for &(remote, remote_ref) in &untracked_remote_refs {
                 let ref_name = RefName::remote_only(name, remote, remote_ref.target.clone());
                 template.format(&ref_name, formatter.as_mut())?;
