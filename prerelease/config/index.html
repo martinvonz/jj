@@ -805,6 +805,15 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#git-diff-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      Git diff options
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -2047,6 +2056,15 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#git-diff-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      Git diff options
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -2671,7 +2689,8 @@ can override the default style with the following keys:</p>
 <h4 id="color-words-diff-options">Color-words diff options<a class="headerlink" href="#color-words-diff-options" title="Permanent link">&para;</a></h4>
 <p>In color-words diffs, changed words are displayed inline by default. Because
 it's difficult to read a diff line with many removed/added words, there's a
-threshold to switch to traditional separate-line format.</p>
+threshold to switch to traditional separate-line format. You can also change
+the default number of lines of context shown.</p>
 <ul>
 <li>
 <p><code>max-inline-alternation</code>: Maximum number of removed/added word alternation to
@@ -2687,9 +2706,21 @@ threshold to switch to traditional separate-line format.</p>
 <p>The default is <code>3</code>.</p>
 <p><strong>This parameter is experimental.</strong> The definition is subject to change.</p>
 </li>
+<li>
+<p><code>context</code>: Number of lines of context to show in the diff. The default is <code>3</code>.</p>
+</li>
 </ul>
 <div class="highlight"><pre><span></span><code><span class="k">[diff.color-words]</span>
 <span class="n">max-inline-alternation</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">3</span>
+<span class="n">context</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">3</span>
+</code></pre></div>
+<h4 id="git-diff-options">Git diff options<a class="headerlink" href="#git-diff-options" title="Permanent link">&para;</a></h4>
+<p>In git diffs you can change the default number of lines of context shown.</p>
+<ul>
+<li><code>context</code>: Number of lines of context to show in the diff. The default is <code>3</code>.</li>
+</ul>
+<div class="highlight"><pre><span></span><code><span class="k">[diff.git]</span>
+<span class="n">context</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">3</span>
 </code></pre></div>
 <h3 id="generating-diffs-by-external-command">Generating diffs by external command<a class="headerlink" href="#generating-diffs-by-external-command" title="Permanent link">&para;</a></h3>
 <p>If <code>ui.diff.tool</code> is set, the specified diff command will be called instead of
