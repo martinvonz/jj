@@ -194,16 +194,20 @@ fn process_commit(
         // commit B. Then, we update local line_map to say that "Commit B line 6
         // goes to line 7 of the original file". We repeat this for all lines in
         // common in the two commits.
-        let same_line_map = get_same_line_map(&current_source.text, &parent_source.text);
-        for (current_line_number, parent_line_number) in same_line_map {
-            let Some(original_line_number) = current_source.line_map.remove(&current_line_number)
-            else {
-                continue;
-            };
-            parent_source
-                .line_map
-                .insert(parent_line_number, original_line_number);
-        }
+        copy_same_lines_with(
+            &current_source.text,
+            &parent_source.text,
+            |current_line_number, parent_line_number| {
+                let Some(original_line_number) =
+                    current_source.line_map.remove(&current_line_number)
+                else {
+                    return;
+                };
+                parent_source
+                    .line_map
+                    .insert(parent_line_number, original_line_number);
+            },
+        );
         if parent_source.line_map.is_empty() {
             commit_source_map.remove(parent_commit_id);
         }
@@ -219,9 +223,13 @@ fn process_commit(
     Ok(())
 }
 
-/// For two files, get a map of all lines in common (e.g. line 8 maps to line 9)
-fn get_same_line_map(current_contents: &[u8], parent_contents: &[u8]) -> HashMap<usize, usize> {
-    let mut result_map = HashMap::new();
+/// For two files, calls `copy(current, parent)` for each line in common
+/// (e.g. line 8 maps to line 9)
+fn copy_same_lines_with(
+    current_contents: &[u8],
+    parent_contents: &[u8],
+    mut copy: impl FnMut(usize, usize),
+) {
     let diff = Diff::by_line([current_contents, parent_contents]);
     let mut current_line_counter: usize = 0;
     let mut parent_line_counter: usize = 0;
@@ -229,7 +237,7 @@ fn get_same_line_map(current_contents: &[u8], parent_contents: &[u8]) -> HashMap
         match hunk.kind {
             DiffHunkKind::Matching => {
                 for _ in hunk.contents[0].split_inclusive(|b| *b == b'\n') {
-                    result_map.insert(current_line_counter, parent_line_counter);
+                    copy(current_line_counter, parent_line_counter);
                     current_line_counter += 1;
                     parent_line_counter += 1;
                 }
@@ -242,8 +250,6 @@ fn get_same_line_map(current_contents: &[u8], parent_contents: &[u8]) -> HashMap
             }
         }
     }
-
-    result_map
 }
 
 fn get_file_contents(
