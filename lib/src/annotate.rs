@@ -188,41 +188,44 @@ fn process_commit(
     current_commit_id: &CommitId,
     edges: &[GraphEdge<CommitId>],
 ) -> Result<(), BackendError> {
-    if let Some(mut current_source) = commit_source_map.remove(current_commit_id) {
-        for parent_edge in edges {
-            if parent_edge.edge_type != GraphEdgeType::Missing {
-                let parent_commit_id = &parent_edge.target;
-                let parent_source = match commit_source_map.entry(parent_commit_id.clone()) {
-                    hash_map::Entry::Occupied(entry) => entry.into_mut(),
-                    hash_map::Entry::Vacant(entry) => {
-                        let commit = repo.store().get_commit(entry.key())?;
-                        entry.insert(Source::load(&commit, file_name)?)
-                    }
-                };
-                let same_line_map = process_files_in_commits(&current_source, parent_source);
+    let Some(mut current_source) = commit_source_map.remove(current_commit_id) else {
+        return Ok(());
+    };
 
-                for (current_line_number, parent_line_number) in same_line_map {
-                    if let Some(original_line_number) =
-                        current_source.line_map.remove(&current_line_number)
-                    {
-                        // forward current line to parent commit since it is in common
-                        parent_source
-                            .line_map
-                            .insert(parent_line_number, original_line_number);
-                    }
-                }
-                if parent_source.line_map.is_empty() {
-                    commit_source_map.remove(parent_commit_id);
-                }
+    for parent_edge in edges {
+        if parent_edge.edge_type == GraphEdgeType::Missing {
+            continue;
+        }
+        let parent_commit_id = &parent_edge.target;
+        let parent_source = match commit_source_map.entry(parent_commit_id.clone()) {
+            hash_map::Entry::Occupied(entry) => entry.into_mut(),
+            hash_map::Entry::Vacant(entry) => {
+                let commit = repo.store().get_commit(entry.key())?;
+                entry.insert(Source::load(&commit, file_name)?)
             }
+        };
+        let same_line_map = process_files_in_commits(&current_source, parent_source);
+
+        for (current_line_number, parent_line_number) in same_line_map {
+            let Some(original_line_number) = current_source.line_map.remove(&current_line_number)
+            else {
+                continue;
+            };
+            // forward current line to parent commit since it is in common
+            parent_source
+                .line_map
+                .insert(parent_line_number, original_line_number);
         }
-        if !current_source.line_map.is_empty() {
-            mark_lines_from_original(
-                original_line_map,
-                current_commit_id,
-                current_source.line_map,
-            );
+        if parent_source.line_map.is_empty() {
+            commit_source_map.remove(parent_commit_id);
         }
+    }
+    if !current_source.line_map.is_empty() {
+        mark_lines_from_original(
+            original_line_map,
+            current_commit_id,
+            current_source.line_map,
+        );
     }
 
     Ok(())
