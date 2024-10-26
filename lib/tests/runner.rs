@@ -6,6 +6,7 @@ fn test_no_forgotten_test_files() {
     testutils::assert_no_forgotten_test_files(&test_dir);
 }
 
+mod test_annotate;
 mod test_bad_locking;
 mod test_commit_builder;
 mod test_commit_concurrent;
