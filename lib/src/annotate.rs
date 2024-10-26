@@ -76,25 +76,16 @@ impl Source {
             text: text.into(),
         })
     }
+
+    fn fill_line_map(&mut self) {
+        let lines = self.text.split_inclusive(|b| *b == b'\n');
+        self.line_map = lines.enumerate().map(|(i, _)| (i, i)).collect();
+    }
 }
 
 /// A map from line numbers in the original file to the commit that originated
 /// that line
 type OriginalLineMap = HashMap<usize, CommitId>;
-
-fn get_initial_commit_line_map(
-    commit_id: &CommitId,
-    mut source: Source,
-    num_lines: usize,
-) -> CommitSourceMap {
-    for i in 0..num_lines {
-        source.line_map.insert(i, i);
-    }
-
-    let mut starting_line_map = HashMap::new();
-    starting_line_map.insert(commit_id.clone(), source);
-    starting_line_map
-}
 
 /// Once we've looked at all parents of a commit, any leftover lines must be
 /// original to the current commit, so we save this information in
@@ -130,12 +121,11 @@ pub fn get_annotation_for_file(
     starting_commit: &Commit,
     file_path: &RepoPath,
 ) -> Result<AnnotateResults, RevsetEvaluationError> {
-    let source = Source::load(starting_commit, file_path)?;
+    let mut source = Source::load(starting_commit, file_path)?;
+    source.fill_line_map();
     let original_contents = source.text.clone();
-    let num_lines = original_contents.split_inclusive(|b| *b == b'\n').count();
 
-    let original_line_map =
-        process_commits(repo, starting_commit.id(), source, file_path, num_lines)?;
+    let original_line_map = process_commits(repo, starting_commit.id(), source, file_path)?;
 
     Ok(convert_to_results(original_line_map, &original_contents))
 }
@@ -148,7 +138,6 @@ fn process_commits(
     starting_commit_id: &CommitId,
     starting_source: Source,
     file_name: &RepoPath,
-    num_lines: usize,
 ) -> Result<OriginalLineMap, RevsetEvaluationError> {
     let predicate = RevsetFilterPredicate::File(FilesetExpression::file_path(file_name.to_owned()));
     let revset = RevsetExpression::commit(starting_commit_id.clone())
@@ -159,8 +148,9 @@ fn process_commits(
         )
         .evaluate_programmatic(repo)
         .map_err(|e| e.expect_backend_error())?;
-    let mut commit_source_map =
-        get_initial_commit_line_map(starting_commit_id, starting_source, num_lines);
+
+    let num_lines = starting_source.line_map.len();
+    let mut commit_source_map = HashMap::from([(starting_commit_id.clone(), starting_source)]);
     let mut original_line_map = HashMap::new();
 
     for node in revset.iter_graph() {
