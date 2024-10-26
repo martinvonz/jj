@@ -862,6 +862,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#default-template" class="md-nav__link">
+    <span class="md-ellipsis">
+      Default Template
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#graph-style" class="md-nav__link">
     <span class="md-ellipsis">
       Graph style
@@ -2113,6 +2122,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#default-template" class="md-nav__link">
+    <span class="md-ellipsis">
+      Default Template
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#graph-style" class="md-nav__link">
     <span class="md-ellipsis">
       Graph style
@@ -2773,6 +2791,26 @@ immutable even if the set is empty.</p>
 </code></pre></div>
 <p>The default value for <code>revsets.log</code> is
 <code>'present(@) | ancestors(immutable_heads().., 2) | present(trunk())'</code>.</p>
+<h3 id="default-template">Default Template<a class="headerlink" href="#default-template" title="Permanent link">&para;</a></h3>
+<p>You can configure the template used when no <code>-T</code> is specified.</p>
+<ul>
+<li><code>templates.log</code> for <code>jj log</code></li>
+<li><code>templates.op_log</code> for <code>jj op log</code></li>
+<li><code>templates.show</code> for <code>jj show</code></li>
+</ul>
+<div class="highlight"><pre><span></span><code><span class="k">[templates]</span>
+<span class="c1"># Use builtin log template</span>
+<span class="n">log</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;builtin_log_compact&quot;</span>
+<span class="c1"># Use builtin op log template</span>
+<span class="n">op_log</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;builtin_log_compact&quot;</span>
+<span class="c1"># Use builtin show template</span>
+<span class="n">show</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;builtin_log_detailed&quot;</span>
+</code></pre></div>
+<p>If you want to see the full description when you do <code>jj log</code> you can add this to
+your config:</p>
+<div class="highlight"><pre><span></span><code><span class="k">[templates]</span>
+<span class="n">log</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;builtin_log_compact_full_description&quot;</span>
+</code></pre></div>
 <h3 id="graph-style">Graph style<a class="headerlink" href="#graph-style" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><span class="c1"># Possible values: &quot;curved&quot; (default), &quot;square&quot;, &quot;ascii&quot;, &quot;ascii-large&quot;</span>
 <span class="n">ui</span><span class="p">.</span><span class="n">graph</span><span class="p">.</span><span class="n">style</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;square&quot;</span>
