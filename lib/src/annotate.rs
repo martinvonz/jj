@@ -20,6 +20,7 @@
 
 use std::collections::HashMap;
 
+use bstr::BString;
 use pollster::FutureExt;
 
 use crate::backend::BackendError;
@@ -42,13 +43,14 @@ use crate::revset::RevsetFilterPredicate;
 use crate::store::Store;
 
 /// Annotation results for a specific file
+#[derive(Clone, Debug)]
 pub struct AnnotateResults {
     /// An array of annotation results ordered by line.
     /// For each value in the array, the commit_id is the commit id of the
     /// originator of the line and the string is the actual line itself (without
     /// newline terminators). The vector is ordered by appearance in the
     /// file
-    pub file_annotations: Vec<(CommitId, Vec<u8>)>,
+    pub file_annotations: Vec<(CommitId, BString)>,
 }
 
 /// A map from commits to line mappings.
@@ -93,19 +95,12 @@ fn convert_to_results(
     original_line_map: OriginalLineMap,
     original_contents: &[u8],
 ) -> AnnotateResults {
-    let result_lines = original_contents
+    let file_annotations = original_contents
         .split_inclusive(|b| *b == b'\n')
         .enumerate()
-        .map(|(idx, line)| {
-            (
-                original_line_map.get(&idx).unwrap().clone(),
-                line.to_owned(),
-            )
-        })
+        .map(|(idx, line)| (original_line_map.get(&idx).unwrap().clone(), line.into()))
         .collect();
-    AnnotateResults {
-        file_annotations: result_lines,
-    }
+    AnnotateResults { file_annotations }
 }
 
 /// loads a given file into the cache under a specific commit id.
