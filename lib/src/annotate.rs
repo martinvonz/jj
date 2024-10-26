@@ -154,14 +154,13 @@ fn process_commits(
     let mut original_line_map = HashMap::new();
 
     for node in revset.iter_graph() {
-        let (cid, edge_list) = node?;
-        let current_commit = repo.store().get_commit(&cid)?;
+        let (commit_id, edge_list) = node?;
         process_commit(
             repo,
             file_name,
             &mut original_line_map,
             &mut commit_source_map,
-            &current_commit,
+            &commit_id,
             &edge_list,
         )?;
         if original_line_map.len() >= num_lines {
@@ -186,10 +185,10 @@ fn process_commit(
     file_name: &RepoPath,
     original_line_map: &mut HashMap<usize, CommitId>,
     commit_source_map: &mut CommitSourceMap,
-    current_commit: &Commit,
+    current_commit_id: &CommitId,
     edges: &[GraphEdge<CommitId>],
 ) -> Result<(), BackendError> {
-    if let Some(mut current_source) = commit_source_map.remove(current_commit.id()) {
+    if let Some(mut current_source) = commit_source_map.remove(current_commit_id) {
         for parent_edge in edges {
             if parent_edge.edge_type != GraphEdgeType::Missing {
                 let parent_commit_id = &parent_edge.target;
@@ -220,7 +219,7 @@ fn process_commit(
         if !current_source.line_map.is_empty() {
             mark_lines_from_original(
                 original_line_map,
-                current_commit.id(),
+                current_commit_id,
                 current_source.line_map,
             );
         }
