@@ -160,11 +160,6 @@ fn process_commits(
 /// For a given commit, for each parent, we compare the version in the parent
 /// tree with the current version, updating the mappings for any lines in
 /// common. If the parent doesn't have the file, we skip it.
-///
-/// We return the lines that are the same in the child commit and
-/// any parent. Namely, if line x is found in parent Y, we record the mapping
-/// that parent Y has line x. The line mappings for all parents are returned
-/// along with any lines originated in the current commit
 fn process_commit(
     repo: &dyn Repo,
     file_name: &RepoPath,
@@ -189,14 +184,21 @@ fn process_commit(
                 entry.insert(Source::load(&commit, file_name)?)
             }
         };
-        let same_line_map = process_files_in_commits(&current_source, parent_source);
 
+        // For two versions of the same file, for all the lines in common,
+        // overwrite the new mapping in the results for the new commit. Let's
+        // say I have a file in commit A and commit B. We know that according to
+        // local line_map, in commit A, line 3 corresponds to line 7 of the
+        // original file. Now, line 3 in Commit A corresponds to line 6 in
+        // commit B. Then, we update local line_map to say that "Commit B line 6
+        // goes to line 7 of the original file". We repeat this for all lines in
+        // common in the two commits.
+        let same_line_map = get_same_line_map(&current_source.text, &parent_source.text);
         for (current_line_number, parent_line_number) in same_line_map {
             let Some(original_line_number) = current_source.line_map.remove(&current_line_number)
             else {
                 continue;
             };
-            // forward current line to parent commit since it is in common
             parent_source
                 .line_map
                 .insert(parent_line_number, original_line_number);
@@ -214,22 +216,6 @@ fn process_commit(
     }
 
     Ok(())
-}
-
-/// For two versions of the same file, for all the lines in common, overwrite
-/// the new mapping in the results for the new commit. Let's say I have
-/// a file in commit A and commit B. We know that according to local_line_map,
-/// in commit A, line 3 corresponds to line 7 of the original file. Now, line 3
-/// in Commit A corresponds to line 6 in commit B. Then, we update
-/// local_line_map to say that "Commit B line 6 goes to line 7 of the original
-/// file". We repeat this for all lines in common in the two commits. For 2
-/// identical files, we bulk replace all mappings from commit A to commit B in
-/// local_line_map
-fn process_files_in_commits(
-    current_source: &Source,
-    parent_source: &Source,
-) -> HashMap<usize, usize> {
-    get_same_line_map(&current_source.text, &parent_source.text)
 }
 
 /// For two files, get a map of all lines in common (e.g. line 8 maps to line 9)
