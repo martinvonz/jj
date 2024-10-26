@@ -87,19 +87,6 @@ impl Source {
 /// that line
 type OriginalLineMap = HashMap<usize, CommitId>;
 
-/// Once we've looked at all parents of a commit, any leftover lines must be
-/// original to the current commit, so we save this information in
-/// original_line_map.
-fn mark_lines_from_original(
-    original_line_map: &mut OriginalLineMap,
-    commit_id: &CommitId,
-    commit_lines: HashMap<usize, usize>,
-) {
-    for (_, original_line_number) in commit_lines {
-        original_line_map.insert(original_line_number, commit_id.clone());
-    }
-}
-
 /// Takes in an original line map and the original contents and annotates each
 /// line according to the contents of the provided OriginalLineMap
 fn convert_to_results(
@@ -173,9 +160,7 @@ fn process_commits(
 /// For a given commit, for each parent, we compare the version in the parent
 /// tree with the current version, updating the mappings for any lines in
 /// common. If the parent doesn't have the file, we skip it.
-/// After iterating through all the parents, any leftover lines unmapped means
-/// that those lines are original in the current commit. In that case,
-/// original_line_map is updated for the leftover lines.
+///
 /// We return the lines that are the same in the child commit and
 /// any parent. Namely, if line x is found in parent Y, we record the mapping
 /// that parent Y has line x. The line mappings for all parents are returned
@@ -183,7 +168,7 @@ fn process_commits(
 fn process_commit(
     repo: &dyn Repo,
     file_name: &RepoPath,
-    original_line_map: &mut HashMap<usize, CommitId>,
+    original_line_map: &mut OriginalLineMap,
     commit_source_map: &mut CommitSourceMap,
     current_commit_id: &CommitId,
     edges: &[GraphEdge<CommitId>],
@@ -220,12 +205,12 @@ fn process_commit(
             commit_source_map.remove(parent_commit_id);
         }
     }
-    if !current_source.line_map.is_empty() {
-        mark_lines_from_original(
-            original_line_map,
-            current_commit_id,
-            current_source.line_map,
-        );
+
+    // Once we've looked at all parents of a commit, any leftover lines must be
+    // original to the current commit, so we save this information in
+    // original_line_map.
+    for &original_line_number in current_source.line_map.values() {
+        original_line_map.insert(original_line_number, current_commit_id.clone());
     }
 
     Ok(())
