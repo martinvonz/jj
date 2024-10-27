@@ -583,12 +583,7 @@ fn read_config_path(config_path: &Path) -> Result<config::Config, config::Config
         .build()
 }
 
-pub fn write_config_value_to_file(
-    key: &ConfigNamePathBuf,
-    value: toml_edit::Value,
-    path: &Path,
-) -> Result<(), CommandError> {
-    // Read config
+fn read_config(path: &Path) -> Result<toml_edit::Document, CommandError> {
     let config_toml = std::fs::read_to_string(path).or_else(|err| {
         match err.kind() {
             // If config doesn't exist yet, read as empty and we'll write one.
@@ -599,12 +594,29 @@ pub fn write_config_value_to_file(
             )),
         }
     })?;
-    let mut doc: toml_edit::Document = config_toml.parse().map_err(|err| {
+    config_toml.parse().map_err(|err| {
         user_error_with_message(
             format!("Failed to parse file {path}", path = path.display()),
             err,
         )
-    })?;
+    })
+}
+
+fn write_config(path: &Path, doc: &toml_edit::Document) -> Result<(), CommandError> {
+    std::fs::write(path, doc.to_string()).map_err(|err| {
+        user_error_with_message(
+            format!("Failed to write file {path}", path = path.display()),
+            err,
+        )
+    })
+}
+
+pub fn write_config_value_to_file(
+    key: &ConfigNamePathBuf,
+    value: toml_edit::Value,
+    path: &Path,
+) -> Result<(), CommandError> {
+    let mut doc = read_config(path)?;
 
     // Apply config value
     let mut target_table = doc.as_table_mut();
@@ -633,13 +645,7 @@ pub fn write_config_value_to_file(
     }
     target_table[last_key_part] = toml_edit::Item::Value(value);
 
-    // Write config back
-    std::fs::write(path, doc.to_string()).map_err(|err| {
-        user_error_with_message(
-            format!("Failed to write file {path}", path = path.display()),
-            err,
-        )
-    })
+    write_config(path, &doc)
 }
 
 /// Command name and arguments specified by config.
