@@ -136,7 +136,6 @@ fn process_commits(
         .evaluate_programmatic(repo)
         .map_err(|e| e.expect_backend_error())?;
 
-    let num_lines = starting_source.line_map.len();
     let mut commit_source_map = HashMap::from([(starting_commit_id.clone(), starting_source)]);
     let mut original_line_map = HashMap::new();
 
@@ -150,7 +149,8 @@ fn process_commits(
             &commit_id,
             &edge_list,
         )?;
-        if original_line_map.len() >= num_lines {
+        if commit_source_map.is_empty() {
+            // No more lines to propagate to ancestors.
             break;
         }
     }
