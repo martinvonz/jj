@@ -83,9 +83,9 @@ impl Source {
     }
 }
 
-/// A map from line numbers in the original file to the commit that originated
-/// that line
-type OriginalLineMap = HashMap<usize, CommitId>;
+/// List of commit IDs that originated lines, indexed by line numbers in the
+/// original file.
+type OriginalLineMap = Vec<Option<CommitId>>;
 
 /// Takes in an original line map and the original contents and annotates each
 /// line according to the contents of the provided OriginalLineMap
@@ -93,11 +93,12 @@ fn convert_to_results(
     original_line_map: OriginalLineMap,
     original_contents: &[u8],
 ) -> AnnotateResults {
-    let file_annotations = original_contents
-        .split_inclusive(|b| *b == b'\n')
-        .enumerate()
-        .map(|(idx, line)| (original_line_map.get(&idx).unwrap().clone(), line.into()))
-        .collect();
+    let file_annotations = itertools::zip_eq(
+        original_line_map,
+        original_contents.split_inclusive(|b| *b == b'\n'),
+    )
+    .map(|(commit_id, line)| (commit_id.unwrap(), line.into()))
+    .collect();
     AnnotateResults { file_annotations }
 }
 
@@ -136,8 +137,8 @@ fn process_commits(
         .evaluate_programmatic(repo)
         .map_err(|e| e.expect_backend_error())?;
 
+    let mut original_line_map = vec![None; starting_source.line_map.len()];
     let mut commit_source_map = HashMap::from([(starting_commit_id.clone(), starting_source)]);
-    let mut original_line_map = HashMap::new();
 
     for node in revset.iter_graph() {
         let (commit_id, edge_list) = node?;
@@ -212,7 +213,7 @@ fn process_commit(
     // original to the current commit, so we save this information in
     // original_line_map.
     for &original_line_number in current_source.line_map.values() {
-        original_line_map.insert(original_line_number, current_commit_id.clone());
+        original_line_map[original_line_number] = Some(current_commit_id.clone());
     }
 
     Ok(())
