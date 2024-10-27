@@ -251,34 +251,30 @@ fn get_file_contents(
     tree: &MergedTree,
 ) -> Result<Vec<u8>, BackendError> {
     let file_value = tree.path_value(path)?;
-    if file_value.is_absent() {
-        Ok(Vec::new())
-    } else {
-        let effective_file_value = materialize_tree_value(store, path, file_value).block_on()?;
-        match effective_file_value {
-            MaterializedTreeValue::File { mut reader, id, .. } => {
-                let mut file_contents = Vec::new();
-                reader
-                    .read_to_end(&mut file_contents)
-                    .map_err(|e| BackendError::ReadFile {
-                        path: path.to_owned(),
-                        id,
-                        source: Box::new(e),
-                    })?;
-                Ok(file_contents)
-            }
-            MaterializedTreeValue::FileConflict { id, contents, .. } => {
-                let mut materialized_conflict_buffer = Vec::new();
-                materialize_merge_result(&contents, &mut materialized_conflict_buffer).map_err(
-                    |io_err| BackendError::ReadFile {
-                        path: path.to_owned(),
-                        source: Box::new(io_err),
-                        id: id.first().clone().unwrap(),
-                    },
-                )?;
-                Ok(materialized_conflict_buffer)
-            }
-            _ => Ok(Vec::new()),
+    let effective_file_value = materialize_tree_value(store, path, file_value).block_on()?;
+    match effective_file_value {
+        MaterializedTreeValue::File { mut reader, id, .. } => {
+            let mut file_contents = Vec::new();
+            reader
+                .read_to_end(&mut file_contents)
+                .map_err(|e| BackendError::ReadFile {
+                    path: path.to_owned(),
+                    id,
+                    source: Box::new(e),
+                })?;
+            Ok(file_contents)
         }
+        MaterializedTreeValue::FileConflict { id, contents, .. } => {
+            let mut materialized_conflict_buffer = Vec::new();
+            materialize_merge_result(&contents, &mut materialized_conflict_buffer).map_err(
+                |io_err| BackendError::ReadFile {
+                    path: path.to_owned(),
+                    source: Box::new(io_err),
+                    id: id.first().clone().unwrap(),
+                },
+            )?;
+            Ok(materialized_conflict_buffer)
+        }
+        _ => Ok(Vec::new()),
     }
 }
