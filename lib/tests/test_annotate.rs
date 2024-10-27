@@ -183,7 +183,59 @@ fn test_annotate_merge_split() {
 }
 
 #[test]
-#[should_panic] // FIXME: shouldn't panic because of duplicated "1"s
+fn test_annotate_merge_split_interleaved() {
+    let settings = testutils::user_settings();
+    let test_repo = TestRepo::init();
+    let repo = &test_repo.repo;
+
+    let root_commit_id = repo.store().root_commit_id();
+    let file_path = RepoPath::from_internal_string("file");
+
+    // 6    "1a 4 1b 6 2a 5 2b"
+    // |\
+    // | 5  "1b 5 2b"
+    // | |
+    // 4 |  "1a 4 2a"
+    // |/
+    // 3    "1a 1b 2a 2b"
+    // |\
+    // | 2  "2a 2b"
+    // |
+    // 1    "1a 1b"
+    let mut tx = repo.start_transaction(&settings);
+    let mut create_commit = create_commit_fn(tx.repo_mut(), &settings);
+    let content1 = "1a\n1b\n";
+    let content2 = "2a\n2b\n";
+    let content3 = "1a\n1b\n2a\n2b\n";
+    let content4 = "1a\n4\n2a\n";
+    let content5 = "1b\n5\n2b\n";
+    let content6 = "1a\n4\n1b\n6\n2a\n5\n2b\n";
+    let tree1 = create_tree(repo, &[(file_path, content1)]);
+    let tree2 = create_tree(repo, &[(file_path, content2)]);
+    let tree3 = create_tree(repo, &[(file_path, content3)]);
+    let tree4 = create_tree(repo, &[(file_path, content4)]);
+    let tree5 = create_tree(repo, &[(file_path, content5)]);
+    let tree6 = create_tree(repo, &[(file_path, content6)]);
+    let commit1 = create_commit("commit1", &[root_commit_id], tree1.id());
+    let commit2 = create_commit("commit2", &[root_commit_id], tree2.id());
+    let commit3 = create_commit("commit3", &[commit1.id(), commit2.id()], tree3.id());
+    let commit4 = create_commit("commit4", &[commit3.id()], tree4.id());
+    let commit5 = create_commit("commit5", &[commit3.id()], tree5.id());
+    let commit6 = create_commit("commit6", &[commit4.id(), commit5.id()], tree6.id());
+    drop(create_commit);
+
+    insta::assert_snapshot!(annotate(tx.repo(), &commit6, file_path), @r#"
+    commit1: 1a
+    commit4: 4
+    commit1: 1b
+    commit6: 6
+    commit2: 2a
+    commit5: 5
+    commit2: 2b
+    "#);
+}
+
+#[test]
 fn test_annotate_merge_dup() {
     let settings = testutils::user_settings();
     let test_repo = TestRepo::init();
@@ -215,6 +267,9 @@ fn test_annotate_merge_dup() {
     let commit4 = create_commit("commit4", &[commit2.id(), commit3.id()], tree4.id());
     drop(create_commit);
 
+    // Both "1"s can be propagated to commit1 through commit2 and commit3.
+    // Alternatively, it's also good to interpret that one of the "1"s was
+    // produced at commit2, commit3, or commit4.
     insta::assert_snapshot!(annotate(tx.repo(), &commit4, file_path), @r#"
     commit2: 2
     commit1: 1

@@ -22,6 +22,7 @@ use std::collections::hash_map;
 use std::collections::HashMap;
 
 use bstr::BString;
+use itertools::Itertools as _;
 use pollster::FutureExt;
 
 use crate::backend::BackendError;
@@ -61,8 +62,8 @@ type CommitSourceMap = HashMap<CommitId, Source>;
 #[derive(Clone, Debug)]
 struct Source {
     /// Mapping of line numbers in the file at the current commit to the
-    /// original file.
-    line_map: HashMap<usize, usize>,
+    /// original file, sorted by the line numbers at the current commit.
+    line_map: Vec<(usize, usize)>,
     /// File content at the current commit.
     text: BString,
 }
@@ -72,7 +73,7 @@ impl Source {
         let tree = commit.tree()?;
         let text = get_file_contents(commit.store(), file_path, &tree)?;
         Ok(Source {
-            line_map: HashMap::new(),
+            line_map: Vec::new(),
             text: text.into(),
         })
     }
@@ -194,20 +195,30 @@ fn process_commit(
         // commit B. Then, we update local line_map to say that "Commit B line 6
         // goes to line 7 of the original file". We repeat this for all lines in
         // common in the two commits.
+        let mut current_lines = current_source.line_map.iter().copied().peekable();
+        let mut new_current_line_map = Vec::new();
+        let mut new_parent_line_map = Vec::new();
         copy_same_lines_with(
             &current_source.text,
             &parent_source.text,
-            |current_line_number, parent_line_number| {
-                let Some(original_line_number) =
-                    current_source.line_map.remove(&current_line_number)
-                else {
-                    return;
-                };
-                parent_source
-                    .line_map
-                    .insert(parent_line_number, original_line_number);
+            |current_start, parent_start, count| {
+                new_current_line_map
+                    .extend(current_lines.peeking_take_while(|&(cur, _)| cur < current_start));
+                while let Some((current, original)) =
+                    current_lines.next_if(|&(cur, _)| cur < current_start + count)
+                {
+                    let parent = parent_start + (current - current_start);
+                    new_parent_line_map.push((parent, original));
+                }
             },
         );
+        new_current_line_map.extend(current_lines);
+        current_source.line_map = new_current_line_map;
+        parent_source.line_map = if parent_source.line_map.is_empty() {
+            new_parent_line_map
+        } else {
+            itertools::merge(parent_source.line_map.iter().copied(), new_parent_line_map).collect()
+        };
         if parent_source.line_map.is_empty() {
             commit_source_map.remove(parent_commit_id);
         }
@@ -216,19 +227,19 @@ fn process_commit(
     // Once we've looked at all parents of a commit, any leftover lines must be
     // original to the current commit, so we save this information in
     // original_line_map.
-    for &original_line_number in current_source.line_map.values() {
+    for (_, original_line_number) in current_source.line_map {
         original_line_map[original_line_number] = Some(current_commit_id.clone());
     }
 
     Ok(())
 }
 
-/// For two files, calls `copy(current, parent)` for each line in common
-/// (e.g. line 8 maps to line 9)
+/// For two files, calls `copy(current_start, parent_start, count)` for each
+/// range of contiguous lines in common (e.g. line 8-10 maps to line 9-11.)
 fn copy_same_lines_with(
     current_contents: &[u8],
     parent_contents: &[u8],
-    mut copy: impl FnMut(usize, usize),
+    mut copy: impl FnMut(usize, usize, usize),
 ) {
     let diff = Diff::by_line([current_contents, parent_contents]);
     let mut current_line_counter: usize = 0;
@@ -236,11 +247,10 @@ fn copy_same_lines_with(
     for hunk in diff.hunks() {
         match hunk.kind {
             DiffHunkKind::Matching => {
-                for _ in hunk.contents[0].split_inclusive(|b| *b == b'\n') {
-                    copy(current_line_counter, parent_line_counter);
-                    current_line_counter += 1;
-                    parent_line_counter += 1;
-                }
+                let count = hunk.contents[0].split_inclusive(|b| *b == b'\n').count();
+                copy(current_line_counter, parent_line_counter, count);
+                current_line_counter += count;
+                parent_line_counter += count;
             }
             DiffHunkKind::Different => {
                 let current_output = hunk.contents[0];
