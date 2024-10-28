@@ -47,6 +47,9 @@ pub struct GitFetchArgs {
     branch: Vec<StringPattern>,
     /// The remote to fetch from (only named remotes are supported, can be
     /// repeated)
+    ///
+    /// This defaults to the `git.fetch` setting. If that is not configured, and
+    /// if there are multiple remotes, the remote named "origin" will be used.
     #[arg(
         long = "remote",
         value_name = "REMOTE",

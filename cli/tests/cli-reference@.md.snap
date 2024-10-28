@@ -1099,6 +1099,8 @@ If a working-copy commit gets abandoned, it will be given a new, empty commit. T
 
   Default value: `glob:*`
 * `--remote <REMOTE>` — The remote to fetch from (only named remotes are supported, can be repeated)
+
+   This defaults to the `git.fetch` setting. If that is not configured, and if there are multiple remotes, the remote named "origin" will be used.
 * `--all-remotes` — Fetch from all remotes
 
 
@@ -1159,6 +1161,8 @@ Before the command actually moves, creates, or deletes a remote bookmark, it mak
 ###### **Options:**
 
 * `--remote <REMOTE>` — The remote to push to (only named remotes are supported)
+
+   This defaults to the `git.push` setting. If that is not configured, and if there are multiple remotes, the remote named "origin" will be used. Unlike in Git, the default remote is not derived from the tracked remote bookmarks.
 * `-b`, `--bookmark <BOOKMARK>` — Push only this bookmark, or bookmarks matching a pattern (can be repeated)
 
    By default, the specified name matches exactly. Use `glob:` prefix to select bookmarks by wildcard pattern. For details, see https://martinvonz.github.io/jj/latest/revsets#string-patterns.
