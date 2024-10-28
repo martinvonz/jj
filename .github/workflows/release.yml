@@ -101,7 +101,7 @@ jobs:
         with:
           python-version: 3.11
       - name: Install poetry
-        uses: abatilo/actions-poetry@7b6d33e44b4f08d7021a1dee3c044e9c253d6439
+        uses: abatilo/actions-poetry@e78f54a89cb052fff327414dd9ff010b5d2b4dbd
         with:
           poetry-version: latest
       - name: Compile docs and zip them up
@@ -133,7 +133,7 @@ jobs:
         with:
           python-version: 3.11
       - name: Install poetry
-        uses: abatilo/actions-poetry@7b6d33e44b4f08d7021a1dee3c044e9c253d6439
+        uses: abatilo/actions-poetry@e78f54a89cb052fff327414dd9ff010b5d2b4dbd
         with:
           poetry-version: latest
       - name: Install dependencies, compile and deploy docs to the "latest release" section of the website
