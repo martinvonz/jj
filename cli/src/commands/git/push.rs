@@ -161,12 +161,12 @@ pub fn cmd_git_push(
         get_default_push_remote(ui, command.settings(), &git_repo)?
     };
 
-    let repo = workspace_command.repo().clone();
     let mut tx = workspace_command.start_transaction();
+    let view = tx.repo().view();
     let tx_description;
     let mut bookmark_updates = vec![];
     if args.all {
-        for (bookmark_name, targets) in repo.view().local_remote_bookmarks(&remote) {
+        for (bookmark_name, targets) in view.local_remote_bookmarks(&remote) {
             match classify_bookmark_update(bookmark_name, &remote, targets) {
                 Ok(Some(update)) => bookmark_updates.push((bookmark_name.to_owned(), update)),
                 Ok(None) => {}
@@ -175,7 +175,7 @@ pub fn cmd_git_push(
         }
         tx_description = format!("push all bookmarks to git remote {remote}");
     } else if args.tracked {
-        for (bookmark_name, targets) in repo.view().local_remote_bookmarks(&remote) {
+        for (bookmark_name, targets) in view.local_remote_bookmarks(&remote) {
             if !targets.remote_ref.is_tracking() {
                 continue;
             }
@@ -187,7 +187,7 @@ pub fn cmd_git_push(
         }
         tx_description = format!("push all tracked bookmarks to git remote {remote}");
     } else if args.deleted {
-        for (bookmark_name, targets) in repo.view().local_remote_bookmarks(&remote) {
+        for (bookmark_name, targets) in view.local_remote_bookmarks(&remote) {
             if targets.local_target.is_present() {
                 continue;
             }
@@ -222,7 +222,8 @@ pub fn cmd_git_push(
             };
             (bookmark_name.as_ref(), targets)
         });
-        let bookmarks_by_name = find_bookmarks_to_push(repo.view(), &args.bookmark, &remote)?;
+        let view = tx.repo().view();
+        let bookmarks_by_name = find_bookmarks_to_push(view, &args.bookmark, &remote)?;
         for (bookmark_name, targets) in change_bookmarks.chain(bookmarks_by_name.iter().copied()) {
             if !seen_bookmarks.insert(bookmark_name) {
                 continue;
@@ -276,7 +277,7 @@ pub fn cmd_git_push(
     validate_commits_ready_to_push(ui, &bookmark_updates, &remote, &tx, command, args)?;
     if let Some(mut formatter) = ui.status_formatter() {
         writeln!(formatter, "Changes to push to {remote}:")?;
-        print_commits_ready_to_push(formatter.as_mut(), repo.as_ref(), &bookmark_updates)?;
+        print_commits_ready_to_push(formatter.as_mut(), tx.repo(), &bookmark_updates)?;
     }
 
     if args.dry_run {
