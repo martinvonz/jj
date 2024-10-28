@@ -67,7 +67,14 @@ fn set_up_remote_at_main(test_env: &TestEnvironment, workspace_root: &Path, remo
     );
     test_env.jj_cmd_ok(
         workspace_root,
-        &["git", "push", "--remote", remote_name, "-b=main"],
+        &[
+            "git",
+            "push",
+            "--allow-new",
+            "--remote",
+            remote_name,
+            "-b=main",
+        ],
     );
 }
 
@@ -155,7 +162,10 @@ fn test_git_private_commits_not_directly_in_line_block_pushing() {
     test_env.jj_cmd_ok(&workspace_root, &["bookmark", "create", "bookmark1"]);
 
     test_env.add_config(r#"git.private-commits = "description(glob:'private*')""#);
-    let stderr = test_env.jj_cmd_failure(&workspace_root, &["git", "push", "-b=bookmark1"]);
+    let stderr = test_env.jj_cmd_failure(
+        &workspace_root,
+        &["git", "push", "--allow-new", "-b=bookmark1"],
+    );
     insta::assert_snapshot!(stderr, @r###"
     Error: Won't push commit f1253a9b1ea9 since it is private
     "###);
@@ -192,8 +202,10 @@ fn test_git_private_commits_already_on_the_remote_do_not_block_push() {
     test_env.jj_cmd_ok(&workspace_root, &["new", "main", "-m=private 1"]);
     test_env.jj_cmd_ok(&workspace_root, &["new", "-m=public 3"]);
     test_env.jj_cmd_ok(&workspace_root, &["bookmark", "set", "main"]);
-    let (_, stderr) =
-        test_env.jj_cmd_ok(&workspace_root, &["git", "push", "-b=main", "-b=bookmark1"]);
+    let (_, stderr) = test_env.jj_cmd_ok(
+        &workspace_root,
+        &["git", "push", "--allow-new", "-b=main", "-b=bookmark1"],
+    );
     insta::assert_snapshot!(stderr, @r#"
     Changes to push to origin:
       Move forward bookmark main from 7eb97bf230ad to fbb352762352
@@ -223,7 +235,10 @@ fn test_git_private_commits_already_on_the_remote_do_not_block_push() {
         &["new", "description('private 1')", "-m=public 4"],
     );
     test_env.jj_cmd_ok(&workspace_root, &["bookmark", "create", "bookmark2"]);
-    let (_, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push", "-b=bookmark2"]);
+    let (_, stderr) = test_env.jj_cmd_ok(
+        &workspace_root,
+        &["git", "push", "--allow-new", "-b=bookmark2"],
+    );
     insta::assert_snapshot!(stderr, @r#"
     Changes to push to origin:
       Add bookmark bookmark2 to ee5b808b0b95

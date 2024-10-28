@@ -49,7 +49,10 @@ fn test_bookmark_names() {
     test_env.jj_cmd_ok(&repo_path, &["desc", "-r", "aaa-tracked", "-m", "x"]);
     test_env.jj_cmd_ok(&repo_path, &["bookmark", "create", "bbb-tracked"]);
     test_env.jj_cmd_ok(&repo_path, &["desc", "-r", "bbb-tracked", "-m", "x"]);
-    test_env.jj_cmd_ok(&repo_path, &["git", "push", "--bookmark", "glob:*-tracked"]);
+    test_env.jj_cmd_ok(
+        &repo_path,
+        &["git", "push", "--allow-new", "--bookmark", "glob:*-tracked"],
+    );
 
     test_env.jj_cmd_ok(&origin_path, &["bookmark", "create", "aaa-untracked"]);
     test_env.jj_cmd_ok(&origin_path, &["desc", "-r", "aaa-untracked", "-m", "x"]);

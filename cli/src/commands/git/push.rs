@@ -57,7 +57,7 @@ use crate::ui::Ui;
 
 /// Push to a Git remote
 ///
-/// By default, pushes any bookmarks pointing to
+/// By default, pushes tracking bookmarks pointing to
 /// `remote_bookmarks(remote=<remote>)..@`. Use `--bookmark` to push specific
 /// bookmarks. Use `--all` to push all bookmarks. Use `--change` to generate
 /// bookmark names based on the change IDs of specific commits.
@@ -98,7 +98,7 @@ pub struct GitPushArgs {
         add = ArgValueCandidates::new(complete::local_bookmarks),
     )]
     bookmark: Vec<StringPattern>,
-    /// Push all bookmarks (including deleted bookmarks)
+    /// Push all bookmarks (including new and deleted bookmarks)
     #[arg(long)]
     all: bool,
     /// Push all tracked bookmarks (including deleted bookmarks)
@@ -115,6 +115,11 @@ pub struct GitPushArgs {
     /// correspond to missing local bookmarks.
     #[arg(long)]
     deleted: bool,
+    /// Allow pushing new bookmarks
+    ///
+    /// Newly-created remote bookmarks will be tracked automatically.
+    #[arg(long, conflicts_with = "what")]
+    allow_new: bool,
     /// Allow pushing commits with empty descriptions
     #[arg(long)]
     allow_empty_description: bool,
@@ -127,8 +132,9 @@ pub struct GitPushArgs {
     /// Push this commit by creating a bookmark based on its change ID (can be
     /// repeated)
     ///
-    /// Use the `git.push-bookmark-prefix` setting to change the prefix for
-    /// generated names.
+    /// The created bookmark will be tracked automatically. Use the
+    /// `git.push-bookmark-prefix` setting to change the prefix for generated
+    /// names.
     #[arg(long, short)]
     change: Vec<RevisionArg>,
     /// Only display what will change on the remote
@@ -172,7 +178,8 @@ pub fn cmd_git_push(
     let mut bookmark_updates = vec![];
     if args.all {
         for (bookmark_name, targets) in view.local_remote_bookmarks(&remote) {
-            match classify_bookmark_update(bookmark_name, &remote, targets) {
+            let allow_new = true; // implied by --all
+            match classify_bookmark_update(bookmark_name, &remote, targets, allow_new) {
                 Ok(Some(update)) => bookmark_updates.push((bookmark_name.to_owned(), update)),
                 Ok(None) => {}
                 Err(reason) => reason.print(ui)?,
@@ -184,7 +191,8 @@ pub fn cmd_git_push(
             if !targets.remote_ref.is_tracking() {
                 continue;
             }
-            match classify_bookmark_update(bookmark_name, &remote, targets) {
+            let allow_new = false; // doesn't matter
+            match classify_bookmark_update(bookmark_name, &remote, targets, allow_new) {
                 Ok(Some(update)) => bookmark_updates.push((bookmark_name.to_owned(), update)),
                 Ok(None) => {}
                 Err(reason) => reason.print(ui)?,
@@ -196,7 +204,8 @@ pub fn cmd_git_push(
             if targets.local_target.is_present() {
                 continue;
             }
-            match classify_bookmark_update(bookmark_name, &remote, targets) {
+            let allow_new = false; // doesn't matter
+            match classify_bookmark_update(bookmark_name, &remote, targets, allow_new) {
                 Ok(Some(update)) => bookmark_updates.push((bookmark_name.to_owned(), update)),
                 Ok(None) => {}
                 Err(reason) => reason.print(ui)?,
@@ -228,12 +237,27 @@ pub fn cmd_git_push(
             (bookmark_name.as_ref(), targets)
         });
         let view = tx.repo().view();
-        let bookmarks_by_name = find_bookmarks_to_push(view, &args.bookmark, &remote)?;
-        for (bookmark_name, targets) in change_bookmarks.chain(bookmarks_by_name.iter().copied()) {
+        for (bookmark_name, targets) in change_bookmarks {
             if !seen_bookmarks.insert(bookmark_name) {
                 continue;
             }
-            match classify_bookmark_update(bookmark_name, &remote, targets) {
+            let allow_new = true; // --change implies creation of remote bookmark
+            match classify_bookmark_update(bookmark_name, &remote, targets, allow_new) {
+                Ok(Some(update)) => bookmark_updates.push((bookmark_name.to_owned(), update)),
+                Ok(None) => writeln!(
+                    ui.status(),
+                    "Bookmark {bookmark_name}@{remote} already matches {bookmark_name}",
+                )?,
+                Err(reason) => return Err(reason.into()),
+            }
+        }
+
+        let bookmarks_by_name = find_bookmarks_to_push(view, &args.bookmark, &remote)?;
+        for &(bookmark_name, targets) in &bookmarks_by_name {
+            if !seen_bookmarks.insert(bookmark_name) {
+                continue;
+            }
+            match classify_bookmark_update(bookmark_name, &remote, targets, args.allow_new) {
                 Ok(Some(update)) => bookmark_updates.push((bookmark_name.to_owned(), update)),
                 Ok(None) => writeln!(
                     ui.status(),
@@ -256,7 +280,7 @@ pub fn cmd_git_push(
             if !seen_bookmarks.insert(bookmark_name) {
                 continue;
             }
-            match classify_bookmark_update(bookmark_name, &remote, targets) {
+            match classify_bookmark_update(bookmark_name, &remote, targets, args.allow_new) {
                 Ok(Some(update)) => bookmark_updates.push((bookmark_name.to_owned(), update)),
                 Ok(None) => {}
                 Err(reason) => reason.print(ui)?,
@@ -504,6 +528,7 @@ fn classify_bookmark_update(
     bookmark_name: &str,
     remote_name: &str,
     targets: LocalAndRemoteRef,
+    allow_new: bool,
 ) -> Result<Option<BookmarkPushUpdate>, RejectedBookmarkUpdateReason> {
     let push_action = classify_bookmark_push_action(targets);
     match push_action {
@@ -526,6 +551,18 @@ fn classify_bookmark_update(
                  bookmark."
             )),
         }),
+        BookmarkPushAction::Update(update) if update.old_target.is_none() && !allow_new => {
+            Err(RejectedBookmarkUpdateReason {
+                message: format!(
+                    "Refusing to create new remote bookmark {bookmark_name}@{remote_name}"
+                ),
+                hint: Some(
+                    "Use --allow-new to push new bookmark. Use --remote to specify the remote to \
+                     push to."
+                        .to_owned(),
+                ),
+            })
+        }
         BookmarkPushAction::Update(update) => Ok(Some(update)),
     }
 }

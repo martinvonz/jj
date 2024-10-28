@@ -1148,7 +1148,7 @@ Create a new Git backed repo
 
 Push to a Git remote
 
-By default, pushes any bookmarks pointing to `remote_bookmarks(remote=<remote>)..@`. Use `--bookmark` to push specific bookmarks. Use `--all` to push all bookmarks. Use `--change` to generate bookmark names based on the change IDs of specific commits.
+By default, pushes tracking bookmarks pointing to `remote_bookmarks(remote=<remote>)..@`. Use `--bookmark` to push specific bookmarks. Use `--all` to push all bookmarks. Use `--change` to generate bookmark names based on the change IDs of specific commits.
 
 Before the command actually moves, creates, or deletes a remote bookmark, it makes several [safety checks]. If there is a problem, you may need to run `jj git fetch --remote <remote name>` and/or resolve some [bookmark conflicts].
 
@@ -1166,19 +1166,22 @@ Before the command actually moves, creates, or deletes a remote bookmark, it mak
 * `-b`, `--bookmark <BOOKMARK>` — Push only this bookmark, or bookmarks matching a pattern (can be repeated)
 
    By default, the specified name matches exactly. Use `glob:` prefix to select bookmarks by wildcard pattern. For details, see https://martinvonz.github.io/jj/latest/revsets#string-patterns.
-* `--all` — Push all bookmarks (including deleted bookmarks)
+* `--all` — Push all bookmarks (including new and deleted bookmarks)
 * `--tracked` — Push all tracked bookmarks (including deleted bookmarks)
 
    This usually means that the bookmark was already pushed to or fetched from the relevant remote. For details, see https://martinvonz.github.io/jj/latest/bookmarks#remotes-and-tracked-bookmarks
 * `--deleted` — Push all deleted bookmarks
 
    Only tracked bookmarks can be successfully deleted on the remote. A warning will be printed if any untracked bookmarks on the remote correspond to missing local bookmarks.
+* `--allow-new` — Allow pushing new bookmarks
+
+   Newly-created remote bookmarks will be tracked automatically.
 * `--allow-empty-description` — Allow pushing commits with empty descriptions
 * `--allow-private` — Allow pushing commits that are private
 * `-r`, `--revisions <REVISIONS>` — Push bookmarks pointing to these commits (can be repeated)
 * `-c`, `--change <CHANGE>` — Push this commit by creating a bookmark based on its change ID (can be repeated)
 
-   Use the `git.push-bookmark-prefix` setting to change the prefix for generated names.
+   The created bookmark will be tracked automatically. Use the `git.push-bookmark-prefix` setting to change the prefix for generated names.
 * `--dry-run` — Only display what will change on the remote
 
 

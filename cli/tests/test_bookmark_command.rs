@@ -196,7 +196,7 @@ fn test_bookmark_move() {
 
     // Delete bookmark locally, but is still tracking remote
     test_env.jj_cmd_ok(&repo_path, &["describe", "@-", "-mcommit"]);
-    test_env.jj_cmd_ok(&repo_path, &["git", "push", "-r@-"]);
+    test_env.jj_cmd_ok(&repo_path, &["git", "push", "--allow-new", "-r@-"]);
     test_env.jj_cmd_ok(&repo_path, &["bookmark", "delete", "foo"]);
     insta::assert_snapshot!(get_bookmark_output(&test_env, &repo_path), @r###"
     foo (deleted)
@@ -441,7 +441,7 @@ fn test_bookmark_rename() {
     test_env.jj_cmd_ok(&repo_path, &["new"]);
     test_env.jj_cmd_ok(&repo_path, &["describe", "-m=commit-2"]);
     test_env.jj_cmd_ok(&repo_path, &["bookmark", "create", "bremote"]);
-    test_env.jj_cmd_ok(&repo_path, &["git", "push", "-b=bremote"]);
+    test_env.jj_cmd_ok(&repo_path, &["git", "push", "--allow-new", "-b=bremote"]);
     let (_stdout, stderr) =
         test_env.jj_cmd_ok(&repo_path, &["bookmark", "rename", "bremote", "bremote2"]);
     insta::assert_snapshot!(stderr, @r###"
@@ -1081,7 +1081,7 @@ fn test_bookmark_track_conflict() {
     );
     test_env.jj_cmd_ok(&repo_path, &["bookmark", "create", "main"]);
     test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "a"]);
-    test_env.jj_cmd_ok(&repo_path, &["git", "push", "-b", "main"]);
+    test_env.jj_cmd_ok(&repo_path, &["git", "push", "--allow-new", "-b", "main"]);
     test_env.jj_cmd_ok(&repo_path, &["bookmark", "untrack", "main@origin"]);
     test_env.jj_cmd_ok(
         &repo_path,
@@ -1757,6 +1757,7 @@ fn test_bookmark_list_tracked() {
         &[
             "git",
             "push",
+            "--allow-new",
             "--remote",
             "upstream",
             "--bookmark",

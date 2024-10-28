@@ -194,8 +194,8 @@ makes several safety checks.
 
 3. If the remote bookmark already exists on the remote, it must be
    [tracked](#remotes-and-tracked-bookmarks). If the bookmark does not already
-   exist on the remote, there is no problem; `jj git push` will create the
-   remote bookmark and mark it as tracked.
+   exist on the remote, there is no problem; `jj git push --allow-new` will
+   create the remote bookmark and mark it as tracked.
 
 [^known-issue]: See "A general note on safety" in
     <https://git-scm.com/docs/git-push#Documentation/git-push.txt---no-force-with-lease>
