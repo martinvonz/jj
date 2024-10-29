@@ -20,6 +20,8 @@
 
 use std::collections::hash_map;
 use std::collections::HashMap;
+use std::iter;
+use std::ops::Range;
 use std::rc::Rc;
 
 use bstr::BStr;
@@ -62,6 +64,43 @@ impl FileAnnotation {
     pub fn lines(&self) -> impl Iterator<Item = (Option<&CommitId>, &BStr)> {
         itertools::zip_eq(&self.line_map, self.text.split_inclusive(|b| *b == b'\n'))
             .map(|(commit_id, line)| (commit_id.as_ref(), line.as_ref()))
+    }
+
+    /// Returns iterator over `(commit_id, line_range)`s.
+    ///
+    /// For each line, the `commit_id` points to the originator commit of the
+    /// line. The `line_range` is a slice range in the file `text`. Consecutive
+    /// ranges having the same `commit_id` are not compacted.
+    pub fn line_ranges(&self) -> impl Iterator<Item = (Option<&CommitId>, Range<usize>)> {
+        let ranges = self
+            .text
+            .split_inclusive(|b| *b == b'\n')
+            .scan(0, |total, line| {
+                let start = *total;
+                *total += line.len();
+                Some(start..*total)
+            });
+        itertools::zip_eq(&self.line_map, ranges)
+            .map(|(commit_id, range)| (commit_id.as_ref(), range))
+    }
+
+    /// Returns iterator over compacted `(commit_id, line_range)`s.
+    ///
+    /// Consecutive ranges having the same `commit_id` are merged into one.
+    pub fn compact_line_ranges(&self) -> impl Iterator<Item = (Option<&CommitId>, Range<usize>)> {
+        let mut ranges = self.line_ranges();
+        let mut acc = ranges.next();
+        iter::from_fn(move || {
+            let (acc_commit_id, acc_range) = acc.as_mut()?;
+            for (cur_commit_id, cur_range) in ranges.by_ref() {
+                if *acc_commit_id == cur_commit_id {
+                    acc_range.end = cur_range.end;
+                } else {
+                    return acc.replace((cur_commit_id, cur_range));
+                }
+            }
+            acc.take()
+        })
     }
 
     /// File content at the starting commit.
@@ -331,5 +370,88 @@ fn get_file_contents(
             Ok(materialized_conflict_buffer)
         }
         _ => Ok(Vec::new()),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_lines_iterator_empty() {
+        let annotation = FileAnnotation {
+            line_map: vec![],
+            text: "".into(),
+        };
+        assert_eq!(annotation.lines().collect_vec(), vec![]);
+        assert_eq!(annotation.line_ranges().collect_vec(), vec![]);
+        assert_eq!(annotation.compact_line_ranges().collect_vec(), vec![]);
+    }
+
+    #[test]
+    fn test_lines_iterator_with_content() {
+        let commit_id1 = CommitId::from_hex("111111");
+        let commit_id2 = CommitId::from_hex("222222");
+        let commit_id3 = CommitId::from_hex("333333");
+        let annotation = FileAnnotation {
+            line_map: vec![
+                Some(commit_id1.clone()),
+                Some(commit_id2.clone()),
+                Some(commit_id3.clone()),
+            ],
+            text: "foo\n\nbar\n".into(),
+        };
+        assert_eq!(
+            annotation.lines().collect_vec(),
+            vec![
+                (Some(&commit_id1), "foo\n".as_ref()),
+                (Some(&commit_id2), "\n".as_ref()),
+                (Some(&commit_id3), "bar\n".as_ref()),
+            ]
+        );
+        assert_eq!(
+            annotation.line_ranges().collect_vec(),
+            vec![
+                (Some(&commit_id1), 0..4),
+                (Some(&commit_id2), 4..5),
+                (Some(&commit_id3), 5..9),
+            ]
+        );
+        assert_eq!(
+            annotation.compact_line_ranges().collect_vec(),
+            vec![
+                (Some(&commit_id1), 0..4),
+                (Some(&commit_id2), 4..5),
+                (Some(&commit_id3), 5..9),
+            ]
+        );
+    }
+
+    #[test]
+    fn test_lines_iterator_compaction() {
+        let commit_id1 = CommitId::from_hex("111111");
+        let commit_id2 = CommitId::from_hex("222222");
+        let commit_id3 = CommitId::from_hex("333333");
+        let annotation = FileAnnotation {
+            line_map: vec![
+                Some(commit_id1.clone()),
+                Some(commit_id1.clone()),
+                Some(commit_id2.clone()),
+                Some(commit_id1.clone()),
+                Some(commit_id3.clone()),
+                Some(commit_id3.clone()),
+                Some(commit_id3.clone()),
+            ],
+            text: "\n".repeat(7).into(),
+        };
+        assert_eq!(
+            annotation.compact_line_ranges().collect_vec(),
+            vec![
+                (Some(&commit_id1), 0..2),
+                (Some(&commit_id2), 2..3),
+                (Some(&commit_id1), 3..4),
+                (Some(&commit_id3), 4..7),
+            ]
+        );
     }
 }
