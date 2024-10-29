@@ -20,6 +20,7 @@
 
 use std::collections::hash_map;
 use std::collections::HashMap;
+use std::rc::Rc;
 
 use bstr::BStr;
 use bstr::BString;
@@ -40,6 +41,7 @@ use crate::graph::GraphEdgeType;
 use crate::merged_tree::MergedTree;
 use crate::repo::Repo;
 use crate::repo_path::RepoPath;
+use crate::revset::ResolvedRevsetExpression;
 use crate::revset::RevsetEvaluationError;
 use crate::revset::RevsetExpression;
 use crate::revset::RevsetFilterPredicate;
@@ -57,9 +59,9 @@ impl FileAnnotation {
     ///
     /// For each line, the `commit_id` points to the originator commit of the
     /// line. The `line` includes newline character.
-    pub fn lines(&self) -> impl Iterator<Item = (&CommitId, &BStr)> {
+    pub fn lines(&self) -> impl Iterator<Item = (Option<&CommitId>, &BStr)> {
         itertools::zip_eq(&self.line_map, self.text.split_inclusive(|b| *b == b'\n'))
-            .map(|(commit_id, line)| (commit_id.as_ref().unwrap(), line.as_ref()))
+            .map(|(commit_id, line)| (commit_id.as_ref(), line.as_ref()))
     }
 
     /// File content at the starting commit.
@@ -102,16 +104,22 @@ impl Source {
 type OriginalLineMap = Vec<Option<CommitId>>;
 
 /// Get line by line annotations for a specific file path in the repo.
+///
+/// The `domain` expression narrows the range of ancestors to search. It will be
+/// intersected as `domain & ::starting_commit & files(file_path)`. The
+/// `starting_commit` is assumed to be included in the `domain`.
+///
 /// If the file is not found, returns empty results.
 pub fn get_annotation_for_file(
     repo: &dyn Repo,
     starting_commit: &Commit,
+    domain: &Rc<ResolvedRevsetExpression>,
     file_path: &RepoPath,
 ) -> Result<FileAnnotation, RevsetEvaluationError> {
     let mut source = Source::load(starting_commit, file_path)?;
     source.fill_line_map();
     let text = source.text.clone();
-    let line_map = process_commits(repo, starting_commit.id(), source, file_path)?;
+    let line_map = process_commits(repo, starting_commit.id(), source, domain, file_path)?;
     Ok(FileAnnotation { line_map, text })
 }
 
@@ -122,17 +130,19 @@ fn process_commits(
     repo: &dyn Repo,
     starting_commit_id: &CommitId,
     starting_source: Source,
+    domain: &Rc<ResolvedRevsetExpression>,
     file_name: &RepoPath,
 ) -> Result<OriginalLineMap, RevsetEvaluationError> {
     let predicate = RevsetFilterPredicate::File(FilesetExpression::file_path(file_name.to_owned()));
+    // TODO: If the domain isn't a contiguous range, changes masked out by it
+    // might not be caught by the closest ancestor revision. For example,
+    // domain=merges() would pick up almost nothing because merge revisions
+    // are usually empty. Perhaps, we want to query `files(file_path,
+    // within_sub_graph=domain)`, not `domain & files(file_path)`.
+    let ancestors = RevsetExpression::commit(starting_commit_id.clone()).ancestors();
     let revset = RevsetExpression::commit(starting_commit_id.clone())
-        .union(
-            &RevsetExpression::commit(starting_commit_id.clone())
-                .ancestors()
-                .filtered(predicate),
-        )
-        .evaluate(repo)
-        .map_err(|e| e.expect_backend_error())?;
+        .union(&domain.intersection(&ancestors).filtered(predicate))
+        .evaluate(repo)?;
 
     let mut original_line_map = vec![None; starting_source.line_map.len()];
     let mut commit_source_map = HashMap::from([(starting_commit_id.clone(), starting_source)]);
@@ -171,9 +181,6 @@ fn process_commit(
     };
 
     for parent_edge in edges {
-        if parent_edge.edge_type == GraphEdgeType::Missing {
-            continue;
-        }
         let parent_commit_id = &parent_edge.target;
         let parent_source = match commit_source_map.entry(parent_commit_id.clone()) {
             hash_map::Entry::Occupied(entry) => entry.into_mut(),
@@ -215,7 +222,10 @@ fn process_commit(
         } else {
             itertools::merge(parent_source.line_map.iter().copied(), new_parent_line_map).collect()
         };
-        if parent_source.line_map.is_empty() {
+        // If an omitted parent had the file, leave these lines unresolved.
+        // TODO: These unresolved lines could be copied to the original_line_map
+        // as Err(commit_id) or something instead of None.
+        if parent_source.line_map.is_empty() || parent_edge.edge_type == GraphEdgeType::Missing {
             commit_source_map.remove(parent_commit_id);
         }
     }

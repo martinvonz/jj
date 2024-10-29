@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use std::fmt::Write as _;
+use std::rc::Rc;
 
 use jj_lib::annotate::get_annotation_for_file;
 use jj_lib::backend::CommitId;
@@ -24,6 +25,8 @@ use jj_lib::commit::Commit;
 use jj_lib::repo::MutableRepo;
 use jj_lib::repo::Repo;
 use jj_lib::repo_path::RepoPath;
+use jj_lib::revset::ResolvedRevsetExpression;
+use jj_lib::revset::RevsetExpression;
 use jj_lib::settings::UserSettings;
 use testutils::create_tree;
 use testutils::TestRepo;
@@ -54,11 +57,23 @@ fn create_commit_fn<'a>(
 }
 
 fn annotate(repo: &dyn Repo, commit: &Commit, file_path: &RepoPath) -> String {
-    let annotation = get_annotation_for_file(repo, commit, file_path).unwrap();
+    let domain = RevsetExpression::all();
+    annotate_within(repo, commit, &domain, file_path)
+}
+
+fn annotate_within(
+    repo: &dyn Repo,
+    commit: &Commit,
+    domain: &Rc<ResolvedRevsetExpression>,
+    file_path: &RepoPath,
+) -> String {
+    let annotation = get_annotation_for_file(repo, commit, domain, file_path).unwrap();
     let mut output = String::new();
     for (commit_id, line) in annotation.lines() {
-        let commit = repo.store().get_commit(commit_id).unwrap();
-        let desc = commit.description().trim_end();
+        let commit = commit_id.map(|id| repo.store().get_commit(id).unwrap());
+        let desc = commit
+            .as_ref()
+            .map_or("*******", |commit| commit.description().trim_end());
         write!(output, "{desc}: {line}").unwrap();
     }
     output
@@ -139,6 +154,42 @@ fn test_annotate_merge_simple() {
     commit1: 1
     commit3: 3
     "#);
+
+    // Exclude the fork commit and its ancestors.
+    let domain = RevsetExpression::commit(commit1.id().clone())
+        .ancestors()
+        .negated();
+    insta::assert_snapshot!(annotate_within(tx.repo(), &commit4, &domain, file_path), @r"
+    commit2: 2
+    *******: 1
+    commit3: 3
+    ");
+
+    // Exclude one side of the merge and its ancestors.
+    let domain = RevsetExpression::commit(commit2.id().clone())
+        .ancestors()
+        .negated();
+    insta::assert_snapshot!(annotate_within(tx.repo(), &commit4, &domain, file_path), @r"
+    *******: 2
+    *******: 1
+    commit3: 3
+    ");
+
+    // Exclude both sides of the merge and their ancestors.
+    let domain = RevsetExpression::commit(commit4.id().clone());
+    insta::assert_snapshot!(annotate_within(tx.repo(), &commit4, &domain, file_path), @r"
+    *******: 2
+    *******: 1
+    *******: 3
+    ");
+
+    // Exclude intermediate commit, which is useless but works.
+    let domain = RevsetExpression::commit(commit3.id().clone()).negated();
+    insta::assert_snapshot!(annotate_within(tx.repo(), &commit4, &domain, file_path), @r"
+    commit2: 2
+    commit1: 1
+    commit4: 3
+    ");
 }
 
 #[test]
