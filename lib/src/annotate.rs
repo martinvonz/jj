@@ -21,6 +21,7 @@
 use std::collections::hash_map;
 use std::collections::HashMap;
 
+use bstr::BStr;
 use bstr::BString;
 use itertools::Itertools as _;
 use pollster::FutureExt;
@@ -47,12 +48,24 @@ use crate::store::Store;
 /// Annotation results for a specific file
 #[derive(Clone, Debug)]
 pub struct AnnotateResults {
-    /// An array of annotation results ordered by line.
-    /// For each value in the array, the commit_id is the commit id of the
-    /// originator of the line and the string is the actual line itself (without
-    /// newline terminators). The vector is ordered by appearance in the
-    /// file
-    pub file_annotations: Vec<(CommitId, BString)>,
+    line_map: OriginalLineMap,
+    text: BString,
+}
+
+impl AnnotateResults {
+    /// Returns iterator over `(commit_id, line)`s.
+    ///
+    /// For each line, the `commit_id` points to the originator commit of the
+    /// line. The `line` includes newline character.
+    pub fn lines(&self) -> impl Iterator<Item = (&CommitId, &BStr)> {
+        itertools::zip_eq(&self.line_map, self.text.split_inclusive(|b| *b == b'\n'))
+            .map(|(commit_id, line)| (commit_id.as_ref().unwrap(), line.as_ref()))
+    }
+
+    /// File content at the starting commit.
+    pub fn text(&self) -> &BStr {
+        self.text.as_ref()
+    }
 }
 
 /// A map from commits to file line mappings and contents.
@@ -88,21 +101,6 @@ impl Source {
 /// original file.
 type OriginalLineMap = Vec<Option<CommitId>>;
 
-/// Takes in an original line map and the original contents and annotates each
-/// line according to the contents of the provided OriginalLineMap
-fn convert_to_results(
-    original_line_map: OriginalLineMap,
-    original_contents: &[u8],
-) -> AnnotateResults {
-    let file_annotations = itertools::zip_eq(
-        original_line_map,
-        original_contents.split_inclusive(|b| *b == b'\n'),
-    )
-    .map(|(commit_id, line)| (commit_id.unwrap(), line.into()))
-    .collect();
-    AnnotateResults { file_annotations }
-}
-
 /// Get line by line annotations for a specific file path in the repo.
 /// If the file is not found, returns empty results.
 pub fn get_annotation_for_file(
@@ -112,11 +110,9 @@ pub fn get_annotation_for_file(
 ) -> Result<AnnotateResults, RevsetEvaluationError> {
     let mut source = Source::load(starting_commit, file_path)?;
     source.fill_line_map();
-    let original_contents = source.text.clone();
-
-    let original_line_map = process_commits(repo, starting_commit.id(), source, file_path)?;
-
-    Ok(convert_to_results(original_line_map, &original_contents))
+    let text = source.text.clone();
+    let line_map = process_commits(repo, starting_commit.id(), source, file_path)?;
+    Ok(AnnotateResults { line_map, text })
 }
 
 /// Starting at the starting commit, compute changes at that commit relative to

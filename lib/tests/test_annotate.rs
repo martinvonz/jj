@@ -56,7 +56,7 @@ fn create_commit_fn<'a>(
 fn annotate(repo: &dyn Repo, commit: &Commit, file_path: &RepoPath) -> String {
     let annotation = get_annotation_for_file(repo, commit, file_path).unwrap();
     let mut output = String::new();
-    for (commit_id, line) in &annotation.file_annotations {
+    for (commit_id, line) in annotation.lines() {
         let commit = repo.store().get_commit(commit_id).unwrap();
         let desc = commit.description().trim_end();
         write!(output, "{desc}: {line}").unwrap();
