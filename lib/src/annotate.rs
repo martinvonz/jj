@@ -47,12 +47,12 @@ use crate::store::Store;
 
 /// Annotation results for a specific file
 #[derive(Clone, Debug)]
-pub struct AnnotateResults {
+pub struct FileAnnotation {
     line_map: OriginalLineMap,
     text: BString,
 }
 
-impl AnnotateResults {
+impl FileAnnotation {
     /// Returns iterator over `(commit_id, line)`s.
     ///
     /// For each line, the `commit_id` points to the originator commit of the
@@ -107,12 +107,12 @@ pub fn get_annotation_for_file(
     repo: &dyn Repo,
     starting_commit: &Commit,
     file_path: &RepoPath,
-) -> Result<AnnotateResults, RevsetEvaluationError> {
+) -> Result<FileAnnotation, RevsetEvaluationError> {
     let mut source = Source::load(starting_commit, file_path)?;
     source.fill_line_map();
     let text = source.text.clone();
     let line_map = process_commits(repo, starting_commit.id(), source, file_path)?;
-    Ok(AnnotateResults { line_map, text })
+    Ok(FileAnnotation { line_map, text })
 }
 
 /// Starting at the starting commit, compute changes at that commit relative to
