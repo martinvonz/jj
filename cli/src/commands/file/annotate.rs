@@ -83,7 +83,7 @@ fn render_annotations(
 ) -> Result<(), CommandError> {
     ui.request_pager();
     let mut formatter = ui.stdout_formatter();
-    for (line_no, (commit_id, line)) in results.file_annotations.iter().enumerate() {
+    for (line_no, (commit_id, line)) in results.lines().enumerate() {
         let commit = repo.store().get_commit(commit_id)?;
         template_render.format(&commit, formatter.as_mut())?;
         write!(formatter, " {:>4}: ", line_no + 1)?;
