@@ -135,6 +135,11 @@ parent.
       <td><code>git push &lt;remote&gt; &lt;bookmark name&gt;</code></td>
     </tr>
     <tr>
+      <td>Add a remote target to the repo</td>
+      <td><code>jj git remote add &lt;remote&gt; &lt;url&gt;</code></td>
+      <td><code>git remote add &lt;remote&gt; &lt;url&gt;</code></td>
+    </tr>
+    <tr>
       <td>Show summary of current work and repo status</td>
       <td><code>jj st</code></td>
       <td><code>git status</code></td>
