@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use jj_lib::annotate::get_annotation_for_file;
-use jj_lib::annotate::AnnotateResults;
+use jj_lib::annotate::FileAnnotation;
 use jj_lib::commit::Commit;
 use jj_lib::repo::Repo;
 use tracing::instrument;
@@ -69,21 +69,21 @@ pub(crate) fn cmd_file_annotate(
         .get_string("templates.annotate_commit_summary")?;
     let template = workspace_command.parse_commit_template(ui, &annotate_commit_summary_text)?;
 
-    let annotations = get_annotation_for_file(repo.as_ref(), &starting_commit, &file_path)?;
+    let annotation = get_annotation_for_file(repo.as_ref(), &starting_commit, &file_path)?;
 
-    render_annotations(repo.as_ref(), ui, &template, &annotations)?;
+    render_file_annotation(repo.as_ref(), ui, &template, &annotation)?;
     Ok(())
 }
 
-fn render_annotations(
+fn render_file_annotation(
     repo: &dyn Repo,
     ui: &mut Ui,
     template_render: &TemplateRenderer<Commit>,
-    results: &AnnotateResults,
+    annotation: &FileAnnotation,
 ) -> Result<(), CommandError> {
     ui.request_pager();
     let mut formatter = ui.stdout_formatter();
-    for (line_no, (commit_id, line)) in results.lines().enumerate() {
+    for (line_no, (commit_id, line)) in annotation.lines().enumerate() {
         let commit = repo.store().get_commit(commit_id)?;
         template_render.format(&commit, formatter.as_mut())?;
         write!(formatter, " {:>4}: ", line_no + 1)?;
