@@ -9,6 +9,7 @@ fn test_no_forgotten_test_files() {
 }
 
 mod test_abandon_command;
+mod test_absorb_command;
 mod test_acls;
 mod test_advance_bookmarks;
 mod test_alias;

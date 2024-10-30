@@ -13,6 +13,7 @@
 // limitations under the License.
 
 mod abandon;
+mod absorb;
 mod backout;
 #[cfg(feature = "bench")]
 mod bench;
@@ -76,6 +77,7 @@ use crate::ui::Ui;
 #[command(after_long_help = help::show_keyword_hint_after_help())]
 enum Command {
     Abandon(abandon::AbandonArgs),
+    Absorb(absorb::AbsorbArgs),
     Backout(backout::BackoutArgs),
     #[cfg(feature = "bench")]
     #[command(subcommand)]
@@ -189,6 +191,7 @@ pub fn run_command(ui: &mut Ui, command_helper: &CommandHelper) -> Result<(), Co
     let subcommand = Command::from_arg_matches(command_helper.matches()).unwrap();
     match &subcommand {
         Command::Abandon(args) => abandon::cmd_abandon(ui, command_helper, args),
+        Command::Absorb(args) => absorb::cmd_absorb(ui, command_helper, args),
         Command::Backout(args) => backout::cmd_backout(ui, command_helper, args),
         #[cfg(feature = "bench")]
         Command::Bench(args) => bench::cmd_bench(ui, command_helper, args),

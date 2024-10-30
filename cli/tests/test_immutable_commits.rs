@@ -186,14 +186,15 @@ fn test_rewrite_immutable_commands() {
     std::fs::write(repo_path.join("file2"), "merged").unwrap();
     test_env.jj_cmd_ok(&repo_path, &["bookmark", "create", "main"]);
     test_env.jj_cmd_ok(&repo_path, &["new", "description(b)"]);
+    std::fs::write(repo_path.join("file"), "w").unwrap();
     test_env.add_config(r#"revset-aliases."immutable_heads()" = "main""#);
     test_env.add_config(r#"revset-aliases."trunk()" = "main""#);
 
     // Log shows mutable commits, their parents, and trunk() by default
-    let stdout = test_env.jj_cmd_success(&repo_path, &["log"]);
-    insta::assert_snapshot!(stdout, @r###"
-    @  yqosqzyt test.user@example.com 2001-02-03 08:05:13 65147295
-    │  (empty) (no description set)
+    let (stdout, _stderr) = test_env.jj_cmd_ok(&repo_path, &["log"]);
+    insta::assert_snapshot!(stdout, @r"
+    @  yqosqzyt test.user@example.com 2001-02-03 08:05:14 55641cc5
+    │  (no description set)
     │ ◆  mzvwutvl test.user@example.com 2001-02-03 08:05:12 main 1d5af877 conflict
     ╭─┤  merge
     │ │
@@ -202,7 +203,7 @@ fn test_rewrite_immutable_commands() {
     ◆  kkmpptxz test.user@example.com 2001-02-03 08:05:10 72e1b68c
     │  b
     ~
-    "###);
+    ");
 
     // abandon
     let stderr = test_env.jj_cmd_failure(&repo_path, &["abandon", "main"]);
@@ -211,6 +212,13 @@ fn test_rewrite_immutable_commands() {
     Hint: Could not modify commit: mzvwutvl 1d5af877 main | (conflict) merge
     Hint: Pass `--ignore-immutable` or configure the set of immutable commits via `revset-aliases.immutable_heads()`.
     "#);
+    // absorb
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["absorb", "--into=::@-"]);
+    insta::assert_snapshot!(stderr, @r"
+    Error: Commit 72e1b68cbcf2 is immutable
+    Hint: Could not modify commit: kkmpptxz 72e1b68c b
+    Hint: Pass `--ignore-immutable` or configure the set of immutable commits via `revset-aliases.immutable_heads()`.
+    ");
     // chmod
     let stderr = test_env.jj_cmd_failure(&repo_path, &["file", "chmod", "-r=main", "x", "file"]);
     insta::assert_snapshot!(stderr, @r#"
