@@ -210,10 +210,23 @@ To set up command-line completion, source the output of
 `jj util completion bash/zsh/fish`. Exactly how to source it
 depends on your shell.
 
+Improved completions are currently in the works, these will complete things
+like bookmark names as well. You can activate them with the alternative "dynamic"
+instructions below. Please let us know if you encounter any issues, so we can
+ensure a smooth transition once we default to these new completions. If you
+have ideas about specific completions that could be added, please share them
+[here](https://github.com/martinvonz/jj/issues/4763).
+
 ### Bash
 
 ```shell
 source <(jj util completion bash)
+```
+
+dynamic:
+
+```shell
+echo "source <(COMPLETE=bash jj)" >> ~/.bashrc
 ```
 
 ### Zsh
@@ -224,10 +237,22 @@ compinit
 source <(jj util completion zsh)
 ```
 
+dynamic:
+
+```shell
+echo "source <(COMPLETE=zsh jj)" >> ~/.zshrc
+```
+
 ### Fish
 
 ```shell
 jj util completion fish | source
+```
+
+dynamic:
+
+```shell
+echo "source (COMPLETE=fish jj | psub)" >> ~/.config/fish/config.fish
 ```
 
 ### Nushell
@@ -237,8 +262,12 @@ jj util completion nushell | save completions-jj.nu
 use completions-jj.nu *  # Or `source completions-jj.nu`
 ```
 
+(dynamic completions not available yet)
+
 ### Xonsh
 
 ```shell
 source-bash $(jj util completion)
 ```
+
+(dynamic completions not available yet)

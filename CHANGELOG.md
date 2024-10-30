@@ -22,6 +22,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 * New command `jj util exec` that can be used for arbitrary aliases.
 
+* A preview of improved shell completions was added. Please refer to the
+  [documentation](https://martinvonz.github.io/jj/latest/install-and-setup/#command-line-completion)
+  to activate them.
+
 ### Fixed bugs
 
 ## [0.23.0] - 2024-11-06

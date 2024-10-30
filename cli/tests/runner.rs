@@ -18,6 +18,7 @@ mod test_builtin_aliases;
 mod test_checkout;
 mod test_commit_command;
 mod test_commit_template;
+mod test_completion;
 mod test_concurrent_operations;
 mod test_config_command;
 mod test_copy_detection;

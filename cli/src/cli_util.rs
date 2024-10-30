@@ -17,7 +17,6 @@ use std::cell::OnceCell;
 use std::collections::BTreeMap;
 use std::collections::HashSet;
 use std::env;
-use std::env::ArgsOs;
 use std::env::VarError;
 use std::ffi::OsString;
 use std::fmt;
@@ -2128,7 +2127,7 @@ impl WorkspaceCommandTransaction<'_> {
     }
 }
 
-fn find_workspace_dir(cwd: &Path) -> &Path {
+pub fn find_workspace_dir(cwd: &Path) -> &Path {
     cwd.ancestors()
         .find(|path| path.join(".jj").is_dir())
         .unwrap_or(cwd)
@@ -3057,7 +3056,7 @@ fn handle_early_args(
 pub fn expand_args(
     ui: &Ui,
     app: &Command,
-    args_os: ArgsOs,
+    args_os: impl IntoIterator<Item = OsString>,
     config: &config::Config,
 ) -> Result<Vec<String>, CommandError> {
     let mut string_args: Vec<String> = vec![];
@@ -3379,6 +3378,16 @@ impl CliRunner {
     #[must_use]
     #[instrument(skip(self))]
     pub fn run(mut self) -> ExitCode {
+        match clap_complete::CompleteEnv::with_factory(|| self.app.clone())
+            .try_complete(env::args_os(), None)
+        {
+            Ok(true) => return ExitCode::SUCCESS,
+            Err(e) => {
+                eprintln!("failed to generate completions: {e}");
+                return ExitCode::FAILURE;
+            }
+            Ok(false) => {}
+        };
         let builder = config::Config::builder().add_source(crate::config::default_config());
         let config = self
             .extra_configs

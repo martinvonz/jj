@@ -12,12 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use clap_complete::ArgValueCandidates;
 use jj_lib::op_store::RefTarget;
 
 use super::has_tracked_remote_bookmarks;
 use crate::cli_util::CommandHelper;
 use crate::command_error::user_error;
 use crate::command_error::CommandError;
+use crate::complete;
 use crate::ui::Ui;
 
 /// Rename `old` bookmark name to `new` bookmark name
@@ -26,6 +28,7 @@ use crate::ui::Ui;
 #[derive(clap::Args, Clone, Debug)]
 pub struct BookmarkRenameArgs {
     /// The old name of the bookmark
+    #[arg(add = ArgValueCandidates::new(complete::local_bookmarks))]
     old: String,
 
     /// The new name of the bookmark

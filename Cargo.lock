@@ -394,6 +394,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "11611dca53440593f38e6b25ec629de50b14cdfa63adc0fb856115a2c6d97595"
 dependencies = [
  "clap",
+ "clap_lex",
+ "is_executable",
+ "shlex",
 ]
 
 [[package]]
@@ -1752,6 +1755,15 @@ dependencies = [
  "hermit-abi 0.4.0",
  "libc",
  "windows-sys 0.52.0",
+]
+
+[[package]]
+name = "is_executable"
+version = "1.0.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d4a1b5bad6f9072935961dfbf1cced2f3d129963d091b6f69f007fe04e758ae2"
+dependencies = [
+ "winapi",
 ]
 
 [[package]]
