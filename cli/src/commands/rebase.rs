@@ -299,7 +299,7 @@ fn rebase_revisions(
     settings: &UserSettings,
     workspace_command: &mut WorkspaceCommandHelper,
     revisions: &[RevisionArg],
-    rebase_destionation: &RebaseDestinationArgs,
+    rebase_destination: &RebaseDestinationArgs,
     rebase_options: &RebaseOptions,
 ) -> Result<(), CommandError> {
     let target_commits: Vec<_> = workspace_command
@@ -309,8 +309,8 @@ fn rebase_revisions(
     workspace_command.check_rewritable(target_commits.iter().ids())?;
 
     let (new_parents, new_children) =
-        compute_rebase_destination(ui, workspace_command, rebase_destionation)?;
-    if rebase_destionation.destination.is_some() && new_children.is_empty() {
+        compute_rebase_destination(ui, workspace_command, rebase_destination)?;
+    if rebase_destination.destination.is_some() && new_children.is_empty() {
         for commit in &target_commits {
             if new_parents.contains(commit) {
                 return Err(user_error(format!(
