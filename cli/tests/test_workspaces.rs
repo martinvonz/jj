@@ -689,14 +689,14 @@ fn test_workspaces_current_op_discarded_by_other() {
     "###);
 
     let (stdout, stderr) = test_env.jj_cmd_ok(&secondary_path, &["workspace", "update-stale"]);
-    insta::assert_snapshot!(stderr, @r#"
+    insta::assert_snapshot!(stderr, @r###"
     Failed to read working copy's current operation; attempting recovery. Error message from read attempt: Object 8d4abed655badb70b1bab62aa87136619dbc3c8015a8ce8dfb7abfeca4e2f36c713d8f84e070a0613907a6cee7e1cc05323fe1205a319b93fe978f11a060c33c of type operation not found
-    Created and checked out recovery commit 62f70695e3b0
-    "#);
+    Created and checked out recovery commit 76d0126b3e5c
+    "###);
     insta::assert_snapshot!(stdout, @"");
 
     insta::assert_snapshot!(get_log_output(&test_env, &main_path), @r###"
-    ○  b0b400439a82 secondary@
+    ○  15df8cb57d3f secondary@
     ○  96b31dafdc41
     │ @  6c051bd1ccd5 default@
     ├─╯
@@ -718,7 +718,7 @@ fn test_workspaces_current_op_discarded_by_other() {
     A added
     D deleted
     M modified
-    Working copy : kmkuslsw b0b40043 (no description set)
+    Working copy : kmkuslsw 15df8cb5 RECOVERY COMMIT FROM `jj workspace update-stale`
     Parent commit: rzvqmyuk 96b31daf (empty) (no description set)
     "###);
     // The modified file should have the same contents it had before (not reset to
@@ -730,10 +730,10 @@ fn test_workspaces_current_op_discarded_by_other() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&secondary_path, &["evolog"]);
     insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(stdout, @r###"
-    @  kmkuslsw test.user@example.com 2001-02-03 08:05:18 secondary@ b0b40043
-    │  (no description set)
-    ○  kmkuslsw hidden test.user@example.com 2001-02-03 08:05:18 62f70695
-       (empty) (no description set)
+    @  kmkuslsw test.user@example.com 2001-02-03 08:05:18 secondary@ 15df8cb5
+    │  RECOVERY COMMIT FROM `jj workspace update-stale`
+    ○  kmkuslsw hidden test.user@example.com 2001-02-03 08:05:18 76d0126b
+       (empty) RECOVERY COMMIT FROM `jj workspace update-stale`
     "###);
 }
 
