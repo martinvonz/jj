@@ -26,7 +26,7 @@ use crate::diff_util::get_copy_records;
 use crate::diff_util::DiffFormat;
 use crate::ui::Ui;
 
-/// Show high-level repo status
+/// Show high-level repo status [aliases: st]
 ///
 /// This includes:
 ///
@@ -34,7 +34,7 @@ use crate::ui::Ui;
 ///    changes between them
 ///  * Conflicted bookmarks (see https://martinvonz.github.io/jj/latest/bookmarks/)
 #[derive(clap::Args, Clone, Debug)]
-#[command(visible_alias = "st")]
+#[command(alias = "st")]
 pub(crate) struct StatusArgs {
     /// Restrict the status display to these paths
     #[arg(value_hint = clap::ValueHint::AnyPath)]
