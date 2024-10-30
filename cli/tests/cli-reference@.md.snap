@@ -13,6 +13,7 @@ This document contains the help content for the `jj` command-line program.
 
 * [`jj`↴](#jj)
 * [`jj abandon`↴](#jj-abandon)
+* [`jj absorb`↴](#jj-absorb)
 * [`jj backout`↴](#jj-backout)
 * [`jj bookmark`↴](#jj-bookmark)
 * [`jj bookmark create`↴](#jj-bookmark-create)
@@ -121,6 +122,7 @@ To get started, see the tutorial at https://martinvonz.github.io/jj/latest/tutor
 ###### **Subcommands:**
 
 * `abandon` — Abandon a revision
+* `absorb` — Move changes from a revision into the stack of mutable revisions
 * `backout` — Apply the reverse of a revision on top of another revision
 * `bookmark` — Manage bookmarks [default alias: b]
 * `commit` — Update the description and create a new change on top
@@ -217,6 +219,33 @@ If a working-copy commit gets abandoned, it will be given a new, empty commit. T
 
 * `-s`, `--summary` — Do not print every abandoned commit on a separate line
 * `--restore-descendants` — Do not modify the content of the children of the abandoned commits
+
+
+
+## `jj absorb`
+
+Move changes from a revision into the stack of mutable revisions
+
+This command splits changes in the source revision and moves each change to the closest mutable ancestor where the corresponding lines were modified last. If the destination revision cannot be determined unambiguously, the change will be left in the source revision.
+
+The modification made by `jj absorb` can be reviewed by `jj op show -p`.
+
+**Usage:** `jj absorb [OPTIONS] [PATHS]...`
+
+###### **Arguments:**
+
+* `<PATHS>` — Move only changes to these paths (instead of all paths)
+
+###### **Options:**
+
+* `-f`, `--from <FROM>` — Source revision to absorb from
+
+  Default value: `@`
+* `-t`, `--into <INTO>` — Destination revisions to absorb into
+
+   Only ancestors of the source revision will be considered.
+
+  Default value: `mutable()`
 
 
 
