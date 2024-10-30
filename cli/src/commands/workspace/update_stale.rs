@@ -125,6 +125,16 @@ fn create_and_check_out_recovery_commit(
             vec![commit_id.clone()],
             commit.tree_id().clone(),
         )
+        .set_description(
+            "RECOVERY COMMIT FROM `jj workspace update-stale`
+
+This commit contains changes that were written to the working copy by an
+operation that was subsequently lost (or was at least unavailable when you ran
+`jj workspace update-stale`). Because the operation was lost, we don't know
+what the parent commits are supposed to be. That means that the diff compared
+to the current parents may contain changes from multiple commits.
+",
+        )
         .write()?;
     mut_repo.set_wc_commit(workspace_id, new_commit.id().clone())?;
     let repo = tx.commit("recovery commit");
