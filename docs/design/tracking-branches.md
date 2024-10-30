@@ -6,7 +6,7 @@ This is a plan to implement more Git-like remote tracking branch UX.
 
 `jj` imports all remote branches to local branches by default. As described in
 [#1136], this doesn't interact nicely with Git if we have multiple Git remotes
-with a number of branches. The `git.auto-local-branch` config can mitigate this
+with a number of branches. The `git.auto-local-bookmark` config can mitigate this
 problem, but we'll get locally-deleted branches instead.
 
 The goal of this plan is to implement
@@ -120,14 +120,14 @@ With the proposed data model, we can
 
 ### Tracking state
 
-The `git.auto-local-branch` config knob is applied when importing new remote
+The `git.auto-local-bookmark` config knob is applied when importing new remote
 branch. `jj branch` sub commands will be added to change the tracking state.
 
 ```rust
 fn default_state_for_newly_imported_branch(config, remote) {
     if remote == "git" {
         State::Tracking
-    } else if config["git.auto-local-branch"] {
+    } else if config["git.auto-local-bookmark"] {
         State::Tracking
     } else {
         State::New
@@ -155,7 +155,7 @@ fn target_in_merge_context(known_target, state) {
 * New `remotes[remote].branches` corresponds to
   `branches[].remote_targets[remote]`.
 * `state = new|tracking` doesn't exist in the current model. It's determined
-  by `git.auto-local-branch` config.
+  by `git.auto-local-bookmark` config.
 
 ## Common command behaviors
 

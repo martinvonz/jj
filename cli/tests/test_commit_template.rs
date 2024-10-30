@@ -550,7 +550,7 @@ fn test_log_evolog_divergence() {
 #[test]
 fn test_log_bookmarks() {
     let test_env = TestEnvironment::default();
-    test_env.add_config("git.auto-local-branch = true");
+    test_env.add_config("git.auto-local-bookmark = true");
     test_env.add_config(r#"revset-aliases."immutable_heads()" = "none()""#);
 
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "origin"]);

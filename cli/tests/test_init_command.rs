@@ -388,7 +388,7 @@ fn test_init_git_colocated_symlink_gitlink() {
 #[test]
 fn test_init_git_colocated_imported_refs() {
     let test_env = TestEnvironment::default();
-    test_env.add_config("git.auto-local-branch = true");
+    test_env.add_config("git.auto-local-bookmark = true");
 
     // Set up remote refs
     test_env.jj_cmd_ok(test_env.env_root(), &["init", "remote", "--git"]);
@@ -417,7 +417,7 @@ fn test_init_git_colocated_imported_refs() {
             .unwrap();
     };
 
-    // With git.auto-local-branch = true
+    // With git.auto-local-bookmark = true
     let local_path = test_env.env_root().join("local1");
     set_up_local_repo(&local_path);
     let (_stdout, stderr) = test_env.jj_cmd_ok(&local_path, &["init", "--git-repo=."]);
@@ -436,8 +436,8 @@ fn test_init_git_colocated_imported_refs() {
       @origin: vvkvtnvv 230dd059 (empty) (no description set)
     "###);
 
-    // With git.auto-local-branch = false
-    test_env.add_config("git.auto-local-branch = false");
+    // With git.auto-local-bookmark = false
+    test_env.add_config("git.auto-local-bookmark = false");
     let local_path = test_env.env_root().join("local2");
     set_up_local_repo(&local_path);
     let (_stdout, stderr) = test_env.jj_cmd_ok(&local_path, &["init", "--git-repo=."]);
