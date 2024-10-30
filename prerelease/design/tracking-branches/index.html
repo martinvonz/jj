@@ -1768,7 +1768,7 @@
 <h2 id="objective">Objective<a class="headerlink" href="#objective" title="Permanent link">&para;</a></h2>
 <p><code>jj</code> imports all remote branches to local branches by default. As described in
 <a href="https://github.com/martinvonz/jj/issues/1136">#1136</a>, this doesn't interact nicely with Git if we have multiple Git remotes
-with a number of branches. The <code>git.auto-local-branch</code> config can mitigate this
+with a number of branches. The <code>git.auto-local-bookmark</code> config can mitigate this
 problem, but we'll get locally-deleted branches instead.</p>
 <p>The goal of this plan is to implement</p>
 <ul>
@@ -1870,12 +1870,12 @@ git_refs                                    # last imported/exported refs
 <li><code>jj op restore</code> never rolls back <code>git_refs</code>.</li>
 </ul>
 <h3 id="tracking-state">Tracking state<a class="headerlink" href="#tracking-state" title="Permanent link">&para;</a></h3>
-<p>The <code>git.auto-local-branch</code> config knob is applied when importing new remote
+<p>The <code>git.auto-local-bookmark</code> config knob is applied when importing new remote
 branch. <code>jj branch</code> sub commands will be added to change the tracking state.</p>
 <div class="highlight"><pre><span></span><code><span class="k">fn</span><span class="w"> </span><span class="nf">default_state_for_newly_imported_branch</span><span class="p">(</span><span class="n">config</span><span class="p">,</span><span class="w"> </span><span class="n">remote</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">remote</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="s">&quot;git&quot;</span><span class="w"> </span><span class="p">{</span>
 <span class="w">        </span><span class="n">State</span><span class="p">::</span><span class="n">Tracking</span>
-<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">config</span><span class="p">[</span><span class="s">&quot;git.auto-local-branch&quot;</span><span class="p">]</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">config</span><span class="p">[</span><span class="s">&quot;git.auto-local-bookmark&quot;</span><span class="p">]</span><span class="w"> </span><span class="p">{</span>
 <span class="w">        </span><span class="n">State</span><span class="p">::</span><span class="n">Tracking</span>
 <span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
 <span class="w">        </span><span class="n">State</span><span class="p">::</span><span class="n">New</span>
@@ -1899,7 +1899,7 @@ branch. <code>jj branch</code> sub commands will be added to change the tracking
 <li>New <code>remotes[remote].branches</code> corresponds to
   <code>branches[].remote_targets[remote]</code>.</li>
 <li><code>state = new|tracking</code> doesn't exist in the current model. It's determined
-  by <code>git.auto-local-branch</code> config.</li>
+  by <code>git.auto-local-bookmark</code> config.</li>
 </ul>
 <h2 id="common-command-behaviors">Common command behaviors<a class="headerlink" href="#common-command-behaviors" title="Permanent link">&para;</a></h2>
 <p>In the following sections, a merge is expressed as <code>adds - removes</code>.
