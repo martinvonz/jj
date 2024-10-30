@@ -32,6 +32,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Deprecations
 
+* `git.auto-local-bookmark` replaces `git.auto-local-branch`. The latter remains
+  supported for now (at lower precedence than the former).
+
 ### New features
 
 * Added diff options to ignore whitespace when comparing lines. Whitespace

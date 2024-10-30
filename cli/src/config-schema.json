@@ -313,7 +313,7 @@
             "type": "object",
             "description": "Settings for git behavior (when using git backend)",
             "properties": {
-                "auto-local-branch": {
+                "auto-local-bookmark": {
                     "type": "boolean",
                     "description": "Whether jj creates a local bookmark with the same name when it imports a remote-tracking branch from git. See https://martinvonz.github.io/jj/latest/config/#automatic-local-bookmark-creation",
                     "default": false

@@ -46,7 +46,7 @@ fn set_up_non_empty_git_repo(git_repo: &git2::Repository) {
 #[test]
 fn test_git_clone() {
     let test_env = TestEnvironment::default();
-    test_env.add_config("git.auto-local-branch = true");
+    test_env.add_config("git.auto-local-bookmark = true");
     let git_repo_path = test_env.env_root().join("source");
     let git_repo = git2::Repository::init(git_repo_path).unwrap();
 
@@ -160,7 +160,7 @@ fn test_git_clone() {
 #[test]
 fn test_git_clone_colocate() {
     let test_env = TestEnvironment::default();
-    test_env.add_config("git.auto-local-branch = true");
+    test_env.add_config("git.auto-local-bookmark = true");
     let git_repo_path = test_env.env_root().join("source");
     let git_repo = git2::Repository::init(git_repo_path).unwrap();
 
@@ -366,8 +366,8 @@ fn test_git_clone_remote_default_bookmark() {
         .reference("refs/heads/feature1", oid, false, "")
         .unwrap();
 
-    // All fetched bookmarks will be imported if auto-local-branch is on
-    test_env.add_config("git.auto-local-branch = true");
+    // All fetched bookmarks will be imported if auto-local-bookmark is on
+    test_env.add_config("git.auto-local-bookmark = true");
     let (_stdout, stderr) =
         test_env.jj_cmd_ok(test_env.env_root(), &["git", "clone", "source", "clone1"]);
     insta::assert_snapshot!(stderr, @r###"
@@ -396,8 +396,8 @@ fn test_git_clone_remote_default_bookmark() {
     revset-aliases.'trunk()' = "main@origin"
     "###);
 
-    // Only the default bookmark will be imported if auto-local-branch is off
-    test_env.add_config("git.auto-local-branch = false");
+    // Only the default bookmark will be imported if auto-local-bookmark is off
+    test_env.add_config("git.auto-local-bookmark = false");
     let (_stdout, stderr) =
         test_env.jj_cmd_ok(test_env.env_root(), &["git", "clone", "source", "clone2"]);
     insta::assert_snapshot!(stderr, @r###"
@@ -501,7 +501,7 @@ fn test_git_clone_at_operation() {
 #[test]
 fn test_git_clone_with_remote_name() {
     let test_env = TestEnvironment::default();
-    test_env.add_config("git.auto-local-branch = true");
+    test_env.add_config("git.auto-local-bookmark = true");
     let git_repo_path = test_env.env_root().join("source");
     let git_repo = git2::Repository::init(git_repo_path).unwrap();
     set_up_non_empty_git_repo(&git_repo);
@@ -560,7 +560,7 @@ fn test_git_clone_trunk_deleted() {
 #[test]
 fn test_git_clone_with_depth() {
     let test_env = TestEnvironment::default();
-    test_env.add_config("git.auto-local-branch = true");
+    test_env.add_config("git.auto-local-bookmark = true");
     let git_repo_path = test_env.env_root().join("source");
     let git_repo = git2::Repository::init(git_repo_path).unwrap();
     set_up_non_empty_git_repo(&git_repo);
