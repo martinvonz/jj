@@ -10,6 +10,7 @@ permissions:
 
 jobs:
   prerelease-docs-build-deploy:
+    if: github.repository_owner == 'martinvonz' # Stops this job from running on forks
     strategy:
       matrix:
         os: [ubuntu-latest]
