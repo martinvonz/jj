@@ -19,6 +19,7 @@ pub mod cli_util;
 pub mod command_error;
 pub mod commands;
 pub mod commit_templater;
+pub mod complete;
 pub mod config;
 pub mod description_util;
 pub mod diff_util;
