@@ -91,10 +91,29 @@ When you're done using a workspace, use `jj workspace forget` to make the repo
 forget about it. The files can be deleted from disk separately (either before or
 after).
 
-### Stale working copy
+## Stale working copy
 
-When you modify workspace A's working-copy commit from workspace B, workspace
-A's working copy will become stale. By "stale", we mean that the files in the
-working copy don't match the desired commit indicated by the `@` symbol in
-`jj log`. When that happens, use `jj workspace update-stale` to update the files
-in the working copy.
+Almost all commands go through three main steps:
+
+1. Snapshot the working copy (which gets recorded as an operation)
+2. Create new commits etc. "in memory" and record that as a new operation
+3. Update the working copy to match the new operation, i.e. to the commit that
+   the operation says that `@` should point to
+
+If step 3 doesn't happen for some reason, the working copy is considered
+"stale". We can detect that because the working copy (`.jj/working_copy/`)
+keeps track of which operation it was last updated to. When the working copy is
+stale, use `jj workspace update-stale` to update the files in the working copy.
+
+A common reason that step 3 doesn't happen for a working copy is that you
+rewrote the commit from another workspace. When you modify workspace A's
+working-copy commit from workspace B, workspace A's working copy will become
+stale.
+
+A working copy can also become stale because some error, such as `^C` prevented
+step 3 from completing. It's also possible that it was successfully updated in
+step 3 but the operation has then been lost (e.g. by `jj op abandon` or
+"spontaneously" by certain storage backends). If the operation has been lost,
+then `jj workspace update-stale` will create a recovery commit with the
+contents of the working copy but parented to the current operation's
+working-copy commit.
