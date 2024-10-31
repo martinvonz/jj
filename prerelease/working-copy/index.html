@@ -585,20 +585,14 @@
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Workspaces">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
+</li>
+      
+        <li class="md-nav__item">
   <a href="#stale-working-copy" class="md-nav__link">
     <span class="md-ellipsis">
       Stale working copy
     </span>
   </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
@@ -1455,20 +1449,14 @@
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Workspaces">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
+</li>
+      
+        <li class="md-nav__item">
   <a href="#stale-working-copy" class="md-nav__link">
     <span class="md-ellipsis">
       Stale working copy
     </span>
   </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
@@ -1558,12 +1546,29 @@ while you continue developing in another, for example. If needed,
 <p>When you're done using a workspace, use <code>jj workspace forget</code> to make the repo
 forget about it. The files can be deleted from disk separately (either before or
 after).</p>
-<h3 id="stale-working-copy">Stale working copy<a class="headerlink" href="#stale-working-copy" title="Permanent link">&para;</a></h3>
-<p>When you modify workspace A's working-copy commit from workspace B, workspace
-A's working copy will become stale. By "stale", we mean that the files in the
-working copy don't match the desired commit indicated by the <code>@</code> symbol in
-<code>jj log</code>. When that happens, use <code>jj workspace update-stale</code> to update the files
-in the working copy.</p>
+<h2 id="stale-working-copy">Stale working copy<a class="headerlink" href="#stale-working-copy" title="Permanent link">&para;</a></h2>
+<p>Almost all commands go through three main steps:</p>
+<ol>
+<li>Snapshot the working copy (which gets recorded as an operation)</li>
+<li>Create new commits etc. "in memory" and record that as a new operation</li>
+<li>Update the working copy to match the new operation, i.e. to the commit that
+   the operation says that <code>@</code> should point to</li>
+</ol>
+<p>If step 3 doesn't happen for some reason, the working copy is considered
+"stale". We can detect that because the working copy (<code>.jj/working_copy/</code>)
+keeps track of which operation it was last updated to. When the working copy is
+stale, use <code>jj workspace update-stale</code> to update the files in the working copy.</p>
+<p>A common reason that step 3 doesn't happen for a working copy is that you
+rewrote the commit from another workspace. When you modify workspace A's
+working-copy commit from workspace B, workspace A's working copy will become
+stale.</p>
+<p>A working copy can also become stale because some error, such as <code>^C</code> prevented
+step 3 from completing. It's also possible that it was successfully updated in
+step 3 but the operation has then been lost (e.g. by <code>jj op abandon</code> or
+"spontaneously" by certain storage backends). If the operation has been lost,
+then <code>jj workspace update-stale</code> will create a recovery commit with the
+contents of the working copy but parented to the current operation's
+working-copy commit.</p>
 
 
 
