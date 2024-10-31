@@ -16,11 +16,14 @@ use std::fmt::Write as _;
 use std::rc::Rc;
 
 use jj_lib::annotate::get_annotation_for_file;
+use jj_lib::annotate::get_annotation_with_file_content;
+use jj_lib::annotate::FileAnnotation;
 use jj_lib::backend::CommitId;
 use jj_lib::backend::MergedTreeId;
 use jj_lib::backend::MillisSinceEpoch;
 use jj_lib::backend::Signature;
 use jj_lib::backend::Timestamp;
+use jj_lib::backend::TreeValue;
 use jj_lib::commit::Commit;
 use jj_lib::repo::MutableRepo;
 use jj_lib::repo::Repo;
@@ -68,6 +71,27 @@ fn annotate_within(
     file_path: &RepoPath,
 ) -> String {
     let annotation = get_annotation_for_file(repo, commit, domain, file_path).unwrap();
+    format_annotation(repo, &annotation)
+}
+
+fn annotate_parent_tree(repo: &dyn Repo, commit: &Commit, file_path: &RepoPath) -> String {
+    let tree = commit.parent_tree(repo).unwrap();
+    let text = match tree.path_value(file_path).unwrap().into_resolved().unwrap() {
+        Some(TreeValue::File { id, .. }) => {
+            let mut reader = repo.store().read_file(file_path, &id).unwrap();
+            let mut buf = Vec::new();
+            reader.read_to_end(&mut buf).unwrap();
+            buf
+        }
+        value => panic!("unexpected path value: {value:?}"),
+    };
+    let domain = RevsetExpression::all();
+    let annotation =
+        get_annotation_with_file_content(repo, commit.id(), &domain, file_path, text).unwrap();
+    format_annotation(repo, &annotation)
+}
+
+fn format_annotation(repo: &dyn Repo, annotation: &FileAnnotation) -> String {
     let mut output = String::new();
     for (commit_id, line) in annotation.lines() {
         let commit = commit_id.map(|id| repo.store().get_commit(id).unwrap());
@@ -328,6 +352,15 @@ fn test_annotate_merge_dup() {
     commit3: 3
     commit4: 4
     "#);
+
+    // For example, the parent tree of commit4 doesn't contain multiple "1"s.
+    // If annotation were computed compared to the parent tree, not trees of the
+    // parent commits, "1" would be inserted at commit4.
+    insta::assert_snapshot!(annotate_parent_tree(tx.repo(), &commit4, file_path), @r"
+    commit2: 2
+    commit1: 1
+    commit3: 3
+    ");
 }
 
 #[test]

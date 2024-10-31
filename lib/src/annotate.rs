@@ -84,13 +84,17 @@ struct Source {
 }
 
 impl Source {
+    fn new(text: BString) -> Self {
+        Source {
+            line_map: Vec::new(),
+            text,
+        }
+    }
+
     fn load(commit: &Commit, file_path: &RepoPath) -> Result<Self, BackendError> {
         let tree = commit.tree()?;
         let text = get_file_contents(commit.store(), file_path, &tree)?;
-        Ok(Source {
-            line_map: Vec::new(),
-            text: text.into(),
-        })
+        Ok(Self::new(text.into()))
     }
 
     fn fill_line_map(&mut self) {
@@ -116,10 +120,38 @@ pub fn get_annotation_for_file(
     domain: &Rc<ResolvedRevsetExpression>,
     file_path: &RepoPath,
 ) -> Result<FileAnnotation, RevsetEvaluationError> {
-    let mut source = Source::load(starting_commit, file_path)?;
+    let source = Source::load(starting_commit, file_path)?;
+    compute_file_annotation(repo, starting_commit.id(), domain, file_path, source)
+}
+
+/// Get line by line annotations for a specific file path starting with the
+/// given content.
+///
+/// The file content at the `starting_commit` is set to `starting_text`. This is
+/// typically one of the file contents in the conflict or merged-parent tree.
+///
+/// See [`get_annotation_for_file()`] for the other arguments.
+pub fn get_annotation_with_file_content(
+    repo: &dyn Repo,
+    starting_commit_id: &CommitId,
+    domain: &Rc<ResolvedRevsetExpression>,
+    file_path: &RepoPath,
+    starting_text: impl Into<Vec<u8>>,
+) -> Result<FileAnnotation, RevsetEvaluationError> {
+    let source = Source::new(BString::new(starting_text.into()));
+    compute_file_annotation(repo, starting_commit_id, domain, file_path, source)
+}
+
+fn compute_file_annotation(
+    repo: &dyn Repo,
+    starting_commit_id: &CommitId,
+    domain: &Rc<ResolvedRevsetExpression>,
+    file_path: &RepoPath,
+    mut source: Source,
+) -> Result<FileAnnotation, RevsetEvaluationError> {
     source.fill_line_map();
     let text = source.text.clone();
-    let line_map = process_commits(repo, starting_commit.id(), source, domain, file_path)?;
+    let line_map = process_commits(repo, starting_commit_id, source, domain, file_path)?;
     Ok(FileAnnotation { line_map, text })
 }
 
