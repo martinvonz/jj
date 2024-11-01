@@ -17,7 +17,7 @@ categories = ["version-control", "development-tools"]
 keywords = ["VCS", "DVCS", "SCM", "Git", "Mercurial"]
 
 [workspace.dependencies]
-anyhow = "1.0.91"
+anyhow = "1.0.92"
 assert_cmd = "2.0.8"
 assert_matches = "1.5.0"
 async-trait = "0.1.83"
@@ -71,7 +71,7 @@ hex = "0.4.3"
 ignore = "0.4.23"
 indexmap = "2.6.0"
 indoc = "2.0.4"
-insta = { version = "1.41.0", features = ["filters"] }
+insta = { version = "1.41.1", features = ["filters"] }
 itertools = "0.13.0"
 libc = { version = "0.2.161" }
 maplit = "1.0.2"
@@ -103,11 +103,11 @@ smallvec = { version = "1.13.2", features = [
     "union",
 ] }
 strsim = "0.11.1"
-syn = "2.0.85"
+syn = "2.0.86"
 tempfile = "3.13.0"
 test-case = "3.3.1"
 textwrap = "0.16.1"
-thiserror = "1.0.65"
+thiserror = "1.0.66"
 timeago = { version = "0.4.2", default-features = false }
 tokio = { version = "1.41.0" }
 toml_edit = { version = "0.19.15", features = ["serde"] }
