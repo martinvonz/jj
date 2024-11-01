@@ -52,7 +52,6 @@ use test_case::test_case;
 use testutils::commit_with_tree;
 use testutils::create_tree;
 use testutils::write_random_commit;
-use testutils::TestRepo;
 use testutils::TestRepoBackend;
 use testutils::TestWorkspace;
 
@@ -384,7 +383,7 @@ fn test_acl() {
     let mut ws = Workspace::load(
         &settings,
         &workspace_root,
-        &TestRepo::default_store_factories(),
+        &test_workspace.env.default_store_factories(),
         &default_working_copy_factories(),
     )
     .unwrap();

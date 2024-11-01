@@ -134,12 +134,27 @@ impl TestEnvironment {
         self.temp_dir.path()
     }
 
+    pub fn default_store_factories(&self) -> StoreFactories {
+        let mut factories = StoreFactories::default();
+        factories.add_backend(
+            "test",
+            Box::new(|_settings, store_path| Ok(Box::new(TestBackend::load(store_path)))),
+        );
+        factories.add_backend(
+            SecretBackend::name(),
+            Box::new(|settings, store_path| {
+                Ok(Box::new(SecretBackend::load(settings, store_path)?))
+            }),
+        );
+        factories
+    }
+
     pub fn load_repo_at_head(
         &self,
         settings: &UserSettings,
         repo_path: &Path,
     ) -> Arc<ReadonlyRepo> {
-        RepoLoader::init_from_file_system(settings, repo_path, &TestRepo::default_store_factories())
+        RepoLoader::init_from_file_system(settings, repo_path, &self.default_store_factories())
             .unwrap()
             .load_at_head(settings)
             .unwrap()
@@ -212,21 +227,6 @@ impl TestRepo {
             repo,
             repo_path: repo_dir,
         }
-    }
-
-    pub fn default_store_factories() -> StoreFactories {
-        let mut factories = StoreFactories::default();
-        factories.add_backend(
-            "test",
-            Box::new(|_settings, store_path| Ok(Box::new(TestBackend::load(store_path)))),
-        );
-        factories.add_backend(
-            SecretBackend::name(),
-            Box::new(|settings, store_path| {
-                Ok(Box::new(SecretBackend::load(settings, store_path)?))
-            }),
-        );
-        factories
     }
 
     pub fn repo_path(&self) -> &Path {

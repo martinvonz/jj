@@ -21,19 +21,19 @@ use jj_lib::workspace::default_working_copy_factories;
 use jj_lib::workspace::default_working_copy_factory;
 use jj_lib::workspace::Workspace;
 use jj_lib::workspace::WorkspaceLoadError;
-use testutils::TestRepo;
+use testutils::TestEnvironment;
 use testutils::TestWorkspace;
 
 #[test]
 fn test_load_bad_path() {
     let settings = testutils::user_settings();
-    let temp_dir = testutils::new_temp_dir();
-    let workspace_root = temp_dir.path().to_owned();
+    let test_env = TestEnvironment::init();
+    let workspace_root = test_env.root().to_owned();
     // We haven't created a repo in the workspace_root, so it should fail to load.
     let result = Workspace::load(
         &settings,
         &workspace_root,
-        &TestRepo::default_store_factories(),
+        &test_env.default_store_factories(),
         &default_working_copy_factories(),
     );
     assert_matches!(
@@ -77,7 +77,7 @@ fn test_init_additional_workspace() {
     let same_workspace = Workspace::load(
         &settings,
         &ws2_root,
-        &TestRepo::default_store_factories(),
+        &test_workspace.env.default_store_factories(),
         &default_working_copy_factories(),
     );
     assert!(same_workspace.is_ok());

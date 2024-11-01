@@ -35,7 +35,7 @@ fn test_load_at_operation() {
     let loader = RepoLoader::init_from_file_system(
         &settings,
         test_repo.repo_path(),
-        &TestRepo::default_store_factories(),
+        &test_repo.env.default_store_factories(),
     )
     .unwrap();
     let head_repo = loader.load_at_head(&settings).unwrap();
@@ -46,7 +46,7 @@ fn test_load_at_operation() {
     let loader = RepoLoader::init_from_file_system(
         &settings,
         test_repo.repo_path(),
-        &TestRepo::default_store_factories(),
+        &test_repo.env.default_store_factories(),
     )
     .unwrap();
     let old_repo = loader.load_at(repo.operation()).unwrap();
