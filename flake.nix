@@ -155,7 +155,7 @@
           #
           # relevant PR: https://github.com/rust-lang/rust/pull/129687
           (ourRustVersion.override {
-            extensions = [ "rust-src" ];
+            extensions = [ "rust-src" "rust-analyzer" ];
           })
 
           # Foreign dependencies
