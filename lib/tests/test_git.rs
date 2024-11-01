@@ -66,7 +66,6 @@ use tempfile::TempDir;
 use test_case::test_case;
 use testutils::commit_transactions;
 use testutils::create_random_commit;
-use testutils::load_repo_at_head;
 use testutils::write_random_commit;
 use testutils::TestRepo;
 use testutils::TestRepoBackend;
@@ -3223,6 +3222,7 @@ fn test_rewrite_imported_commit() {
 fn test_concurrent_write_commit() {
     let settings = &testutils::user_settings();
     let test_repo = TestRepo::init_with_backend(TestRepoBackend::Git);
+    let test_env = &test_repo.env;
     let repo = &test_repo.repo;
 
     // Try to create identical commits with different change ids. Timestamp of the
@@ -3232,7 +3232,7 @@ fn test_concurrent_write_commit() {
     thread::scope(|s| {
         let barrier = Arc::new(Barrier::new(num_thread));
         for i in 0..num_thread {
-            let repo = load_repo_at_head(settings, test_repo.repo_path()); // unshare loader
+            let repo = test_env.load_repo_at_head(settings, test_repo.repo_path()); // unshare loader
             let barrier = barrier.clone();
             let sender = sender.clone();
             s.spawn(move || {
@@ -3285,6 +3285,7 @@ fn test_concurrent_write_commit() {
 fn test_concurrent_read_write_commit() {
     let settings = &testutils::user_settings();
     let test_repo = TestRepo::init_with_backend(TestRepoBackend::Git);
+    let test_env = &test_repo.env;
     let repo = &test_repo.repo;
 
     // Create unique commits and load them concurrently. In this test, we assume
@@ -3318,7 +3319,7 @@ fn test_concurrent_read_write_commit() {
 
         // Writer assigns random change id
         for (i, commit_id) in commit_ids.iter().enumerate() {
-            let repo = load_repo_at_head(settings, test_repo.repo_path()); // unshare loader
+            let repo = test_env.load_repo_at_head(settings, test_repo.repo_path()); // unshare loader
             let barrier = barrier.clone();
             s.spawn(move || {
                 barrier.wait();
@@ -3334,7 +3335,7 @@ fn test_concurrent_read_write_commit() {
 
         // Reader may generate change id (if not yet assigned by the writer)
         for i in 0..num_reader_thread {
-            let mut repo = load_repo_at_head(settings, test_repo.repo_path()); // unshare loader
+            let mut repo = test_env.load_repo_at_head(settings, test_repo.repo_path()); // unshare loader
             let barrier = barrier.clone();
             let mut pending_commit_ids = commit_ids.clone();
             pending_commit_ids.rotate_left(i); // start lookup from different place
