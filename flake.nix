@@ -146,7 +146,7 @@
       });
 
       devShells.default = pkgs.mkShell {
-        buildInputs = with pkgs; [
+        packages = with pkgs; [
           # NOTE (aseipp): explicitly add rust-src to the rustc compiler only in
           # devShell. this in turn causes a dependency on the rust compiler src,
           # which bloats the closure size by several GiB. but doing this here
