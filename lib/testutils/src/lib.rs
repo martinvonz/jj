@@ -133,6 +133,17 @@ impl TestEnvironment {
     pub fn root(&self) -> &Path {
         self.temp_dir.path()
     }
+
+    pub fn load_repo_at_head(
+        &self,
+        settings: &UserSettings,
+        repo_path: &Path,
+    ) -> Arc<ReadonlyRepo> {
+        RepoLoader::init_from_file_system(settings, repo_path, &TestRepo::default_store_factories())
+            .unwrap()
+            .load_at_head(settings)
+            .unwrap()
+    }
 }
 
 pub struct TestRepo {
@@ -293,13 +304,6 @@ impl TestWorkspace {
     pub fn snapshot(&mut self) -> Result<MergedTree, SnapshotError> {
         self.snapshot_with_options(&SnapshotOptions::empty_for_test())
     }
-}
-
-pub fn load_repo_at_head(settings: &UserSettings, repo_path: &Path) -> Arc<ReadonlyRepo> {
-    RepoLoader::init_from_file_system(settings, repo_path, &TestRepo::default_store_factories())
-        .unwrap()
-        .load_at_head(settings)
-        .unwrap()
 }
 
 pub fn commit_transactions(settings: &UserSettings, txs: Vec<Transaction>) -> Arc<ReadonlyRepo> {
