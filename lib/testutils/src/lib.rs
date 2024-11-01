@@ -119,8 +119,24 @@ pub fn user_settings() -> UserSettings {
     UserSettings::from_config(config)
 }
 
+#[derive(Debug)]
+pub struct TestEnvironment {
+    temp_dir: TempDir,
+}
+
+impl TestEnvironment {
+    pub fn init() -> Self {
+        let temp_dir = new_temp_dir();
+        TestEnvironment { temp_dir }
+    }
+
+    pub fn root(&self) -> &Path {
+        self.temp_dir.path()
+    }
+}
+
 pub struct TestRepo {
-    _temp_dir: TempDir,
+    pub env: TestEnvironment,
     pub repo: Arc<ReadonlyRepo>,
     repo_path: PathBuf,
 }
@@ -163,9 +179,9 @@ impl TestRepo {
         backend: TestRepoBackend,
         settings: &UserSettings,
     ) -> Self {
-        let temp_dir = new_temp_dir();
+        let env = TestEnvironment::init();
 
-        let repo_dir = temp_dir.path().join("repo");
+        let repo_dir = env.root().join("repo");
         fs::create_dir(&repo_dir).unwrap();
 
         let repo = ReadonlyRepo::init(
@@ -181,7 +197,7 @@ impl TestRepo {
         .unwrap();
 
         Self {
-            _temp_dir: temp_dir,
+            env,
             repo,
             repo_path: repo_dir,
         }
@@ -208,7 +224,7 @@ impl TestRepo {
 }
 
 pub struct TestWorkspace {
-    temp_dir: TempDir,
+    pub env: TestEnvironment,
     pub workspace: Workspace,
     pub repo: Arc<ReadonlyRepo>,
 }
@@ -231,9 +247,9 @@ impl TestWorkspace {
         backend: TestRepoBackend,
         signer: Signer,
     ) -> Self {
-        let temp_dir = new_temp_dir();
+        let env = TestEnvironment::init();
 
-        let workspace_root = temp_dir.path().join("repo");
+        let workspace_root = env.root().join("repo");
         fs::create_dir(&workspace_root).unwrap();
 
         let (workspace, repo) = Workspace::init_with_backend(
@@ -245,14 +261,14 @@ impl TestWorkspace {
         .unwrap();
 
         Self {
-            temp_dir,
+            env,
             workspace,
             repo,
         }
     }
 
     pub fn root_dir(&self) -> PathBuf {
-        self.temp_dir.path().join("repo").join("..")
+        self.env.root().join("repo").join("..")
     }
 
     pub fn repo_path(&self) -> &Path {
