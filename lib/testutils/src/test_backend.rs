@@ -24,7 +24,6 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::MutexGuard;
-use std::sync::OnceLock;
 use std::time::SystemTime;
 
 use async_trait::async_trait;
@@ -54,16 +53,11 @@ use jj_lib::repo_path::RepoPathBuf;
 const HASH_LENGTH: usize = 10;
 const CHANGE_ID_LENGTH: usize = 16;
 
-static BACKEND_DATA: OnceLock<Mutex<HashMap<PathBuf, Arc<Mutex<TestBackendData>>>>> =
-    OnceLock::new();
-
 // Keyed by canonical store path. Since we just use the path as a key, we can't
 // rely on on the file system to resolve two different uncanonicalized paths to
 // the same real path (as we would if we just used the path with `std::fs`
 // functions).
-fn backend_data() -> &'static Mutex<HashMap<PathBuf, Arc<Mutex<TestBackendData>>>> {
-    BACKEND_DATA.get_or_init(|| Mutex::new(HashMap::new()))
-}
+type TestBackendDataMap = HashMap<PathBuf, Arc<Mutex<TestBackendData>>>;
 
 #[derive(Default)]
 pub struct TestBackendData {
@@ -72,6 +66,39 @@ pub struct TestBackendData {
     files: HashMap<RepoPathBuf, HashMap<FileId, Vec<u8>>>,
     symlinks: HashMap<RepoPathBuf, HashMap<SymlinkId, String>>,
     conflicts: HashMap<RepoPathBuf, HashMap<ConflictId, Conflict>>,
+}
+
+#[derive(Clone, Default)]
+pub struct TestBackendFactory {
+    backend_data: Arc<Mutex<TestBackendDataMap>>,
+}
+
+impl TestBackendFactory {
+    pub fn init(&self, store_path: &Path) -> TestBackend {
+        let data = Arc::new(Mutex::new(TestBackendData::default()));
+        self.backend_data
+            .lock()
+            .unwrap()
+            .insert(store_path.canonicalize().unwrap(), data.clone());
+        TestBackend::with_data(data)
+    }
+
+    pub fn load(&self, store_path: &Path) -> TestBackend {
+        let data = self
+            .backend_data
+            .lock()
+            .unwrap()
+            .get(&store_path.canonicalize().unwrap())
+            .unwrap()
+            .clone();
+        TestBackend::with_data(data)
+    }
+}
+
+impl Debug for TestBackendFactory {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
+        f.debug_struct("TestBackendFactory").finish_non_exhaustive()
+    }
 }
 
 fn get_hash(content: &(impl jj_lib::content_hash::ContentHash + ?Sized)) -> Vec<u8> {
@@ -94,30 +121,7 @@ pub struct TestBackend {
 }
 
 impl TestBackend {
-    pub fn init(store_path: &Path) -> Self {
-        let root_commit_id = CommitId::from_bytes(&[0; HASH_LENGTH]);
-        let root_change_id = ChangeId::from_bytes(&[0; CHANGE_ID_LENGTH]);
-        let empty_tree_id = TreeId::new(get_hash(&Tree::default()));
-        let data = Arc::new(Mutex::new(TestBackendData::default()));
-        backend_data()
-            .lock()
-            .unwrap()
-            .insert(store_path.canonicalize().unwrap(), data.clone());
-        TestBackend {
-            root_commit_id,
-            root_change_id,
-            empty_tree_id,
-            data,
-        }
-    }
-
-    pub fn load(store_path: &Path) -> Self {
-        let data = backend_data()
-            .lock()
-            .unwrap()
-            .get(&store_path.canonicalize().unwrap())
-            .unwrap()
-            .clone();
+    pub fn with_data(data: Arc<Mutex<TestBackendData>>) -> Self {
         let root_commit_id = CommitId::from_bytes(&[0; HASH_LENGTH]);
         let root_change_id = ChangeId::from_bytes(&[0; CHANGE_ID_LENGTH]);
         let empty_tree_id = TreeId::new(get_hash(&Tree::default()));

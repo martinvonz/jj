@@ -61,7 +61,7 @@ use jj_lib::workspace::Workspace;
 use pollster::FutureExt;
 use tempfile::TempDir;
 
-use crate::test_backend::TestBackend;
+use crate::test_backend::TestBackendFactory;
 
 pub mod test_backend;
 pub mod test_signing_backend;
@@ -122,12 +122,15 @@ pub fn user_settings() -> UserSettings {
 #[derive(Debug)]
 pub struct TestEnvironment {
     temp_dir: TempDir,
+    test_backend_factory: TestBackendFactory,
 }
 
 impl TestEnvironment {
     pub fn init() -> Self {
-        let temp_dir = new_temp_dir();
-        TestEnvironment { temp_dir }
+        TestEnvironment {
+            temp_dir: new_temp_dir(),
+            test_backend_factory: TestBackendFactory::default(),
+        }
     }
 
     pub fn root(&self) -> &Path {
@@ -136,10 +139,10 @@ impl TestEnvironment {
 
     pub fn default_store_factories(&self) -> StoreFactories {
         let mut factories = StoreFactories::default();
-        factories.add_backend(
-            "test",
-            Box::new(|_settings, store_path| Ok(Box::new(TestBackend::load(store_path)))),
-        );
+        factories.add_backend("test", {
+            let factory = self.test_backend_factory.clone();
+            Box::new(move |_settings, store_path| Ok(Box::new(factory.load(store_path))))
+        });
         factories.add_backend(
             SecretBackend::name(),
             Box::new(|settings, store_path| {
@@ -177,13 +180,14 @@ pub enum TestRepoBackend {
 impl TestRepoBackend {
     fn init_backend(
         &self,
+        env: &TestEnvironment,
         settings: &UserSettings,
         store_path: &Path,
     ) -> Result<Box<dyn Backend>, BackendInitError> {
         match self {
             TestRepoBackend::Git => Ok(Box::new(GitBackend::init_internal(settings, store_path)?)),
             TestRepoBackend::Local => Ok(Box::new(LocalBackend::init(store_path))),
-            TestRepoBackend::Test => Ok(Box::new(TestBackend::init(store_path))),
+            TestRepoBackend::Test => Ok(Box::new(env.test_backend_factory.init(store_path))),
         }
     }
 }
@@ -213,7 +217,7 @@ impl TestRepo {
         let repo = ReadonlyRepo::init(
             settings,
             &repo_dir,
-            &move |settings, store_path| backend.init_backend(settings, store_path),
+            &|settings, store_path| backend.init_backend(&env, settings, store_path),
             Signer::from_settings(settings).unwrap(),
             ReadonlyRepo::default_op_store_initializer(),
             ReadonlyRepo::default_op_heads_store_initializer(),
@@ -266,7 +270,7 @@ impl TestWorkspace {
         let (workspace, repo) = Workspace::init_with_backend(
             settings,
             &workspace_root,
-            &move |settings, store_path| backend.init_backend(settings, store_path),
+            &|settings, store_path| backend.init_backend(&env, settings, store_path),
             signer,
         )
         .unwrap();
