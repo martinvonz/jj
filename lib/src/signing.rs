@@ -26,6 +26,8 @@ use crate::config::ConfigGetError;
 use crate::gpg_signing::GpgBackend;
 use crate::settings::UserSettings;
 use crate::ssh_signing::SshBackend;
+#[cfg(feature = "testing")]
+use crate::test_signing_backend::TestSigningBackend;
 
 /// A status of the signature, part of the [Verification] type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -167,6 +169,9 @@ impl Signer {
             Box::new(SshBackend::from_settings(settings).map_err(SignInitError::BackendConfig)?),
             // Box::new(X509Backend::from_settings(settings).map_err(..)?),
         ];
+
+        #[cfg(feature = "testing")]
+        backends.push(Box::new(TestSigningBackend) as Box<dyn SigningBackend>);
 
         let main_backend = settings
             .signing_backend()
