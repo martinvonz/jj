@@ -27,6 +27,7 @@ use itertools::Itertools;
 use jj_lib::git;
 use jj_lib::git::FailedRefExport;
 use jj_lib::git::FailedRefExportReason;
+use jj_lib::git::GitFetchError;
 use jj_lib::git::GitImportStats;
 use jj_lib::git::RefName;
 use jj_lib::git_backend::GitBackend;
@@ -35,14 +36,35 @@ use jj_lib::op_store::RemoteRef;
 use jj_lib::repo::ReadonlyRepo;
 use jj_lib::repo::Repo;
 use jj_lib::store::Store;
+use jj_lib::str_util::StringPattern;
 use jj_lib::workspace::Workspace;
 use unicode_width::UnicodeWidthStr;
 
+use crate::cli_util::WorkspaceCommandTransaction;
 use crate::command_error::user_error;
+use crate::command_error::user_error_with_hint;
 use crate::command_error::CommandError;
 use crate::formatter::Formatter;
 use crate::progress::Progress;
 use crate::ui::Ui;
+
+pub fn map_git_error(err: git2::Error) -> CommandError {
+    if err.class() == git2::ErrorClass::Ssh {
+        let hint =
+            if err.code() == git2::ErrorCode::Certificate && std::env::var_os("HOME").is_none() {
+                "The HOME environment variable is not set, and might be required for Git to \
+                 successfully load certificates. Try setting it to the path of a directory that \
+                 contains a `.ssh` directory."
+            } else {
+                "Jujutsu uses libssh2, which doesn't respect ~/.ssh/config. Does `ssh -F \
+                 /dev/null` to the host work?"
+            };
+
+        user_error_with_hint(err, hint)
+    } else {
+        user_error(err.to_string())
+    }
+}
 
 pub fn get_git_repo(store: &Store) -> Result<git2::Repository, CommandError> {
     match store.backend_impl().downcast_ref::<GitBackend>() {
@@ -431,5 +453,85 @@ export or their "parent" bookmarks."#,
             )?;
         }
     }
+    Ok(())
+}
+
+pub fn git_fetch(
+    ui: &mut Ui,
+    tx: &mut WorkspaceCommandTransaction,
+    git_repo: &git2::Repository,
+    remotes: &[String],
+    branch: &[StringPattern],
+) -> Result<(), CommandError> {
+    let git_settings = tx.settings().git_settings();
+
+    for remote in remotes {
+        let stats = with_remote_git_callbacks(ui, None, |cb| {
+            git::fetch(
+                tx.repo_mut(),
+                git_repo,
+                remote,
+                branch,
+                cb,
+                &git_settings,
+                None,
+            )
+        })
+        .map_err(|err| match err {
+            GitFetchError::InvalidBranchPattern => {
+                if branch
+                    .iter()
+                    .any(|pattern| pattern.as_exact().map_or(false, |s| s.contains('*')))
+                {
+                    user_error_with_hint(
+                        err,
+                        "Prefix the pattern with `glob:` to expand `*` as a glob",
+                    )
+                } else {
+                    user_error(err)
+                }
+            }
+            GitFetchError::GitImportError(err) => err.into(),
+            GitFetchError::InternalGitError(err) => map_git_error(err),
+            _ => user_error(err),
+        })?;
+        print_git_import_stats(ui, tx.repo(), &stats.import_stats, true)?;
+    }
+    warn_if_branches_not_found(
+        ui,
+        tx,
+        branch,
+        &remotes.iter().map(StringPattern::exact).collect_vec(),
+    )
+}
+
+fn warn_if_branches_not_found(
+    ui: &mut Ui,
+    tx: &WorkspaceCommandTransaction,
+    branches: &[StringPattern],
+    remotes: &[StringPattern],
+) -> Result<(), CommandError> {
+    for branch in branches {
+        let matches = remotes.iter().any(|remote| {
+            tx.repo()
+                .view()
+                .remote_bookmarks_matching(branch, remote)
+                .next()
+                .is_some()
+                || tx
+                    .base_repo()
+                    .view()
+                    .remote_bookmarks_matching(branch, remote)
+                    .next()
+                    .is_some()
+        });
+        if !matches {
+            writeln!(
+                ui.warning_default(),
+                "No branch matching `{branch}` found on any specified/configured remote",
+            )?;
+        }
+    }
+
     Ok(())
 }
