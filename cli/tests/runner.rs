@@ -44,6 +44,7 @@ mod test_git_private_commits;
 mod test_git_push;
 mod test_git_remotes;
 mod test_git_submodule;
+mod test_git_sync;
 mod test_gitignores;
 mod test_global_opts;
 mod test_help_command;
