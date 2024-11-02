@@ -25,6 +25,7 @@ use jj_lib::repo::Repo;
 use jj_lib::revset::FailingSymbolResolver;
 use jj_lib::revset::RevsetExpression;
 use jj_lib::revset::RevsetIteratorExt;
+use jj_lib::rewrite::EmptyBehaviour;
 use jj_lib::str_util::StringPattern;
 
 use crate::cli_util::short_commit_hash;
@@ -82,7 +83,7 @@ pub fn cmd_git_sync(
 
     let guard = tracing::debug_span!("git.sync.pre-fetch").entered();
     let prefetch_heads = get_bookmark_heads(tx.base_repo().as_ref(), &args.branch)?;
-    let _candidates = CandidateCommit::get(tx.repo(), &prefetch_heads)?;
+    let candidates = CandidateCommit::get(tx.repo(), &prefetch_heads)?;
     drop(guard);
 
     let guard = tracing::debug_span!("git.sync.fetch").entered();
@@ -91,7 +92,7 @@ pub fn cmd_git_sync(
 
     let guard = tracing::debug_span!("git.sync.post-fetch").entered();
     let postfetch_heads = get_bookmark_heads(tx.repo(), &args.branch)?;
-    let _update_record = UpdateRecord::new(
+    let update_record = UpdateRecord::new(
         &tx,
         &BranchHeads {
             prefetch: &prefetch_heads,
@@ -101,6 +102,49 @@ pub fn cmd_git_sync(
     drop(guard);
 
     let guard = tracing::debug_span!("git.sync.rebase").entered();
+    let settings = tx.settings().clone();
+    let mut num_rebased = 0;
+
+    tx.repo_mut().transform_descendants(
+        &settings,
+        update_record.get_rebase_roots(&candidates),
+        |mut rewriter| {
+            rewriter.simplify_ancestor_merge();
+            let mut updated_parents: Vec<CommitId> = vec![];
+
+            let old_parents = rewriter.new_parents().iter().cloned().collect_vec();
+
+            let old_commit = short_commit_hash(rewriter.old_commit().id());
+            for parent in &old_parents {
+                let old = short_commit_hash(parent);
+                if let Some(updated) = update_record.maybe_update_commit(rewriter.repo(), parent) {
+                    let new = short_commit_hash(&updated);
+                    tracing::debug!("rebase {old_commit} from {old} to {new}");
+                    updated_parents.push(updated.clone());
+                } else {
+                    tracing::debug!("not rebasing {old_commit} from {old}");
+                    updated_parents.push(parent.clone());
+                }
+            }
+
+            rewriter.set_new_parents(updated_parents);
+
+            if let Some(builder) =
+                rewriter.rebase_with_empty_behavior(&settings, EmptyBehaviour::AbandonNewlyEmpty)?
+            {
+                builder.write()?;
+                num_rebased += 1;
+            }
+
+            Ok(())
+        },
+    )?;
+
+    tx.finish(
+        ui,
+        format!("sync completed; {num_rebased} commits rebased to new heads"),
+    )?;
+
     drop(guard);
 
     Ok(())
@@ -144,6 +188,7 @@ fn get_bookmark_heads(
 
     Ok(commits)
 }
+
 fn set_diff(lhs: &[CommitId], rhs: &[CommitId]) -> Vec<CommitId> {
     BTreeSet::from_iter(lhs.to_vec())
         .difference(&BTreeSet::from_iter(rhs.to_vec()))
@@ -157,7 +202,7 @@ struct BranchHeads<'a> {
 }
 
 struct UpdateRecord {
-    _old_to_new: BTreeMap<CommitId, CommitId>,
+    old_to_new: BTreeMap<CommitId, CommitId>,
 }
 
 impl UpdateRecord {
@@ -181,9 +226,38 @@ impl UpdateRecord {
             tracing::debug!("rebase children of {old} to {new}");
         }
 
-        UpdateRecord {
-            _old_to_new: old_to_new,
-        }
+        UpdateRecord { old_to_new }
+    }
+
+    /// Returns commits that need to be rebased.
+    ///
+    /// The returned commits all have parents in the `old_to_new` mapping, which
+    /// means that the branch their parents belong to, have advanced to new
+    /// commits.
+    fn get_rebase_roots(&self, candidates: &[CandidateCommit]) -> Vec<CommitId> {
+        candidates
+            .iter()
+            .filter_map(|candidate| {
+                if self.old_to_new.contains_key(&candidate.parent) {
+                    Some(candidate.child.clone())
+                } else {
+                    None
+                }
+            })
+            .collect_vec()
+    }
+
+    fn maybe_update_commit(&self, repo: &dyn Repo, commit: &CommitId) -> Option<CommitId> {
+        self.old_to_new
+            .values()
+            .filter_map(|new| {
+                if new != commit && repo.index().is_ancestor(commit, new) {
+                    Some(new.clone())
+                } else {
+                    None
+                }
+            })
+            .next()
     }
 }
 
