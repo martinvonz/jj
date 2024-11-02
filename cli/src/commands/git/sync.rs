@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::collections::BTreeMap;
+use std::collections::BTreeSet;
 use std::fmt;
 
 use clap_complete::ArgValueCandidates;
@@ -88,7 +90,14 @@ pub fn cmd_git_sync(
     drop(guard);
 
     let guard = tracing::debug_span!("git.sync.post-fetch").entered();
-    let _postfetch_heads = get_bookmark_heads(tx.repo(), &args.branch)?;
+    let postfetch_heads = get_bookmark_heads(tx.repo(), &args.branch)?;
+    let _update_record = UpdateRecord::new(
+        &tx,
+        &BranchHeads {
+            prefetch: &prefetch_heads,
+            postfetch: &postfetch_heads,
+        },
+    );
     drop(guard);
 
     let guard = tracing::debug_span!("git.sync.rebase").entered();
@@ -135,6 +144,49 @@ fn get_bookmark_heads(
 
     Ok(commits)
 }
+fn set_diff(lhs: &[CommitId], rhs: &[CommitId]) -> Vec<CommitId> {
+    BTreeSet::from_iter(lhs.to_vec())
+        .difference(&BTreeSet::from_iter(rhs.to_vec()))
+        .cloned()
+        .collect_vec()
+}
+
+struct BranchHeads<'a> {
+    prefetch: &'a [CommitId],
+    postfetch: &'a [CommitId],
+}
+
+struct UpdateRecord {
+    _old_to_new: BTreeMap<CommitId, CommitId>,
+}
+
+impl UpdateRecord {
+    fn new(tx: &WorkspaceCommandTransaction, heads: &BranchHeads) -> Self {
+        let new_heads = set_diff(heads.postfetch, heads.prefetch);
+        let needs_rebase = set_diff(heads.prefetch, heads.postfetch);
+
+        let mut old_to_new: BTreeMap<CommitId, CommitId> = BTreeMap::from([]);
+
+        for new in &new_heads {
+            for old in &needs_rebase {
+                if old != new && tx.repo().index().is_ancestor(old, new) {
+                    old_to_new.insert(old.clone(), new.clone());
+                }
+            }
+        }
+
+        for (k, v) in &old_to_new {
+            let old = short_commit_hash(k);
+            let new = short_commit_hash(v);
+            tracing::debug!("rebase children of {old} to {new}");
+        }
+
+        UpdateRecord {
+            _old_to_new: old_to_new,
+        }
+    }
+}
+
 #[derive(Eq, Ord, PartialEq, PartialOrd)]
 pub struct CandidateCommit {
     parent: CommitId,
