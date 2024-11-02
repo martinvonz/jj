@@ -2908,7 +2908,7 @@ fn resolve_default_command(
     app: &Command,
     mut string_args: Vec<String>,
 ) -> Result<Vec<String>, CommandError> {
-    const PRIORITY_FLAGS: &[&str] = &["help", "--help", "-h", "--version", "-V"];
+    const PRIORITY_FLAGS: &[&str] = &["--help", "-h", "--version", "-V"];
 
     let has_priority_flag = string_args
         .iter()
@@ -3033,7 +3033,6 @@ fn handle_early_args(
         .clone()
         .disable_version_flag(true)
         .disable_help_flag(true)
-        .disable_help_subcommand(true)
         .ignore_errors(true)
         .try_get_matches_from(args)?;
     let mut args: EarlyArgs = EarlyArgs::from_arg_matches(&early_matches).unwrap();
