@@ -27,7 +27,6 @@ use jj_lib::revset;
 use jj_lib::revset::DefaultSymbolResolver;
 use jj_lib::revset::Revset;
 use jj_lib::revset::RevsetAliasesMap;
-use jj_lib::revset::RevsetCommitRef;
 use jj_lib::revset::RevsetDiagnostics;
 use jj_lib::revset::RevsetEvaluationError;
 use jj_lib::revset::RevsetExpression;
@@ -313,7 +312,7 @@ fn format_multiple_revisions_error(
             "Some of these commits have the same change id. Abandon one of them with `jj abandon \
              -r <REVISION>`.",
         );
-    } else if let RevsetExpression::CommitRef(RevsetCommitRef::Symbol(bookmark_name)) = expression {
+    } else if let Some(bookmark_name) = expression.as_symbol() {
         // Separate hint if there's a conflicted bookmark
         cmd_err.add_formatted_hint_with(|formatter| {
             writeln!(
