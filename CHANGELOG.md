@@ -24,6 +24,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### New features
 
+* Implement `jj git sync`.
+
 * Templates now support the `==` and `!=` logical operators for `Boolean`,
   `Integer`, and `String` types.
 

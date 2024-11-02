@@ -60,6 +60,7 @@ This document contains the help content for the `jj` command-line program.
 * [`jj git remote remove`↴](#jj-git-remote-remove)
 * [`jj git remote rename`↴](#jj-git-remote-rename)
 * [`jj git remote set-url`↴](#jj-git-remote-set-url)
+* [`jj git sync`↴](#jj-git-sync)
 * [`jj help`↴](#jj-help)
 * [`jj init`↴](#jj-init)
 * [`jj interdiff`↴](#jj-interdiff)
@@ -1050,6 +1051,7 @@ For a comparison with Git, including a table of commands, see https://martinvonz
 * `init` — Create a new Git backed repo
 * `push` — Push to a Git remote
 * `remote` — Manage Git remotes
+* `sync` — Sync the local `jj` repo to remote Git branch(es)
 
 
 
@@ -1261,6 +1263,35 @@ Set the URL of a Git remote
 
 * `<REMOTE>` — The remote's name
 * `<URL>` — The desired url for `remote`
+
+
+
+## `jj git sync`
+
+Sync the local `jj` repo to remote Git branch(es).
+
+The sync command will first fetch from the Git remote(s), then rebase all local changes onto the appropriate updated heads that were fetched.
+
+Changes that are made empty by the rebase are dropped.
+
+**Usage:** `jj git sync [OPTIONS]`
+
+###### **Options:**
+
+* `-b`, `--branch <BRANCH>` — Rebase the specified branches only.
+
+   Note that this affects only the rebase behaviour, as the fetch behaviour always fetches all branches.
+
+   By default, the specified name matches exactly. Use `glob:` prefix to expand `*` as a glob. The other wildcard characters aren't supported.
+
+  Default value: `glob:*`
+* `--all-remotes` — Fetch from all remotes
+
+   By default, the fetch will only use remotes configured in the `git.fetch` section of the config.
+
+   When specified, --all-remotes causes the fetch to use all remotes known to the underlying git repo.
+
+  Default value: `false`
 
 
 

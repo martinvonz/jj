@@ -64,7 +64,6 @@ pub enum GitCommand {
     Remote(RemoteCommand),
     #[command(subcommand, hide = true)]
     Submodule(GitSubmoduleCommand),
-    #[command(hide = true)]
     Sync(GitSyncArgs),
 }
 
