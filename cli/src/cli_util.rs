@@ -3032,7 +3032,16 @@ fn handle_early_args(
     let early_matches = app
         .clone()
         .disable_version_flag(true)
+        // Do not emit DisplayHelp error
         .disable_help_flag(true)
+        // Do not stop parsing at -h/--help
+        .arg(
+            clap::Arg::new("help")
+                .short('h')
+                .long("help")
+                .global(true)
+                .action(ArgAction::Count),
+        )
         .ignore_errors(true)
         .try_get_matches_from(args)?;
     let mut args: EarlyArgs = EarlyArgs::from_arg_matches(&early_matches).unwrap();

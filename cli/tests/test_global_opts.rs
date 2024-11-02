@@ -559,6 +559,16 @@ fn test_early_args() {
     let stdout = test_env.jj_cmd_success(test_env.env_root(), &["help", "--color=always"]);
     insta::assert_snapshot!(stdout.lines().find(|l| l.contains("Commands:")).unwrap(), @"[1m[4mCommands:[0m");
 
+    // Check that early args are accepted after -h/--help
+    let stdout = test_env.jj_cmd_success(test_env.env_root(), &["-h", "--color=always"]);
+    insta::assert_snapshot!(
+        stdout.lines().find(|l| l.contains("Usage:")).unwrap(),
+        @"[1m[4mUsage:[0m [1mjj[0m [OPTIONS] <COMMAND>");
+    let stdout = test_env.jj_cmd_success(test_env.env_root(), &["log", "--help", "--color=always"]);
+    insta::assert_snapshot!(
+        stdout.lines().find(|l| l.contains("Usage:")).unwrap(),
+        @"[1m[4mUsage:[0m [1mjj log[0m [OPTIONS] [PATHS]...");
+
     // Early args are parsed with clap's ignore_errors(), but there is a known
     // bug that causes defaults to be unpopulated. Test that the early args are
     // tolerant of this bug and don't cause a crash.
