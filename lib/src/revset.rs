@@ -419,6 +419,11 @@ impl RevsetExpression {
         })
     }
 
+    /// Suppresses name resolution error within `self`.
+    pub fn present(self: &Rc<Self>) -> Rc<Self> {
+        Rc::new(Self::Present(self.clone()))
+    }
+
     /// Commits that are not in `self`, i.e. the complement of `self`.
     pub fn negated(self: &Rc<Self>) -> Rc<Self> {
         Rc::new(Self::NotIn(self.clone()))
@@ -873,7 +878,7 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
     map.insert("present", |diagnostics, function, context| {
         let [arg] = function.expect_exact_arguments()?;
         let expression = lower_expression(diagnostics, arg, context)?;
-        Ok(Rc::new(RevsetExpression::Present(expression)))
+        Ok(expression.present())
     });
     map.insert("at_operation", |diagnostics, function, context| {
         let [op_arg, cand_arg] = function.expect_exact_arguments()?;
