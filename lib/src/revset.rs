@@ -466,6 +466,14 @@ impl RevsetExpression {
         }
     }
 
+    /// Returns symbol string if this expression is of that type.
+    pub fn as_symbol(&self) -> Option<&str> {
+        match self {
+            RevsetExpression::CommitRef(RevsetCommitRef::Symbol(name)) => Some(name),
+            _ => None,
+        }
+    }
+
     /// Resolve a programmatically created revset expression.
     ///
     /// In particular, the expression must not contain any symbols (bookmarks,
