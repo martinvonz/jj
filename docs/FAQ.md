@@ -37,6 +37,23 @@ See [revsets] and [templates] for further guidance.
 
 Use `jj log -r ..`. The `..` [operator] lists all visible commits in the repo, excluding the root (which is never interesting and is shared by all repos).
 
+### Can I monitor how `jj log` evolves?
+
+The simplest way to monitor how the history as shown by `jj log` evolves is by using the [watch(1)](https://man7.org/linux/man-pages/man1/watch.1.html) command (or [hwatch](https://github.com/blacknon/hwatch?tab=readme-ov-file#configuration) or [viddy](https://github.com/sachaos/viddy)).
+For example:
+
+```sh
+watch --color jj --ignore-working-copy log --color=always
+```
+
+This will continuously update the (colored) log output in the terminal.
+The `--ignore-working-copy` option avoids conflicts with manual operations during the creation of snapshots.
+Martin used watch in a [tmux](https://github.com/tmux/tmux/wiki) pane during his presentation [Jujutsu - A Git-compatible VCS](https://www.youtube.com/watch?v=LV0JzI8IcCY).
+
+Alternatively, you can use [jj-fzf](https://github.com/tim-janik/jj-fzf), where the central piece is the `jj log` view and common operations can be carried out via key bindings while the log view updates.
+
+The wiki lists additional TUIs and GUIs beyond the terminal: [GUI-and-TUI](https://github.com/martinvonz/jj/wiki/GUI-and-TUI)
+
 ### Should I co-locate my repository?
 
 Co-locating a Jujutsu repository allows you to use both Jujutsu and Git in the
