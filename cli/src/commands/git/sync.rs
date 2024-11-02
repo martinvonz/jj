@@ -12,16 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::fmt;
+
 use clap_complete::ArgValueCandidates;
 use itertools::Itertools;
 use jj_lib::backend::CommitId;
 use jj_lib::commit::Commit;
+use jj_lib::op_store::RemoteRefState;
 use jj_lib::repo::Repo;
 use jj_lib::revset::FailingSymbolResolver;
 use jj_lib::revset::RevsetExpression;
 use jj_lib::revset::RevsetIteratorExt;
 use jj_lib::str_util::StringPattern;
 
+use crate::cli_util::short_commit_hash;
 use crate::cli_util::CommandHelper;
 use crate::cli_util::WorkspaceCommandTransaction;
 use crate::command_error::CommandError;
@@ -75,7 +79,8 @@ pub fn cmd_git_sync(
     let mut tx = workspace_command.start_transaction();
 
     let guard = tracing::debug_span!("git.sync.pre-fetch").entered();
-    let _prefetch_heads = get_bookmark_heads(tx.base_repo().as_ref(), &args.branch)?;
+    let prefetch_heads = get_bookmark_heads(tx.base_repo().as_ref(), &args.branch)?;
+    let _candidates = CandidateCommit::get(tx.repo(), &prefetch_heads)?;
     drop(guard);
 
     let guard = tracing::debug_span!("git.sync.fetch").entered();
@@ -129,6 +134,54 @@ fn get_bookmark_heads(
     }
 
     Ok(commits)
+}
+#[derive(Eq, Ord, PartialEq, PartialOrd)]
+pub struct CandidateCommit {
+    parent: CommitId,
+    child: CommitId,
+}
+
+impl fmt::Display for CandidateCommit {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let parent = short_commit_hash(&self.parent);
+        let child = short_commit_hash(&self.child);
+        write!(f, "=> {parent} --> {child}")
+    }
+}
+
+impl CandidateCommit {
+    fn get(repo: &dyn Repo, start: &[CommitId]) -> Result<Vec<CandidateCommit>, CommandError> {
+        let commits: Vec<Commit> = RevsetExpression::commits(start.to_vec())
+            .descendants()
+            .minus(&RevsetExpression::remote_bookmarks(
+                StringPattern::everything(),
+                StringPattern::everything(),
+                Some(RemoteRefState::New),
+            ))
+            .resolve_user_expression(repo, &FailingSymbolResolver)?
+            .evaluate(repo)?
+            .iter()
+            .commits(repo.store())
+            .try_collect()?;
+
+        Ok(commits
+            .iter()
+            .flat_map(|commit| {
+                commit
+                    .parent_ids()
+                    .iter()
+                    .map(|parent_id| {
+                        let candidate = CandidateCommit {
+                            parent: parent_id.clone(),
+                            child: commit.id().clone(),
+                        };
+                        tracing::debug!("candidate: {candidate}");
+                        candidate
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>())
+    }
 }
 
 fn git_fetch_all(
