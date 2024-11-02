@@ -41,8 +41,6 @@ use self::submodule::cmd_git_submodule;
 use self::submodule::GitSubmoduleCommand;
 use crate::cli_util::CommandHelper;
 use crate::cli_util::WorkspaceCommandHelper;
-use crate::command_error::user_error;
-use crate::command_error::user_error_with_hint;
 use crate::command_error::user_error_with_message;
 use crate::command_error::CommandError;
 use crate::ui::Ui;
@@ -79,24 +77,6 @@ pub fn cmd_git(
         GitCommand::Push(args) => cmd_git_push(ui, command, args),
         GitCommand::Remote(args) => cmd_git_remote(ui, command, args),
         GitCommand::Submodule(args) => cmd_git_submodule(ui, command, args),
-    }
-}
-
-fn map_git_error(err: git2::Error) -> CommandError {
-    if err.class() == git2::ErrorClass::Ssh {
-        let hint =
-            if err.code() == git2::ErrorCode::Certificate && std::env::var_os("HOME").is_none() {
-                "The HOME environment variable is not set, and might be required for Git to \
-                 successfully load certificates. Try setting it to the path of a directory that \
-                 contains a `.ssh` directory."
-            } else {
-                "Jujutsu uses libssh2, which doesn't respect ~/.ssh/config. Does `ssh -F \
-                 /dev/null` to the host work?"
-            };
-
-        user_error_with_hint(err, hint)
-    } else {
-        user_error(err.to_string())
     }
 }
 
