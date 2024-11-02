@@ -13,11 +13,23 @@
 // limitations under the License.
 
 use clap_complete::ArgValueCandidates;
+use itertools::Itertools;
+use jj_lib::backend::CommitId;
+use jj_lib::commit::Commit;
+use jj_lib::repo::Repo;
+use jj_lib::revset::FailingSymbolResolver;
+use jj_lib::revset::RevsetExpression;
+use jj_lib::revset::RevsetIteratorExt;
 use jj_lib::str_util::StringPattern;
 
 use crate::cli_util::CommandHelper;
+use crate::cli_util::WorkspaceCommandTransaction;
 use crate::command_error::CommandError;
 use crate::complete;
+use crate::git_util::get_fetch_remotes;
+use crate::git_util::get_git_repo;
+use crate::git_util::git_fetch;
+use crate::git_util::FetchArgs;
 use crate::ui::Ui;
 
 /// Sync the local `jj` repo to remote Git branch(es).
@@ -57,21 +69,95 @@ pub struct GitSyncArgs {
 pub fn cmd_git_sync(
     ui: &mut Ui,
     command: &CommandHelper,
-    _args: &GitSyncArgs,
+    args: &GitSyncArgs,
 ) -> Result<(), CommandError> {
-    let _workspace_command = command.workspace_helper(ui)?;
+    let mut workspace_command = command.workspace_helper(ui)?;
+    let mut tx = workspace_command.start_transaction();
 
     let guard = tracing::debug_span!("git.sync.pre-fetch").entered();
+    let _prefetch_heads = get_bookmark_heads(tx.base_repo().as_ref(), &args.branch)?;
     drop(guard);
 
     let guard = tracing::debug_span!("git.sync.fetch").entered();
+    git_fetch_all(ui, &mut tx, args.all_remotes)?;
     drop(guard);
 
     let guard = tracing::debug_span!("git.sync.post-fetch").entered();
+    let _postfetch_heads = get_bookmark_heads(tx.repo(), &args.branch)?;
     drop(guard);
 
     let guard = tracing::debug_span!("git.sync.rebase").entered();
     drop(guard);
 
     Ok(())
+}
+
+/// Returns a vector of commit ids corresponding to the target commit
+/// of local bookmarks matching the supplied patterns.
+fn get_bookmark_heads(
+    repo: &dyn Repo,
+    bookmarks: &[StringPattern],
+) -> Result<Vec<CommitId>, CommandError> {
+    let mut commits: Vec<CommitId> = vec![];
+    let local_bookmarks = bookmarks
+        .iter()
+        .flat_map(|pattern| {
+            repo.view()
+                .local_bookmarks_matching(pattern)
+                .map(|(name, _ref_target)| name)
+                .collect::<Vec<_>>()
+        })
+        .collect::<Vec<_>>();
+
+    for bookmark in local_bookmarks {
+        tracing::debug!("fetching heads for bookmark {bookmark}");
+        let bookmark_commits: Vec<Commit> =
+            RevsetExpression::bookmarks(StringPattern::exact(bookmark.to_string()))
+                .resolve_user_expression(repo, &FailingSymbolResolver)?
+                .evaluate(repo)?
+                .iter()
+                .commits(repo.store())
+                .try_collect()?;
+
+        commits.append(
+            &mut bookmark_commits
+                .iter()
+                .map(|commit| commit.id().clone())
+                .collect::<Vec<_>>(),
+        );
+        tracing::debug!("..Ok");
+    }
+
+    Ok(commits)
+}
+
+fn git_fetch_all(
+    ui: &mut Ui,
+    tx: &mut WorkspaceCommandTransaction,
+    use_all_remotes: bool,
+) -> Result<(), CommandError> {
+    let git_repo = get_git_repo(tx.base_repo().store())?;
+    let remotes = get_fetch_remotes(
+        ui,
+        tx.settings(),
+        &git_repo,
+        &FetchArgs {
+            branch: &[StringPattern::everything()],
+            remotes: &[],
+            all_remotes: use_all_remotes,
+        },
+    )?;
+
+    tracing::debug!("fetching from remotes: {}", remotes.join(","));
+
+    git_fetch(
+        ui,
+        tx,
+        &git_repo,
+        &FetchArgs {
+            branch: &[StringPattern::everything()],
+            remotes: &remotes,
+            all_remotes: use_all_remotes,
+        },
+    )
 }
