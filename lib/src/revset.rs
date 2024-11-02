@@ -223,8 +223,12 @@ pub enum RevsetExpression {
     AtOperation {
         operation: String,
         candidates: Rc<Self>,
-        /// Copy of `repo.view().heads()`, should be set by `resolve_symbols()`.
-        visible_heads: Option<Vec<CommitId>>,
+    },
+    /// Resolves visibility within the specified repo state.
+    WithinVisibility {
+        candidates: Rc<Self>,
+        /// Copy of `repo.view().heads()` at the operation.
+        visible_heads: Vec<CommitId>,
     },
     Coalesce(Rc<Self>, Rc<Self>),
     Present(Rc<Self>),
@@ -874,7 +878,6 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
         Ok(Rc::new(RevsetExpression::AtOperation {
             operation,
             candidates,
-            visible_heads: None,
         }))
     });
     map.insert("coalesce", |diagnostics, function, context| {
@@ -1195,10 +1198,17 @@ fn try_transform_expression<E>(
             RevsetExpression::AtOperation {
                 operation,
                 candidates,
-                visible_heads,
             } => transform_rec(candidates, pre, post)?.map(|candidates| {
                 RevsetExpression::AtOperation {
                     operation: operation.clone(),
+                    candidates,
+                }
+            }),
+            RevsetExpression::WithinVisibility {
+                candidates,
+                visible_heads,
+            } => transform_rec(candidates, pre, post)?.map(|candidates| {
+                RevsetExpression::WithinVisibility {
                     candidates,
                     visible_heads: visible_heads.clone(),
                 }
@@ -1950,14 +1960,12 @@ fn resolve_symbols(
             RevsetExpression::AtOperation {
                 operation,
                 candidates,
-                visible_heads: _,
             } => {
                 let repo = reload_repo_at_operation(repo, operation)?;
                 let candidates =
                     resolve_symbols(repo.as_ref(), candidates.clone(), symbol_resolver)?;
-                let visible_heads = Some(repo.view().heads().iter().cloned().collect());
-                Ok(Some(Rc::new(RevsetExpression::AtOperation {
-                    operation: operation.clone(),
+                let visible_heads = repo.view().heads().iter().cloned().collect();
+                Ok(Some(Rc::new(RevsetExpression::WithinVisibility {
                     candidates,
                     visible_heads,
                 })))
@@ -2070,14 +2078,13 @@ impl VisibilityResolutionContext<'_> {
                     predicate: self.resolve_predicate(expression),
                 }
             }
-            RevsetExpression::AtOperation {
-                operation: _,
+            RevsetExpression::AtOperation { .. } => {
+                panic!("Expression '{expression:?}' should have been resolved by caller");
+            }
+            RevsetExpression::WithinVisibility {
                 candidates,
                 visible_heads,
             } => {
-                let visible_heads = visible_heads
-                    .as_ref()
-                    .expect("visible_heads should have been resolved by caller");
                 let context = VisibilityResolutionContext { visible_heads };
                 context.resolve(candidates)
             }
@@ -2161,8 +2168,11 @@ impl VisibilityResolutionContext<'_> {
                 ResolvedPredicateExpression::Filter(predicate.clone())
             }
             RevsetExpression::AsFilter(candidates) => self.resolve_predicate(candidates),
-            // Filters should be intersected with all() within the at-op repo.
             RevsetExpression::AtOperation { .. } => {
+                panic!("Expression '{expression:?}' should have been resolved by caller");
+            }
+            // Filters should be intersected with all() within the at-op repo.
+            RevsetExpression::WithinVisibility { .. } => {
                 ResolvedPredicateExpression::Set(self.resolve(expression).into())
             }
             RevsetExpression::Coalesce(_, _) => {
@@ -3179,7 +3189,18 @@ mod tests {
         AtOperation {
             operation: "@-",
             candidates: CommitRef(Bookmarks(Substring(""))),
-            visible_heads: None,
+        }
+        "#);
+        insta::assert_debug_snapshot!(
+            optimize(Rc::new(RevsetExpression::WithinVisibility {
+                candidates: parse("bookmarks() & all()").unwrap(),
+                visible_heads: vec![CommitId::from_hex("012345")],
+            })), @r#"
+        WithinVisibility {
+            candidates: CommitRef(Bookmarks(Substring(""))),
+            visible_heads: [
+                CommitId("012345"),
+            ],
         }
         "#);
 
@@ -3664,7 +3685,6 @@ mod tests {
                 AtOperation {
                     operation: "@-",
                     candidates: Filter(Committer(Substring("baz"))),
-                    visible_heads: None,
                 },
             ),
             Filter(Author(Substring("foo"))),
