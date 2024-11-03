@@ -131,7 +131,6 @@ pub enum RevsetCommitRef {
         name: String,
         remote: String,
     },
-    VisibleHeads,
     Root,
     Bookmarks(StringPattern),
     RemoteBookmarks {
@@ -183,6 +182,7 @@ pub enum RevsetFilterPredicate {
 pub enum RevsetExpression {
     None,
     All,
+    VisibleHeads,
     Commits(Vec<CommitId>),
     CommitRef(RevsetCommitRef),
     Ancestors {
@@ -273,7 +273,7 @@ impl RevsetExpression {
     }
 
     pub fn visible_heads() -> Rc<Self> {
-        Rc::new(Self::CommitRef(RevsetCommitRef::VisibleHeads))
+        Rc::new(Self::VisibleHeads)
     }
 
     pub fn root() -> Rc<Self> {
@@ -1162,6 +1162,7 @@ fn try_transform_expression<E>(
         Ok(match expression.as_ref() {
             RevsetExpression::None => None,
             RevsetExpression::All => None,
+            RevsetExpression::VisibleHeads => None,
             RevsetExpression::Commits(_) => None,
             RevsetExpression::CommitRef(_) => None,
             RevsetExpression::Ancestors { heads, generation } => transform_rec(heads, pre, post)?
@@ -1904,7 +1905,6 @@ fn resolve_commit_ref(
             let wc_commits = repo.view().wc_commit_ids().values().cloned().collect_vec();
             Ok(wc_commits)
         }
-        RevsetCommitRef::VisibleHeads => Ok(repo.view().heads().iter().cloned().collect_vec()),
         RevsetCommitRef::Root => Ok(vec![repo.store().root_commit_id().clone()]),
         RevsetCommitRef::Bookmarks(pattern) => {
             let commit_ids = repo
@@ -2040,6 +2040,7 @@ impl VisibilityResolutionContext<'_> {
         match expression {
             RevsetExpression::None => ResolvedExpression::Commits(vec![]),
             RevsetExpression::All => self.resolve_all(),
+            RevsetExpression::VisibleHeads => self.resolve_visible_heads(),
             RevsetExpression::Commits(commit_ids) => {
                 ResolvedExpression::Commits(commit_ids.clone())
             }
@@ -2165,6 +2166,7 @@ impl VisibilityResolutionContext<'_> {
         match expression {
             RevsetExpression::None
             | RevsetExpression::All
+            | RevsetExpression::VisibleHeads
             | RevsetExpression::Commits(_)
             | RevsetExpression::CommitRef(_)
             | RevsetExpression::Ancestors { .. }
@@ -2783,13 +2785,13 @@ mod tests {
             generation: 0..18446744073709551615,
         }
         "###);
-        insta::assert_debug_snapshot!(parse("foo..").unwrap(), @r###"
+        insta::assert_debug_snapshot!(parse("foo..").unwrap(), @r#"
         Range {
             roots: CommitRef(Symbol("foo")),
-            heads: CommitRef(VisibleHeads),
+            heads: VisibleHeads,
             generation: 0..18446744073709551615,
         }
-        "###);
+        "#);
         insta::assert_debug_snapshot!(parse("foo..bar").unwrap(), @r###"
         Range {
             roots: CommitRef(Symbol("foo")),
@@ -2798,13 +2800,13 @@ mod tests {
         }
         "###);
         // Parse the nullary "range" operator
-        insta::assert_debug_snapshot!(parse("..").unwrap(), @r###"
+        insta::assert_debug_snapshot!(parse("..").unwrap(), @r"
         Range {
             roots: CommitRef(Root),
-            heads: CommitRef(VisibleHeads),
+            heads: VisibleHeads,
             generation: 0..18446744073709551615,
         }
-        "###);
+        ");
         // Parse the "negate" operator
         insta::assert_debug_snapshot!(
             parse("~ foo").unwrap(),
@@ -3357,13 +3359,13 @@ mod tests {
             generation: 0..18446744073709551615,
         }
         "###);
-        insta::assert_debug_snapshot!(optimize(parse("foo..").unwrap()), @r###"
+        insta::assert_debug_snapshot!(optimize(parse("foo..").unwrap()), @r#"
         Range {
             roots: CommitRef(Symbol("foo")),
-            heads: CommitRef(VisibleHeads),
+            heads: VisibleHeads,
             generation: 0..18446744073709551615,
         }
-        "###);
+        "#);
         insta::assert_debug_snapshot!(optimize(parse("foo..bar").unwrap()), @r###"
         Range {
             roots: CommitRef(Symbol("foo")),
@@ -3407,35 +3409,35 @@ mod tests {
         let _guard = settings.bind_to_scope();
 
         // '~(::foo)' is equivalent to 'foo..'.
-        insta::assert_debug_snapshot!(optimize(parse("~(::foo)").unwrap()), @r###"
+        insta::assert_debug_snapshot!(optimize(parse("~(::foo)").unwrap()), @r#"
         Range {
             roots: CommitRef(Symbol("foo")),
-            heads: CommitRef(VisibleHeads),
+            heads: VisibleHeads,
             generation: 0..18446744073709551615,
         }
-        "###);
+        "#);
 
         // '~(::foo-)' is equivalent to 'foo-..'.
-        insta::assert_debug_snapshot!(optimize(parse("~(::foo-)").unwrap()), @r###"
+        insta::assert_debug_snapshot!(optimize(parse("~(::foo-)").unwrap()), @r#"
         Range {
             roots: Ancestors {
                 heads: CommitRef(Symbol("foo")),
                 generation: 1..2,
             },
-            heads: CommitRef(VisibleHeads),
+            heads: VisibleHeads,
             generation: 0..18446744073709551615,
         }
-        "###);
-        insta::assert_debug_snapshot!(optimize(parse("~(::foo--)").unwrap()), @r###"
+        "#);
+        insta::assert_debug_snapshot!(optimize(parse("~(::foo--)").unwrap()), @r#"
         Range {
             roots: Ancestors {
                 heads: CommitRef(Symbol("foo")),
                 generation: 2..3,
             },
-            heads: CommitRef(VisibleHeads),
+            heads: VisibleHeads,
             generation: 0..18446744073709551615,
         }
-        "###);
+        "#);
 
         // Bounded ancestors shouldn't be substituted.
         insta::assert_debug_snapshot!(optimize(parse("~ancestors(foo, 1)").unwrap()), @r###"
