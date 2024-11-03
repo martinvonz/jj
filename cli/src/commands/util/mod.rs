@@ -14,6 +14,7 @@
 
 mod completion;
 mod config_schema;
+mod exec;
 mod gc;
 mod mangen;
 mod markdown_help;
@@ -25,6 +26,8 @@ use self::completion::cmd_util_completion;
 use self::completion::UtilCompletionArgs;
 use self::config_schema::cmd_util_config_schema;
 use self::config_schema::UtilConfigSchemaArgs;
+use self::exec::cmd_util_exec;
+use self::exec::UtilExecArgs;
 use self::gc::cmd_util_gc;
 use self::gc::UtilGcArgs;
 use self::mangen::cmd_util_mangen;
@@ -40,6 +43,7 @@ use crate::ui::Ui;
 pub(crate) enum UtilCommand {
     Completion(UtilCompletionArgs),
     ConfigSchema(UtilConfigSchemaArgs),
+    Exec(UtilExecArgs),
     Gc(UtilGcArgs),
     Mangen(UtilMangenArgs),
     MarkdownHelp(UtilMarkdownHelp),
@@ -54,6 +58,7 @@ pub(crate) fn cmd_util(
     match subcommand {
         UtilCommand::Completion(args) => cmd_util_completion(ui, command, args),
         UtilCommand::ConfigSchema(args) => cmd_util_config_schema(ui, command, args),
+        UtilCommand::Exec(args) => cmd_util_exec(ui, command, args),
         UtilCommand::Gc(args) => cmd_util_gc(ui, command, args),
         UtilCommand::Mangen(args) => cmd_util_mangen(ui, command, args),
         UtilCommand::MarkdownHelp(args) => cmd_util_markdown_help(ui, command, args),

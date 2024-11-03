@@ -14,6 +14,7 @@
 
 use insta::assert_snapshot;
 
+use crate::common::strip_last_line;
 use crate::common::TestEnvironment;
 
 #[test]
@@ -111,4 +112,34 @@ fn test_shell_completions() {
     test("fish");
     test("nushell");
     test("zsh");
+}
+
+#[test]
+fn test_util_exec() {
+    let test_env = TestEnvironment::default();
+    let formatter_path = assert_cmd::cargo::cargo_bin("fake-formatter");
+    let (out, err) = test_env.jj_cmd_ok(
+        test_env.env_root(),
+        &[
+            "util",
+            "exec",
+            "--",
+            formatter_path.to_str().unwrap(),
+            "--append",
+            "hello",
+        ],
+    );
+    insta::assert_snapshot!(out, @"hello");
+    // Ensures only stdout contains text
+    assert!(err.is_empty());
+}
+
+#[test]
+fn test_util_exec_fail() {
+    let test_env = TestEnvironment::default();
+    let err = test_env.jj_cmd_failure(
+        test_env.env_root(),
+        &["util", "exec", "--", "missing-program"],
+    );
+    insta::assert_snapshot!(strip_last_line(&err), @"Error: Failed to execute external command 'missing-program'");
 }
