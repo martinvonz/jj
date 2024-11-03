@@ -131,7 +131,6 @@ pub enum RevsetCommitRef {
         name: String,
         remote: String,
     },
-    Root,
     Bookmarks(StringPattern),
     RemoteBookmarks {
         bookmark_pattern: StringPattern,
@@ -183,6 +182,7 @@ pub enum RevsetExpression {
     None,
     All,
     VisibleHeads,
+    Root,
     Commits(Vec<CommitId>),
     CommitRef(RevsetCommitRef),
     Ancestors {
@@ -277,7 +277,7 @@ impl RevsetExpression {
     }
 
     pub fn root() -> Rc<Self> {
-        Rc::new(Self::CommitRef(RevsetCommitRef::Root))
+        Rc::new(Self::Root)
     }
 
     pub fn bookmarks(pattern: StringPattern) -> Rc<Self> {
@@ -1163,6 +1163,7 @@ fn try_transform_expression<E>(
             RevsetExpression::None => None,
             RevsetExpression::All => None,
             RevsetExpression::VisibleHeads => None,
+            RevsetExpression::Root => None,
             RevsetExpression::Commits(_) => None,
             RevsetExpression::CommitRef(_) => None,
             RevsetExpression::Ancestors { heads, generation } => transform_rec(heads, pre, post)?
@@ -1905,7 +1906,6 @@ fn resolve_commit_ref(
             let wc_commits = repo.view().wc_commit_ids().values().cloned().collect_vec();
             Ok(wc_commits)
         }
-        RevsetCommitRef::Root => Ok(vec![repo.store().root_commit_id().clone()]),
         RevsetCommitRef::Bookmarks(pattern) => {
             let commit_ids = repo
                 .view()
@@ -2025,6 +2025,7 @@ fn resolve_symbols(
 fn resolve_visibility(repo: &dyn Repo, expression: &RevsetExpression) -> ResolvedExpression {
     let context = VisibilityResolutionContext {
         visible_heads: &repo.view().heads().iter().cloned().collect_vec(),
+        root: repo.store().root_commit_id(),
     };
     context.resolve(expression)
 }
@@ -2032,6 +2033,7 @@ fn resolve_visibility(repo: &dyn Repo, expression: &RevsetExpression) -> Resolve
 #[derive(Clone, Debug)]
 struct VisibilityResolutionContext<'a> {
     visible_heads: &'a [CommitId],
+    root: &'a CommitId,
 }
 
 impl VisibilityResolutionContext<'_> {
@@ -2041,6 +2043,7 @@ impl VisibilityResolutionContext<'_> {
             RevsetExpression::None => ResolvedExpression::Commits(vec![]),
             RevsetExpression::All => self.resolve_all(),
             RevsetExpression::VisibleHeads => self.resolve_visible_heads(),
+            RevsetExpression::Root => self.resolve_root(),
             RevsetExpression::Commits(commit_ids) => {
                 ResolvedExpression::Commits(commit_ids.clone())
             }
@@ -2099,7 +2102,10 @@ impl VisibilityResolutionContext<'_> {
                 candidates,
                 visible_heads,
             } => {
-                let context = VisibilityResolutionContext { visible_heads };
+                let context = VisibilityResolutionContext {
+                    visible_heads,
+                    root: self.root,
+                };
                 context.resolve(candidates)
             }
             RevsetExpression::Coalesce(expression1, expression2) => ResolvedExpression::Coalesce(
@@ -2158,6 +2164,10 @@ impl VisibilityResolutionContext<'_> {
         ResolvedExpression::Commits(self.visible_heads.to_owned())
     }
 
+    fn resolve_root(&self) -> ResolvedExpression {
+        ResolvedExpression::Commits(vec![self.root.to_owned()])
+    }
+
     /// Resolves expression tree as filter predicate.
     ///
     /// For filter expression, this never inserts a hidden `all()` since a
@@ -2167,6 +2177,7 @@ impl VisibilityResolutionContext<'_> {
             RevsetExpression::None
             | RevsetExpression::All
             | RevsetExpression::VisibleHeads
+            | RevsetExpression::Root
             | RevsetExpression::Commits(_)
             | RevsetExpression::CommitRef(_)
             | RevsetExpression::Ancestors { .. }
@@ -2778,13 +2789,13 @@ mod tests {
         // Parse the nullary "dag range" operator
         insta::assert_debug_snapshot!(parse("::").unwrap(), @"All");
         // Parse the "range" prefix operator
-        insta::assert_debug_snapshot!(parse("..foo").unwrap(), @r###"
+        insta::assert_debug_snapshot!(parse("..foo").unwrap(), @r#"
         Range {
-            roots: CommitRef(Root),
+            roots: Root,
             heads: CommitRef(Symbol("foo")),
             generation: 0..18446744073709551615,
         }
-        "###);
+        "#);
         insta::assert_debug_snapshot!(parse("foo..").unwrap(), @r#"
         Range {
             roots: CommitRef(Symbol("foo")),
@@ -2802,7 +2813,7 @@ mod tests {
         // Parse the nullary "range" operator
         insta::assert_debug_snapshot!(parse("..").unwrap(), @r"
         Range {
-            roots: CommitRef(Root),
+            roots: Root,
             heads: VisibleHeads,
             generation: 0..18446744073709551615,
         }
@@ -2922,7 +2933,7 @@ mod tests {
         "###);
         insta::assert_debug_snapshot!(
             parse("root()").unwrap(),
-            @"CommitRef(Root)");
+            @"Root");
         assert!(parse("root(a)").is_err());
         insta::assert_debug_snapshot!(
             parse(r#"description("")"#).unwrap(),
