@@ -19,6 +19,7 @@ use itertools::Itertools;
 use jj_lib::backend::CommitId;
 use jj_lib::commit::Commit;
 use jj_lib::repo::Repo;
+use jj_lib::revset::ResolvedRevsetExpression;
 use jj_lib::revset::RevsetExpression;
 use jj_lib::revset::RevsetFilterPredicate;
 use jj_lib::revset::RevsetIteratorExt;
@@ -117,10 +118,10 @@ impl Direction {
 
     fn build_target_revset(
         &self,
-        working_revset: &Rc<RevsetExpression>,
-        start_revset: &Rc<RevsetExpression>,
+        working_revset: &Rc<ResolvedRevsetExpression>,
+        start_revset: &Rc<ResolvedRevsetExpression>,
         args: &MovementArgsInternal,
-    ) -> Result<Rc<RevsetExpression>, CommandError> {
+    ) -> Result<Rc<ResolvedRevsetExpression>, CommandError> {
         let nth = match (self, args.should_edit) {
             (Direction::Next, true) => start_revset.descendants_at(args.offset),
             (Direction::Next, false) => start_revset

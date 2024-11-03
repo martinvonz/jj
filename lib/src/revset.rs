@@ -177,14 +177,51 @@ pub enum RevsetFilterPredicate {
     Extension(Rc<dyn RevsetFilterExtension>),
 }
 
+mod private {
+    /// Defines [`RevsetExpression`] variants depending on resolution state.
+    pub trait ExpressionState {
+        type CommitRef: Clone;
+        type Operation: Clone;
+    }
+
+    // Not constructible because these state types just define associated types.
+    #[derive(Debug)]
+    pub enum UserExpressionState {}
+    #[derive(Debug)]
+    pub enum ResolvedExpressionState {}
+}
+
+use private::ExpressionState;
+use private::ResolvedExpressionState;
+use private::UserExpressionState;
+
+impl ExpressionState for UserExpressionState {
+    type CommitRef = RevsetCommitRef;
+    type Operation = String;
+}
+
+impl ExpressionState for ResolvedExpressionState {
+    type CommitRef = Infallible;
+    type Operation = Infallible;
+}
+
+/// [`RevsetExpression`] that may contain unresolved commit refs.
+pub type UserRevsetExpression = RevsetExpression<UserExpressionState>;
+/// [`RevsetExpression`] that never contains unresolved commit refs.
+pub type ResolvedRevsetExpression = RevsetExpression<ResolvedExpressionState>;
+
+/// Tree of revset expressions describing DAG operations.
+///
+/// Use [`UserRevsetExpression`] or [`ResolvedRevsetExpression`] to construct
+/// expression of that state.
 #[derive(Clone, Debug)]
-pub enum RevsetExpression {
+pub enum RevsetExpression<St: ExpressionState> {
     None,
     All,
     VisibleHeads,
     Root,
     Commits(Vec<CommitId>),
-    CommitRef(RevsetCommitRef),
+    CommitRef(St::CommitRef),
     Ancestors {
         heads: Rc<Self>,
         generation: Range<u64>,
@@ -221,7 +258,7 @@ pub enum RevsetExpression {
     AsFilter(Rc<Self>),
     /// Resolves symbols and visibility at the specified operation.
     AtOperation {
-        operation: String,
+        operation: St::Operation,
         candidates: Rc<Self>,
     },
     /// Resolves visibility within the specified repo state.
@@ -238,8 +275,9 @@ pub enum RevsetExpression {
     Difference(Rc<Self>, Rc<Self>),
 }
 
-// Leaf expression that never contains unresolved commit refs
-impl RevsetExpression {
+// Leaf expression that never contains unresolved commit refs, which can be
+// either user or resolved expression
+impl<St: ExpressionState> RevsetExpression<St> {
     pub fn none() -> Rc<Self> {
         Rc::new(Self::None)
     }
@@ -275,7 +313,7 @@ impl RevsetExpression {
 }
 
 // Leaf expression that represents unresolved commit refs
-impl RevsetExpression {
+impl<St: ExpressionState<CommitRef = RevsetCommitRef>> RevsetExpression<St> {
     pub fn working_copy(workspace_id: WorkspaceId) -> Rc<Self> {
         Rc::new(Self::CommitRef(RevsetCommitRef::WorkingCopy(workspace_id)))
     }
@@ -323,7 +361,7 @@ impl RevsetExpression {
 }
 
 // Compound expression
-impl RevsetExpression {
+impl<St: ExpressionState> RevsetExpression<St> {
     pub fn latest(self: &Rc<Self>, count: usize) -> Rc<Self> {
         Rc::new(Self::Latest {
             candidates: self.clone(),
@@ -480,7 +518,7 @@ impl RevsetExpression {
     }
 }
 
-impl RevsetExpression {
+impl<St: ExpressionState<CommitRef = RevsetCommitRef>> RevsetExpression<St> {
     /// Returns symbol string if this expression is of that type.
     pub fn as_symbol(&self) -> Option<&str> {
         match self {
@@ -488,27 +526,12 @@ impl RevsetExpression {
             _ => None,
         }
     }
+}
 
-    /// Resolve a programmatically created revset expression.
-    ///
-    /// In particular, the expression must not contain any symbols (bookmarks,
-    /// tags, change/commit prefixes). Callers must not include
-    /// `RevsetExpression::symbol()` in the expression, and should instead
-    /// resolve symbols to `CommitId`s and pass them into
-    /// `RevsetExpression::commits()`. Similarly, the expression must not
-    /// contain any `RevsetExpression::remote_symbol()` or
-    /// `RevsetExpression::working_copy()`, unless they're known to be valid.
-    /// The expression must not contain `RevsetExpression::AtOperation` even if
-    /// it's known to be valid. It can fail at loading operation data.
-    pub fn resolve_programmatic(&self, repo: &dyn Repo) -> ResolvedExpression {
-        let symbol_resolver = FailingSymbolResolver;
-        resolve_symbols(repo, self, &symbol_resolver)
-            .map(|expression| resolve_visibility(repo, &expression))
-            .unwrap()
-    }
-
+impl UserRevsetExpression {
     /// Resolve a user-provided expression. Symbols will be resolved using the
     /// provided `SymbolResolver`.
+    // TODO: return ResolvedRevsetExpression which can still be combined
     pub fn resolve_user_expression(
         &self,
         repo: &dyn Repo,
@@ -517,14 +540,18 @@ impl RevsetExpression {
         resolve_symbols(repo, self, symbol_resolver)
             .map(|expression| resolve_visibility(repo, &expression))
     }
+}
 
+impl ResolvedRevsetExpression {
     /// Resolve a programmatically created revset expression and evaluate it in
     /// the repo.
+    // TODO: rename to .evaluate(), and add .evaluate_unoptimized() for
+    // testing/debugging purpose?
     pub fn evaluate_programmatic<'index>(
         self: Rc<Self>,
         repo: &'index dyn Repo,
     ) -> Result<Box<dyn Revset + 'index>, RevsetEvaluationError> {
-        optimize(self).resolve_programmatic(repo).evaluate(repo)
+        resolve_visibility(repo, &optimize(self)).evaluate(repo)
     }
 }
 
@@ -548,6 +575,7 @@ pub enum ResolvedPredicateExpression {
 /// properties.
 ///
 /// Use `RevsetExpression` API to build a query programmatically.
+// TODO: rename to BackendExpression?
 #[derive(Clone, Debug)]
 pub enum ResolvedExpression {
     Commits(Vec<CommitId>),
@@ -603,7 +631,7 @@ pub type RevsetFunction = fn(
     &mut RevsetDiagnostics,
     &FunctionCallNode,
     &RevsetParseContext,
-) -> Result<Rc<RevsetExpression>, RevsetParseError>;
+) -> Result<Rc<UserRevsetExpression>, RevsetParseError>;
 
 static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy::new(|| {
     // Not using maplit::hashmap!{} or custom declarative macro here because
@@ -973,7 +1001,7 @@ fn parse_remote_bookmarks_arguments(
     diagnostics: &mut RevsetDiagnostics,
     function: &FunctionCallNode,
     remote_ref_state: Option<RemoteRefState>,
-) -> Result<Rc<RevsetExpression>, RevsetParseError> {
+) -> Result<Rc<UserRevsetExpression>, RevsetParseError> {
     let ([], [bookmark_opt_arg, remote_opt_arg]) =
         function.expect_named_arguments(&["", "remote"])?;
     let bookmark_pattern = if let Some(bookmark_arg) = bookmark_opt_arg {
@@ -998,7 +1026,7 @@ fn lower_function_call(
     diagnostics: &mut RevsetDiagnostics,
     function: &FunctionCallNode,
     context: &RevsetParseContext,
-) -> Result<Rc<RevsetExpression>, RevsetParseError> {
+) -> Result<Rc<UserRevsetExpression>, RevsetParseError> {
     let function_map = &context.extensions.function_map;
     if let Some(func) = function_map.get(function.name) {
         func(diagnostics, function, context)
@@ -1019,7 +1047,7 @@ pub fn lower_expression(
     diagnostics: &mut RevsetDiagnostics,
     node: &ExpressionNode,
     context: &RevsetParseContext,
-) -> Result<Rc<RevsetExpression>, RevsetParseError> {
+) -> Result<Rc<UserRevsetExpression>, RevsetParseError> {
     match &node.kind {
         ExpressionKind::Identifier(name) => Ok(RevsetExpression::symbol((*name).to_owned())),
         ExpressionKind::String(name) => Ok(RevsetExpression::symbol(name.to_owned())),
@@ -1106,7 +1134,7 @@ pub fn parse(
     diagnostics: &mut RevsetDiagnostics,
     revset_str: &str,
     context: &RevsetParseContext,
-) -> Result<Rc<RevsetExpression>, RevsetParseError> {
+) -> Result<Rc<UserRevsetExpression>, RevsetParseError> {
     let node = revset_parser::parse_program(revset_str)?;
     let node = dsl_util::expand_aliases(node, context.aliases_map)?;
     lower_expression(diagnostics, &node, context)
@@ -1117,7 +1145,7 @@ pub fn parse_with_modifier(
     diagnostics: &mut RevsetDiagnostics,
     revset_str: &str,
     context: &RevsetParseContext,
-) -> Result<(Rc<RevsetExpression>, Option<RevsetModifier>), RevsetParseError> {
+) -> Result<(Rc<UserRevsetExpression>, Option<RevsetModifier>), RevsetParseError> {
     let node = revset_parser::parse_program(revset_str)?;
     let node = dsl_util::expand_aliases(node, context.aliases_map)?;
     revset_parser::expect_program_with(
@@ -1136,15 +1164,19 @@ pub fn parse_with_modifier(
 }
 
 /// `Some` for rewritten expression, or `None` to reuse the original expression.
-type TransformedExpression = Option<Rc<RevsetExpression>>;
+type TransformedExpression<St> = Option<Rc<RevsetExpression<St>>>;
 
 /// Walks `expression` tree and applies `f` recursively from leaf nodes.
-fn transform_expression_bottom_up(
-    expression: &Rc<RevsetExpression>,
-    mut f: impl FnMut(&Rc<RevsetExpression>) -> TransformedExpression,
-) -> TransformedExpression {
-    try_transform_expression::<Infallible>(expression, |_| Ok(None), |expression| Ok(f(expression)))
-        .unwrap()
+fn transform_expression_bottom_up<St: ExpressionState>(
+    expression: &Rc<RevsetExpression<St>>,
+    mut f: impl FnMut(&Rc<RevsetExpression<St>>) -> TransformedExpression<St>,
+) -> TransformedExpression<St> {
+    try_transform_expression::<St, Infallible>(
+        expression,
+        |_| Ok(None),
+        |expression| Ok(f(expression)),
+    )
+    .unwrap()
 }
 
 /// Walks `expression` tree and applies transformation recursively.
@@ -1159,16 +1191,16 @@ fn transform_expression_bottom_up(
 /// If no nodes rewritten, this function returns `None`.
 /// `std::iter::successors()` could be used if the transformation needs to be
 /// applied repeatedly until converged.
-fn try_transform_expression<E>(
-    expression: &Rc<RevsetExpression>,
-    mut pre: impl FnMut(&Rc<RevsetExpression>) -> Result<TransformedExpression, E>,
-    mut post: impl FnMut(&Rc<RevsetExpression>) -> Result<TransformedExpression, E>,
-) -> Result<TransformedExpression, E> {
-    fn transform_child_rec<E>(
-        expression: &Rc<RevsetExpression>,
-        pre: &mut impl FnMut(&Rc<RevsetExpression>) -> Result<TransformedExpression, E>,
-        post: &mut impl FnMut(&Rc<RevsetExpression>) -> Result<TransformedExpression, E>,
-    ) -> Result<TransformedExpression, E> {
+fn try_transform_expression<St: ExpressionState, E>(
+    expression: &Rc<RevsetExpression<St>>,
+    mut pre: impl FnMut(&Rc<RevsetExpression<St>>) -> Result<TransformedExpression<St>, E>,
+    mut post: impl FnMut(&Rc<RevsetExpression<St>>) -> Result<TransformedExpression<St>, E>,
+) -> Result<TransformedExpression<St>, E> {
+    fn transform_child_rec<St: ExpressionState, E>(
+        expression: &Rc<RevsetExpression<St>>,
+        pre: &mut impl FnMut(&Rc<RevsetExpression<St>>) -> Result<TransformedExpression<St>, E>,
+        post: &mut impl FnMut(&Rc<RevsetExpression<St>>) -> Result<TransformedExpression<St>, E>,
+    ) -> Result<TransformedExpression<St>, E> {
         Ok(match expression.as_ref() {
             RevsetExpression::None => None,
             RevsetExpression::All => None,
@@ -1274,11 +1306,11 @@ fn try_transform_expression<E>(
     }
 
     #[allow(clippy::type_complexity)]
-    fn transform_rec_pair<E>(
-        (expression1, expression2): (&Rc<RevsetExpression>, &Rc<RevsetExpression>),
-        pre: &mut impl FnMut(&Rc<RevsetExpression>) -> Result<TransformedExpression, E>,
-        post: &mut impl FnMut(&Rc<RevsetExpression>) -> Result<TransformedExpression, E>,
-    ) -> Result<Option<(Rc<RevsetExpression>, Rc<RevsetExpression>)>, E> {
+    fn transform_rec_pair<St: ExpressionState, E>(
+        (expression1, expression2): (&Rc<RevsetExpression<St>>, &Rc<RevsetExpression<St>>),
+        pre: &mut impl FnMut(&Rc<RevsetExpression<St>>) -> Result<TransformedExpression<St>, E>,
+        post: &mut impl FnMut(&Rc<RevsetExpression<St>>) -> Result<TransformedExpression<St>, E>,
+    ) -> Result<Option<(Rc<RevsetExpression<St>>, Rc<RevsetExpression<St>>)>, E> {
         match (
             transform_rec(expression1, pre, post)?,
             transform_rec(expression2, pre, post)?,
@@ -1292,11 +1324,11 @@ fn try_transform_expression<E>(
         }
     }
 
-    fn transform_rec<E>(
-        expression: &Rc<RevsetExpression>,
-        pre: &mut impl FnMut(&Rc<RevsetExpression>) -> Result<TransformedExpression, E>,
-        post: &mut impl FnMut(&Rc<RevsetExpression>) -> Result<TransformedExpression, E>,
-    ) -> Result<TransformedExpression, E> {
+    fn transform_rec<St: ExpressionState, E>(
+        expression: &Rc<RevsetExpression<St>>,
+        pre: &mut impl FnMut(&Rc<RevsetExpression<St>>) -> Result<TransformedExpression<St>, E>,
+        post: &mut impl FnMut(&Rc<RevsetExpression<St>>) -> Result<TransformedExpression<St>, E>,
+    ) -> Result<TransformedExpression<St>, E> {
         if let Some(new_expression) = pre(expression)? {
             return Ok(Some(new_expression));
         }
@@ -1314,41 +1346,42 @@ fn try_transform_expression<E>(
 /// Visitor-like interface to transform [`RevsetExpression`] state recursively.
 ///
 /// This is similar to [`try_transform_expression()`], but is supposed to
-/// transform the resolution state.
-trait ExpressionStateFolder {
+/// transform the resolution state from `InSt` to `OutSt`.
+trait ExpressionStateFolder<InSt: ExpressionState, OutSt: ExpressionState> {
     type Error;
 
     /// Transforms the `expression`. By default, inner items are transformed
     /// recursively.
     fn fold_expression(
         &mut self,
-        expression: &RevsetExpression,
-    ) -> Result<Rc<RevsetExpression>, Self::Error> {
+        expression: &RevsetExpression<InSt>,
+    ) -> Result<Rc<RevsetExpression<OutSt>>, Self::Error> {
         fold_child_expression_state(self, expression)
     }
 
     /// Transforms commit ref such as symbol.
     fn fold_commit_ref(
         &mut self,
-        commit_ref: &RevsetCommitRef,
-    ) -> Result<Rc<RevsetExpression>, Self::Error>;
+        commit_ref: &InSt::CommitRef,
+    ) -> Result<Rc<RevsetExpression<OutSt>>, Self::Error>;
 
     /// Transforms `at_operation(operation, candidates)` expression.
-    #[allow(clippy::ptr_arg)] // TODO: &String will be parameterized
     fn fold_at_operation(
         &mut self,
-        operation: &String,
-        candidates: &RevsetExpression,
-    ) -> Result<Rc<RevsetExpression>, Self::Error>;
+        operation: &InSt::Operation,
+        candidates: &RevsetExpression<InSt>,
+    ) -> Result<Rc<RevsetExpression<OutSt>>, Self::Error>;
 }
 
 /// Transforms inner items of the `expression` by using the `folder`.
-fn fold_child_expression_state<F>(
+fn fold_child_expression_state<InSt, OutSt, F>(
     folder: &mut F,
-    expression: &RevsetExpression,
-) -> Result<Rc<RevsetExpression>, F::Error>
+    expression: &RevsetExpression<InSt>,
+) -> Result<Rc<RevsetExpression<OutSt>>, F::Error>
 where
-    F: ExpressionStateFolder + ?Sized,
+    InSt: ExpressionState,
+    OutSt: ExpressionState,
+    F: ExpressionStateFolder<InSt, OutSt> + ?Sized,
 {
     let expression: Rc<_> = match expression {
         RevsetExpression::None => RevsetExpression::None.into(),
@@ -1466,22 +1499,25 @@ where
 ///    help further optimization (e.g. combine `file(_)` matchers.)
 /// c. Wraps union of filter and set (e.g. `author(_) | heads()`), to
 ///    ensure inner filter wouldn't need to evaluate all the input sets.
-fn internalize_filter(expression: &Rc<RevsetExpression>) -> TransformedExpression {
-    fn is_filter(expression: &RevsetExpression) -> bool {
+fn internalize_filter<St: ExpressionState>(
+    expression: &Rc<RevsetExpression<St>>,
+) -> TransformedExpression<St> {
+    fn is_filter<St: ExpressionState>(expression: &RevsetExpression<St>) -> bool {
         matches!(
             expression,
             RevsetExpression::Filter(_) | RevsetExpression::AsFilter(_)
         )
     }
 
-    fn is_filter_tree(expression: &RevsetExpression) -> bool {
+    fn is_filter_tree<St: ExpressionState>(expression: &RevsetExpression<St>) -> bool {
         is_filter(expression) || as_filter_intersection(expression).is_some()
     }
 
     // Extracts 'c & f' from intersect_down()-ed node.
-    fn as_filter_intersection(
-        expression: &RevsetExpression,
-    ) -> Option<(&Rc<RevsetExpression>, &Rc<RevsetExpression>)> {
+    #[allow(clippy::type_complexity)]
+    fn as_filter_intersection<St: ExpressionState>(
+        expression: &RevsetExpression<St>,
+    ) -> Option<(&Rc<RevsetExpression<St>>, &Rc<RevsetExpression<St>>)> {
         if let RevsetExpression::Intersection(expression1, expression2) = expression {
             is_filter(expression2).then_some((expression1, expression2))
         } else {
@@ -1493,10 +1529,10 @@ fn internalize_filter(expression: &Rc<RevsetExpression>) -> TransformedExpressio
     // apply the whole bottom-up pass to new intersection node. Instead, just push
     // new 'c & (d & g)' down-left to '(c & d) & g' while either side is
     // an intersection of filter node.
-    fn intersect_down(
-        expression1: &Rc<RevsetExpression>,
-        expression2: &Rc<RevsetExpression>,
-    ) -> TransformedExpression {
+    fn intersect_down<St: ExpressionState>(
+        expression1: &Rc<RevsetExpression<St>>,
+        expression2: &Rc<RevsetExpression<St>>,
+    ) -> TransformedExpression<St> {
         let recurse = |e1, e2| intersect_down(e1, e2).unwrap_or_else(|| e1.intersection(e2));
         match (expression1.as_ref(), expression2.as_ref()) {
             // Don't reorder 'f1 & f2'
@@ -1541,7 +1577,9 @@ fn internalize_filter(expression: &Rc<RevsetExpression>) -> TransformedExpressio
 ///
 /// This does not rewrite 'x & none()' to 'none()' because 'x' may be an invalid
 /// symbol.
-fn fold_redundant_expression(expression: &Rc<RevsetExpression>) -> TransformedExpression {
+fn fold_redundant_expression<St: ExpressionState>(
+    expression: &Rc<RevsetExpression<St>>,
+) -> TransformedExpression<St> {
     transform_expression_bottom_up(expression, |expression| match expression.as_ref() {
         RevsetExpression::NotIn(outer) => match outer.as_ref() {
             RevsetExpression::NotIn(inner) => Some(inner.clone()),
@@ -1558,10 +1596,10 @@ fn fold_redundant_expression(expression: &Rc<RevsetExpression>) -> TransformedEx
     })
 }
 
-fn to_difference_range(
-    expression: &Rc<RevsetExpression>,
-    complement: &Rc<RevsetExpression>,
-) -> TransformedExpression {
+fn to_difference_range<St: ExpressionState>(
+    expression: &Rc<RevsetExpression<St>>,
+    complement: &Rc<RevsetExpression<St>>,
+) -> TransformedExpression<St> {
     match (expression.as_ref(), complement.as_ref()) {
         // ::heads & ~(::roots) -> roots..heads
         (
@@ -1597,11 +1635,13 @@ fn to_difference_range(
 
 /// Transforms negative intersection to difference. Redundant intersections like
 /// `all() & e` should have been removed.
-fn fold_difference(expression: &Rc<RevsetExpression>) -> TransformedExpression {
-    fn to_difference(
-        expression: &Rc<RevsetExpression>,
-        complement: &Rc<RevsetExpression>,
-    ) -> Rc<RevsetExpression> {
+fn fold_difference<St: ExpressionState>(
+    expression: &Rc<RevsetExpression<St>>,
+) -> TransformedExpression<St> {
+    fn to_difference<St: ExpressionState>(
+        expression: &Rc<RevsetExpression<St>>,
+        complement: &Rc<RevsetExpression<St>>,
+    ) -> Rc<RevsetExpression<St>> {
         to_difference_range(expression, complement).unwrap_or_else(|| expression.minus(complement))
     }
 
@@ -1627,7 +1667,9 @@ fn fold_difference(expression: &Rc<RevsetExpression>) -> TransformedExpression {
 ///
 /// Since this rule inserts redundant `visible_heads()`, negative intersections
 /// should have been transformed.
-fn fold_not_in_ancestors(expression: &Rc<RevsetExpression>) -> TransformedExpression {
+fn fold_not_in_ancestors<St: ExpressionState>(
+    expression: &Rc<RevsetExpression<St>>,
+) -> TransformedExpression<St> {
     transform_expression_bottom_up(expression, |expression| match expression.as_ref() {
         RevsetExpression::NotIn(complement)
             if matches!(complement.as_ref(), RevsetExpression::Ancestors { .. }) =>
@@ -1644,7 +1686,9 @@ fn fold_not_in_ancestors(expression: &Rc<RevsetExpression>) -> TransformedExpres
 ///
 /// For example, `all() ~ e` will become `all() & ~e`, which can be simplified
 /// further by `fold_redundant_expression()`.
-fn unfold_difference(expression: &Rc<RevsetExpression>) -> TransformedExpression {
+fn unfold_difference<St: ExpressionState>(
+    expression: &Rc<RevsetExpression<St>>,
+) -> TransformedExpression<St> {
     transform_expression_bottom_up(expression, |expression| match expression.as_ref() {
         // roots..heads -> ::heads & ~(::roots)
         RevsetExpression::Range {
@@ -1667,7 +1711,9 @@ fn unfold_difference(expression: &Rc<RevsetExpression>) -> TransformedExpression
 
 /// Transforms nested `ancestors()`/`parents()`/`descendants()`/`children()`
 /// like `h---`/`r+++`.
-fn fold_generation(expression: &Rc<RevsetExpression>) -> TransformedExpression {
+fn fold_generation<St: ExpressionState>(
+    expression: &Rc<RevsetExpression<St>>,
+) -> TransformedExpression<St> {
     fn add_generation(generation1: &Range<u64>, generation2: &Range<u64>) -> Range<u64> {
         // For any (g1, g2) in (generation1, generation2), g1 + g2.
         if generation1.is_empty() || generation2.is_empty() {
@@ -1723,7 +1769,9 @@ fn fold_generation(expression: &Rc<RevsetExpression>) -> TransformedExpression {
 
 /// Rewrites the given `expression` tree to reduce evaluation cost. Returns new
 /// tree.
-pub fn optimize(expression: Rc<RevsetExpression>) -> Rc<RevsetExpression> {
+pub fn optimize<St: ExpressionState>(
+    expression: Rc<RevsetExpression<St>>,
+) -> Rc<RevsetExpression<St>> {
     let expression = unfold_difference(&expression).unwrap_or(expression);
     let expression = fold_redundant_expression(&expression).unwrap_or(expression);
     let expression = fold_generation(&expression).unwrap_or(expression);
@@ -2141,13 +2189,15 @@ impl<'a> ExpressionSymbolResolver<'a> {
     }
 }
 
-impl ExpressionStateFolder for ExpressionSymbolResolver<'_> {
+impl ExpressionStateFolder<UserExpressionState, ResolvedExpressionState>
+    for ExpressionSymbolResolver<'_>
+{
     type Error = RevsetResolutionError;
 
     fn fold_expression(
         &mut self,
-        expression: &RevsetExpression,
-    ) -> Result<Rc<RevsetExpression>, Self::Error> {
+        expression: &UserRevsetExpression,
+    ) -> Result<Rc<ResolvedRevsetExpression>, Self::Error> {
         match expression {
             // 'present(x)' opens new symbol resolution scope to map error to 'none()'
             RevsetExpression::Present(candidates) => {
@@ -2170,7 +2220,7 @@ impl ExpressionStateFolder for ExpressionSymbolResolver<'_> {
     fn fold_commit_ref(
         &mut self,
         commit_ref: &RevsetCommitRef,
-    ) -> Result<Rc<RevsetExpression>, Self::Error> {
+    ) -> Result<Rc<ResolvedRevsetExpression>, Self::Error> {
         let commit_ids = resolve_commit_ref(self.repo(), commit_ref, self.symbol_resolver)?;
         Ok(RevsetExpression::commits(commit_ids))
     }
@@ -2178,8 +2228,8 @@ impl ExpressionStateFolder for ExpressionSymbolResolver<'_> {
     fn fold_at_operation(
         &mut self,
         operation: &String,
-        candidates: &RevsetExpression,
-    ) -> Result<Rc<RevsetExpression>, Self::Error> {
+        candidates: &UserRevsetExpression,
+    ) -> Result<Rc<ResolvedRevsetExpression>, Self::Error> {
         let repo = reload_repo_at_operation(self.repo(), operation)?;
         self.repo_stack.push(repo);
         let candidates = self.fold_expression(candidates)?;
@@ -2194,9 +2244,9 @@ impl ExpressionStateFolder for ExpressionSymbolResolver<'_> {
 
 fn resolve_symbols(
     repo: &dyn Repo,
-    expression: &RevsetExpression,
+    expression: &UserRevsetExpression,
     symbol_resolver: &dyn SymbolResolver,
-) -> Result<Rc<RevsetExpression>, RevsetResolutionError> {
+) -> Result<Rc<ResolvedRevsetExpression>, RevsetResolutionError> {
     let mut resolver = ExpressionSymbolResolver::new(repo, symbol_resolver);
     resolver.fold_expression(expression)
 }
@@ -2210,7 +2260,10 @@ fn resolve_symbols(
 /// commit ids to make `all()` include hidden-but-specified commits. The
 /// return type `ResolvedExpression` is stricter than `RevsetExpression`,
 /// and isn't designed for such transformation.
-fn resolve_visibility(repo: &dyn Repo, expression: &RevsetExpression) -> ResolvedExpression {
+fn resolve_visibility(
+    repo: &dyn Repo,
+    expression: &ResolvedRevsetExpression,
+) -> ResolvedExpression {
     let context = VisibilityResolutionContext {
         visible_heads: &repo.view().heads().iter().cloned().collect_vec(),
         root: repo.store().root_commit_id(),
@@ -2226,7 +2279,7 @@ struct VisibilityResolutionContext<'a> {
 
 impl VisibilityResolutionContext<'_> {
     /// Resolves expression tree as set.
-    fn resolve(&self, expression: &RevsetExpression) -> ResolvedExpression {
+    fn resolve(&self, expression: &ResolvedRevsetExpression) -> ResolvedExpression {
         match expression {
             RevsetExpression::None => ResolvedExpression::Commits(vec![]),
             RevsetExpression::All => self.resolve_all(),
@@ -2235,9 +2288,7 @@ impl VisibilityResolutionContext<'_> {
             RevsetExpression::Commits(commit_ids) => {
                 ResolvedExpression::Commits(commit_ids.clone())
             }
-            RevsetExpression::CommitRef(_) => {
-                panic!("Expression '{expression:?}' should have been resolved by caller");
-            }
+            RevsetExpression::CommitRef(commit_ref) => match *commit_ref {},
             RevsetExpression::Ancestors { heads, generation } => ResolvedExpression::Ancestors {
                 heads: self.resolve(heads).into(),
                 generation: generation.clone(),
@@ -2283,9 +2334,7 @@ impl VisibilityResolutionContext<'_> {
                     predicate: self.resolve_predicate(expression),
                 }
             }
-            RevsetExpression::AtOperation { .. } => {
-                panic!("Expression '{expression:?}' should have been resolved by caller");
-            }
+            RevsetExpression::AtOperation { operation, .. } => match *operation {},
             RevsetExpression::WithinVisibility {
                 candidates,
                 visible_heads,
@@ -2359,7 +2408,10 @@ impl VisibilityResolutionContext<'_> {
     ///
     /// For filter expression, this never inserts a hidden `all()` since a
     /// filter predicate doesn't need to produce revisions to walk.
-    fn resolve_predicate(&self, expression: &RevsetExpression) -> ResolvedPredicateExpression {
+    fn resolve_predicate(
+        &self,
+        expression: &ResolvedRevsetExpression,
+    ) -> ResolvedPredicateExpression {
         match expression {
             RevsetExpression::None
             | RevsetExpression::All
@@ -2381,9 +2433,7 @@ impl VisibilityResolutionContext<'_> {
                 ResolvedPredicateExpression::Filter(predicate.clone())
             }
             RevsetExpression::AsFilter(candidates) => self.resolve_predicate(candidates),
-            RevsetExpression::AtOperation { .. } => {
-                panic!("Expression '{expression:?}' should have been resolved by caller");
-            }
+            RevsetExpression::AtOperation { operation, .. } => match *operation {},
             // Filters should be intersected with all() within the at-op repo.
             RevsetExpression::WithinVisibility { .. } => {
                 ResolvedPredicateExpression::Set(self.resolve(expression).into())
@@ -2599,21 +2649,21 @@ mod tests {
 
     use super::*;
 
-    fn parse(revset_str: &str) -> Result<Rc<RevsetExpression>, RevsetParseError> {
+    fn parse(revset_str: &str) -> Result<Rc<UserRevsetExpression>, RevsetParseError> {
         parse_with_aliases(revset_str, [] as [(&str, &str); 0])
     }
 
     fn parse_with_workspace(
         revset_str: &str,
         workspace_id: &WorkspaceId,
-    ) -> Result<Rc<RevsetExpression>, RevsetParseError> {
+    ) -> Result<Rc<UserRevsetExpression>, RevsetParseError> {
         parse_with_aliases_and_workspace(revset_str, [] as [(&str, &str); 0], workspace_id)
     }
 
     fn parse_with_aliases(
         revset_str: &str,
         aliases: impl IntoIterator<Item = (impl AsRef<str>, impl Into<String>)>,
-    ) -> Result<Rc<RevsetExpression>, RevsetParseError> {
+    ) -> Result<Rc<UserRevsetExpression>, RevsetParseError> {
         let mut aliases_map = RevsetAliasesMap::new();
         for (decl, defn) in aliases {
             aliases_map.insert(decl, defn).unwrap();
@@ -2633,7 +2683,7 @@ mod tests {
         revset_str: &str,
         aliases: impl IntoIterator<Item = (impl AsRef<str>, impl Into<String>)>,
         workspace_id: &WorkspaceId,
-    ) -> Result<Rc<RevsetExpression>, RevsetParseError> {
+    ) -> Result<Rc<UserRevsetExpression>, RevsetParseError> {
         // Set up pseudo context to resolve `workspace_id@` and `file(path)`
         let path_converter = RepoPathUiConverter::Fs {
             cwd: PathBuf::from("/"),
@@ -2660,14 +2710,14 @@ mod tests {
 
     fn parse_with_modifier(
         revset_str: &str,
-    ) -> Result<(Rc<RevsetExpression>, Option<RevsetModifier>), RevsetParseError> {
+    ) -> Result<(Rc<UserRevsetExpression>, Option<RevsetModifier>), RevsetParseError> {
         parse_with_aliases_and_modifier(revset_str, [] as [(&str, &str); 0])
     }
 
     fn parse_with_aliases_and_modifier(
         revset_str: &str,
         aliases: impl IntoIterator<Item = (impl AsRef<str>, impl Into<String>)>,
-    ) -> Result<(Rc<RevsetExpression>, Option<RevsetModifier>), RevsetParseError> {
+    ) -> Result<(Rc<UserRevsetExpression>, Option<RevsetModifier>), RevsetParseError> {
         let mut aliases_map = RevsetAliasesMap::new();
         for (decl, defn) in aliases {
             aliases_map.insert(decl, defn).unwrap();
@@ -2704,10 +2754,10 @@ mod tests {
     fn test_revset_expression_building() {
         let settings = insta_settings();
         let _guard = settings.bind_to_scope();
-        let current_wc = RevsetExpression::working_copy(WorkspaceId::default());
-        let foo_symbol = RevsetExpression::symbol("foo".to_string());
-        let bar_symbol = RevsetExpression::symbol("bar".to_string());
-        let baz_symbol = RevsetExpression::symbol("baz".to_string());
+        let current_wc = UserRevsetExpression::working_copy(WorkspaceId::default());
+        let foo_symbol = UserRevsetExpression::symbol("foo".to_string());
+        let bar_symbol = UserRevsetExpression::symbol("bar".to_string());
+        let baz_symbol = UserRevsetExpression::symbol("baz".to_string());
 
         insta::assert_debug_snapshot!(
             current_wc,
@@ -2779,7 +2829,7 @@ mod tests {
         )
         "###);
         insta::assert_debug_snapshot!(
-            RevsetExpression::union_all(&[]),
+            UserRevsetExpression::union_all(&[]),
             @"None");
         insta::assert_debug_snapshot!(
             RevsetExpression::union_all(&[current_wc.clone()]),
@@ -2841,7 +2891,7 @@ mod tests {
         )
         "###);
         insta::assert_debug_snapshot!(
-            RevsetExpression::coalesce(&[]),
+            UserRevsetExpression::coalesce(&[]),
             @"None");
         insta::assert_debug_snapshot!(
             RevsetExpression::coalesce(&[current_wc.clone()]),
@@ -3445,8 +3495,8 @@ mod tests {
     #[test]
     fn test_optimize_unchanged_subtree() {
         fn unwrap_union(
-            expression: &RevsetExpression,
-        ) -> (&Rc<RevsetExpression>, &Rc<RevsetExpression>) {
+            expression: &UserRevsetExpression,
+        ) -> (&Rc<UserRevsetExpression>, &Rc<UserRevsetExpression>) {
             match expression {
                 RevsetExpression::Union(left, right) => (left, right),
                 _ => panic!("unexpected expression: {expression:?}"),

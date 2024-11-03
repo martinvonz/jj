@@ -21,8 +21,8 @@ use criterion::BenchmarkGroup;
 use criterion::BenchmarkId;
 use jj_lib::revset;
 use jj_lib::revset::DefaultSymbolResolver;
-use jj_lib::revset::RevsetExpression;
 use jj_lib::revset::SymbolResolverExtension;
+use jj_lib::revset::UserRevsetExpression;
 
 use super::new_criterion;
 use super::CriterionArgs;
@@ -87,7 +87,8 @@ fn bench_revset<M: Measurement>(
             .clone(),
     );
     // Time both evaluation and iteration.
-    let routine = |workspace_command: &WorkspaceCommandHelper, expression: Rc<RevsetExpression>| {
+    let routine = |workspace_command: &WorkspaceCommandHelper,
+                   expression: Rc<UserRevsetExpression>| {
         // Evaluate the expression without parsing/evaluating short-prefixes.
         let repo = workspace_command.repo().as_ref();
         let symbol_resolver =

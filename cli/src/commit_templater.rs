@@ -44,9 +44,9 @@ use jj_lib::revset;
 use jj_lib::revset::Revset;
 use jj_lib::revset::RevsetContainingFn;
 use jj_lib::revset::RevsetDiagnostics;
-use jj_lib::revset::RevsetExpression;
 use jj_lib::revset::RevsetModifier;
 use jj_lib::revset::RevsetParseContext;
+use jj_lib::revset::UserRevsetExpression;
 use jj_lib::store::Store;
 use once_cell::unsync::OnceCell;
 
@@ -94,7 +94,7 @@ pub struct CommitTemplateLanguage<'repo> {
     // are contained in RevsetParseContext for example.
     revset_parse_context: RevsetParseContext<'repo>,
     id_prefix_context: &'repo IdPrefixContext,
-    immutable_expression: Rc<RevsetExpression>,
+    immutable_expression: Rc<UserRevsetExpression>,
     build_fn_table: CommitTemplateBuildFnTable<'repo>,
     keyword_cache: CommitKeywordCache<'repo>,
     cache_extensions: ExtensionsMap,
@@ -109,7 +109,7 @@ impl<'repo> CommitTemplateLanguage<'repo> {
         workspace_id: &WorkspaceId,
         revset_parse_context: RevsetParseContext<'repo>,
         id_prefix_context: &'repo IdPrefixContext,
-        immutable_expression: Rc<RevsetExpression>,
+        immutable_expression: Rc<UserRevsetExpression>,
         extensions: &[impl AsRef<dyn CommitTemplateLanguageExtension>],
     ) -> Self {
         let mut build_fn_table = CommitTemplateBuildFnTable::builtin();
@@ -845,7 +845,7 @@ fn expect_fileset_literal(
 fn evaluate_revset_expression<'repo>(
     language: &CommitTemplateLanguage<'repo>,
     span: pest::Span<'_>,
-    expression: Rc<RevsetExpression>,
+    expression: Rc<UserRevsetExpression>,
 ) -> Result<Box<dyn Revset + 'repo>, TemplateParseError> {
     let symbol_resolver = revset_util::default_symbol_resolver(
         language.repo,

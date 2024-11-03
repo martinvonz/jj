@@ -25,6 +25,7 @@ use jj_lib::commit::CommitIteratorExt;
 use jj_lib::object_id::ObjectId;
 use jj_lib::repo::ReadonlyRepo;
 use jj_lib::repo::Repo;
+use jj_lib::revset::ResolvedRevsetExpression;
 use jj_lib::revset::RevsetExpression;
 use jj_lib::revset::RevsetIteratorExt;
 use jj_lib::rewrite::move_commits;
@@ -598,8 +599,8 @@ fn rebase_revisions_transaction(
 /// parents of rebased commits.
 fn ensure_no_commit_loop(
     repo: &ReadonlyRepo,
-    children_expression: &Rc<RevsetExpression>,
-    parents_expression: &Rc<RevsetExpression>,
+    children_expression: &Rc<ResolvedRevsetExpression>,
+    parents_expression: &Rc<ResolvedRevsetExpression>,
 ) -> Result<(), CommandError> {
     if let Some(commit_id) = children_expression
         .dag_range_to(parents_expression)
