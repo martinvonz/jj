@@ -66,7 +66,6 @@ impl DisambiguationData {
             let symbol_resolver = DefaultSymbolResolver::new(repo, extensions);
             let resolved_expression = self
                 .expression
-                .clone()
                 .resolve_user_expression(repo, &symbol_resolver)?;
             let revset = resolved_expression.evaluate(repo)?;
 

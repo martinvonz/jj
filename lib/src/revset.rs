@@ -500,7 +500,7 @@ impl RevsetExpression {
     /// `RevsetExpression::working_copy()`, unless they're known to be valid.
     /// The expression must not contain `RevsetExpression::AtOperation` even if
     /// it's known to be valid. It can fail at loading operation data.
-    pub fn resolve_programmatic(self: Rc<Self>, repo: &dyn Repo) -> ResolvedExpression {
+    pub fn resolve_programmatic(&self, repo: &dyn Repo) -> ResolvedExpression {
         let symbol_resolver = FailingSymbolResolver;
         resolve_symbols(repo, self, &symbol_resolver)
             .map(|expression| resolve_visibility(repo, &expression))
@@ -510,7 +510,7 @@ impl RevsetExpression {
     /// Resolve a user-provided expression. Symbols will be resolved using the
     /// provided `SymbolResolver`.
     pub fn resolve_user_expression(
-        self: Rc<Self>,
+        &self,
         repo: &dyn Repo,
         symbol_resolver: &dyn SymbolResolver,
     ) -> Result<ResolvedExpression, RevsetResolutionError> {
@@ -1311,6 +1311,153 @@ fn try_transform_expression<E>(
     transform_rec(expression, &mut pre, &mut post)
 }
 
+/// Visitor-like interface to transform [`RevsetExpression`] state recursively.
+///
+/// This is similar to [`try_transform_expression()`], but is supposed to
+/// transform the resolution state.
+trait ExpressionStateFolder {
+    type Error;
+
+    /// Transforms the `expression`. By default, inner items are transformed
+    /// recursively.
+    fn fold_expression(
+        &mut self,
+        expression: &RevsetExpression,
+    ) -> Result<Rc<RevsetExpression>, Self::Error> {
+        fold_child_expression_state(self, expression)
+    }
+
+    /// Transforms commit ref such as symbol.
+    fn fold_commit_ref(
+        &mut self,
+        commit_ref: &RevsetCommitRef,
+    ) -> Result<Rc<RevsetExpression>, Self::Error>;
+
+    /// Transforms `at_operation(operation, candidates)` expression.
+    #[allow(clippy::ptr_arg)] // TODO: &String will be parameterized
+    fn fold_at_operation(
+        &mut self,
+        operation: &String,
+        candidates: &RevsetExpression,
+    ) -> Result<Rc<RevsetExpression>, Self::Error>;
+}
+
+/// Transforms inner items of the `expression` by using the `folder`.
+fn fold_child_expression_state<F>(
+    folder: &mut F,
+    expression: &RevsetExpression,
+) -> Result<Rc<RevsetExpression>, F::Error>
+where
+    F: ExpressionStateFolder + ?Sized,
+{
+    let expression: Rc<_> = match expression {
+        RevsetExpression::None => RevsetExpression::None.into(),
+        RevsetExpression::All => RevsetExpression::All.into(),
+        RevsetExpression::VisibleHeads => RevsetExpression::VisibleHeads.into(),
+        RevsetExpression::Root => RevsetExpression::Root.into(),
+        RevsetExpression::Commits(ids) => RevsetExpression::Commits(ids.clone()).into(),
+        RevsetExpression::CommitRef(commit_ref) => folder.fold_commit_ref(commit_ref)?,
+        RevsetExpression::Ancestors { heads, generation } => {
+            let heads = folder.fold_expression(heads)?;
+            let generation = generation.clone();
+            RevsetExpression::Ancestors { heads, generation }.into()
+        }
+        RevsetExpression::Descendants { roots, generation } => {
+            let roots = folder.fold_expression(roots)?;
+            let generation = generation.clone();
+            RevsetExpression::Descendants { roots, generation }.into()
+        }
+        RevsetExpression::Range {
+            roots,
+            heads,
+            generation,
+        } => {
+            let roots = folder.fold_expression(roots)?;
+            let heads = folder.fold_expression(heads)?;
+            let generation = generation.clone();
+            RevsetExpression::Range {
+                roots,
+                heads,
+                generation,
+            }
+            .into()
+        }
+        RevsetExpression::DagRange { roots, heads } => {
+            let roots = folder.fold_expression(roots)?;
+            let heads = folder.fold_expression(heads)?;
+            RevsetExpression::DagRange { roots, heads }.into()
+        }
+        RevsetExpression::Reachable { sources, domain } => {
+            let sources = folder.fold_expression(sources)?;
+            let domain = folder.fold_expression(domain)?;
+            RevsetExpression::Reachable { sources, domain }.into()
+        }
+        RevsetExpression::Heads(heads) => {
+            let heads = folder.fold_expression(heads)?;
+            RevsetExpression::Heads(heads).into()
+        }
+        RevsetExpression::Roots(roots) => {
+            let roots = folder.fold_expression(roots)?;
+            RevsetExpression::Roots(roots).into()
+        }
+        RevsetExpression::Latest { candidates, count } => {
+            let candidates = folder.fold_expression(candidates)?;
+            let count = *count;
+            RevsetExpression::Latest { candidates, count }.into()
+        }
+        RevsetExpression::Filter(predicate) => RevsetExpression::Filter(predicate.clone()).into(),
+        RevsetExpression::AsFilter(candidates) => {
+            let candidates = folder.fold_expression(candidates)?;
+            RevsetExpression::AsFilter(candidates).into()
+        }
+        RevsetExpression::AtOperation {
+            operation,
+            candidates,
+        } => folder.fold_at_operation(operation, candidates)?,
+        RevsetExpression::WithinVisibility {
+            candidates,
+            visible_heads,
+        } => {
+            let candidates = folder.fold_expression(candidates)?;
+            let visible_heads = visible_heads.clone();
+            RevsetExpression::WithinVisibility {
+                candidates,
+                visible_heads,
+            }
+            .into()
+        }
+        RevsetExpression::Coalesce(expression1, expression2) => {
+            let expression1 = folder.fold_expression(expression1)?;
+            let expression2 = folder.fold_expression(expression2)?;
+            RevsetExpression::Coalesce(expression1, expression2).into()
+        }
+        RevsetExpression::Present(candidates) => {
+            let candidates = folder.fold_expression(candidates)?;
+            RevsetExpression::Present(candidates).into()
+        }
+        RevsetExpression::NotIn(complement) => {
+            let complement = folder.fold_expression(complement)?;
+            RevsetExpression::NotIn(complement).into()
+        }
+        RevsetExpression::Union(expression1, expression2) => {
+            let expression1 = folder.fold_expression(expression1)?;
+            let expression2 = folder.fold_expression(expression2)?;
+            RevsetExpression::Union(expression1, expression2).into()
+        }
+        RevsetExpression::Intersection(expression1, expression2) => {
+            let expression1 = folder.fold_expression(expression1)?;
+            let expression2 = folder.fold_expression(expression2)?;
+            RevsetExpression::Intersection(expression1, expression2).into()
+        }
+        RevsetExpression::Difference(expression1, expression2) => {
+            let expression1 = folder.fold_expression(expression1)?;
+            let expression2 = folder.fold_expression(expression2)?;
+            RevsetExpression::Difference(expression1, expression2).into()
+        }
+    };
+    Ok(expression)
+}
+
 /// Transforms filter expressions, by applying the following rules.
 ///
 /// a. Moves as many sets to left of filter intersection as possible, to
@@ -1971,56 +2118,87 @@ fn resolve_commit_ref(
     }
 }
 
+/// Resolves symbols and commit refs recursively.
+struct ExpressionSymbolResolver<'a> {
+    base_repo: &'a dyn Repo,
+    repo_stack: Vec<Arc<ReadonlyRepo>>,
+    symbol_resolver: &'a dyn SymbolResolver,
+}
+
+impl<'a> ExpressionSymbolResolver<'a> {
+    fn new(base_repo: &'a dyn Repo, symbol_resolver: &'a dyn SymbolResolver) -> Self {
+        ExpressionSymbolResolver {
+            base_repo,
+            repo_stack: vec![],
+            symbol_resolver,
+        }
+    }
+
+    fn repo(&self) -> &dyn Repo {
+        self.repo_stack
+            .last()
+            .map_or(self.base_repo, |repo| repo.as_ref())
+    }
+}
+
+impl ExpressionStateFolder for ExpressionSymbolResolver<'_> {
+    type Error = RevsetResolutionError;
+
+    fn fold_expression(
+        &mut self,
+        expression: &RevsetExpression,
+    ) -> Result<Rc<RevsetExpression>, Self::Error> {
+        match expression {
+            // 'present(x)' opens new symbol resolution scope to map error to 'none()'
+            RevsetExpression::Present(candidates) => {
+                self.fold_expression(candidates).or_else(|err| match err {
+                    RevsetResolutionError::NoSuchRevision { .. }
+                    | RevsetResolutionError::WorkspaceMissingWorkingCopy { .. } => {
+                        Ok(RevsetExpression::none())
+                    }
+                    RevsetResolutionError::EmptyString
+                    | RevsetResolutionError::AmbiguousCommitIdPrefix(_)
+                    | RevsetResolutionError::AmbiguousChangeIdPrefix(_)
+                    | RevsetResolutionError::StoreError(_)
+                    | RevsetResolutionError::Other(_) => Err(err),
+                })
+            }
+            _ => fold_child_expression_state(self, expression),
+        }
+    }
+
+    fn fold_commit_ref(
+        &mut self,
+        commit_ref: &RevsetCommitRef,
+    ) -> Result<Rc<RevsetExpression>, Self::Error> {
+        let commit_ids = resolve_commit_ref(self.repo(), commit_ref, self.symbol_resolver)?;
+        Ok(RevsetExpression::commits(commit_ids))
+    }
+
+    fn fold_at_operation(
+        &mut self,
+        operation: &String,
+        candidates: &RevsetExpression,
+    ) -> Result<Rc<RevsetExpression>, Self::Error> {
+        let repo = reload_repo_at_operation(self.repo(), operation)?;
+        self.repo_stack.push(repo);
+        let candidates = self.fold_expression(candidates)?;
+        let visible_heads = self.repo().view().heads().iter().cloned().collect();
+        self.repo_stack.pop();
+        Ok(Rc::new(RevsetExpression::WithinVisibility {
+            candidates,
+            visible_heads,
+        }))
+    }
+}
+
 fn resolve_symbols(
     repo: &dyn Repo,
-    expression: Rc<RevsetExpression>,
+    expression: &RevsetExpression,
     symbol_resolver: &dyn SymbolResolver,
 ) -> Result<Rc<RevsetExpression>, RevsetResolutionError> {
-    Ok(try_transform_expression(
-        &expression,
-        |expression| match expression.as_ref() {
-            // 'at_operation(op, x)' switches symbol resolution contexts.
-            RevsetExpression::AtOperation {
-                operation,
-                candidates,
-            } => {
-                let repo = reload_repo_at_operation(repo, operation)?;
-                let candidates =
-                    resolve_symbols(repo.as_ref(), candidates.clone(), symbol_resolver)?;
-                let visible_heads = repo.view().heads().iter().cloned().collect();
-                Ok(Some(Rc::new(RevsetExpression::WithinVisibility {
-                    candidates,
-                    visible_heads,
-                })))
-            }
-            // 'present(x)' opens new symbol resolution scope to map error to 'none()'.
-            RevsetExpression::Present(candidates) => {
-                resolve_symbols(repo, candidates.clone(), symbol_resolver)
-                    .or_else(|err| match err {
-                        RevsetResolutionError::NoSuchRevision { .. }
-                        | RevsetResolutionError::WorkspaceMissingWorkingCopy { .. } => {
-                            Ok(RevsetExpression::none())
-                        }
-                        RevsetResolutionError::EmptyString
-                        | RevsetResolutionError::AmbiguousCommitIdPrefix(_)
-                        | RevsetResolutionError::AmbiguousChangeIdPrefix(_)
-                        | RevsetResolutionError::StoreError(_)
-                        | RevsetResolutionError::Other(_) => Err(err),
-                    })
-                    .map(Some) // Always rewrite subtree
-            }
-            // Otherwise resolve symbols recursively.
-            _ => Ok(None),
-        },
-        |expression| match expression.as_ref() {
-            RevsetExpression::CommitRef(commit_ref) => {
-                let commit_ids = resolve_commit_ref(repo, commit_ref, symbol_resolver)?;
-                Ok(Some(RevsetExpression::commits(commit_ids)))
-            }
-            _ => Ok(None),
-        },
-    )?
-    .unwrap_or(expression))
+    let mut resolver = ExpressionSymbolResolver::new(repo, symbol_resolver);
+    resolver.fold_expression(expression)
 }
 
 /// Inserts implicit `all()` and `visible_heads()` nodes to the `expression`.
