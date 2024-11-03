@@ -20,6 +20,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * The `jj desc` and `jj st` aliases are now hidden to not interfere with shell
   completion. They remain available.
 
+* New command `jj util exec` that can be used for arbitrary aliases.
+
 ### Fixed bugs
 
 ## [0.23.0] - 2024-11-06

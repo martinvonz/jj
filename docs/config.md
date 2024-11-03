@@ -528,6 +528,41 @@ You can define aliases for commands, including their arguments. For example:
 aliases.l = ["log", "-r", "(main..@):: | (main..@)-"]
 ```
 
+This alias syntax can only run a single jj command. However, you may want to
+execute multiple jj commands with a single alias, or run arbitrary scripts that
+complement your version control workflow. This can be done, but be aware of the
+danger:
+
+!!! warning
+
+    The following technique just provides a convenient syntax for running
+    arbitrary code on your system. Using it irresponsibly may cause damage
+    ranging from breaking the behavior of `jj undo` to wiping your file system.
+    Exercise the same amount of caution while writing these aliases as you would
+    when typing commands into the terminal!
+
+    This feature may be removed or replaced by an embedded scripting language in
+    the future.
+
+The command `jj util exec` will simply run any command you pass to it as an
+argument. Additional arguments are passed through. Here are some examples:
+
+```toml
+[aliases]
+my-script = ["util", "exec", "--", "my-jj-script"]
+#                            ^^^^
+# This makes sure that flags are passed to your script instead of parsed by jj.
+my-inline-script = ["util", "exec", "--", "bash", "-c", """
+#!/usr/bin/env bash
+set -euo pipefail
+echo "Look Ma, everything in one file!"
+echo "args: $@"
+""", ""]
+#    ^^
+# This last empty string will become "$0" in bash, so your actual arguments
+# are all included in "$@" and start at "$1" as expected.
+```
+
 ## Editor
 
 The default editor is set via `ui.editor`, though there are several places to
