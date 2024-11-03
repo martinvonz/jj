@@ -36,6 +36,7 @@ use jj_lib::revset::RevsetParseContext;
 use jj_lib::revset::RevsetParseError;
 use jj_lib::revset::RevsetResolutionError;
 use jj_lib::revset::SymbolResolverExtension;
+use jj_lib::revset::UserRevsetExpression;
 use jj_lib::settings::ConfigResultExt as _;
 use thiserror::Error;
 
@@ -57,12 +58,12 @@ pub enum UserRevsetEvaluationError {
     Evaluation(RevsetEvaluationError),
 }
 
-/// Wrapper around `RevsetExpression` to provide convenient methods.
+/// Wrapper around `UserRevsetExpression` to provide convenient methods.
 pub struct RevsetExpressionEvaluator<'repo> {
     repo: &'repo dyn Repo,
     extensions: Arc<RevsetExtensions>,
     id_prefix_context: &'repo IdPrefixContext,
-    expression: Rc<RevsetExpression>,
+    expression: Rc<UserRevsetExpression>,
 }
 
 impl<'repo> RevsetExpressionEvaluator<'repo> {
@@ -70,7 +71,7 @@ impl<'repo> RevsetExpressionEvaluator<'repo> {
         repo: &'repo dyn Repo,
         extensions: Arc<RevsetExtensions>,
         id_prefix_context: &'repo IdPrefixContext,
-        expression: Rc<RevsetExpression>,
+        expression: Rc<UserRevsetExpression>,
     ) -> Self {
         RevsetExpressionEvaluator {
             repo,
@@ -81,12 +82,12 @@ impl<'repo> RevsetExpressionEvaluator<'repo> {
     }
 
     /// Returns the underlying expression.
-    pub fn expression(&self) -> &Rc<RevsetExpression> {
+    pub fn expression(&self) -> &Rc<UserRevsetExpression> {
         &self.expression
     }
 
     /// Intersects the underlying expression with the `other` expression.
-    pub fn intersect_with(&mut self, other: &Rc<RevsetExpression>) {
+    pub fn intersect_with(&mut self, other: &Rc<UserRevsetExpression>) {
         self.expression = self.expression.intersection(other);
     }
 
@@ -183,7 +184,7 @@ pub fn load_revset_aliases(
 pub fn evaluate<'a>(
     repo: &'a dyn Repo,
     symbol_resolver: &DefaultSymbolResolver,
-    expression: Rc<RevsetExpression>,
+    expression: Rc<UserRevsetExpression>,
 ) -> Result<Box<dyn Revset + 'a>, UserRevsetEvaluationError> {
     let resolved = revset::optimize(expression)
         .resolve_user_expression(repo, symbol_resolver)
@@ -208,7 +209,7 @@ pub fn default_symbol_resolver<'a>(
 pub fn parse_immutable_heads_expression(
     diagnostics: &mut RevsetDiagnostics,
     context: &RevsetParseContext,
-) -> Result<Rc<RevsetExpression>, RevsetParseError> {
+) -> Result<Rc<UserRevsetExpression>, RevsetParseError> {
     let (_, _, immutable_heads_str) = context
         .aliases_map()
         .get_function(USER_IMMUTABLE_HEADS, 0)
@@ -278,7 +279,7 @@ pub(super) fn evaluate_revset_to_single_commit<'a>(
 
 fn format_multiple_revisions_error(
     revision_str: &str,
-    expression: &RevsetExpression,
+    expression: &UserRevsetExpression,
     commits: &[Commit],
     elided: bool,
     template: &TemplateRenderer<'_, Commit>,

@@ -32,10 +32,10 @@ use crate::object_id::PrefixResolution;
 use crate::repo::Repo;
 use crate::revset::DefaultSymbolResolver;
 use crate::revset::RevsetEvaluationError;
-use crate::revset::RevsetExpression;
 use crate::revset::RevsetExtensions;
 use crate::revset::RevsetResolutionError;
 use crate::revset::SymbolResolverExtension;
+use crate::revset::UserRevsetExpression;
 
 #[derive(Debug, Error)]
 pub enum IdPrefixIndexLoadError {
@@ -46,7 +46,7 @@ pub enum IdPrefixIndexLoadError {
 }
 
 struct DisambiguationData {
-    expression: Rc<RevsetExpression>,
+    expression: Rc<UserRevsetExpression>,
     indexes: OnceCell<Indexes>,
 }
 
@@ -123,7 +123,7 @@ impl IdPrefixContext {
         }
     }
 
-    pub fn disambiguate_within(mut self, expression: Rc<RevsetExpression>) -> Self {
+    pub fn disambiguate_within(mut self, expression: Rc<UserRevsetExpression>) -> Self {
         self.disambiguation = Some(DisambiguationData {
             expression,
             indexes: OnceCell::new(),

@@ -91,6 +91,7 @@ use jj_lib::repo_path::RepoPathBuf;
 use jj_lib::repo_path::RepoPathUiConverter;
 use jj_lib::repo_path::UiPathParseError;
 use jj_lib::revset;
+use jj_lib::revset::ResolvedRevsetExpression;
 use jj_lib::revset::RevsetAliasesMap;
 use jj_lib::revset::RevsetDiagnostics;
 use jj_lib::revset::RevsetExpression;
@@ -102,6 +103,7 @@ use jj_lib::revset::RevsetModifier;
 use jj_lib::revset::RevsetParseContext;
 use jj_lib::revset::RevsetWorkspaceContext;
 use jj_lib::revset::SymbolResolverExtension;
+use jj_lib::revset::UserRevsetExpression;
 use jj_lib::rewrite::restore_tree;
 use jj_lib::settings::ConfigResultExt as _;
 use jj_lib::settings::UserSettings;
@@ -604,8 +606,8 @@ pub struct WorkspaceCommandEnvironment {
     template_aliases_map: TemplateAliasesMap,
     path_converter: RepoPathUiConverter,
     workspace_id: WorkspaceId,
-    immutable_heads_expression: Rc<RevsetExpression>,
-    short_prefixes_expression: Option<Rc<RevsetExpression>>,
+    immutable_heads_expression: Rc<UserRevsetExpression>,
+    short_prefixes_expression: Option<Rc<UserRevsetExpression>>,
 }
 
 impl WorkspaceCommandEnvironment {
@@ -676,21 +678,21 @@ impl WorkspaceCommandEnvironment {
     }
 
     /// User-configured expression defining the immutable set.
-    pub fn immutable_expression(&self) -> Rc<RevsetExpression> {
+    pub fn immutable_expression(&self) -> Rc<UserRevsetExpression> {
         // Negated ancestors expression `~::(<heads> | root())` is slightly
         // easier to optimize than negated union `~(::<heads> | root())`.
         self.immutable_heads_expression.ancestors()
     }
 
     /// User-configured expression defining the heads of the immutable set.
-    pub fn immutable_heads_expression(&self) -> &Rc<RevsetExpression> {
+    pub fn immutable_heads_expression(&self) -> &Rc<UserRevsetExpression> {
         &self.immutable_heads_expression
     }
 
     fn load_immutable_heads_expression(
         &self,
         ui: &Ui,
-    ) -> Result<Rc<RevsetExpression>, CommandError> {
+    ) -> Result<Rc<UserRevsetExpression>, CommandError> {
         let mut diagnostics = RevsetDiagnostics::new();
         let expression = revset_util::parse_immutable_heads_expression(
             &mut diagnostics,
@@ -704,7 +706,7 @@ impl WorkspaceCommandEnvironment {
     fn load_short_prefixes_expression(
         &self,
         ui: &Ui,
-    ) -> Result<Option<Rc<RevsetExpression>>, CommandError> {
+    ) -> Result<Option<Rc<UserRevsetExpression>>, CommandError> {
         let revset_string = self
             .settings()
             .config()
@@ -1373,7 +1375,7 @@ impl WorkspaceCommandHelper {
 
     pub fn attach_revset_evaluator(
         &self,
-        expression: Rc<RevsetExpression>,
+        expression: Rc<UserRevsetExpression>,
     ) -> RevsetExpressionEvaluator<'_> {
         RevsetExpressionEvaluator::new(
             self.repo().as_ref(),
@@ -1829,14 +1831,15 @@ See https://martinvonz.github.io/jj/latest/working-copy/#stale-working-copy \
         let removed_conflicts_expr = new_heads.range(&old_heads).intersection(&conflicts);
         let added_conflicts_expr = old_heads.range(&new_heads).intersection(&conflicts);
 
-        let get_commits = |expr: Rc<RevsetExpression>| -> Result<Vec<Commit>, CommandError> {
-            let commits = expr
-                .evaluate_programmatic(new_repo)?
-                .iter()
-                .commits(new_repo.store())
-                .try_collect()?;
-            Ok(commits)
-        };
+        let get_commits =
+            |expr: Rc<ResolvedRevsetExpression>| -> Result<Vec<Commit>, CommandError> {
+                let commits = expr
+                    .evaluate_programmatic(new_repo)?
+                    .iter()
+                    .commits(new_repo.store())
+                    .try_collect()?;
+                Ok(commits)
+            };
         let removed_conflict_commits = get_commits(removed_conflicts_expr)?;
         let added_conflict_commits = get_commits(added_conflicts_expr)?;
 
