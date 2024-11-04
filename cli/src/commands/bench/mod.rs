@@ -40,13 +40,9 @@ use crate::ui::Ui;
 #[derive(Subcommand, Clone, Debug)]
 #[command(hide = true)]
 pub enum BenchCommand {
-    #[command(name = "commonancestors")]
     CommonAncestors(BenchCommonAncestorsArgs),
-    #[command(name = "isancestor")]
     IsAncestor(BenchIsAncestorArgs),
-    #[command(name = "resolveprefix")]
     ResolvePrefix(BenchResolvePrefixArgs),
-    #[command(name = "revset")]
     Revset(BenchRevsetArgs),
 }
 
