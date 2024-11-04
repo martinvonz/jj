@@ -20,7 +20,7 @@ use crate::ui::Ui;
 #[derive(clap::Args, Clone, Debug)]
 pub struct UtilMarkdownHelp {}
 
-pub fn cmd_util_markdownhelp(
+pub fn cmd_util_markdown_help(
     ui: &mut Ui,
     command: &CommandHelper,
     _args: &UtilMarkdownHelp,

@@ -29,7 +29,7 @@ use self::gc::cmd_util_gc;
 use self::gc::UtilGcArgs;
 use self::mangen::cmd_util_mangen;
 use self::mangen::UtilMangenArgs;
-use self::markdown_help::cmd_util_markdownhelp;
+use self::markdown_help::cmd_util_markdown_help;
 use self::markdown_help::UtilMarkdownHelp;
 use crate::cli_util::CommandHelper;
 use crate::command_error::CommandError;
@@ -55,7 +55,7 @@ pub(crate) fn cmd_util(
         UtilCommand::Completion(args) => cmd_util_completion(ui, command, args),
         UtilCommand::Gc(args) => cmd_util_gc(ui, command, args),
         UtilCommand::Mangen(args) => cmd_util_mangen(ui, command, args),
-        UtilCommand::MarkdownHelp(args) => cmd_util_markdownhelp(ui, command, args),
+        UtilCommand::MarkdownHelp(args) => cmd_util_markdown_help(ui, command, args),
         UtilCommand::ConfigSchema(args) => cmd_util_config_schema(ui, command, args),
     }
 }
