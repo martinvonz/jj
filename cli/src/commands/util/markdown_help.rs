@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::io::Write as _;
+
 use crate::cli_util::CommandHelper;
 use crate::command_error::CommandError;
 use crate::ui::Ui;
@@ -28,6 +30,6 @@ pub fn cmd_util_markdown_help(
     // If we ever need more flexibility, the code of `clap_markdown` is simple and
     // readable. We could reimplement the parts we need without trouble.
     let markdown = clap_markdown::help_markdown_command(command.app()).into_bytes();
-    ui.stdout_formatter().write_all(&markdown)?;
+    ui.stdout().write_all(&markdown)?;
     Ok(())
 }

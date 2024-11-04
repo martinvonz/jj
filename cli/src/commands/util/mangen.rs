@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::io::Write as _;
+
 use crate::cli_util::CommandHelper;
 use crate::command_error::CommandError;
 use crate::ui::Ui;
@@ -28,6 +30,6 @@ pub fn cmd_util_mangen(
     let mut buf = vec![];
     let man = clap_mangen::Man::new(command.app().clone());
     man.render(&mut buf)?;
-    ui.stdout_formatter().write_all(&buf)?;
+    ui.stdout().write_all(&buf)?;
     Ok(())
 }

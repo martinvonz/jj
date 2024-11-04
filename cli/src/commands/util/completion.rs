@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::io::Write as _;
+
 use clap::Command;
 
 use crate::cli_util::CommandHelper;
@@ -96,7 +98,7 @@ pub fn cmd_util_completion(
     };
 
     let buf = shell.generate(&mut app);
-    ui.stdout_formatter().write_all(&buf)?;
+    ui.stdout().write_all(&buf)?;
     Ok(())
 }
 
