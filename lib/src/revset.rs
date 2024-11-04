@@ -2300,9 +2300,8 @@ impl VisibilityResolutionContext<'_> {
                 self.resolve(expression1).into(),
                 self.resolve(expression2).into(),
             ),
-            RevsetExpression::Present(_) => {
-                panic!("Expression '{expression:?}' should have been resolved by caller");
-            }
+            // present(x) is noop if x doesn't contain any commit refs.
+            RevsetExpression::Present(candidates) => self.resolve(candidates),
             RevsetExpression::NotIn(complement) => ResolvedExpression::Difference(
                 self.resolve_all().into(),
                 self.resolve(complement).into(),
@@ -2392,9 +2391,8 @@ impl VisibilityResolutionContext<'_> {
             RevsetExpression::Coalesce(_, _) => {
                 ResolvedPredicateExpression::Set(self.resolve(expression).into())
             }
-            RevsetExpression::Present(_) => {
-                panic!("Expression '{expression:?}' should have been resolved by caller")
-            }
+            // present(x) is noop if x doesn't contain any commit refs.
+            RevsetExpression::Present(candidates) => self.resolve_predicate(candidates),
             RevsetExpression::NotIn(complement) => {
                 ResolvedPredicateExpression::NotIn(self.resolve_predicate(complement).into())
             }
