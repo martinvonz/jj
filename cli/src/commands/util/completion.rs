@@ -54,17 +54,6 @@ pub struct UtilCompletionArgs {
     zsh: bool,
 }
 
-/// Available shell completions
-#[derive(clap::ValueEnum, Clone, Copy, Debug, Eq, Hash, PartialEq)]
-enum ShellCompletion {
-    Bash,
-    Elvish,
-    Fish,
-    Nushell,
-    PowerShell,
-    Zsh,
-}
-
 pub fn cmd_util_completion(
     ui: &mut Ui,
     command: &CommandHelper,
@@ -109,6 +98,17 @@ pub fn cmd_util_completion(
     let buf = shell.generate(&mut app);
     ui.stdout_formatter().write_all(&buf)?;
     Ok(())
+}
+
+/// Available shell completions
+#[derive(clap::ValueEnum, Clone, Copy, Debug, Eq, Hash, PartialEq)]
+enum ShellCompletion {
+    Bash,
+    Elvish,
+    Fish,
+    Nushell,
+    PowerShell,
+    Zsh,
 }
 
 impl ShellCompletion {
