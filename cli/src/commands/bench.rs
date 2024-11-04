@@ -141,67 +141,93 @@ pub(crate) fn cmd_bench(
     subcommand: &BenchCommand,
 ) -> Result<(), CommandError> {
     match subcommand {
-        BenchCommand::CommonAncestors(args) => {
-            let workspace_command = command.workspace_helper(ui)?;
-            let commit1 = workspace_command.resolve_single_rev(ui, &args.revision1)?;
-            let commit2 = workspace_command.resolve_single_rev(ui, &args.revision2)?;
-            let index = workspace_command.repo().index();
-            let routine =
-                || index.common_ancestors(&[commit1.id().clone()], &[commit2.id().clone()]);
-            run_bench(
-                ui,
-                &format!("commonancestors-{}-{}", args.revision1, args.revision2),
-                &args.criterion,
-                routine,
-            )?;
-        }
-        BenchCommand::IsAncestor(args) => {
-            let workspace_command = command.workspace_helper(ui)?;
-            let ancestor_commit = workspace_command.resolve_single_rev(ui, &args.ancestor)?;
-            let descendant_commit = workspace_command.resolve_single_rev(ui, &args.descendant)?;
-            let index = workspace_command.repo().index();
-            let routine = || index.is_ancestor(ancestor_commit.id(), descendant_commit.id());
-            run_bench(
-                ui,
-                &format!("isancestor-{}-{}", args.ancestor, args.descendant),
-                &args.criterion,
-                routine,
-            )?;
-        }
-        BenchCommand::ResolvePrefix(args) => {
-            let workspace_command = command.workspace_helper(ui)?;
-            let prefix = HexPrefix::new(&args.prefix).unwrap();
-            let index = workspace_command.repo().index();
-            let routine = || index.resolve_commit_id_prefix(&prefix);
-            run_bench(
-                ui,
-                &format!("resolveprefix-{}", prefix.hex()),
-                &args.criterion,
-                routine,
-            )?;
-        }
-        BenchCommand::Revset(args) => {
-            let workspace_command = command.workspace_helper(ui)?;
-            let revsets = if let Some(file_path) = &args.file {
-                std::fs::read_to_string(command.cwd().join(file_path))?
-                    .lines()
-                    .map(|line| line.trim().to_owned())
-                    .filter(|line| !line.is_empty() && !line.starts_with('#'))
-                    .map(RevisionArg::from)
-                    .collect()
-            } else {
-                args.revisions.clone()
-            };
-            let mut criterion = new_criterion(ui, &args.criterion);
-            let mut group = criterion.benchmark_group("revsets");
-            for revset in &revsets {
-                bench_revset(ui, command, &workspace_command, &mut group, revset)?;
-            }
-            // Neither of these seem to report anything...
-            group.finish();
-            criterion.final_summary();
-        }
+        BenchCommand::CommonAncestors(args) => cmd_bench_common_ancestors(ui, command, args),
+        BenchCommand::IsAncestor(args) => cmd_bench_is_ancestor(ui, command, args),
+        BenchCommand::ResolvePrefix(args) => cmd_bench_resolve_prefix(ui, command, args),
+        BenchCommand::Revset(args) => cmd_bench_revset(ui, command, args),
     }
+}
+
+fn cmd_bench_common_ancestors(
+    ui: &mut Ui,
+    command: &CommandHelper,
+    args: &BenchCommonAncestorsArgs,
+) -> Result<(), CommandError> {
+    let workspace_command = command.workspace_helper(ui)?;
+    let commit1 = workspace_command.resolve_single_rev(ui, &args.revision1)?;
+    let commit2 = workspace_command.resolve_single_rev(ui, &args.revision2)?;
+    let index = workspace_command.repo().index();
+    let routine = || index.common_ancestors(&[commit1.id().clone()], &[commit2.id().clone()]);
+    run_bench(
+        ui,
+        &format!("commonancestors-{}-{}", args.revision1, args.revision2),
+        &args.criterion,
+        routine,
+    )?;
+    Ok(())
+}
+
+fn cmd_bench_is_ancestor(
+    ui: &mut Ui,
+    command: &CommandHelper,
+    args: &BenchIsAncestorArgs,
+) -> Result<(), CommandError> {
+    let workspace_command = command.workspace_helper(ui)?;
+    let ancestor_commit = workspace_command.resolve_single_rev(ui, &args.ancestor)?;
+    let descendant_commit = workspace_command.resolve_single_rev(ui, &args.descendant)?;
+    let index = workspace_command.repo().index();
+    let routine = || index.is_ancestor(ancestor_commit.id(), descendant_commit.id());
+    run_bench(
+        ui,
+        &format!("isancestor-{}-{}", args.ancestor, args.descendant),
+        &args.criterion,
+        routine,
+    )?;
+    Ok(())
+}
+
+fn cmd_bench_resolve_prefix(
+    ui: &mut Ui,
+    command: &CommandHelper,
+    args: &BenchResolvePrefixArgs,
+) -> Result<(), CommandError> {
+    let workspace_command = command.workspace_helper(ui)?;
+    let prefix = HexPrefix::new(&args.prefix).unwrap();
+    let index = workspace_command.repo().index();
+    let routine = || index.resolve_commit_id_prefix(&prefix);
+    run_bench(
+        ui,
+        &format!("resolveprefix-{}", prefix.hex()),
+        &args.criterion,
+        routine,
+    )?;
+    Ok(())
+}
+
+fn cmd_bench_revset(
+    ui: &mut Ui,
+    command: &CommandHelper,
+    args: &BenchRevsetArgs,
+) -> Result<(), CommandError> {
+    let workspace_command = command.workspace_helper(ui)?;
+    let revsets = if let Some(file_path) = &args.file {
+        std::fs::read_to_string(command.cwd().join(file_path))?
+            .lines()
+            .map(|line| line.trim().to_owned())
+            .filter(|line| !line.is_empty() && !line.starts_with('#'))
+            .map(RevisionArg::from)
+            .collect()
+    } else {
+        args.revisions.clone()
+    };
+    let mut criterion = new_criterion(ui, &args.criterion);
+    let mut group = criterion.benchmark_group("revsets");
+    for revset in &revsets {
+        bench_revset(ui, command, &workspace_command, &mut group, revset)?;
+    }
+    // Neither of these seem to report anything...
+    group.finish();
+    criterion.final_summary();
     Ok(())
 }
 
