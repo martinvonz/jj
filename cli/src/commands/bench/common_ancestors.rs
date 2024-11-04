@@ -42,7 +42,7 @@ pub fn cmd_bench_common_ancestors(
     let routine = || index.common_ancestors(&[commit1.id().clone()], &[commit2.id().clone()]);
     run_bench(
         ui,
-        &format!("commonancestors-{}-{}", args.revision1, args.revision2),
+        &format!("common-ancestors-{}-{}", args.revision1, args.revision2),
         &args.criterion,
         routine,
     )?;

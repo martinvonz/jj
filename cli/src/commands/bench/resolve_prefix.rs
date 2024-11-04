@@ -40,7 +40,7 @@ pub fn cmd_bench_resolve_prefix(
     let routine = || index.resolve_commit_id_prefix(&prefix);
     run_bench(
         ui,
-        &format!("resolveprefix-{}", prefix.hex()),
+        &format!("resolve-prefix-{}", prefix.hex()),
         &args.criterion,
         routine,
     )?;

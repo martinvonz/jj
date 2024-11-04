@@ -42,7 +42,7 @@ pub fn cmd_bench_is_ancestor(
     let routine = || index.is_ancestor(ancestor_commit.id(), descendant_commit.id());
     run_bench(
         ui,
-        &format!("isancestor-{}-{}", args.ancestor, args.descendant),
+        &format!("is-ancestor-{}-{}", args.ancestor, args.descendant),
         &args.criterion,
         routine,
     )?;
