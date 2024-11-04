@@ -2600,6 +2600,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#jj-util-config-schema" class="md-nav__link">
+    <span class="md-ellipsis">
+      jj util config-schema
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#jj-util-gc" class="md-nav__link">
     <span class="md-ellipsis">
       jj util gc
@@ -2636,15 +2645,6 @@
   <a href="#jj-util-markdown-help" class="md-nav__link">
     <span class="md-ellipsis">
       jj util markdown-help
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#jj-util-config-schema" class="md-nav__link">
-    <span class="md-ellipsis">
-      jj util config-schema
     </span>
   </a>
   
@@ -5884,6 +5884,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#jj-util-config-schema" class="md-nav__link">
+    <span class="md-ellipsis">
+      jj util config-schema
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#jj-util-gc" class="md-nav__link">
     <span class="md-ellipsis">
       jj util gc
@@ -5920,15 +5929,6 @@
   <a href="#jj-util-markdown-help" class="md-nav__link">
     <span class="md-ellipsis">
       jj util markdown-help
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#jj-util-config-schema" class="md-nav__link">
-    <span class="md-ellipsis">
-      jj util config-schema
     </span>
   </a>
   
@@ -6222,10 +6222,10 @@ does not match the <code>jj help</code> output exactly.</p>
 <li><a href="#jj-tag-list"><code>jj tag list</code>↴</a></li>
 <li><a href="#jj-util"><code>jj util</code>↴</a></li>
 <li><a href="#jj-util-completion"><code>jj util completion</code>↴</a></li>
+<li><a href="#jj-util-config-schema"><code>jj util config-schema</code>↴</a></li>
 <li><a href="#jj-util-gc"><code>jj util gc</code>↴</a></li>
 <li><a href="#jj-util-mangen"><code>jj util mangen</code>↴</a></li>
 <li><a href="#jj-util-markdown-help"><code>jj util markdown-help</code>↴</a></li>
-<li><a href="#jj-util-config-schema"><code>jj util config-schema</code>↴</a></li>
 <li><a href="#jj-undo"><code>jj undo</code>↴</a></li>
 <li><a href="#jj-version"><code>jj version</code>↴</a></li>
 <li><a href="#jj-workspace"><code>jj workspace</code>↴</a></li>
@@ -7865,10 +7865,10 @@ commit. This is true in general; it is not specific to this command.</p>
 <h6 id="subcommands_9"><strong>Subcommands:</strong><a class="headerlink" href="#subcommands_9" title="Permanent link">&para;</a></h6>
 <ul>
 <li><code>completion</code> — Print a command-line-completion script</li>
+<li><code>config-schema</code> — Print the JSON schema for the jj TOML config format</li>
 <li><code>gc</code> — Run backend-dependent garbage collection</li>
 <li><code>mangen</code> — Print a ROFF (manpage)</li>
 <li><code>markdown-help</code> — Print the CLI help for all subcommands in Markdown</li>
-<li><code>config-schema</code> — Print the JSON schema for the jj TOML config format</li>
 </ul>
 <h2 id="jj-util-completion"><code>jj util completion</code><a class="headerlink" href="#jj-util-completion" title="Permanent link">&para;</a></h2>
 <p>Print a command-line-completion script</p>
@@ -7894,6 +7894,9 @@ compinit
 <p>Possible values: <code>bash</code>, <code>elvish</code>, <code>fish</code>, <code>nushell</code>, <code>power-shell</code>, <code>zsh</code></p>
 </li>
 </ul>
+<h2 id="jj-util-config-schema"><code>jj util config-schema</code><a class="headerlink" href="#jj-util-config-schema" title="Permanent link">&para;</a></h2>
+<p>Print the JSON schema for the jj TOML config format</p>
+<p><strong>Usage:</strong> <code>jj util config-schema</code></p>
 <h2 id="jj-util-gc"><code>jj util gc</code><a class="headerlink" href="#jj-util-gc" title="Permanent link">&para;</a></h2>
 <p>Run backend-dependent garbage collection</p>
 <p><strong>Usage:</strong> <code>jj util gc [OPTIONS]</code></p>
@@ -7911,9 +7914,6 @@ compinit
 <h2 id="jj-util-markdown-help"><code>jj util markdown-help</code><a class="headerlink" href="#jj-util-markdown-help" title="Permanent link">&para;</a></h2>
 <p>Print the CLI help for all subcommands in Markdown</p>
 <p><strong>Usage:</strong> <code>jj util markdown-help</code></p>
-<h2 id="jj-util-config-schema"><code>jj util config-schema</code><a class="headerlink" href="#jj-util-config-schema" title="Permanent link">&para;</a></h2>
-<p>Print the JSON schema for the jj TOML config format</p>
-<p><strong>Usage:</strong> <code>jj util config-schema</code></p>
 <h2 id="jj-undo"><code>jj undo</code><a class="headerlink" href="#jj-undo" title="Permanent link">&para;</a></h2>
 <p>Undo an operation (shortcut for <code>jj op undo</code>)</p>
 <p><strong>Usage:</strong> <code>jj undo [OPTIONS] [OPERATION]</code></p>
