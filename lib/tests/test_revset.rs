@@ -457,7 +457,9 @@ fn test_resolve_working_copy() {
     assert_eq!(
         RevsetExpression::working_copy(ws1.clone())
             .present()
-            .evaluate_programmatic(mut_repo)
+            .resolve_user_expression(mut_repo, &FailingSymbolResolver)
+            .unwrap()
+            .evaluate(mut_repo)
             .unwrap()
             .iter()
             .map(Result::unwrap)
@@ -474,7 +476,9 @@ fn test_resolve_working_copy() {
         .unwrap();
     let resolve = |ws_id: WorkspaceId| -> Vec<CommitId> {
         RevsetExpression::working_copy(ws_id)
-            .evaluate_programmatic(mut_repo)
+            .resolve_user_expression(mut_repo, &FailingSymbolResolver)
+            .unwrap()
+            .evaluate(mut_repo)
             .unwrap()
             .iter()
             .map(Result::unwrap)
@@ -512,7 +516,9 @@ fn test_resolve_working_copies() {
         .unwrap();
     let resolve = || -> Vec<CommitId> {
         RevsetExpression::working_copies()
-            .evaluate_programmatic(mut_repo)
+            .resolve_user_expression(mut_repo, &FailingSymbolResolver)
+            .unwrap()
+            .evaluate(mut_repo)
             .unwrap()
             .iter()
             .map(Result::unwrap)
@@ -1008,7 +1014,9 @@ fn test_evaluate_expression_root_and_checkout() {
     );
 
     // Shouldn't panic by unindexed commit ID
-    let expression = RevsetExpression::commit(commit1.id().clone()).resolve_programmatic(tx.repo());
+    let expression = RevsetExpression::commit(commit1.id().clone())
+        .resolve_user_expression(tx.repo(), &FailingSymbolResolver)
+        .unwrap();
     assert!(expression.evaluate(tx.base_repo().as_ref()).is_err());
 }
 
