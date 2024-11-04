@@ -600,27 +600,28 @@ fn find_bookmarks_targeted_by_revisions<'a>(
 ) -> Result<Vec<(&'a str, LocalAndRemoteRef<'a>)>, CommandError> {
     let mut revision_commit_ids = HashSet::new();
     if use_default_revset {
-        let Some(wc_commit_id) = workspace_command.get_wc_commit_id().cloned() else {
-            return Err(user_error("Nothing checked out in this workspace"));
-        };
-        let current_bookmarks_expression = RevsetExpression::remote_bookmarks(
+        // remote_bookmarks(remote=<remote>)..@
+        let workspace_id = workspace_command.workspace_id();
+        let expression = RevsetExpression::remote_bookmarks(
             StringPattern::everything(),
             StringPattern::exact(remote_name),
             None,
         )
-        .range(&RevsetExpression::commit(wc_commit_id))
+        .range(&RevsetExpression::working_copy(workspace_id.clone()))
         .intersection(&RevsetExpression::bookmarks(StringPattern::everything()));
-        let current_bookmarks_revset = current_bookmarks_expression
-            .evaluate_programmatic(workspace_command.repo().as_ref())?;
-        for commit_id in current_bookmarks_revset.iter() {
-            revision_commit_ids.insert(commit_id?);
-        }
-        if revision_commit_ids.is_empty() {
+        let mut commit_ids = workspace_command
+            .attach_revset_evaluator(expression)
+            .evaluate_to_commit_ids()?
+            .peekable();
+        if commit_ids.peek().is_none() {
             writeln!(
                 ui.warning_default(),
                 "No bookmarks found in the default push revset: \
                  remote_bookmarks(remote={remote_name})..@"
             )?;
+        }
+        for commit_id in commit_ids {
+            revision_commit_ids.insert(commit_id?);
         }
     }
     for rev_arg in revisions {
