@@ -30,7 +30,7 @@ clap = { version = "4.5.20", features = [
     "wrap_help",
     "string",
 ] }
-clap_complete = "4.5.36"
+clap_complete = "4.5.37"
 clap_complete_nushell = "4.5.4"
 clap-markdown = "0.1.4"
 clap_mangen = "0.2.10"
@@ -103,11 +103,11 @@ smallvec = { version = "1.13.2", features = [
     "union",
 ] }
 strsim = "0.11.1"
-syn = "2.0.86"
+syn = "2.0.87"
 tempfile = "3.13.0"
 test-case = "3.3.1"
 textwrap = "0.16.1"
-thiserror = "1.0.66"
+thiserror = "1.0.67"
 timeago = { version = "0.4.2", default-features = false }
 tokio = { version = "1.41.0" }
 toml_edit = { version = "0.19.15", features = ["serde"] }
