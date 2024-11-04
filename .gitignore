@@ -8,6 +8,9 @@ result
 *.pending-snap
 *.snap*
 !cli/tests/cli-reference@.md.snap
+# Per user insta settings.
+# See https://insta.rs/docs/settings/#tool-config-file for details.
+.config/insta.yaml
 
 # Editor specific ignores
 .idea
