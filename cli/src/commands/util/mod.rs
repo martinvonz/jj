@@ -39,10 +39,10 @@ use crate::ui::Ui;
 #[derive(Subcommand, Clone, Debug)]
 pub(crate) enum UtilCommand {
     Completion(UtilCompletionArgs),
+    ConfigSchema(UtilConfigSchemaArgs),
     Gc(UtilGcArgs),
     Mangen(UtilMangenArgs),
     MarkdownHelp(UtilMarkdownHelp),
-    ConfigSchema(UtilConfigSchemaArgs),
 }
 
 #[instrument(skip_all)]
@@ -53,9 +53,9 @@ pub(crate) fn cmd_util(
 ) -> Result<(), CommandError> {
     match subcommand {
         UtilCommand::Completion(args) => cmd_util_completion(ui, command, args),
+        UtilCommand::ConfigSchema(args) => cmd_util_config_schema(ui, command, args),
         UtilCommand::Gc(args) => cmd_util_gc(ui, command, args),
         UtilCommand::Mangen(args) => cmd_util_mangen(ui, command, args),
         UtilCommand::MarkdownHelp(args) => cmd_util_markdown_help(ui, command, args),
-        UtilCommand::ConfigSchema(args) => cmd_util_config_schema(ui, command, args),
     }
 }
