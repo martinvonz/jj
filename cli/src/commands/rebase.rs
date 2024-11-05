@@ -175,7 +175,7 @@ pub(crate) struct RebaseArgs {
     /// abandoned. It will not be abandoned if it was already empty before the
     /// rebase. Will never skip merge commits with multiple non-empty
     /// parents.
-    #[arg(long, conflicts_with = "revisions")]
+    #[arg(long)]
     skip_emptied: bool,
 }
 
@@ -231,21 +231,6 @@ pub(crate) fn cmd_rebase(
     };
     let mut workspace_command = command.workspace_helper(ui)?;
     if !args.revisions.is_empty() {
-        assert_eq!(
-            // In principle, `-r --skip-empty` could mean to abandon the `-r`
-            // commit if it becomes empty. This seems internally consistent with
-            // the behavior of other commands, but is not very useful.
-            //
-            // It would become even more confusing once `-r --before` is
-            // implemented. If `rebase -r` behaves like `abandon`, the
-            // descendants of the `-r` commits should not be abandoned if
-            // emptied. But it would also make sense for the descendants of the
-            // `--before` commit to be abandoned if emptied. A commit can easily
-            // be in both categories.
-            rebase_options.empty,
-            EmptyBehaviour::Keep,
-            "clap should forbid `-r --skip-empty`"
-        );
         rebase_revisions(
             ui,
             command.settings(),
@@ -569,10 +554,6 @@ fn rebase_revisions_transaction(
         &MoveCommitsTarget::Commits(target_commits),
         rebase_options,
     )?;
-    // TODO(ilyagr): Consider making it possible for descendants of the target set
-    // to become emptied, like --skip-empty. This would require writing careful
-    // tests.
-    assert_eq!(num_abandoned, 0);
 
     if let Some(mut fmt) = ui.status_formatter() {
         if num_skipped_rebases > 0 {
@@ -589,6 +570,9 @@ fn rebase_revisions_transaction(
         }
         if num_rebased_descendants > 0 {
             writeln!(fmt, "Rebased {num_rebased_descendants} descendant commits")?;
+        }
+        if num_abandoned > 0 {
+            writeln!(fmt, "Abandoned {num_abandoned} newly emptied commits")?;
         }
     }
 
