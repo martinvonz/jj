@@ -18,6 +18,7 @@ include = [
     "/build.rs",
     "/examples/",
     "/src/",
+    "/docs/**",
     "/testing/",
     "/tests/",
     "!*.pending-snap",

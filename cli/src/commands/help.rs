@@ -98,12 +98,12 @@ const KEYWORDS: &[Keyword] = &[
     Keyword {
         name: "revsets",
         description: "A functional language for selecting a set of revision",
-        content: include_str!("../../../docs/revsets.md"),
+        content: include_str!(concat!("../../", env!("JJ_DOCS_DIR"), "revsets.md")),
     },
     Keyword {
         name: "tutorial",
         description: "Show a tutorial to get started with jj",
-        content: include_str!("../../../docs/tutorial.md"),
+        content: include_str!(concat!("../../", env!("JJ_DOCS_DIR"), "tutorial.md")),
     },
 ];
 
