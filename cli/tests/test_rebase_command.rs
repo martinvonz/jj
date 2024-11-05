@@ -78,19 +78,6 @@ fn test_rebase_invalid() {
     For more information, try '--help'.
     "###);
 
-    // Both -r and --skip-empty
-    let stderr = test_env.jj_cmd_cli_error(
-        &repo_path,
-        &["rebase", "-r", "a", "-d", "b", "--skip-empty"],
-    );
-    insta::assert_snapshot!(stderr, @r###"
-    error: the argument '--revisions <REVISIONS>' cannot be used with '--skip-empty'
-
-    Usage: jj rebase --revisions <REVISIONS> <--destination <DESTINATION>|--insert-after <INSERT_AFTER>|--insert-before <INSERT_BEFORE>>
-
-    For more information, try '--help'.
-    "###);
-
     // Both -d and --after
     let stderr = test_env.jj_cmd_cli_error(
         &repo_path,
@@ -2456,6 +2443,7 @@ fn test_rebase_skip_emptied() {
     test_env.jj_cmd_ok(&repo_path, &["restore", "--from=b"]);
     test_env.jj_cmd_ok(&repo_path, &["new", "-m", "already empty"]);
     test_env.jj_cmd_ok(&repo_path, &["new", "-m", "also already empty"]);
+    let setup_opid = test_env.current_operation_id(&repo_path);
 
     // Test the setup
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["log", "-T", "description"]), @r###"
@@ -2470,12 +2458,12 @@ fn test_rebase_skip_emptied() {
 
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-d=b", "--skip-emptied"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
+    insta::assert_snapshot!(stderr, @r#"
     Rebased 2 commits
     Abandoned 1 newly emptied commits
-    Working copy now at: yostqsxw 6b74c840 (empty) also already empty
-    Parent commit      : vruxwmqv 48a31526 (empty) already empty
-    "###);
+    Working copy now at: yostqsxw bc4222f2 (empty) also already empty
+    Parent commit      : vruxwmqv 6b41ecb2 (empty) already empty
+    "#);
 
     // The parent commit became empty and was dropped, but the already empty commits
     // were kept
@@ -2486,6 +2474,47 @@ fn test_rebase_skip_emptied() {
     ○  a
     ◆
     "###);
+
+    test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
+    // Test the setup
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["log", "-T", "description"]), @r###"
+    @  also already empty
+    ○  already empty
+    ○  will become empty
+    │ ○  b
+    ├─╯
+    ○  a
+    ◆
+    "###);
+
+    let (stdout, stderr) = test_env.jj_cmd_ok(
+        &repo_path,
+        &[
+            "rebase",
+            "-r=description('will become empty')",
+            "-d=b",
+            "--skip-emptied",
+        ],
+    );
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r#"
+    Rebased 2 descendant commits
+    Abandoned 1 newly emptied commits
+    Working copy now at: yostqsxw 74149b9b (empty) also already empty
+    Parent commit      : vruxwmqv 3bdb2801 (empty) already empty
+    Added 0 files, modified 0 files, removed 1 files
+    "#);
+
+    // Rebasing a single commit which becomes empty abandons that commit, whilst its
+    // already empty descendants were kept
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["log", "-T", "description"]), @r#"
+    @  also already empty
+    ○  already empty
+    │ ○  b
+    ├─╯
+    ○  a
+    ◆
+    "#);
 }
 
 #[test]
@@ -2513,10 +2542,9 @@ fn test_rebase_skip_emptied_descendants() {
     ◆
     "#);
 
-    // TODO: Use `-r` instead of `-s` once `-r --skip-emptied` is supported.
     let (stdout, stderr) = test_env.jj_cmd_ok(
         &repo_path,
-        &["rebase", "-s", "b", "--before", "c", "--skip-emptied"],
+        &["rebase", "-r", "b", "--before", "c", "--skip-emptied"],
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r#"
