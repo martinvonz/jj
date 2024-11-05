@@ -140,12 +140,7 @@ pub(crate) struct RebaseArgs {
     /// -d=dst`.
     ///
     /// If none of `-b`, `-s`, or `-r` is provided, then the default is `-b @`.
-    #[arg(
-        long,
-        short,
-        conflicts_with = "insert_after",
-        conflicts_with = "insert_before"
-    )]
+    #[arg(long, short)]
     branch: Vec<RevisionArg>,
 
     /// Rebase specified revision(s) together with their trees of descendants
@@ -268,11 +263,11 @@ pub(crate) fn cmd_rebase(
             &rebase_options,
         )?;
     } else {
-        let destination = args
-            .destination
-            .destination
-            .as_ref()
-            .expect("clap should enforce -d when used with -b");
+        let Some(destination) = args.destination.destination.as_ref() else {
+            return Err(cli_error(
+                "The argument `--destination <DESTINATION>` is required to rebase a whole branch",
+            ));
+        };
         let new_parents = workspace_command
             .resolve_some_revsets_default_single(ui, destination)?
             .into_iter()

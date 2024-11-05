@@ -48,6 +48,14 @@ fn test_rebase_invalid() {
     For more information, try '--help'.
     "###);
 
+    // --after with implicit -b
+    let stderr = test_env.jj_cmd_cli_error(&repo_path, &["rebase", "--after", "a"]);
+    insta::assert_snapshot!(stderr, @"Error: The argument `--destination <DESTINATION>` is required to rebase a whole branch");
+
+    // --before with implicit -b
+    let stderr = test_env.jj_cmd_cli_error(&repo_path, &["rebase", "--before", "a"]);
+    insta::assert_snapshot!(stderr, @"Error: The argument `--destination <DESTINATION>` is required to rebase a whole branch");
+
     // Both -r and -s
     let stderr =
         test_env.jj_cmd_cli_error(&repo_path, &["rebase", "-r", "a", "-s", "a", "-d", "b"]);
@@ -98,13 +106,7 @@ fn test_rebase_invalid() {
 
     // -b with --after
     let stderr = test_env.jj_cmd_cli_error(&repo_path, &["rebase", "-b", "a", "--after", "b"]);
-    insta::assert_snapshot!(stderr, @r###"
-    error: the argument '--branch <BRANCH>' cannot be used with '--insert-after <INSERT_AFTER>'
-
-    Usage: jj rebase --branch <BRANCH> <--destination <DESTINATION>|--insert-after <INSERT_AFTER>|--insert-before <INSERT_BEFORE>>
-
-    For more information, try '--help'.
-    "###);
+    insta::assert_snapshot!(stderr, @"Error: The argument `--destination <DESTINATION>` is required to rebase a whole branch");
 
     // Both -d and --before
     let stderr = test_env.jj_cmd_cli_error(
@@ -121,13 +123,7 @@ fn test_rebase_invalid() {
 
     // -b with --before
     let stderr = test_env.jj_cmd_cli_error(&repo_path, &["rebase", "-b", "a", "--before", "b"]);
-    insta::assert_snapshot!(stderr, @r###"
-    error: the argument '--branch <BRANCH>' cannot be used with '--insert-before <INSERT_BEFORE>'
-
-    Usage: jj rebase --branch <BRANCH> <--destination <DESTINATION>|--insert-after <INSERT_AFTER>|--insert-before <INSERT_BEFORE>>
-
-    For more information, try '--help'.
-    "###);
+    insta::assert_snapshot!(stderr, @"Error: The argument `--destination <DESTINATION>` is required to rebase a whole branch");
 
     // Rebase onto self with -r
     let stderr = test_env.jj_cmd_failure(&repo_path, &["rebase", "-r", "a", "-d", "a"]);
