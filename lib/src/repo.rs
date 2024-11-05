@@ -1167,7 +1167,7 @@ impl MutableRepo {
             .parents()
             .minus(&old_commits_expression);
         let heads_to_add = heads_to_add_expression
-            .evaluate_programmatic(self)
+            .evaluate(self)
             .unwrap()
             .iter()
             .map(Result::unwrap); // TODO: Return error to caller
@@ -1193,7 +1193,7 @@ impl MutableRepo {
                     self.parent_mapping.keys().cloned().collect(),
                 ));
         let to_visit_revset = to_visit_expression
-            .evaluate_programmatic(self)
+            .evaluate(self)
             .map_err(|err| err.expect_backend_error())?;
         let to_visit: Vec<_> = to_visit_revset
             .iter()

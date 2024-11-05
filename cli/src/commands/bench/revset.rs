@@ -19,7 +19,6 @@ use criterion::measurement::Measurement;
 use criterion::BatchSize;
 use criterion::BenchmarkGroup;
 use criterion::BenchmarkId;
-use jj_lib::revset;
 use jj_lib::revset::DefaultSymbolResolver;
 use jj_lib::revset::SymbolResolverExtension;
 use jj_lib::revset::UserRevsetExpression;
@@ -80,12 +79,10 @@ fn bench_revset<M: Measurement>(
     revset: &RevisionArg,
 ) -> Result<(), CommandError> {
     writeln!(ui.status(), "----------Testing revset: {revset}----------")?;
-    let expression = revset::optimize(
-        workspace_command
-            .parse_revset(ui, revset)?
-            .expression()
-            .clone(),
-    );
+    let expression = workspace_command
+        .parse_revset(ui, revset)?
+        .expression()
+        .clone();
     // Time both evaluation and iteration.
     let routine = |workspace_command: &WorkspaceCommandHelper,
                    expression: Rc<UserRevsetExpression>| {

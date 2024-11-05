@@ -175,7 +175,7 @@ pub(crate) fn cmd_fix(
     // doing this in long chains of commits with disjoint sets of modified files.
     let commits: Vec<_> = RevsetExpression::commits(root_commits.clone())
         .descendants()
-        .evaluate_programmatic(tx.base_repo().as_ref())?
+        .evaluate(tx.base_repo().as_ref())?
         .iter()
         .commits(tx.repo().store())
         .try_collect()?;

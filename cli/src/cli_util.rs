@@ -724,7 +724,7 @@ impl WorkspaceCommandEnvironment {
             .map_err(|err| config_error_with_message("Invalid `revsets.short-prefixes`", err))?;
             print_parse_diagnostics(ui, "In `revsets.short-prefixes`", &diagnostics)?;
             let (None | Some(RevsetModifier::All)) = modifier;
-            Ok(Some(revset::optimize(expression)))
+            Ok(Some(expression))
         }
     }
 
@@ -1834,7 +1834,7 @@ See https://martinvonz.github.io/jj/latest/working-copy/#stale-working-copy \
         let get_commits =
             |expr: Rc<ResolvedRevsetExpression>| -> Result<Vec<Commit>, CommandError> {
                 let commits = expr
-                    .evaluate_programmatic(new_repo)?
+                    .evaluate(new_repo)?
                     .iter()
                     .commits(new_repo.store())
                     .try_collect()?;
@@ -1927,7 +1927,7 @@ See https://martinvonz.github.io/jj/latest/working-copy/#stale-working-copy \
         let only_one_conflicted_commit = conflicted_commits.len() == 1;
         let root_conflicts_revset = RevsetExpression::commits(conflicted_commits)
             .roots()
-            .evaluate_programmatic(repo)?;
+            .evaluate(repo)?;
 
         let root_conflict_commits: Vec<_> = root_conflicts_revset
             .iter()

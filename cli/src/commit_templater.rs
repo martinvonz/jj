@@ -503,7 +503,7 @@ impl<'repo> CommitKeywordCache<'repo> {
         // It's usually smaller than the immutable set. The revset engine can also
         // optimize "::<recent_heads>" query to use bitset-based implementation.
         self.is_immutable_fn.get_or_try_init(|| {
-            let expression = language.immutable_expression.clone();
+            let expression = &language.immutable_expression;
             let revset = evaluate_revset_expression(language, span, expression)?;
             Ok(revset.containing_fn().into())
         })
@@ -845,7 +845,7 @@ fn expect_fileset_literal(
 fn evaluate_revset_expression<'repo>(
     language: &CommitTemplateLanguage<'repo>,
     span: pest::Span<'_>,
-    expression: Rc<UserRevsetExpression>,
+    expression: &UserRevsetExpression,
 ) -> Result<Box<dyn Revset + 'repo>, TemplateParseError> {
     let symbol_resolver = revset_util::default_symbol_resolver(
         language.repo,
@@ -877,7 +877,7 @@ fn evaluate_user_revset<'repo>(
     });
     let (None | Some(RevsetModifier::All)) = modifier;
 
-    evaluate_revset_expression(language, span, expression)
+    evaluate_revset_expression(language, span, &expression)
 }
 
 /// Bookmark or tag name with metadata.

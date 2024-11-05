@@ -168,7 +168,7 @@ fn get_target_commit(
     let target_revset = direction.build_target_revset(&wc_revset, &start_revset, args)?;
 
     let targets: Vec<Commit> = target_revset
-        .evaluate_programmatic(workspace_command.repo().as_ref())?
+        .evaluate(workspace_command.repo().as_ref())?
         .iter()
         .commits(workspace_command.repo().store())
         .try_collect()?;
@@ -178,7 +178,7 @@ fn get_target_commit(
         [] => {
             // We found no ancestor/descendant.
             let start_commits: Vec<Commit> = start_revset
-                .evaluate_programmatic(workspace_command.repo().as_ref())?
+                .evaluate(workspace_command.repo().as_ref())?
                 .iter()
                 .commits(workspace_command.repo().store())
                 .try_collect()?;

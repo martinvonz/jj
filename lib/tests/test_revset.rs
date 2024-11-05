@@ -37,11 +37,9 @@ use jj_lib::op_store::WorkspaceId;
 use jj_lib::repo::Repo;
 use jj_lib::repo_path::RepoPath;
 use jj_lib::repo_path::RepoPathUiConverter;
-use jj_lib::revset::optimize;
 use jj_lib::revset::parse;
 use jj_lib::revset::DefaultSymbolResolver;
 use jj_lib::revset::FailingSymbolResolver;
-use jj_lib::revset::ResolvedExpression;
 use jj_lib::revset::Revset;
 use jj_lib::revset::RevsetAliasesMap;
 use jj_lib::revset::RevsetDiagnostics;
@@ -76,8 +74,11 @@ fn resolve_symbol_with_extensions(
     let expression = parse(&mut RevsetDiagnostics::new(), symbol, &context).unwrap();
     assert_matches!(*expression, RevsetExpression::CommitRef(_));
     let symbol_resolver = DefaultSymbolResolver::new(repo, extensions.symbol_resolvers());
-    match expression.resolve_user_expression(repo, &symbol_resolver)? {
-        ResolvedExpression::Commits(commits) => Ok(commits),
+    match expression
+        .resolve_user_expression(repo, &symbol_resolver)?
+        .as_ref()
+    {
+        RevsetExpression::Commits(commits) => Ok(commits.clone()),
         expression => panic!("symbol resolved to compound expression: {expression:?}"),
     }
 }
@@ -214,7 +215,7 @@ fn test_resolve_symbol_commit_id() {
         None,
     );
     assert_matches!(
-        optimize(parse(&mut RevsetDiagnostics::new(), "present(04)", &context).unwrap())
+        parse(&mut RevsetDiagnostics::new(), "present(04)", &context).unwrap()
             .resolve_user_expression(repo.as_ref(), &symbol_resolver),
         Err(RevsetResolutionError::AmbiguousCommitIdPrefix(s)) if s == "04"
     );
@@ -928,7 +929,7 @@ fn try_resolve_commit_ids(
         &revset_extensions,
         None,
     );
-    let expression = optimize(parse(&mut RevsetDiagnostics::new(), revset_str, &context).unwrap());
+    let expression = parse(&mut RevsetDiagnostics::new(), revset_str, &context).unwrap();
     let symbol_resolver = DefaultSymbolResolver::new(repo, revset_extensions.symbol_resolvers());
     let expression = expression.resolve_user_expression(repo, &symbol_resolver)?;
     Ok(expression
@@ -963,7 +964,7 @@ fn resolve_commit_ids_in_workspace(
         &extensions,
         Some(workspace_ctx),
     );
-    let expression = optimize(parse(&mut RevsetDiagnostics::new(), revset_str, &context).unwrap());
+    let expression = parse(&mut RevsetDiagnostics::new(), revset_str, &context).unwrap();
     let symbol_resolver =
         DefaultSymbolResolver::new(repo, &([] as [&Box<dyn SymbolResolverExtension>; 0]));
     let expression = expression
@@ -3365,7 +3366,7 @@ fn test_evaluate_expression_file() {
         let expression = RevsetExpression::filter(RevsetFilterPredicate::File(
             FilesetExpression::prefix_path(file_path.to_owned()),
         ));
-        let revset = expression.evaluate_programmatic(mut_repo).unwrap();
+        let revset = expression.evaluate(mut_repo).unwrap();
         revset.iter().map(Result::unwrap).collect()
     };
 

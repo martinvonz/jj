@@ -61,10 +61,13 @@ fn test_debug_revset() {
         -- Parsed:
         Root
 
+        -- Resolved:
+        Root
+
         -- Optimized:
         Root
 
-        -- Resolved:
+        -- Backend:
         Commits(
             ..
         )

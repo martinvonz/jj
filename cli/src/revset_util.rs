@@ -98,7 +98,7 @@ impl<'repo> RevsetExpressionEvaluator<'repo> {
             self.extensions.symbol_resolvers(),
             self.id_prefix_context,
         );
-        evaluate(self.repo, &symbol_resolver, self.expression.clone())
+        evaluate(self.repo, &symbol_resolver, &self.expression)
     }
 
     /// Evaluates the expression to an iterator over commit ids. Entries are
@@ -184,9 +184,9 @@ pub fn load_revset_aliases(
 pub fn evaluate<'a>(
     repo: &'a dyn Repo,
     symbol_resolver: &DefaultSymbolResolver,
-    expression: Rc<UserRevsetExpression>,
+    expression: &UserRevsetExpression,
 ) -> Result<Box<dyn Revset + 'a>, UserRevsetEvaluationError> {
-    let resolved = revset::optimize(expression)
+    let resolved = expression
         .resolve_user_expression(repo, symbol_resolver)
         .map_err(UserRevsetEvaluationError::Resolution)?;
     resolved

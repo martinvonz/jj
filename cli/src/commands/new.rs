@@ -158,7 +158,7 @@ pub(crate) fn cmd_new(
             .children()
             .minus(&parents_expression.ancestors());
         children_commits = children_expression
-            .evaluate_programmatic(workspace_command.repo().as_ref())?
+            .evaluate(workspace_command.repo().as_ref())?
             .iter()
             .commits(workspace_command.repo().store())
             .try_collect()?;
@@ -240,7 +240,7 @@ fn ensure_no_commit_loop(
 ) -> Result<(), CommandError> {
     if let Some(commit_id) = children_expression
         .dag_range_to(parents_expression)
-        .evaluate_programmatic(repo)?
+        .evaluate(repo)?
         .iter()
         .next()
     {
