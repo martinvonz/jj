@@ -826,6 +826,12 @@ pub fn move_commits(
     let mut num_skipped_rebases = 0;
     let mut num_abandoned = 0;
 
+    // Always keep empty commits when rebasing descendants.
+    let rebase_descendant_options = &RebaseOptions {
+        empty: EmptyBehaviour::Keep,
+        simplify_ancestor_merge: options.simplify_ancestor_merge,
+    };
+
     // Rebase each commit onto its new parents in the reverse topological order
     // computed above.
     while let Some(old_commit_id) = to_visit.pop() {
@@ -834,10 +840,19 @@ pub fn move_commits(
         let new_parent_ids = mut_repo.new_parents(parent_ids);
         let rewriter = CommitRewriter::new(mut_repo, old_commit.clone(), new_parent_ids);
         if rewriter.parents_changed() {
-            let rebased_commit = rebase_commit_with_options(settings, rewriter, options)?;
+            let is_target_commit = target_commit_ids.contains(&old_commit_id);
+            let rebased_commit = rebase_commit_with_options(
+                settings,
+                rewriter,
+                if is_target_commit {
+                    options
+                } else {
+                    rebase_descendant_options
+                },
+            )?;
             if let RebasedCommit::Abandoned { .. } = rebased_commit {
                 num_abandoned += 1;
-            } else if target_commit_ids.contains(&old_commit_id) {
+            } else if is_target_commit {
                 num_rebased_targets += 1;
             } else {
                 num_rebased_descendants += 1;

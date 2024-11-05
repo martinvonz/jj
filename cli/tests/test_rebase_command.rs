@@ -2521,17 +2521,17 @@ fn test_rebase_skip_emptied_descendants() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r#"
     Skipped rebase of 1 commits that were already in place
-    Rebased 2 descendant commits
-    Abandoned 1 newly emptied commits
-    Working copy now at: znkkpsqq 873ada86 (empty) also already empty
-    Parent commit      : yostqsxw bfc5dad7 (empty) already empty
+    Rebased 3 descendant commits
+    Working copy now at: znkkpsqq 353bac5c (empty) also already empty
+    Parent commit      : yostqsxw 0a3f76fd (empty) already empty
     "#);
 
-    // TODO: Commits not in the rebase target set should not be abandoned even
-    // if they were emptied.
+    // Commits not in the rebase target set should not be abandoned even if they
+    // were emptied.
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["log", "-T", "description"]), @r#"
     @  also already empty
     ○  already empty
+    ○  c (will become empty)
     ○  b
     ○  a
     ◆
