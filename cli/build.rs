@@ -37,6 +37,14 @@ fn main() {
     } else {
         println!("cargo:rustc-env=JJ_VERSION={version}");
     }
+
+    let docs_symlink_path = Path::new("docs");
+    println!("cargo:rerun-if-changed={}", docs_symlink_path.display());
+    if docs_symlink_path.join("index.md").exists() {
+        println!("cargo:rustc-env=JJ_DOCS_DIR=docs/");
+    } else {
+        println!("cargo:rustc-env=JJ_DOCS_DIR=../docs/");
+    }
 }
 
 fn get_git_hash() -> Option<String> {
