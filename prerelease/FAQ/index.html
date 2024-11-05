@@ -578,6 +578,15 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#i-want-to-write-a-tool-which-integrates-with-jujutsu-should-i-use-the-library-or-parse-the-cli" class="md-nav__link">
+    <span class="md-ellipsis">
+      I want to write a tool which integrates with Jujutsu. Should I use the library or parse the CLI?
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1656,6 +1665,15 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#i-want-to-write-a-tool-which-integrates-with-jujutsu-should-i-use-the-library-or-parse-the-cli" class="md-nav__link">
+    <span class="md-ellipsis">
+      I want to write a tool which integrates with Jujutsu. Should I use the library or parse the CLI?
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1914,6 +1932,18 @@ HEAD:refs/for/main</code>). Using a <a href="../glossary/#co-located-repos">co-l
 will make the underlying git repo directly accessible from the working
 directory.</p>
 <p>We hope to integrate with Gerrit natively in the future.</p>
+<h3 id="i-want-to-write-a-tool-which-integrates-with-jujutsu-should-i-use-the-library-or-parse-the-cli">I want to write a tool which integrates with Jujutsu. Should I use the library or parse the CLI?<a class="headerlink" href="#i-want-to-write-a-tool-which-integrates-with-jujutsu-should-i-use-the-library-or-parse-the-cli" title="Permanent link">&para;</a></h3>
+<p>There are some trade-offs and there is no definitive answer yet.</p>
+<ul>
+<li>Using <code>jj-lib</code> avoids parsing command output and makes error handling easier.</li>
+<li><code>jj-lib</code> is not a stable API, so you may have to make changes to your tool
+when the API changes.</li>
+<li>The CLI is not stable either, so you may need to make your tool detect the 
+different versions and call the right command.</li>
+<li>Using the CLI means that your tool will work with custom-built <code>jj</code> binaries,
+like the one at Google (if you're using the library, you will not be able to
+detect custom backends and more).</li>
+</ul>
 
 
 
