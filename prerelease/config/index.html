@@ -2965,27 +2965,46 @@ setting, but you could set it explicitly too.</p>
 </code></pre></div>
 <p>Obviously, you would only set one line, don't copy them all in!</p>
 <h2 id="editing-diffs">Editing diffs<a class="headerlink" href="#editing-diffs" title="Permanent link">&para;</a></h2>
-<p>The <code>ui.diff-editor</code> setting affects the tool used for editing diffs (e.g.  <code>jj
-split</code>, <code>jj squash -i</code>). The default is the special value <code>:builtin</code>, which
-launches a built-in TUI tool (known as <a href="https://github.com/arxanas/scm-record?tab=readme-ov-file#scm-diff-editor">scm-diff-editor</a>) to edit the diff in
-your terminal.</p>
+<p>The <code>ui.diff-editor</code> setting affects the default tool used for editing diffs
+(e.g.  <code>jj split</code>, <code>jj squash -i</code>). If it is not set, the special value
+<code>:builtin</code> is used. It launches a built-in TUI tool (known as <a href="https://github.com/arxanas/scm-record?tab=readme-ov-file#scm-diff-editor">scm-diff-editor</a>)
+to edit the diff in your terminal.</p>
+<p>You can try a different tool temporarily by doing e.g. <code>jj split --tool meld</code> or
+you can set the option to change the default. This requires that you have an
+appropriate tool installed, e.g. <a href="https://meldmerge.org/">Meld</a> to use the
+<code>meld</code> diff editor.</p>
+<p><strong>Suggestion:</strong> If possible, it is recommended to try an external diff tool like
+<code>meld</code> (see below for some other possibilities) for splitting commits and other
+diff editing, in addition to the built-in diff editor. It is good to know the
+capabilities of both. The built-in diff editor does not require external tools
+to be available, is faster for tasks like picking hunks, and does not require
+leaving the terminal. External tools give you the flexibility of picking out
+portions of lines from the diff or even arbitrarily editing the text of the
+files.</p>
+<p>If <code>ui.diff-editor</code> is a string, e.g. <code>"meld"</code>, the arguments will be read from
+the following config keys.</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># merge-tools.meld.program = &quot;meld&quot;      # Defaults to the name of the tool if not specified</span>
+<span class="n">merge-tools</span><span class="p">.</span><span class="n">meld</span><span class="p">.</span><span class="n">program</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/path/to/meld&quot;</span><span class="w"> </span><span class="c1"># May be necessary if `meld` is not in the PATH</span>
+<span class="n">merge-tools</span><span class="p">.</span><span class="n">meld</span><span class="p">.</span><span class="n">edit-args</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;--newtab&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;$left&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;$right&quot;</span><span class="p">]</span>
+</code></pre></div>
 <p><code>jj</code> makes the following substitutions:</p>
 <ul>
-<li><code>$left</code> and <code>$right</code> are replaced with the paths to the left and right
-  directories to diff respectively.</li>
+<li>
+<p><code>$left</code> and <code>$right</code> are replaced with the paths to the left and right
+  directories to diff respectively.</p>
+</li>
+<li>
+<p>If no <code>edit-args</code> are specified, <code>["$left", "$right"]</code> are set by default.</p>
+</li>
 </ul>
-<p>If no arguments are specified, <code>["$left", "$right"]</code> are set by default.</p>
-<p>For example:</p>
-<div class="highlight"><pre><span></span><code><span class="c1"># Use merge-tools.kdiff3.edit-args</span>
-<span class="n">ui</span><span class="p">.</span><span class="n">diff-editor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;kdiff3&quot;</span>
+<p>Finally, <code>ui.diff-editor</code> can be a list that specifies a command and its arguments.</p>
+<p>Some examples:</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># Use merge-tools.meld.edit-args</span>
+<span class="n">ui</span><span class="p">.</span><span class="n">diff-editor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;meld&quot;</span><span class="w">  </span><span class="c1"># Or `kdiff3`, or `diffedit3`, ...</span>
 <span class="c1"># Specify edit-args inline</span>
-<span class="n">ui</span><span class="p">.</span><span class="n">diff-editor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;kdiff3&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;--merge&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;$left&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;$right&quot;</span><span class="p">]</span>
-</code></pre></div>
-<p>If <code>ui.diff-editor</code> consists of a single word, e.g. <code>"kdiff3"</code>, the arguments
-will be read from the following config keys.</p>
-<div class="highlight"><pre><span></span><code><span class="c1"># merge-tools.kdiff3.program = &quot;kdiff3&quot;      # Defaults to the name of the tool if not specified</span>
-<span class="n">merge-tools</span><span class="p">.</span><span class="n">kdiff3</span><span class="p">.</span><span class="n">edit-args</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span>
-<span class="w">    </span><span class="s2">&quot;--merge&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;--cs&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;CreateBakFiles=0&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;$left&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;$right&quot;</span><span class="p">]</span>
+<span class="n">ui</span><span class="p">.</span><span class="n">diff-editor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;/path/to/binary&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;--be-helpful&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;$left&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;$right&quot;</span><span class="p">]</span>
+<span class="c1"># Equivalent to [&quot;binary&quot;, &quot;$left&quot;, &quot;$right&quot;] arguments by default</span>
+<span class="n">ui</span><span class="p">.</span><span class="n">diff-editor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;binary&quot;</span>
 </code></pre></div>
 <h3 id="experimental-3-pane-diff-editing">Experimental 3-pane diff editing<a class="headerlink" href="#experimental-3-pane-diff-editing" title="Permanent link">&para;</a></h3>
 <p>We offer two special "3-pane" diff editor configs:</p>
