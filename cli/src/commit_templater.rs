@@ -847,15 +847,18 @@ fn evaluate_revset_expression<'repo>(
     span: pest::Span<'_>,
     expression: &UserRevsetExpression,
 ) -> Result<Box<dyn Revset + 'repo>, TemplateParseError> {
+    let make_error = || TemplateParseError::expression("Failed to evaluate revset", span);
+    let repo = language.repo;
     let symbol_resolver = revset_util::default_symbol_resolver(
-        language.repo,
+        repo,
         language.revset_parse_context.symbol_resolvers(),
         language.id_prefix_context,
     );
-    let revset =
-        revset_util::evaluate(language.repo, &symbol_resolver, expression).map_err(|err| {
-            TemplateParseError::expression("Failed to evaluate revset", span).with_source(err)
-        })?;
+    let revset = expression
+        .resolve_user_expression(repo, &symbol_resolver)
+        .map_err(|err| make_error().with_source(err))?
+        .evaluate(repo)
+        .map_err(|err| make_error().with_source(err))?;
     Ok(revset)
 }
 

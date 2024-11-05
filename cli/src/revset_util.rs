@@ -25,6 +25,7 @@ use jj_lib::id_prefix::IdPrefixContext;
 use jj_lib::repo::Repo;
 use jj_lib::revset;
 use jj_lib::revset::DefaultSymbolResolver;
+use jj_lib::revset::ResolvedRevsetExpression;
 use jj_lib::revset::Revset;
 use jj_lib::revset::RevsetAliasesMap;
 use jj_lib::revset::RevsetDiagnostics;
@@ -91,14 +92,23 @@ impl<'repo> RevsetExpressionEvaluator<'repo> {
         self.expression = self.expression.intersection(other);
     }
 
-    /// Evaluates the expression.
-    pub fn evaluate(&self) -> Result<Box<dyn Revset + 'repo>, UserRevsetEvaluationError> {
+    /// Resolves user symbols in the expression, returns new expression.
+    pub fn resolve(&self) -> Result<Rc<ResolvedRevsetExpression>, RevsetResolutionError> {
         let symbol_resolver = default_symbol_resolver(
             self.repo,
             self.extensions.symbol_resolvers(),
             self.id_prefix_context,
         );
-        evaluate(self.repo, &symbol_resolver, &self.expression)
+        self.expression
+            .resolve_user_expression(self.repo, &symbol_resolver)
+    }
+
+    /// Evaluates the expression.
+    pub fn evaluate(&self) -> Result<Box<dyn Revset + 'repo>, UserRevsetEvaluationError> {
+        self.resolve()
+            .map_err(UserRevsetEvaluationError::Resolution)?
+            .evaluate(self.repo)
+            .map_err(UserRevsetEvaluationError::Evaluation)
     }
 
     /// Evaluates the expression to an iterator over commit ids. Entries are
@@ -179,19 +189,6 @@ pub fn load_revset_aliases(
         }
     }
     Ok(aliases_map)
-}
-
-pub fn evaluate<'a>(
-    repo: &'a dyn Repo,
-    symbol_resolver: &DefaultSymbolResolver,
-    expression: &UserRevsetExpression,
-) -> Result<Box<dyn Revset + 'a>, UserRevsetEvaluationError> {
-    let resolved = expression
-        .resolve_user_expression(repo, symbol_resolver)
-        .map_err(UserRevsetEvaluationError::Resolution)?;
-    resolved
-        .evaluate(repo)
-        .map_err(UserRevsetEvaluationError::Evaluation)
 }
 
 /// Wraps the given `IdPrefixContext` in `SymbolResolver` to be passed in to
