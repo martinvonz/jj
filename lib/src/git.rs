@@ -378,7 +378,7 @@ fn abandon_unreachable_commits(
         // Don't include already-abandoned commits in GitImportStats
         .intersection(&RevsetExpression::visible_heads().ancestors());
     let abandoned_commits = abandoned_expression
-        .evaluate_programmatic(mut_repo)
+        .evaluate(mut_repo)
         .unwrap()
         .iter()
         .map(Result::unwrap) // TODO: Return error to caller

@@ -131,7 +131,7 @@ fn process_commits(
                 .ancestors()
                 .filtered(predicate),
         )
-        .evaluate_programmatic(repo)
+        .evaluate(repo)
         .map_err(|e| e.expect_backend_error())?;
 
     let mut original_line_map = vec![None; starting_source.line_map.len()];

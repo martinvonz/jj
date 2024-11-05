@@ -64,10 +64,10 @@ impl DisambiguationData {
     ) -> Result<&Indexes, IdPrefixIndexLoadError> {
         self.indexes.get_or_try_init(|| {
             let symbol_resolver = DefaultSymbolResolver::new(repo, extensions);
-            let resolved_expression = self
+            let revset = self
                 .expression
-                .resolve_user_expression(repo, &symbol_resolver)?;
-            let revset = resolved_expression.evaluate(repo)?;
+                .resolve_user_expression(repo, &symbol_resolver)?
+                .evaluate(repo)?;
 
             let commit_change_ids: Vec<_> = revset.commit_change_ids().try_collect()?;
             let mut commit_index = IdIndex::with_capacity(commit_change_ids.len());

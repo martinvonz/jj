@@ -514,7 +514,7 @@ pub fn move_commits(
             connected_target_commits =
                 RevsetExpression::commits(target_commits.iter().ids().cloned().collect_vec())
                     .connected()
-                    .evaluate_programmatic(mut_repo)
+                    .evaluate(mut_repo)
                     .map_err(|err| err.expect_backend_error())?
                     .iter()
                     .commits(mut_repo.store())
@@ -539,7 +539,7 @@ pub fn move_commits(
 
             target_commits = RevsetExpression::commits(roots.iter().ids().cloned().collect_vec())
                 .descendants()
-                .evaluate_programmatic(mut_repo)
+                .evaluate(mut_repo)
                 .map_err(|err| err.expect_backend_error())?
                 .iter()
                 .commits(mut_repo.store())
@@ -599,7 +599,7 @@ pub fn move_commits(
                     &RevsetExpression::commits(target_commit_ids.iter().cloned().collect_vec())
                         .children(),
                 )
-                .evaluate_programmatic(mut_repo)
+                .evaluate(mut_repo)
                 .map_err(|err| err.expect_backend_error())?
                 .iter()
                 .commits(mut_repo.store())
@@ -727,7 +727,7 @@ pub fn move_commits(
     roots.extend(new_children.iter().ids().cloned());
     let to_visit_expression = RevsetExpression::commits(roots).descendants();
     let to_visit: Vec<_> = to_visit_expression
-        .evaluate_programmatic(mut_repo)
+        .evaluate(mut_repo)
         .map_err(|err| err.expect_backend_error())?
         .iter()
         .commits(mut_repo.store())

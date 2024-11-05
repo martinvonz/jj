@@ -531,27 +531,40 @@ impl<St: ExpressionState<CommitRef = RevsetCommitRef>> RevsetExpression<St> {
 impl UserRevsetExpression {
     /// Resolve a user-provided expression. Symbols will be resolved using the
     /// provided `SymbolResolver`.
-    // TODO: return ResolvedRevsetExpression which can still be combined
     pub fn resolve_user_expression(
         &self,
         repo: &dyn Repo,
         symbol_resolver: &dyn SymbolResolver,
-    ) -> Result<ResolvedExpression, RevsetResolutionError> {
+    ) -> Result<Rc<ResolvedRevsetExpression>, RevsetResolutionError> {
         resolve_symbols(repo, self, symbol_resolver)
-            .map(|expression| resolve_visibility(repo, &expression))
     }
 }
 
 impl ResolvedRevsetExpression {
-    /// Resolve a programmatically created revset expression and evaluate it in
-    /// the repo.
-    // TODO: rename to .evaluate(), and add .evaluate_unoptimized() for
-    // testing/debugging purpose?
-    pub fn evaluate_programmatic<'index>(
+    /// Optimizes and evaluates this expression.
+    pub fn evaluate<'index>(
         self: Rc<Self>,
         repo: &'index dyn Repo,
     ) -> Result<Box<dyn Revset + 'index>, RevsetEvaluationError> {
-        resolve_visibility(repo, &optimize(self)).evaluate(repo)
+        optimize(self).evaluate_unoptimized(repo)
+    }
+
+    /// Evaluates this expression without optimizing it.
+    ///
+    /// Use this function if `self` is already optimized, or to debug
+    /// optimization pass.
+    pub fn evaluate_unoptimized<'index>(
+        &self,
+        repo: &'index dyn Repo,
+    ) -> Result<Box<dyn Revset + 'index>, RevsetEvaluationError> {
+        let expr = self.to_backend_expression(repo);
+        repo.index().evaluate_revset(&expr, repo.store())
+    }
+
+    /// Transforms this expression to the form which the `Index` backend will
+    /// process.
+    pub fn to_backend_expression(&self, repo: &dyn Repo) -> ResolvedExpression {
+        resolve_visibility(repo, self)
     }
 }
 
@@ -616,15 +629,6 @@ pub enum ResolvedExpression {
     /// Intersects expressions by merging.
     Intersection(Box<Self>, Box<Self>),
     Difference(Box<Self>, Box<Self>),
-}
-
-impl ResolvedExpression {
-    pub fn evaluate<'index>(
-        &self,
-        repo: &'index dyn Repo,
-    ) -> Result<Box<dyn Revset + 'index>, RevsetEvaluationError> {
-        repo.index().evaluate_revset(self, repo.store())
-    }
 }
 
 pub type RevsetFunction = fn(
@@ -1790,7 +1794,7 @@ pub fn walk_revs<'index>(
 ) -> Result<Box<dyn Revset + 'index>, RevsetEvaluationError> {
     RevsetExpression::commits(unwanted.to_vec())
         .range(&RevsetExpression::commits(wanted.to_vec()))
-        .evaluate_programmatic(repo)
+        .evaluate(repo)
 }
 
 fn reload_repo_at_operation(
