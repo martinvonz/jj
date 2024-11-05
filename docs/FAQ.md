@@ -305,6 +305,20 @@ directory.
 
 We hope to integrate with Gerrit natively in the future.
 
+### I want to write a tool which integrates with Jujutsu. Should I use the library or parse the CLI?
+
+There are some trade-offs and there is no definitive answer yet.
+
+* Using `jj-lib` avoids parsing command output and makes error handling easier.
+* `jj-lib` is not a stable API, so you may have to make changes to your tool
+when the API changes.
+* The CLI is not stable either, so you may need to make your tool detect the 
+different versions and call the right command.
+* Using the CLI means that your tool will work with custom-built `jj` binaries,
+like the one at Google (if you're using the library, you will not be able to
+detect custom backends and more).
+
+
 [bookmarks_conflicts]: bookmarks.md#conflicts
 
 [change ID]: glossary.md#change-id
