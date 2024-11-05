@@ -62,7 +62,7 @@ pub fn map_git_error(err: git2::Error) -> CommandError {
 
         user_error_with_hint(err, hint)
     } else {
-        user_error(err.to_string())
+        user_error(err)
     }
 }
 
