@@ -605,6 +605,41 @@ fn build_binary_operation<'a, L: TemplateLanguage<'a> + ?Sized>(
             let out = lhs.and_then(move |l| Ok(l && rhs.extract()?));
             Ok(L::wrap_boolean(out))
         }
+        BinaryOp::LogicalEq => {
+            let lhs = build_expression(language, diagnostics, build_ctx, lhs_node)?;
+            let rhs = build_expression(language, diagnostics, build_ctx, rhs_node)?;
+            // TODO: Implement as a method on Property type
+            // e.g., lhs.try_eq(rhs) -> Option<Box<dyn TemplateProperty<Output = bool>>>
+            match (lhs.type_name(), rhs.type_name()) {
+                ("Boolean", "Boolean") => {
+                    let lhs = lhs.try_into_boolean().unwrap();
+                    let rhs = rhs.try_into_boolean().unwrap();
+                    let out = lhs.and_then(move |l| Ok(l == rhs.extract()?));
+                    Ok(L::wrap_boolean(out))
+                }
+                ("Integer", "Integer") => {
+                    let lhs = lhs.try_into_integer().unwrap();
+                    let rhs = rhs.try_into_integer().unwrap();
+                    let out = lhs.and_then(move |l| Ok(l == rhs.extract()?));
+                    Ok(L::wrap_boolean(out))
+                }
+                ("String", "String") => {
+                    let lhs = lhs.try_into_plain_text().unwrap();
+                    let rhs = rhs.try_into_plain_text().unwrap();
+                    let out = lhs.and_then(move |l| Ok(l == rhs.extract()?));
+                    Ok(L::wrap_boolean(out))
+                }
+                (lhs_type @ ("Boolean" | "Integer" | "String"), rhs_type) => Err(
+                    TemplateParseError::expected_type(lhs_type, rhs_type, rhs_node.span),
+                ),
+                (lhs_type, _) => {
+                    let message = format!(
+                        r#"Expected expression of type "Boolean", "Integer", or "String", but actual type is "{lhs_type}""#
+                    );
+                    Err(TemplateParseError::expression(message, lhs_node.span))
+                }
+            }
+        }
     }
 }
 
@@ -1677,14 +1712,14 @@ mod tests {
         env.add_keyword("description", || L::wrap_string(Literal("".to_owned())));
         env.add_keyword("empty", || L::wrap_boolean(Literal(true)));
 
-        insta::assert_snapshot!(env.parse_err(r#"description ()"#), @r###"
+        insta::assert_snapshot!(env.parse_err(r#"description ()"#), @r#"
          --> 1:13
           |
         1 | description ()
           |             ^---
           |
-          = expected <EOI>, `++`, `||`, or `&&`
-        "###);
+          = expected <EOI>, `++`, `||`, `&&`, or `==`
+        "#);
 
         insta::assert_snapshot!(env.parse_err(r#"foo"#), @r###"
          --> 1:1
@@ -1728,6 +1763,62 @@ mod tests {
           |
           = Expected expression of type "Boolean", but actual type is "Integer"
         "###);
+        insta::assert_snapshot!(env.parse_err(r#"true == 1"#), @r#"
+         --> 1:9
+          |
+        1 | true == 1
+          |         ^
+          |
+          = Expected expression of type "Boolean", but actual type is "Integer"
+        "#);
+        insta::assert_snapshot!(env.parse_err(r#"true == 'a'"#), @r#"
+         --> 1:9
+          |
+        1 | true == 'a'
+          |         ^-^
+          |
+          = Expected expression of type "Boolean", but actual type is "String"
+        "#);
+        insta::assert_snapshot!(env.parse_err(r#"1 == true"#), @r#"
+         --> 1:6
+          |
+        1 | 1 == true
+          |      ^--^
+          |
+          = Expected expression of type "Integer", but actual type is "Boolean"
+        "#);
+        insta::assert_snapshot!(env.parse_err(r#"1 == 'a'"#), @r#"
+         --> 1:6
+          |
+        1 | 1 == 'a'
+          |      ^-^
+          |
+          = Expected expression of type "Integer", but actual type is "String"
+        "#);
+        insta::assert_snapshot!(env.parse_err(r#"'a' == true"#), @r#"
+         --> 1:8
+          |
+        1 | 'a' == true
+          |        ^--^
+          |
+          = Expected expression of type "String", but actual type is "Boolean"
+        "#);
+        insta::assert_snapshot!(env.parse_err(r#"'a' == 1"#), @r#"
+         --> 1:8
+          |
+        1 | 'a' == 1
+          |        ^
+          |
+          = Expected expression of type "String", but actual type is "Integer"
+        "#);
+        insta::assert_snapshot!(env.parse_err(r#"'a' == label("", "")"#), @r#"
+         --> 1:8
+          |
+        1 | 'a' == label("", "")
+          |        ^-----------^
+          |
+          = Expected expression of type "String", but actual type is "Template"
+        "#);
 
         insta::assert_snapshot!(env.parse_err(r#"description.first_line().foo()"#), @r###"
          --> 1:26
@@ -1945,6 +2036,12 @@ mod tests {
         insta::assert_snapshot!(env.render_ok(r#"!false"#), @"true");
         insta::assert_snapshot!(env.render_ok(r#"false || !false"#), @"true");
         insta::assert_snapshot!(env.render_ok(r#"false && true"#), @"false");
+        insta::assert_snapshot!(env.render_ok(r#"true == true"#), @"true");
+        insta::assert_snapshot!(env.render_ok(r#"true == false"#), @"false");
+        insta::assert_snapshot!(env.render_ok(r#"1 == 1"#), @"true");
+        insta::assert_snapshot!(env.render_ok(r#"1 == 2"#), @"false");
+        insta::assert_snapshot!(env.render_ok(r#"'a' == 'a'"#), @"true");
+        insta::assert_snapshot!(env.render_ok(r#"'a' == 'b'"#), @"false");
 
         insta::assert_snapshot!(env.render_ok(r#" !"" "#), @"true");
         insta::assert_snapshot!(env.render_ok(r#" "" || "a".lines() "#), @"true");
