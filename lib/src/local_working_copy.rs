@@ -524,12 +524,16 @@ fn can_create_new_file(disk_path: &Path) -> Result<bool, CheckoutError> {
     {
         Ok(_) => true,
         Err(err) if err.kind() == io::ErrorKind::AlreadyExists => false,
-        Err(err) => {
-            return Err(CheckoutError::Other {
-                message: format!("Failed to create temporary file {}", disk_path.display()),
-                err: err.into(),
-            });
-        }
+        // Workaround for "Access is denied. (os error 5)" error on Windows.
+        Err(_) => match disk_path.symlink_metadata() {
+            Ok(_) => false,
+            Err(err) => {
+                return Err(CheckoutError::Other {
+                    message: format!("Failed to stat {}", disk_path.display()),
+                    err: err.into(),
+                })
+            }
+        },
     };
     reject_reserved_existing_path(disk_path).inspect_err(|_| {
         if new_file_created {
