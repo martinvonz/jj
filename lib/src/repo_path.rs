@@ -901,7 +901,7 @@ mod tests {
             .is_err());
 
         // Component containing slash (simulating Windows path separator)
-        assert!(RepoPathComponent::new_unchecked("win/dows")
+        assert!(RepoPathComponent::new_unchecked("wind/ows")
             .to_fs_name()
             .is_err());
         assert!(RepoPathComponent::new_unchecked("./file")
@@ -914,7 +914,7 @@ mod tests {
 
         // Windows path separator and drive letter
         if cfg!(windows) {
-            assert!(repo_path(r#"win\dows"#)
+            assert!(repo_path(r#"wind\ows"#)
                 .to_fs_path(Path::new("base"))
                 .is_err());
             assert!(repo_path(r#".\file"#)
