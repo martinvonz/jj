@@ -14,6 +14,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### New features
 
+* Templates now support the `==` logical operator for `Boolean`, `Integer`, and
+  `String` types.
+
 ### Fixed bugs
 
 ## [0.23.0] - 2024-11-06
