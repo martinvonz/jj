@@ -38,6 +38,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `--insert-before` options to customize the location of the duplicated
   revisions.
 
+* New `fork_point()` revset function can be used to obtain the fork point
+  of multiple commits.
+
 ### Fixed bugs
 
 ## [0.23.0] - 2024-11-06

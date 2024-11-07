@@ -953,6 +953,22 @@ impl EvaluationContext<'_> {
                 });
                 Ok(Box::new(EagerRevset { positions }))
             }
+            ResolvedExpression::ForkPoint(expression) => {
+                let expression_set = self.evaluate(expression)?;
+                let mut expression_positions_iter = expression_set.positions().attach(index);
+                let Some(position) = expression_positions_iter.next() else {
+                    return Ok(Box::new(EagerRevset::empty()));
+                };
+                let mut positions = vec![position?];
+                for position in expression_positions_iter {
+                    positions = index
+                        .common_ancestors_pos(&positions, [position?].as_slice())
+                        .into_iter()
+                        .collect_vec();
+                }
+                positions.reverse();
+                Ok(Box::new(EagerRevset { positions }))
+            }
             ResolvedExpression::Latest { candidates, count } => {
                 let candidate_set = self.evaluate(candidates)?;
                 Ok(Box::new(self.take_latest_revset(&*candidate_set, *count)?))
