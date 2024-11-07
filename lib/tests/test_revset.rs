@@ -2389,6 +2389,187 @@ fn test_evaluate_expression_latest() {
 }
 
 #[test]
+fn test_evaluate_expression_fork_point() {
+    let settings = testutils::user_settings();
+    let test_repo = TestRepo::init();
+    let repo = &test_repo.repo;
+
+    // 5 6
+    // |/|
+    // 4 |
+    // | |
+    // 1 2 3
+    // | |/
+    // |/
+    // 0
+    let mut tx = repo.start_transaction(&settings);
+    let mut_repo = tx.repo_mut();
+    let mut graph_builder = CommitGraphBuilder::new(&settings, mut_repo);
+    let root_commit = repo.store().root_commit();
+    let commit1 = graph_builder.initial_commit();
+    let commit2 = graph_builder.initial_commit();
+    let commit3 = graph_builder.initial_commit();
+    let commit4 = graph_builder.commit_with_parents(&[&commit1]);
+    let commit5 = graph_builder.commit_with_parents(&[&commit4]);
+    let commit6 = graph_builder.commit_with_parents(&[&commit4, &commit2]);
+
+    assert_eq!(resolve_commit_ids(mut_repo, "fork_point(none())"), vec![]);
+    assert_eq!(
+        resolve_commit_ids(mut_repo, "fork_point(root())"),
+        vec![root_commit.id().clone()]
+    );
+    assert_eq!(
+        resolve_commit_ids(mut_repo, &format!("fork_point({})", commit1.id())),
+        vec![commit1.id().clone()]
+    );
+    assert_eq!(
+        resolve_commit_ids(mut_repo, &format!("fork_point({})", commit2.id())),
+        vec![commit2.id().clone()]
+    );
+    assert_eq!(
+        resolve_commit_ids(mut_repo, &format!("fork_point({})", commit3.id())),
+        vec![commit3.id().clone()]
+    );
+    assert_eq!(
+        resolve_commit_ids(mut_repo, &format!("fork_point({})", commit4.id())),
+        vec![commit4.id().clone()]
+    );
+    assert_eq!(
+        resolve_commit_ids(mut_repo, &format!("fork_point({})", commit5.id())),
+        vec![commit5.id().clone()]
+    );
+    assert_eq!(
+        resolve_commit_ids(mut_repo, &format!("fork_point({})", commit6.id())),
+        vec![commit6.id().clone()]
+    );
+    assert_eq!(
+        resolve_commit_ids(
+            mut_repo,
+            &format!("fork_point({} | {})", commit1.id(), commit2.id())
+        ),
+        vec![root_commit.id().clone()]
+    );
+    assert_eq!(
+        resolve_commit_ids(
+            mut_repo,
+            &format!("fork_point({} | {})", commit2.id(), commit3.id())
+        ),
+        vec![root_commit.id().clone()]
+    );
+    assert_eq!(
+        resolve_commit_ids(
+            mut_repo,
+            &format!(
+                "fork_point({} | {} | {})",
+                commit1.id(),
+                commit2.id(),
+                commit3.id()
+            )
+        ),
+        vec![root_commit.id().clone()]
+    );
+    assert_eq!(
+        resolve_commit_ids(
+            mut_repo,
+            &format!("fork_point({} | {})", commit1.id(), commit4.id())
+        ),
+        vec![commit1.id().clone()]
+    );
+    assert_eq!(
+        resolve_commit_ids(
+            mut_repo,
+            &format!("fork_point({} | {})", commit2.id(), commit5.id())
+        ),
+        vec![root_commit.id().clone()]
+    );
+    assert_eq!(
+        resolve_commit_ids(
+            mut_repo,
+            &format!("fork_point({} | {})", commit3.id(), commit6.id())
+        ),
+        vec![root_commit.id().clone()]
+    );
+    assert_eq!(
+        resolve_commit_ids(
+            mut_repo,
+            &format!("fork_point({} | {})", commit1.id(), commit5.id())
+        ),
+        vec![commit1.id().clone()]
+    );
+    assert_eq!(
+        resolve_commit_ids(
+            mut_repo,
+            &format!("fork_point({} | {})", commit4.id(), commit5.id())
+        ),
+        vec![commit4.id().clone()]
+    );
+    assert_eq!(
+        resolve_commit_ids(
+            mut_repo,
+            &format!("fork_point({} | {})", commit5.id(), commit6.id())
+        ),
+        vec![commit4.id().clone()]
+    );
+}
+
+#[test]
+fn test_evaluate_expression_fork_point_criss_cross() {
+    let settings = testutils::user_settings();
+    let test_repo = TestRepo::init();
+    let repo = &test_repo.repo;
+
+    // 3 4
+    // |X|
+    // 1 2
+    // |/
+    // 0
+    let mut tx = repo.start_transaction(&settings);
+    let mut_repo = tx.repo_mut();
+    let mut graph_builder = CommitGraphBuilder::new(&settings, mut_repo);
+    let commit1 = graph_builder.initial_commit();
+    let commit2 = graph_builder.initial_commit();
+    let commit3 = graph_builder.commit_with_parents(&[&commit1, &commit2]);
+    let commit4 = graph_builder.commit_with_parents(&[&commit1, &commit2]);
+
+    assert_eq!(
+        resolve_commit_ids(
+            mut_repo,
+            &format!("fork_point({} | {})", commit3.id(), commit4.id())
+        ),
+        vec![commit2.id().clone(), commit1.id().clone()]
+    );
+}
+
+#[test]
+fn test_evaluate_expression_fork_point_merge_with_ancestor() {
+    let settings = testutils::user_settings();
+    let test_repo = TestRepo::init();
+    let repo = &test_repo.repo;
+
+    // 4   5
+    // |\ /|
+    // 1 2 3
+    //  \|/
+    //   0
+    let mut tx = repo.start_transaction(&settings);
+    let mut_repo = tx.repo_mut();
+    let mut graph_builder = CommitGraphBuilder::new(&settings, mut_repo);
+    let commit1 = graph_builder.initial_commit();
+    let commit2 = graph_builder.initial_commit();
+    let commit3 = graph_builder.initial_commit();
+    let commit4 = graph_builder.commit_with_parents(&[&commit1, &commit2]);
+    let commit5 = graph_builder.commit_with_parents(&[&commit2, &commit3]);
+
+    assert_eq!(
+        resolve_commit_ids(
+            mut_repo,
+            &format!("fork_point({} | {})", commit4.id(), commit5.id())
+        ),
+        vec![commit2.id().clone()]
+    );
+}
+
+#[test]
 fn test_evaluate_expression_merges() {
     let settings = testutils::user_settings();
     let test_repo = TestRepo::init();

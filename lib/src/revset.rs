@@ -249,6 +249,7 @@ pub enum RevsetExpression<St: ExpressionState> {
     },
     Heads(Rc<Self>),
     Roots(Rc<Self>),
+    ForkPoint(Rc<Self>),
     Latest {
         candidates: Rc<Self>,
         count: usize,
@@ -425,6 +426,11 @@ impl<St: ExpressionState> RevsetExpression<St> {
             roots: self.clone(),
             generation: generation_range,
         })
+    }
+
+    /// Fork point (best common ancestors) of `self`.
+    pub fn fork_point(self: &Rc<Self>) -> Rc<Self> {
+        Rc::new(Self::ForkPoint(self.clone()))
     }
 
     /// Filter all commits by `predicate` in `self`.
@@ -615,6 +621,7 @@ pub enum ResolvedExpression {
     },
     Heads(Box<Self>),
     Roots(Box<Self>),
+    ForkPoint(Box<Self>),
     Latest {
         candidates: Box<Self>,
         count: usize,
@@ -799,6 +806,11 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
             1
         };
         Ok(candidates.latest(count))
+    });
+    map.insert("fork_point", |diagnostics, function, context| {
+        let [expression_arg] = function.expect_exact_arguments()?;
+        let expression = lower_expression(diagnostics, expression_arg, context)?;
+        Ok(RevsetExpression::fork_point(&expression))
     });
     map.insert("merges", |_diagnostics, function, _context| {
         function.expect_no_arguments()?;
@@ -1247,6 +1259,9 @@ fn try_transform_expression<St: ExpressionState, E>(
             RevsetExpression::Roots(candidates) => {
                 transform_rec(candidates, pre, post)?.map(RevsetExpression::Roots)
             }
+            RevsetExpression::ForkPoint(expression) => {
+                transform_rec(expression, pre, post)?.map(RevsetExpression::ForkPoint)
+            }
             RevsetExpression::Latest { candidates, count } => transform_rec(candidates, pre, post)?
                 .map(|candidates| RevsetExpression::Latest {
                     candidates,
@@ -1436,6 +1451,10 @@ where
         RevsetExpression::Roots(roots) => {
             let roots = folder.fold_expression(roots)?;
             RevsetExpression::Roots(roots).into()
+        }
+        RevsetExpression::ForkPoint(expression) => {
+            let expression = folder.fold_expression(expression)?;
+            RevsetExpression::ForkPoint(expression).into()
         }
         RevsetExpression::Latest { candidates, count } => {
             let candidates = folder.fold_expression(candidates)?;
@@ -2327,6 +2346,9 @@ impl VisibilityResolutionContext<'_> {
             RevsetExpression::Roots(candidates) => {
                 ResolvedExpression::Roots(self.resolve(candidates).into())
             }
+            RevsetExpression::ForkPoint(expression) => {
+                ResolvedExpression::ForkPoint(self.resolve(expression).into())
+            }
             RevsetExpression::Latest { candidates, count } => ResolvedExpression::Latest {
                 candidates: self.resolve(candidates).into(),
                 count: *count,
@@ -2431,6 +2453,7 @@ impl VisibilityResolutionContext<'_> {
             | RevsetExpression::Reachable { .. }
             | RevsetExpression::Heads(_)
             | RevsetExpression::Roots(_)
+            | RevsetExpression::ForkPoint(_)
             | RevsetExpression::Latest { .. } => {
                 ResolvedPredicateExpression::Set(self.resolve(expression).into())
             }
