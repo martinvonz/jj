@@ -144,6 +144,21 @@ pub fn git_remotes() -> Vec<CompletionCandidate> {
     })
 }
 
+pub fn aliases() -> Vec<CompletionCandidate> {
+    with_jj(|_, config| {
+        Ok(config
+            .get_table("aliases")?
+            .into_keys()
+            // This is opinionated, but many people probably have several
+            // single- or two-letter aliases they use all the time. These
+            // aliases don't need to be completed and they would only clutter
+            // the output of `jj <TAB>`.
+            .filter(|alias| alias.len() > 2)
+            .map(CompletionCandidate::new)
+            .collect())
+    })
+}
+
 /// Shell out to jj during dynamic completion generation
 ///
 /// In case of errors, print them and early return an empty vector.

@@ -3248,8 +3248,12 @@ fn handle_shell_completion(
         let resolved_aliases = expand_args(ui, app, env::args_os().skip(2), config)?;
         args.extend(resolved_aliases.into_iter().map(OsString::from));
     }
-    let ran_completion = clap_complete::CompleteEnv::with_factory(|| app.clone())
-        .try_complete(args.iter(), Some(cwd))?;
+    let ran_completion = clap_complete::CompleteEnv::with_factory(|| {
+        app.clone()
+            // for completing aliases
+            .allow_external_subcommands(true)
+    })
+    .try_complete(args.iter(), Some(cwd))?;
     assert!(
         ran_completion,
         "This function should not be called without the COMPLETE variable set."

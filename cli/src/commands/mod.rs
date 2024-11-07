@@ -64,17 +64,20 @@ use std::fmt::Debug;
 use clap::CommandFactory;
 use clap::FromArgMatches;
 use clap::Subcommand;
+use clap_complete::engine::SubcommandCandidates;
 use tracing::instrument;
 
 use crate::cli_util::Args;
 use crate::cli_util::CommandHelper;
 use crate::command_error::user_error_with_hint;
 use crate::command_error::CommandError;
+use crate::complete;
 use crate::ui::Ui;
 
 #[derive(clap::Parser, Clone, Debug)]
 #[command(disable_help_subcommand = true)]
 #[command(after_long_help = help::show_keyword_hint_after_help())]
+#[command(add = SubcommandCandidates::new(complete::aliases))]
 enum Command {
     Abandon(abandon::AbandonArgs),
     Absorb(absorb::AbsorbArgs),
