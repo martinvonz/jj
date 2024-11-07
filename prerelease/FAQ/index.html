@@ -471,6 +471,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#can-i-monitor-how-jj-log-evolves" class="md-nav__link">
+    <span class="md-ellipsis">
+      Can I monitor how jj log evolves?
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#should-i-co-locate-my-repository" class="md-nav__link">
     <span class="md-ellipsis">
       Should I co-locate my repository?
@@ -1558,6 +1567,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#can-i-monitor-how-jj-log-evolves" class="md-nav__link">
+    <span class="md-ellipsis">
+      Can I monitor how jj log evolves?
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#should-i-co-locate-my-repository" class="md-nav__link">
     <span class="md-ellipsis">
       Should I co-locate my repository?
@@ -1716,6 +1734,16 @@ revision visible again.</p>
 <p>See <a href="../revsets/">revsets</a> and <a href="../templates/">templates</a> for further guidance.</p>
 <h3 id="how-can-i-get-jj-log-to-show-me-what-git-log-would-show-me">How can I get <code>jj log</code> to show me what <code>git log</code> would show me?<a class="headerlink" href="#how-can-i-get-jj-log-to-show-me-what-git-log-would-show-me" title="Permanent link">&para;</a></h3>
 <p>Use <code>jj log -r ..</code>. The <code>..</code> <a href="../revsets/#operators">operator</a> lists all visible commits in the repo, excluding the root (which is never interesting and is shared by all repos).</p>
+<h3 id="can-i-monitor-how-jj-log-evolves">Can I monitor how <code>jj log</code> evolves?<a class="headerlink" href="#can-i-monitor-how-jj-log-evolves" title="Permanent link">&para;</a></h3>
+<p>The simplest way to monitor how the history as shown by <code>jj log</code> evolves is by using the <a href="https://man7.org/linux/man-pages/man1/watch.1.html">watch(1)</a> command (or <a href="https://github.com/blacknon/hwatch?tab=readme-ov-file#configuration">hwatch</a> or <a href="https://github.com/sachaos/viddy">viddy</a>).
+For example:</p>
+<div class="highlight"><pre><span></span><code>watch<span class="w"> </span>--color<span class="w"> </span>jj<span class="w"> </span>--ignore-working-copy<span class="w"> </span>log<span class="w"> </span>--color<span class="o">=</span>always
+</code></pre></div>
+<p>This will continuously update the (colored) log output in the terminal.
+The <code>--ignore-working-copy</code> option avoids conflicts with manual operations during the creation of snapshots.
+Martin used watch in a <a href="https://github.com/tmux/tmux/wiki">tmux</a> pane during his presentation <a href="https://www.youtube.com/watch?v=LV0JzI8IcCY">Jujutsu - A Git-compatible VCS</a>.</p>
+<p>Alternatively, you can use <a href="https://github.com/tim-janik/jj-fzf">jj-fzf</a>, where the central piece is the <code>jj log</code> view and common operations can be carried out via key bindings while the log view updates.</p>
+<p>The wiki lists additional TUIs and GUIs beyond the terminal: <a href="https://github.com/martinvonz/jj/wiki/GUI-and-TUI">GUI-and-TUI</a></p>
 <h3 id="should-i-co-locate-my-repository">Should I co-locate my repository?<a class="headerlink" href="#should-i-co-locate-my-repository" title="Permanent link">&para;</a></h3>
 <p>Co-locating a Jujutsu repository allows you to use both Jujutsu and Git in the
 same working copy. The benefits of doing so are:</p>
