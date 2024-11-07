@@ -14,6 +14,7 @@
 
 use clap::FromArgMatches as _;
 use clap_complete::CompletionCandidate;
+use config::Config;
 use jj_lib::workspace::DefaultWorkspaceLoaderFactory;
 use jj_lib::workspace::WorkspaceLoaderFactory as _;
 
@@ -27,7 +28,7 @@ use crate::config::LayeredConfigs;
 use crate::ui::Ui;
 
 pub fn local_bookmarks() -> Vec<CompletionCandidate> {
-    with_jj(|mut jj| {
+    with_jj(|mut jj, _| {
         let output = jj
             .arg("bookmark")
             .arg("list")
@@ -44,7 +45,7 @@ pub fn local_bookmarks() -> Vec<CompletionCandidate> {
 }
 
 pub fn git_remotes() -> Vec<CompletionCandidate> {
-    with_jj(|mut jj| {
+    with_jj(|mut jj, _| {
         let output = jj
             .arg("git")
             .arg("remote")
@@ -67,10 +68,10 @@ pub fn git_remotes() -> Vec<CompletionCandidate> {
 /// In case of errors, print them and early return an empty vector.
 fn with_jj<F>(completion_fn: F) -> Vec<CompletionCandidate>
 where
-    F: FnOnce(std::process::Command) -> Result<Vec<CompletionCandidate>, CommandError>,
+    F: FnOnce(std::process::Command, &Config) -> Result<Vec<CompletionCandidate>, CommandError>,
 {
     get_jj_command()
-        .and_then(completion_fn)
+        .and_then(|(jj, config)| completion_fn(jj, &config))
         .unwrap_or_else(|e| {
             eprintln!("{}", e.error);
             Vec::new()
@@ -86,7 +87,7 @@ where
 /// give completion code access to custom backends. Shelling out was chosen as
 /// the preferred method, because it's more maintainable and the performance
 /// requirements of completions aren't very high.
-fn get_jj_command() -> Result<std::process::Command, CommandError> {
+fn get_jj_command() -> Result<(std::process::Command, Config), CommandError> {
     let current_exe = std::env::current_exe().map_err(user_error)?;
     let mut command = std::process::Command::new(current_exe);
 
@@ -110,13 +111,11 @@ fn get_jj_command() -> Result<std::process::Command, CommandError> {
         .and_then(|cwd| cwd.canonicalize())
         .map_err(user_error)?;
     let maybe_cwd_workspace_loader = DefaultWorkspaceLoaderFactory.create(find_workspace_dir(&cwd));
-    layered_configs.read_user_config().map_err(user_error)?;
+    let _ = layered_configs.read_user_config();
     if let Ok(loader) = &maybe_cwd_workspace_loader {
-        layered_configs
-            .read_repo_config(loader.repo_path())
-            .map_err(user_error)?;
+        let _ = layered_configs.read_repo_config(loader.repo_path());
     }
-    let config = layered_configs.merge();
+    let mut config = layered_configs.merge();
     // skip 2 because of the clap_complete prelude: jj -- jj <actual args...>
     let args = std::env::args_os().skip(2);
     let args = expand_args(&ui, &app, args, &config)?;
@@ -129,6 +128,11 @@ fn get_jj_command() -> Result<std::process::Command, CommandError> {
     let args: GlobalArgs = GlobalArgs::from_arg_matches(&args)?;
 
     if let Some(repository) = args.repository {
+        // Try to update repo-specific config on a best-effort basis.
+        if let Ok(loader) = DefaultWorkspaceLoaderFactory.create(&cwd.join(&repository)) {
+            let _ = layered_configs.read_repo_config(loader.repo_path());
+            config = layered_configs.merge();
+        }
         command.arg("--repository");
         command.arg(repository);
     }
@@ -141,5 +145,5 @@ fn get_jj_command() -> Result<std::process::Command, CommandError> {
         command.arg(config_toml);
     }
 
-    Ok(command)
+    Ok((command, config))
 }
