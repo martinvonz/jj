@@ -242,3 +242,57 @@ fn test_remote_names() {
     );
     insta::assert_snapshot!(stdout, @r"origin");
 }
+
+#[test]
+fn test_aliases_are_completed() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    // user config alias
+    test_env.add_config(r#"aliases.user-alias = ["bookmark"]"#);
+    // repo config alias
+    test_env.jj_cmd_ok(
+        &repo_path,
+        &[
+            "config",
+            "set",
+            "--repo",
+            "aliases.repo-alias",
+            "['bookmark']",
+        ],
+    );
+
+    let mut test_env = test_env;
+    test_env.add_env_var("COMPLETE", "fish");
+    let test_env = test_env;
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["--", "jj", "user-al"]);
+    insta::assert_snapshot!(stdout, @"user-alias");
+
+    // make sure --repository flag is respected
+    let stdout = test_env.jj_cmd_success(
+        test_env.env_root(),
+        &[
+            "--",
+            "jj",
+            "--repository",
+            repo_path.to_str().unwrap(),
+            "repo-al",
+        ],
+    );
+    insta::assert_snapshot!(stdout, @"repo-alias");
+
+    // cannot load aliases from --config-toml flag
+    let stdout = test_env.jj_cmd_success(
+        test_env.env_root(),
+        &[
+            "--",
+            "jj",
+            "--config-toml",
+            "aliases.cli-alias = ['bookmark']",
+            "cli-al",
+        ],
+    );
+    insta::assert_snapshot!(stdout, @"");
+}
