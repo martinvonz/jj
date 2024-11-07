@@ -1,0 +1,33 @@
+# Basic template of config settings
+
+# Don't forget to change these to your own details!
+user.name = "YOUR NAME"
+user.email = "YOUR_EMAIL@example.com"
+
+ui.color = "auto" # the default
+# ui.color = never # no color
+
+ui.editor = "pico" # the default on Unix
+# ui.editor = "vim"
+
+ui.diff-editor = ":builtin" # default, internal TUI tool
+# ui.diff-editor = "meld"
+# ui.diff-editor = "vimdiff"
+
+ui.merge-editor = "meld" # default
+# ui.merge-editor = "vscode"
+# ui.merge-editor = "vimdiff"
+# ui.merge-editor = "kdiff3"
+
+# Relative timestamp rendered as "x days/hours/seconds ago"
+template-aliases.'format_timestamp(timestamp)' = 'timestamp.ago()'
+
+# The four merge tools listed above are pre-configured. For detailed information
+# about how to change the default configuration or how to configure another tool,
+# see documentation in config.md. An example:
+
+# merge-tools.meld.program = "C:\\Program Files\\Meld\\meld.exe" # If not in PATH
+
+# Change the default push/fetch remote for `jj git push` and `jj git fetch`
+# git.fetch = "upstream"
+# git.push = "myfork"
