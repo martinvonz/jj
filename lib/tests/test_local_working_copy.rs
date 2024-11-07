@@ -17,6 +17,7 @@ use std::os::unix::fs::PermissionsExt;
 #[cfg(unix)]
 use std::os::unix::net::UnixListener;
 use std::path::Path;
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use assert_matches::assert_matches;
@@ -1324,7 +1325,11 @@ fn test_check_out_existing_file_symlink_icase_fs(victim_exists: bool) {
 
     // Creates a symlink in working directory, and a tree that will overwrite
     // the symlink content.
-    try_symlink("../pwned", workspace_root.join("parent")).unwrap();
+    try_symlink(
+        PathBuf::from_iter(["..", "pwned"]),
+        workspace_root.join("parent"),
+    )
+    .unwrap();
     let victim_file_path = workspace_root.parent().unwrap().join("pwned");
     if victim_exists {
         std::fs::write(&victim_file_path, "old").unwrap();
