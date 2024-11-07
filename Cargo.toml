@@ -73,7 +73,7 @@ indexmap = "2.6.0"
 indoc = "2.0.4"
 insta = { version = "1.41.1", features = ["filters"] }
 itertools = "0.13.0"
-libc = { version = "0.2.161" }
+libc = { version = "0.2.162" }
 maplit = "1.0.2"
 minus = { version = "5.6.1", features = ["dynamic_output", "search"] }
 num_cpus = "1.16.0"
@@ -110,7 +110,7 @@ test-case = "3.3.1"
 textwrap = "0.16.1"
 thiserror = "1.0.68"
 timeago = { version = "0.4.2", default-features = false }
-tokio = { version = "1.41.0" }
+tokio = { version = "1.41.1" }
 toml_edit = { version = "0.19.15", features = ["serde"] }
 tracing = "0.1.40"
 tracing-chrome = "0.7.2"
