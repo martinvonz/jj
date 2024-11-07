@@ -2489,6 +2489,56 @@ fn test_rebase_skip_emptied() {
 }
 
 #[test]
+fn test_rebase_skip_emptied_descendants() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    create_commit(&test_env, &repo_path, "a", &[]);
+    create_commit(&test_env, &repo_path, "b", &["a"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "a", "-m", "c (will become empty)"]);
+    test_env.jj_cmd_ok(&repo_path, &["restore", "--from=b"]);
+    test_env.jj_cmd_ok(&repo_path, &["bookmark", "create", "c"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "-m", "already empty"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "-m", "also already empty"]);
+
+    // Test the setup
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["log", "-T", "description"]), @r#"
+    @  also already empty
+    ○  already empty
+    ○  c (will become empty)
+    │ ○  b
+    ├─╯
+    ○  a
+    ◆
+    "#);
+
+    // TODO: Use `-r` instead of `-s` once `-r --skip-emptied` is supported.
+    let (stdout, stderr) = test_env.jj_cmd_ok(
+        &repo_path,
+        &["rebase", "-s", "b", "--before", "c", "--skip-emptied"],
+    );
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r#"
+    Skipped rebase of 1 commits that were already in place
+    Rebased 2 descendant commits
+    Abandoned 1 newly emptied commits
+    Working copy now at: znkkpsqq 873ada86 (empty) also already empty
+    Parent commit      : yostqsxw bfc5dad7 (empty) already empty
+    "#);
+
+    // TODO: Commits not in the rebase target set should not be abandoned even
+    // if they were emptied.
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["log", "-T", "description"]), @r#"
+    @  also already empty
+    ○  already empty
+    ○  b
+    ○  a
+    ◆
+    "#);
+}
+
+#[test]
 fn test_rebase_skip_if_on_destination() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
