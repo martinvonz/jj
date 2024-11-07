@@ -50,10 +50,7 @@ jobs:
     - name: Setup GnuPG [windows]
       if: ${{ matrix.os == 'windows-latest' }}
       run: |
-        $env:PATH = "C:\Windows\system32;C:\Windows;C:\Windows\System32\Wbem;C:\Windows\System32\WindowsPowerShell\v1.0\;C:\ProgramData\chocolatey\bin"
-        [Environment]::SetEnvironmentVariable("Path", $env:PATH, "Machine")
         choco install --yes gpg4win
-        # echo "C:\Program Files (x86)\Gpg4win\..\GnuPG\bin" >> $env:GITHUB_PATH
 
     # The default version of openssh on windows server is quite old (8.1) and doesn't have
     # all the necessary signing/verification commands available (such as -Y find-principals)
