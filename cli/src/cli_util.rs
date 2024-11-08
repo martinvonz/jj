@@ -109,6 +109,7 @@ use jj_lib::signing::SignInitError;
 use jj_lib::str_util::StringPattern;
 use jj_lib::transaction::Transaction;
 use jj_lib::view::View;
+use jj_lib::working_copy;
 use jj_lib::working_copy::CheckoutStats;
 use jj_lib::working_copy::SnapshotOptions;
 use jj_lib::working_copy::WorkingCopy;
@@ -1031,6 +1032,37 @@ impl WorkspaceCommandHelper {
             return Err(user_error("Concurrent working copy operation. Try again."));
         }
         Ok((locked_ws, wc_commit))
+    }
+
+    pub fn create_and_check_out_recovery_commit(&mut self, ui: &Ui) -> Result<(), CommandError> {
+        self.check_working_copy_writable()?;
+
+        let workspace_id = self.workspace_id().clone();
+        let mut locked_ws = self.workspace.start_working_copy_mutation()?;
+        let (repo, new_commit) = working_copy::create_and_check_out_recovery_commit(
+            locked_ws.locked_wc(),
+            &self.user_repo.repo,
+            workspace_id,
+            self.env.settings(),
+            "RECOVERY COMMIT FROM `jj workspace update-stale`
+
+This commit contains changes that were written to the working copy by an
+operation that was subsequently lost (or was at least unavailable when you ran
+`jj workspace update-stale`). Because the operation was lost, we don't know
+what the parent commits are supposed to be. That means that the diff compared
+to the current parents may contain changes from multiple commits.
+",
+        )?;
+
+        writeln!(
+            ui.status(),
+            "Created and checked out recovery commit {}",
+            short_commit_hash(new_commit.id())
+        )?;
+        locked_ws.finish(repo.op_id().clone())?;
+
+        self.user_repo.repo = repo;
+        Ok(())
     }
 
     pub fn workspace_root(&self) -> &Path {

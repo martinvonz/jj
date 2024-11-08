@@ -49,6 +49,7 @@ use jj_lib::revset::RevsetResolutionError;
 use jj_lib::signing::SignInitError;
 use jj_lib::str_util::StringPatternParseError;
 use jj_lib::view::RenameWorkspaceError;
+use jj_lib::working_copy::RecoverWorkspaceError;
 use jj_lib::working_copy::ResetError;
 use jj_lib::working_copy::SnapshotError;
 use jj_lib::working_copy::WorkingCopyStateError;
@@ -505,6 +506,18 @@ impl From<FilesetParseError> for CommandError {
             user_error_with_message(format!("Failed to parse fileset: {}", err.kind()), err);
         cmd_err.extend_hints(hint);
         cmd_err
+    }
+}
+
+impl From<RecoverWorkspaceError> for CommandError {
+    fn from(err: RecoverWorkspaceError) -> Self {
+        match err {
+            RecoverWorkspaceError::Backend(err) => err.into(),
+            RecoverWorkspaceError::OpHeadsStore(err) => err.into(),
+            RecoverWorkspaceError::Reset(err) => err.into(),
+            RecoverWorkspaceError::RewriteRootCommit(err) => err.into(),
+            err @ RecoverWorkspaceError::WorkspaceMissingWorkingCopy(_) => user_error(err),
+        }
     }
 }
 
