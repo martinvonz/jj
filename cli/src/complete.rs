@@ -43,6 +43,24 @@ pub fn local_bookmarks() -> Vec<CompletionCandidate> {
     })
 }
 
+/// A specific completion function for the `new` argument of `bookmark rename`.
+/// It suggests the `old` argument, because the user may want to fix a typo.
+pub fn bookmark_rename_new() -> Vec<CompletionCandidate> {
+    let mut candidates = Vec::new();
+
+    let bookmark_to_rename = std::env::args_os()
+        .rev()
+        .filter_map(|arg| arg.into_string().ok())
+        .filter(|arg| !arg.starts_with("-"))
+        // The first non-flag argument is the one being completed, the second
+        // one is the "old" argument.
+        .nth(1);
+    if let Some(bookmark) = bookmark_to_rename {
+        candidates.push(CompletionCandidate::new(bookmark));
+    }
+    candidates
+}
+
 /// Shell out to jj during dynamic completion generation
 ///
 /// In case of errors, print them and early return an empty vector.

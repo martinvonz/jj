@@ -115,3 +115,18 @@ fn test_completions_are_generated() {
     let stdout = test_env.jj_cmd_success(test_env.env_root(), &["--"]);
     assert!(stdout.starts_with("complete --keep-order --exclusive --command jj --arguments"));
 }
+
+#[test]
+fn test_bookmark_rename_old_new() {
+    let mut test_env = TestEnvironment::default();
+
+    test_env.add_config(r#"git.push-bookmark-prefix = "fancy-prefix/""#);
+
+    test_env.add_env_var("COMPLETE", "fish");
+
+    let stdout = test_env.jj_cmd_success(
+        test_env.env_root(),
+        &["--", "jj", "bookmark", "rename", "fancy-old-name", "f"],
+    );
+    insta::assert_snapshot!(stdout, @r"fancy-old-name");
+}
