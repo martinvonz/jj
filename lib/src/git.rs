@@ -20,15 +20,20 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use std::default::Default;
 use std::fmt;
+use std::fs;
+use std::io;
 use std::io::Read;
+use std::path::Path;
 use std::path::PathBuf;
 use std::str;
 
+use bstr::BString;
 use git2::Oid;
 use itertools::Itertools;
 use tempfile::NamedTempFile;
 use thiserror::Error;
 
+use super::git_path_slash;
 use crate::backend::BackendError;
 use crate::backend::CommitId;
 use crate::commit::Commit;
@@ -208,6 +213,331 @@ impl GitImportError {
     fn from_git(source: impl Into<Box<dyn std::error::Error + Send + Sync>>) -> Self {
         GitImportError::InternalGitError(source.into())
     }
+}
+
+/// File::create_new is not stable as of our MSRV 1.76
+/// TODO: replace with fs::File::create_new when we bump it to 1.77
+fn file_create_new<P: AsRef<Path>>(path: P) -> io::Result<fs::File> {
+    fs::File::options()
+        .read(true)
+        .write(true)
+        .create_new(true)
+        .open(path)
+}
+
+#[derive(Error, Debug)]
+pub enum CreateWorktreeError {
+    #[error(
+        "A git worktree named '{name}' already exists ({data_directory} for {working_directory})",
+        data_directory = data_directory.display(),
+        working_directory = working_directory.as_deref().unwrap_or(Path::new("unknown working directory")).display(),
+    )]
+    WorktreeAlreadyExists {
+        name: String,
+        data_directory: PathBuf,
+        working_directory: Option<PathBuf>,
+    },
+    #[error("Could not create directory at {path}: {error}")]
+    CreateDirectory { path: PathBuf, error: io::Error },
+    #[error("IO error while creating git worktree: {0}")]
+    IO(#[from] io::Error),
+    #[error("Could not write empty index file for new worktree: {0}")]
+    GitIndex(git2::Error),
+}
+
+impl CreateWorktreeError {
+    pub fn hint(&self) -> Option<String> {
+        let Self::WorktreeAlreadyExists {
+            working_directory, ..
+        } = self
+        else {
+            return None;
+        };
+
+        if let Some(wd) = working_directory.as_deref() {
+            Some(format!(
+                "You may wish to remove it using `git worktree remove {}`",
+                wd.display()
+            ))
+        } else {
+            Some(
+                "This worktree has been deleted on disk and may be pruned with `git worktree \
+                 prune`."
+                    .to_owned(),
+            )
+        }
+    }
+}
+
+pub fn format_gitfile_path(path: &Path) -> Cow<'_, str> {
+    return git_path_slash::to_slash_lossy(path);
+}
+
+/// `git worktree add` implementation
+///
+/// This function has to be implemented from scratch.
+/// git2 has `Repository::worktree(name, opts)`, but you cannot execute
+/// it when your git repo does not have a HEAD + index, e.g. if it's
+/// not colocated, or if @- is the root commit in JJ. It also has no
+/// options to avoid checking out a tree in the new worktree.
+///
+/// This implementation writes a dummy HEAD and index, and does not
+/// check out any files. JJ is going to be doing all of that momentarily.
+pub fn git_worktree_add(
+    git_repo_path: &Path,
+    destination_path: &Path,
+    name: &str,
+) -> Result<(), CreateWorktreeError> {
+    use io::Write;
+    let dest = destination_path.canonicalize()?;
+    let worktree_dotgit_path = dest.join(".git");
+    let worktrees_path = git_repo_path.join("worktrees");
+    let worktree_data = worktrees_path.join(name);
+    let gitdir_file_path = worktree_data.join("gitdir");
+    if worktree_data.exists() {
+        let working_directory = fs::read_to_string(&gitdir_file_path)
+            .ok()
+            .as_ref()
+            .map(|p| p.trim())
+            .map(Path::new)
+            .and_then(Path::parent)
+            .filter(|p| p.exists())
+            .map(ToOwned::to_owned);
+
+        return Err(CreateWorktreeError::WorktreeAlreadyExists {
+            name: name.to_owned(),
+            data_directory: worktree_data,
+            working_directory,
+        });
+    }
+    // The worktrees path is shared, so mkdir -p
+    fs::create_dir_all(&worktrees_path)
+        // But we must fail if the specific worktree name already exists
+        // This implies we must remove the corresponding worktree when we forget a workspace.
+        .and_then(|()| fs::create_dir(&worktree_data))
+        .map_err(|error| CreateWorktreeError::CreateDirectory {
+            path: worktree_data.clone(),
+            error,
+        })?;
+
+    {
+        let mut commondir_file = file_create_new(worktree_data.join("commondir"))?;
+        commondir_file.write_all(format_gitfile_path(&Path::new("..").join("..")).as_bytes())?;
+        writeln!(commondir_file)?;
+    }
+    {
+        let mut gitdir_file = file_create_new(gitdir_file_path)?;
+        gitdir_file.write_all(format_gitfile_path(&worktree_dotgit_path).as_bytes())?;
+        writeln!(gitdir_file)?;
+    }
+
+    // Create an empty index and a dummy HEAD file, so later git2::Repository::open
+    // calls succeed
+    let mut index =
+        git2::Index::open(&worktree_data.join("index")).map_err(CreateWorktreeError::GitIndex)?;
+    index.write().map_err(CreateWorktreeError::GitIndex)?;
+
+    {
+        let mut head_file = file_create_new(worktree_data.join("HEAD"))?;
+        writeln!(head_file, "ref: {}", jj_lib::git::UNBORN_ROOT_REF_NAME)?;
+    }
+
+    // Only create the .git pointer file once everything else got written
+    // successfully
+    {
+        let mut dot_git = file_create_new(&worktree_dotgit_path)?;
+        write!(dot_git, "gitdir: ")?;
+        dot_git.write_all(format_gitfile_path(&worktree_data).as_bytes())?;
+        writeln!(dot_git)?;
+    }
+
+    Ok(())
+}
+
+#[derive(Error, Debug)]
+pub enum WorktreeRemovalValidationError {
+    #[error(transparent)]
+    ListWorktrees(io::Error),
+    #[error("No such git worktree named '{0}'")]
+    NonexistentWorktree(String),
+    #[error(
+        "Worktree '{name}' was broken, the working directory existed but the .git file was missing: {dotgit}",
+        dotgit = dotgit.display()
+    )]
+    MissingDotGit { name: String, dotgit: PathBuf },
+    #[error("Worktree '{name}' was locked, and could not be removed from git.{}",
+        if reason.is_empty() { "".to_owned() } else { format!(" Reason: \"{reason}\"")}
+    )]
+    Locked { name: String, reason: BString },
+    #[error(
+        "Worktree '{name}' was broken, the working directory existed but the .git file was broken (not a file, worktree for a different repo): {dotgit}",
+        dotgit = dotgit.display()
+    )]
+    BrokenDotGit { name: String, dotgit: PathBuf },
+    #[error("Could not read gitdir in git worktree")]
+    ReadGitdir(io::Error),
+    #[error("Error removing worktree data directory: {0}")]
+    RemoveData(io::Error),
+    #[error("Error removing .git file at {0}: {0}")]
+    RemoveDotGit(PathBuf, io::Error),
+}
+
+impl WorktreeRemovalValidationError {
+    pub fn hint(&self, repo: &gix::Repository) -> Option<String> {
+        let git_dir_env = || {
+            if repo.is_bare() {
+                format!("GIT_DIR={} ", repo.path().display())
+            } else {
+                "".to_owned()
+            }
+        };
+        match self {
+            Self::Locked { name, reason: _ } => Some(format!(
+                "To unlock, run `{}git worktree unlock {name}`.",
+                git_dir_env(),
+            )),
+            _ => None,
+        }
+    }
+}
+
+pub enum WorktreeWorkingDirectoryState {
+    Present { dotgit: PathBuf },
+    Prunable,
+}
+
+/// The data necessary to remove, rename, move, (etc), a worktree
+pub struct WorktreeStat {
+    pub working_directory_state: WorktreeWorkingDirectoryState,
+    pub worktree_data: PathBuf,
+}
+
+impl WorktreeStat {
+    pub fn name(&self) -> &str {
+        self.worktree_data
+            .file_name()
+            .and_then(|x| x.to_str())
+            .expect("WorkTreeStat.worktree_data should have a UTF8 file name, by construction")
+    }
+}
+
+pub fn git_worktree_validate_removal(
+    repo: &gix::Repository,
+    name: &str,
+) -> Result<WorktreeStat, WorktreeRemovalValidationError> {
+    // Not immediately useful, but something that may help in future is that
+    // secondary worktrees have a file called "commondir", but the main .git folder
+    // of a non-bare repo does not have such a file. So you can avoid deleting the
+    // main working directory on this basis. In our case we require a named worktree
+    // and expect to find it in the worktrees subdirectory of the real git repo.
+    // JJ knows where the real git repo is, so it doesn't need to check.
+    //
+    let proxy = repo
+        .worktrees()
+        .map_err(WorktreeRemovalValidationError::ListWorktrees)?
+        .into_iter()
+        .find(|proxy| proxy.id() == bstr::B(name))
+        .ok_or_else(|| WorktreeRemovalValidationError::NonexistentWorktree(name.to_owned()))?;
+
+    let base_path = proxy
+        .base()
+        .map_err(WorktreeRemovalValidationError::ReadGitdir)?;
+
+    if let Some(reason) = proxy.lock_reason() {
+        return Err(WorktreeRemovalValidationError::Locked {
+            name: name.to_owned(),
+            reason,
+        });
+    }
+
+    let dotgit = base_path.join(".git");
+
+    let worktrees_path = repo.path().join("worktrees");
+    let worktree_data = worktrees_path.join(name);
+    let worktree_data_canon = worktree_data
+        .canonicalize()
+        .map_err(|_| WorktreeRemovalValidationError::NonexistentWorktree(name.to_string()))?;
+
+    let working_directory_state = if base_path.exists() {
+        // If the working directory exists,  we expect .git to exist and be a file
+        //
+        // git fails in this case with
+        //
+        // > fatal: validation failed, cannot remove working tree: '/private/tmp/fourth/.git' does not exist
+        if !dotgit.exists() {
+            return Err(WorktreeRemovalValidationError::MissingDotGit {
+                name: name.to_owned(),
+                dotgit: dotgit.clone(),
+            });
+        }
+        // Now read the .git file and see if it points back to us
+        //
+        // In all these failure modes, git fails with
+        //
+        // > fatal: validation failed, cannot remove working tree: '/private/tmp/fourth/.git' is not a .git file, error code 7
+        let dotgit_content = fs::read_to_string(&dotgit).map_err(|_io_err| {
+            WorktreeRemovalValidationError::BrokenDotGit {
+                name: name.to_owned(),
+                dotgit: dotgit.clone(),
+            }
+        })?;
+
+        let dotgit_gitdir_canon = dotgit_content
+            .strip_prefix("gitdir: ")
+            .map(|rem| rem.trim())
+            .map(Path::new)
+            .and_then(|p| p.canonicalize().ok())
+            .ok_or_else(|| WorktreeRemovalValidationError::BrokenDotGit {
+                name: name.to_owned(),
+                dotgit: dotgit.clone(),
+            })?;
+
+        if worktree_data_canon != dotgit_gitdir_canon {
+            return Err(WorktreeRemovalValidationError::BrokenDotGit {
+                name: name.to_owned(),
+                dotgit: dotgit.clone(),
+            });
+        }
+
+        // Now, we should also delete the .git file. So keep it around for when we do delete this.
+        WorktreeWorkingDirectoryState::Present { dotgit }
+    } else {
+        WorktreeWorkingDirectoryState::Prunable
+    };
+
+    Ok(WorktreeStat {
+        working_directory_state,
+        worktree_data: worktree_data_canon,
+    })
+}
+
+/// `git worktree remove` implementation
+///
+/// Important note when checking functionality against Git itself --
+/// `git worktree remove` is documented as taking a <worktree> parameter (i.e. a
+/// name) but it only works with paths, or maybe the named method only works
+/// when the last path segment of the worktree location matches the worktree
+/// name.
+pub fn git_worktree_remove(stat: WorktreeStat) -> Result<(), WorktreeRemovalValidationError> {
+    let WorktreeStat {
+        working_directory_state,
+        worktree_data,
+    } = stat;
+    fs::remove_dir_all(&worktree_data).map_err(WorktreeRemovalValidationError::RemoveData)?;
+    let worktrees = worktree_data.parent().unwrap();
+    let any_other_worktree_dirs = worktrees
+        .read_dir()
+        .map_err(WorktreeRemovalValidationError::RemoveData)?
+        .any(|_| true);
+    if !any_other_worktree_dirs {
+        // Remove .git/worktrees entirely
+        fs::remove_dir(worktrees).map_err(WorktreeRemovalValidationError::RemoveData)?;
+    }
+    if let WorktreeWorkingDirectoryState::Present { dotgit } = working_directory_state {
+        fs::remove_file(&dotgit)
+            .map_err(|e| WorktreeRemovalValidationError::RemoveDotGit(dotgit, e))?;
+    }
+    Ok(())
 }
 
 /// Describes changes made by `import_refs()` or `fetch()`.
@@ -1002,7 +1332,15 @@ pub fn reset_head(
             git_repo.set_head_detached(new_git_commit_id)?;
         }
 
-        let is_same_tree = if git_head == &first_parent {
+        let is_same_tree = if git_repo.head().is_err() {
+            // Special case for newly created worktrees, we use a fake ref so that the
+            // repository can be opened at all, in order to get here and write a
+            // new index + head ref.
+            //
+            // Force set the head:
+            git_repo.set_head_detached(new_git_commit_id)?;
+            false
+        } else if git_head == &first_parent {
             true
         } else if let Some(git_head_id) = git_head.as_normal() {
             let git_head_oid = Oid::from_bytes(git_head_id.as_bytes()).unwrap();

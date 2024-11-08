@@ -19,6 +19,7 @@ use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::fmt::Debug;
+use std::fmt::Display;
 use std::fmt::Error;
 use std::fmt::Formatter;
 use std::iter;
@@ -44,6 +45,12 @@ pub struct WorkspaceId(String);
 impl Debug for WorkspaceId {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
         f.debug_tuple("WorkspaceId").field(&self.0).finish()
+    }
+}
+
+impl Display for WorkspaceId {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
+        f.write_str(&self.0)
     }
 }
 
