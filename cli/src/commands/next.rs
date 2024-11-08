@@ -47,8 +47,6 @@ use crate::ui::Ui;
 /// |        |
 /// @        A
 /// ```
-/// If your working-copy commit already has visible children, then `--edit` is
-/// implied.
 #[derive(clap::Args, Clone, Debug)]
 #[command(verbatim_doc_comment)]
 pub(crate) struct NextArgs {

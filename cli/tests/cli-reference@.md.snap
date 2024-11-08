@@ -1389,8 +1389,6 @@ B   =>   @
 |        |
 @        A
 ```
-If your working-copy commit already has visible children, then `--edit` is
-implied.
 
 **Usage:** `jj next [OPTIONS] [OFFSET]`
 
@@ -1682,8 +1680,6 @@ B        B
 |        |
 A        A
 ```
-If the working copy revision already has visible children, then `--edit` is
-implied
 
 **Usage:** `jj prev [OPTIONS] [OFFSET]`
 
