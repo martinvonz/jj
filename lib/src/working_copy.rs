@@ -33,15 +33,19 @@ use crate::gitignore::GitIgnoreError;
 use crate::gitignore::GitIgnoreFile;
 use crate::matchers::EverythingMatcher;
 use crate::matchers::Matcher;
+use crate::op_heads_store::OpHeadsStoreError;
 use crate::op_store::OpStoreError;
 use crate::op_store::OperationId;
 use crate::op_store::WorkspaceId;
 use crate::operation::Operation;
 use crate::repo::ReadonlyRepo;
+use crate::repo::Repo;
+use crate::repo::RewriteRootCommit;
 use crate::repo_path::InvalidRepoPathError;
 use crate::repo_path::RepoPath;
 use crate::repo_path::RepoPathBuf;
 use crate::settings::HumanByteSize;
+use crate::settings::UserSettings;
 use crate::store::Store;
 
 /// The trait all working-copy implementations must implement.
@@ -367,6 +371,58 @@ impl WorkingCopyFreshness {
             }
         }
     }
+}
+
+/// An error while recovering a stale working copy.
+#[derive(Debug, Error)]
+pub enum RecoverWorkspaceError {
+    /// Backend error.
+    #[error(transparent)]
+    Backend(#[from] BackendError),
+    /// Error during transaction.
+    #[error(transparent)]
+    OpHeadsStore(#[from] OpHeadsStoreError),
+    /// Error during checkout.
+    #[error(transparent)]
+    Reset(#[from] ResetError),
+    /// Checkout attempted to modify the root commit.
+    #[error(transparent)]
+    RewriteRootCommit(#[from] RewriteRootCommit),
+    /// Working copy commit is missing.
+    #[error("\"{0:?}\" doesn't have a working-copy commit")]
+    WorkspaceMissingWorkingCopy(WorkspaceId),
+}
+
+/// Recover this workspace to its last known checkout.
+pub fn create_and_check_out_recovery_commit(
+    locked_wc: &mut dyn LockedWorkingCopy,
+    repo: &Arc<ReadonlyRepo>,
+    workspace_id: WorkspaceId,
+    user_settings: &UserSettings,
+    description: &str,
+) -> Result<(Arc<ReadonlyRepo>, Commit), RecoverWorkspaceError> {
+    let mut tx = repo.start_transaction(user_settings);
+    let repo_mut = tx.repo_mut();
+
+    let commit_id = repo
+        .view()
+        .get_wc_commit_id(&workspace_id)
+        .ok_or_else(|| RecoverWorkspaceError::WorkspaceMissingWorkingCopy(workspace_id.clone()))?;
+    let commit = repo.store().get_commit(commit_id)?;
+    let new_commit = repo_mut
+        .new_commit(
+            user_settings,
+            vec![commit_id.clone()],
+            commit.tree_id().clone(),
+        )
+        .set_description(description)
+        .write()?;
+    repo_mut.set_wc_commit(workspace_id, new_commit.id().clone())?;
+
+    let repo = tx.commit("recovery commit")?;
+    locked_wc.recover(&new_commit)?;
+
+    Ok((repo, new_commit))
 }
 
 /// An error while reading the working copy state.

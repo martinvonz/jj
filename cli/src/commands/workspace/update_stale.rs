@@ -12,17 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
 use jj_lib::object_id::ObjectId;
 use jj_lib::op_store::OpStoreError;
-use jj_lib::repo::ReadonlyRepo;
 use jj_lib::repo::Repo;
 use jj_lib::working_copy::WorkingCopyFreshness;
 use tracing::instrument;
 
 use crate::cli_util::print_checkout_stats;
-use crate::cli_util::short_commit_hash;
 use crate::cli_util::CommandHelper;
 use crate::cli_util::WorkspaceCommandHelper;
 use crate::command_error::internal_error_with_message;
@@ -105,51 +101,6 @@ pub fn cmd_workspace_update_stale(
     Ok(())
 }
 
-fn create_and_check_out_recovery_commit(
-    ui: &mut Ui,
-    command: &CommandHelper,
-) -> Result<Arc<ReadonlyRepo>, CommandError> {
-    let mut workspace_command = command.workspace_helper_no_snapshot(ui)?;
-    let workspace_id = workspace_command.workspace_id().clone();
-    let mut tx = workspace_command.start_transaction().into_inner();
-
-    let (mut locked_workspace, commit) =
-        workspace_command.unchecked_start_working_copy_mutation()?;
-    let commit_id = commit.id();
-
-    let mut_repo = tx.repo_mut();
-    let new_commit = mut_repo
-        .new_commit(
-            command.settings(),
-            vec![commit_id.clone()],
-            commit.tree_id().clone(),
-        )
-        .set_description(
-            "RECOVERY COMMIT FROM `jj workspace update-stale`
-
-This commit contains changes that were written to the working copy by an
-operation that was subsequently lost (or was at least unavailable when you ran
-`jj workspace update-stale`). Because the operation was lost, we don't know
-what the parent commits are supposed to be. That means that the diff compared
-to the current parents may contain changes from multiple commits.
-",
-        )
-        .write()?;
-    mut_repo.set_wc_commit(workspace_id, new_commit.id().clone())?;
-    let repo = tx.commit("recovery commit")?;
-
-    locked_workspace.locked_wc().recover(&new_commit)?;
-    locked_workspace.finish(repo.op_id().clone())?;
-
-    writeln!(
-        ui.status(),
-        "Created and checked out recovery commit {}",
-        short_commit_hash(new_commit.id())
-    )?;
-
-    Ok(repo)
-}
-
 /// Loads workspace that will diverge from the last working-copy operation.
 fn for_stale_working_copy(
     ui: &mut Ui,
@@ -166,7 +117,10 @@ fn for_stale_working_copy(
                     "Failed to read working copy's current operation; attempting recovery. Error \
                      message from read attempt: {e}"
                 )?;
-                (create_and_check_out_recovery_commit(ui, command)?, true)
+
+                let mut workspace_command = command.workspace_helper_no_snapshot(ui)?;
+                workspace_command.create_and_check_out_recovery_commit(ui)?;
+                (workspace_command.repo().clone(), true)
             }
             Err(e) => return Err(e.into()),
         }
