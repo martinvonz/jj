@@ -277,6 +277,7 @@ impl GitBackend {
     pub fn load(
         settings: &UserSettings,
         store_path: &Path,
+        _workspace_root: Option<&Path>,
     ) -> Result<Self, Box<GitBackendLoadError>> {
         let git_repo_path = {
             let target_path = store_path.join("git_target");
