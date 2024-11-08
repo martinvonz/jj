@@ -457,6 +457,11 @@
                     "description": "Fileset pattern describing what new files to automatically track on snapshotting. By default all new files are tracked.",
                     "default": "all()"
                 },
+                "auto-update-stale": {
+                    "type": "boolean",
+                    "description": "Whether to automatically update the working copy if it is stale. See https://martinvonz.github.io/jj/latest/working-copy/#stale-working-copy",
+                    "default": "false"
+                },
                 "max-new-file-size": {
                     "type": [
                         "integer",

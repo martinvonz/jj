@@ -45,7 +45,7 @@ pub fn cmd_workspace_update_stale(
             // (since we just updated it), so we can return early.
             return Ok(());
         }
-        StaleWorkingCopy::Snapshotted((_workspace_command, commit)) => commit,
+        StaleWorkingCopy::Snapshotted((_repo, commit)) => commit,
     };
     let mut workspace_command = command.workspace_helper_no_snapshot(ui)?;
 
