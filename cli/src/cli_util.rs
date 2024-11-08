@@ -728,21 +728,14 @@ impl WorkspaceCommandEnvironment {
         }
     }
 
-    fn check_repo_rewritable<'a>(
+    fn find_immutable_commit<'a>(
         &self,
         repo: &dyn Repo,
         commits: impl IntoIterator<Item = &'a CommitId>,
-    ) -> Result<(), CommandError> {
+    ) -> Result<Option<CommitId>, CommandError> {
         if self.command.global_args().ignore_immutable {
             let root_id = repo.store().root_commit_id();
-            return if commits.into_iter().contains(root_id) {
-                Err(user_error(format!(
-                    "The root commit {} is immutable",
-                    short_commit_hash(root_id),
-                )))
-            } else {
-                Ok(())
-            };
+            return Ok(commits.into_iter().find(|id| *id == root_id).cloned());
         }
 
         // Not using self.id_prefix_context() because the disambiguation data
@@ -762,25 +755,7 @@ impl WorkspaceCommandEnvironment {
         let mut commit_id_iter = expression.evaluate_to_commit_ids().map_err(|e| {
             config_error_with_message("Invalid `revset-aliases.immutable_heads()`", e)
         })?;
-
-        if let Some(commit_id) = commit_id_iter.next() {
-            let commit_id = commit_id?;
-            let error = if &commit_id == repo.store().root_commit_id() {
-                user_error(format!(
-                    "The root commit {} is immutable",
-                    short_commit_hash(&commit_id),
-                ))
-            } else {
-                user_error_with_hint(
-                    format!("Commit {} is immutable", short_commit_hash(&commit_id)),
-                    "Pass `--ignore-immutable` or configure the set of immutable commits via \
-                     `revset-aliases.immutable_heads()`.",
-                )
-            };
-            return Err(error);
-        }
-
-        Ok(())
+        Ok(commit_id_iter.next().transpose()?)
     }
 
     /// Parses template of the given language into evaluation tree.
@@ -1534,8 +1509,22 @@ impl WorkspaceCommandHelper {
         &self,
         commits: impl IntoIterator<Item = &'a CommitId>,
     ) -> Result<(), CommandError> {
-        self.env
-            .check_repo_rewritable(self.repo().as_ref(), commits)
+        let Some(commit_id) = self
+            .env
+            .find_immutable_commit(self.repo().as_ref(), commits)?
+        else {
+            return Ok(());
+        };
+        let error = if &commit_id == self.repo().store().root_commit_id() {
+            user_error(format!("The root commit {commit_id:.12} is immutable"))
+        } else {
+            user_error_with_hint(
+                format!("Commit {commit_id:.12} is immutable"),
+                "Pass `--ignore-immutable` or configure the set of immutable commits via \
+                 `revset-aliases.immutable_heads()`.",
+            )
+        };
+        Err(error)
     }
 
     #[instrument(skip_all)]
@@ -1722,8 +1711,8 @@ See https://martinvonz.github.io/jj/latest/working-copy/#stale-working-copy \
         {
             if self
                 .env
-                .check_repo_rewritable(tx.repo(), [wc_commit_id])
-                .is_err()
+                .find_immutable_commit(tx.repo(), [wc_commit_id])?
+                .is_some()
             {
                 let wc_commit = tx.repo().store().get_commit(wc_commit_id)?;
                 tx.repo_mut()
