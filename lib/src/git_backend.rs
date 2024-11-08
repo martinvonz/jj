@@ -277,6 +277,8 @@ impl GitBackend {
     pub fn load(
         settings: &UserSettings,
         store_path: &Path,
+        // TODO: open this instead, if present, using store_path to validate worktrees etc
+        _workspace_root: Option<&Path>,
     ) -> Result<Self, Box<GitBackendLoadError>> {
         let git_repo_path = {
             let target_path = store_path.join("git_target");

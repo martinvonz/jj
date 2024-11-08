@@ -191,12 +191,18 @@ impl TestRepo {
         let mut factories = StoreFactories::default();
         factories.add_backend(
             "test",
-            Box::new(|_settings, store_path| Ok(Box::new(TestBackend::load(store_path)))),
+            Box::new(|_settings, store_path, _workspace_root| {
+                Ok(Box::new(TestBackend::load(store_path)))
+            }),
         );
         factories.add_backend(
             SecretBackend::name(),
-            Box::new(|settings, store_path| {
-                Ok(Box::new(SecretBackend::load(settings, store_path)?))
+            Box::new(|settings, store_path, workspace_root| {
+                Ok(Box::new(SecretBackend::load(
+                    settings,
+                    store_path,
+                    workspace_root,
+                )?))
             }),
         );
         factories
@@ -280,10 +286,15 @@ impl TestWorkspace {
 }
 
 pub fn load_repo_at_head(settings: &UserSettings, repo_path: &Path) -> Arc<ReadonlyRepo> {
-    RepoLoader::init_from_file_system(settings, repo_path, &TestRepo::default_store_factories())
-        .unwrap()
-        .load_at_head(settings)
-        .unwrap()
+    RepoLoader::init_from_file_system(
+        settings,
+        repo_path,
+        &TestRepo::default_store_factories(),
+        None,
+    )
+    .unwrap()
+    .load_at_head(settings)
+    .unwrap()
 }
 
 pub fn commit_transactions(settings: &UserSettings, txs: Vec<Transaction>) -> Arc<ReadonlyRepo> {

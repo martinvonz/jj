@@ -106,7 +106,8 @@ impl JitBackend {
     }
 
     fn load(settings: &UserSettings, store_path: &Path) -> Result<Self, BackendLoadError> {
-        let inner = GitBackend::load(settings, store_path)?;
+        let workspace_root = None;
+        let inner = GitBackend::load(settings, store_path, workspace_root)?;
         Ok(JitBackend { inner })
     }
 }
