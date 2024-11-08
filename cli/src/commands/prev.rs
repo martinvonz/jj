@@ -46,8 +46,6 @@ use crate::ui::Ui;
 /// |        |
 /// A        A
 /// ```
-/// If the working copy revision already has visible children, then `--edit` is
-/// implied
 #[derive(clap::Args, Clone, Debug)]
 #[command(verbatim_doc_comment)]
 pub(crate) struct PrevArgs {
