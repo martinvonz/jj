@@ -77,7 +77,12 @@ pub(crate) struct LogArgs {
     no_graph: bool,
     /// Render each revision using the given template
     ///
-    /// For the syntax, see https://martinvonz.github.io/jj/latest/templates/
+    /// Run `jj log -T` to list the built-in templates.
+    ///
+    /// You can also specify arbitrary template expressions. For the syntax,
+    /// see https://martinvonz.github.io/jj/latest/templates/.
+    ///
+    /// If not specified, this defaults to the `templates.log` setting.
     #[arg(long, short = 'T')]
     template: Option<String>,
     /// Show patch

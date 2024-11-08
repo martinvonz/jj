@@ -114,6 +114,9 @@ pub struct GitPushArgs {
     revisions: Vec<RevisionArg>,
     /// Push this commit by creating a bookmark based on its change ID (can be
     /// repeated)
+    ///
+    /// Use the `git.push-bookmark-prefix` setting to change the prefix for
+    /// generated names.
     #[arg(long, short)]
     change: Vec<RevisionArg>,
     /// Only display what will change on the remote
