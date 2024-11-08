@@ -1958,7 +1958,7 @@ type</a> are available as keywords. For example,
   the content. The <code>label</code> is evaluated as a space-separated string.</li>
 <li><code>raw_escape_sequence(content: Template) -&gt; Template</code>: Preserves any escape
   sequences in <code>content</code> (i.e., bypasses sanitization) and strips labels.
-  Note: This function is intended for escape sequences and as such, it's output
+  Note: This function is intended for escape sequences and as such, its output
   is expected to be invisible / of no display width. Outputting content with
   nonzero display width may break wrapping, indentation etc.</li>
 <li><code>if(condition: Boolean, then: Template[, else: Template]) -&gt; Template</code>:
