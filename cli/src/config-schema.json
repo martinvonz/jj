@@ -452,6 +452,11 @@
             "type": "object",
             "description": "Parameters governing automatic capture of files into the working copy commit",
             "properties": {
+                "auto-track": {
+                    "type": "string",
+                    "description": "Fileset pattern describing what new files to automatically track on snapshotting. By default all new files are tracked.",
+                    "default": "all()"
+                },
                 "max-new-file-size": {
                     "type": [
                         "integer",
