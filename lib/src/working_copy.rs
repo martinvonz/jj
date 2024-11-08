@@ -20,18 +20,24 @@ use std::ffi::OsString;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use itertools::Itertools;
 use thiserror::Error;
+use tracing::instrument;
 
 use crate::backend::BackendError;
 use crate::backend::MergedTreeId;
 use crate::commit::Commit;
+use crate::dag_walk;
 use crate::fsmonitor::FsmonitorSettings;
 use crate::gitignore::GitIgnoreError;
 use crate::gitignore::GitIgnoreFile;
 use crate::matchers::EverythingMatcher;
 use crate::matchers::Matcher;
+use crate::op_store::OpStoreError;
 use crate::op_store::OperationId;
 use crate::op_store::WorkspaceId;
+use crate::operation::Operation;
+use crate::repo::ReadonlyRepo;
 use crate::repo_path::InvalidRepoPathError;
 use crate::repo_path::RepoPath;
 use crate::repo_path::RepoPathBuf;
@@ -308,6 +314,59 @@ pub enum ResetError {
         #[source]
         err: Box<dyn std::error::Error + Send + Sync>,
     },
+}
+
+/// Whether the working copy is stale or not.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum WorkingCopyFreshness {
+    /// The working copy isn't stale, and no need to reload the repo.
+    Fresh,
+    /// The working copy was updated since we loaded the repo. The repo must be
+    /// reloaded at the working copy's operation.
+    Updated(Box<Operation>),
+    /// The working copy is behind the latest operation.
+    WorkingCopyStale,
+    /// The working copy is a sibling of the latest operation.
+    SiblingOperation,
+}
+
+impl WorkingCopyFreshness {
+    /// Determine the freshness of the provided working copy relative to the
+    /// target commit.
+    #[instrument(skip_all)]
+    pub fn check_stale(
+        locked_wc: &dyn LockedWorkingCopy,
+        wc_commit: &Commit,
+        repo: &ReadonlyRepo,
+    ) -> Result<Self, OpStoreError> {
+        // Check if the working copy's tree matches the repo's view
+        let wc_tree_id = locked_wc.old_tree_id();
+        if wc_commit.tree_id() == wc_tree_id {
+            // The working copy isn't stale, and no need to reload the repo.
+            Ok(Self::Fresh)
+        } else {
+            let wc_operation = repo.loader().load_operation(locked_wc.old_operation_id())?;
+            let repo_operation = repo.operation();
+            let ancestor_op = dag_walk::closest_common_node_ok(
+                [Ok(wc_operation.clone())],
+                [Ok(repo_operation.clone())],
+                |op: &Operation| op.id().clone(),
+                |op: &Operation| op.parents().collect_vec(),
+            )?
+            .expect("unrelated operations");
+            if ancestor_op.id() == repo_operation.id() {
+                // The working copy was updated since we loaded the repo. The repo must be
+                // reloaded at the working copy's operation.
+                Ok(Self::Updated(Box::new(wc_operation)))
+            } else if ancestor_op.id() == wc_operation.id() {
+                // The working copy was not updated when some repo operation committed,
+                // meaning that it's stale compared to the repo view.
+                Ok(Self::WorkingCopyStale)
+            } else {
+                Ok(Self::SiblingOperation)
+            }
+        }
+    }
 }
 
 /// An error while reading the working copy state.

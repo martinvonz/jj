@@ -18,13 +18,12 @@ use jj_lib::object_id::ObjectId;
 use jj_lib::op_store::OpStoreError;
 use jj_lib::repo::ReadonlyRepo;
 use jj_lib::repo::Repo;
+use jj_lib::working_copy::WorkingCopyFreshness;
 use tracing::instrument;
 
-use crate::cli_util::check_stale_working_copy;
 use crate::cli_util::print_checkout_stats;
 use crate::cli_util::short_commit_hash;
 use crate::cli_util::CommandHelper;
-use crate::cli_util::WorkingCopyFreshness;
 use crate::cli_util::WorkspaceCommandHelper;
 use crate::command_error::internal_error_with_message;
 use crate::command_error::user_error;
@@ -67,7 +66,7 @@ pub fn cmd_workspace_update_stale(
     let repo = workspace_command.repo().clone();
     let (mut locked_ws, desired_wc_commit) =
         workspace_command.unchecked_start_working_copy_mutation()?;
-    match check_stale_working_copy(locked_ws.locked_wc(), &desired_wc_commit, &repo)? {
+    match WorkingCopyFreshness::check_stale(locked_ws.locked_wc(), &desired_wc_commit, &repo)? {
         WorkingCopyFreshness::Fresh | WorkingCopyFreshness::Updated(_) => {
             writeln!(
                 ui.status(),
