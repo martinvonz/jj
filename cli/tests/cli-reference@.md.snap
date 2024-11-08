@@ -1133,6 +1133,8 @@ Before the command actually moves, creates, or deletes a remote bookmark, it mak
 * `--allow-private` — Allow pushing commits that are private
 * `-r`, `--revisions <REVISIONS>` — Push bookmarks pointing to these commits (can be repeated)
 * `-c`, `--change <CHANGE>` — Push this commit by creating a bookmark based on its change ID (can be repeated)
+
+   Use the `git.push-bookmark-prefix` setting to change the prefix for generated names.
 * `--dry-run` — Only display what will change on the remote
 
 
@@ -1312,7 +1314,11 @@ Spans of revisions that are not included in the graph per `--revisions` are rend
 * `--no-graph` — Don't show the graph, show a flat list of revisions
 * `-T`, `--template <TEMPLATE>` — Render each revision using the given template
 
-   For the syntax, see https://martinvonz.github.io/jj/latest/templates/
+   Run `jj log -T` to list the built-in templates.
+
+   You can also specify arbitrary template expressions. For the syntax, see https://martinvonz.github.io/jj/latest/templates/.
+
+   If not specified, this defaults to the `templates.log` setting.
 * `-p`, `--patch` — Show patch
 * `-s`, `--summary` — For each path, show only whether it was modified, added, or deleted
 * `--stat` — Show a histogram of the changes
