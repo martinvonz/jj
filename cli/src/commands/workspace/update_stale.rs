@@ -12,14 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use jj_lib::op_store::OpStoreError;
-use jj_lib::repo::Repo;
 use jj_lib::working_copy::WorkingCopyFreshness;
 use tracing::instrument;
 
 use crate::cli_util::update_stale_working_copy;
 use crate::cli_util::CommandHelper;
-use crate::cli_util::WorkspaceCommandHelper;
+use crate::cli_util::StaleWorkingCopy;
 use crate::command_error::CommandError;
 use crate::ui::Ui;
 
@@ -40,19 +38,14 @@ pub fn cmd_workspace_update_stale(
     // operation, then merge the divergent operations. The wc_commit_id of the
     // merged repo wouldn't change because the old one wins, but it's probably
     // fine if we picked the new wc_commit_id.
-    let known_wc_commit = {
-        let (mut workspace_command, recovered) = for_stale_working_copy(ui, command)?;
-        workspace_command.maybe_snapshot(ui)?;
-
-        if recovered {
+    let known_wc_commit = match command.load_stale_working_copy_commit(ui)? {
+        StaleWorkingCopy::Recovered(_) => {
             // We have already recovered from the situation that prompted the user to run
             // this command, and it is known that the workspace is not stale
             // (since we just updated it), so we can return early.
             return Ok(());
         }
-
-        let wc_commit_id = workspace_command.get_wc_commit_id().unwrap();
-        workspace_command.repo().store().get_commit(wc_commit_id)?
+        StaleWorkingCopy::Snapshotted((_workspace_command, commit)) => commit,
     };
     let mut workspace_command = command.workspace_helper_no_snapshot(ui)?;
 
@@ -78,31 +71,4 @@ pub fn cmd_workspace_update_stale(
         }
     }
     Ok(())
-}
-
-/// Loads workspace that will diverge from the last working-copy operation.
-fn for_stale_working_copy(
-    ui: &mut Ui,
-    command: &CommandHelper,
-) -> Result<(WorkspaceCommandHelper, bool), CommandError> {
-    let workspace = command.load_workspace()?;
-    let (repo, recovered) = {
-        let op_id = workspace.working_copy().operation_id();
-        match workspace.repo_loader().load_operation(op_id) {
-            Ok(op) => (workspace.repo_loader().load_at(&op)?, false),
-            Err(e @ OpStoreError::ObjectNotFound { .. }) => {
-                writeln!(
-                    ui.status(),
-                    "Failed to read working copy's current operation; attempting recovery. Error \
-                     message from read attempt: {e}"
-                )?;
-
-                let mut workspace_command = command.workspace_helper_no_snapshot(ui)?;
-                workspace_command.create_and_check_out_recovery_commit(ui)?;
-                (workspace_command.repo().clone(), true)
-            }
-            Err(e) => return Err(e.into()),
-        }
-    };
-    Ok((command.for_workable_repo(ui, workspace, repo)?, recovered))
 }
