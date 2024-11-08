@@ -1088,7 +1088,7 @@ fn test_colocated_workspace_wrong_gitdir() {
 
     let (_, stderr) = test_env.jj_cmd_ok(&second_path, &["status"]);
     insta::assert_snapshot!(stderr, @r#"
-    Warning: This workspace has a Git worktree that isn't managed by JJ; it points to a Git repo at $TEST_ENV/other/.git.
+    Warning: This workspace has a Git worktree that isn't managed by JJ; it points to a Git repo at $TEST_ENV/other/.git
     "#);
 }
 
