@@ -283,6 +283,11 @@ struct CommandHelperData {
     working_copy_factories: WorkingCopyFactories,
 }
 
+pub enum StaleWorkingCopy {
+    Recovered(WorkspaceCommandHelper),
+    Snapshotted((Arc<ReadonlyRepo>, Commit)),
+}
+
 impl CommandHelper {
     pub fn app(&self) -> &Command {
         &self.data.app
@@ -411,6 +416,39 @@ impl CommandHelper {
             .map_err(|err| {
                 map_workspace_load_error(err, self.data.global_args.repository.as_deref())
             })
+    }
+
+    pub fn load_stale_working_copy_commit(
+        &self,
+        ui: &Ui,
+    ) -> Result<StaleWorkingCopy, CommandError> {
+        let workspace = self.load_workspace()?;
+        let op_id = workspace.working_copy().operation_id();
+
+        match workspace.repo_loader().load_operation(op_id) {
+            Ok(op) => {
+                let repo = workspace.repo_loader().load_at(&op)?;
+                let mut workspace_command = self.for_workable_repo(ui, workspace, repo)?;
+                workspace_command.maybe_snapshot(ui)?;
+
+                let wc_commit_id = workspace_command.get_wc_commit_id().unwrap();
+                let repo = workspace_command.repo().clone();
+                let wc_commit = repo.store().get_commit(wc_commit_id)?;
+                Ok(StaleWorkingCopy::Snapshotted((repo, wc_commit)))
+            }
+            Err(e @ OpStoreError::ObjectNotFound { .. }) => {
+                writeln!(
+                    ui.status(),
+                    "Failed to read working copy's current operation; attempting recovery. Error \
+                     message from read attempt: {e}"
+                )?;
+
+                let mut workspace_command = self.workspace_helper_no_snapshot(ui)?;
+                workspace_command.create_and_check_out_recovery_commit(ui)?;
+                Ok(StaleWorkingCopy::Recovered(workspace_command))
+            }
+            Err(e) => Err(e.into()),
+        }
     }
 
     /// Loads command environment for the given `workspace`.
@@ -1061,7 +1099,8 @@ to the current parents may contain changes from multiple commits.
         )?;
         locked_ws.finish(repo.op_id().clone())?;
 
-        self.user_repo.repo = repo;
+        self.user_repo = ReadonlyUserRepo::new(repo);
+        self.maybe_snapshot(ui)?;
         Ok(())
     }
 
