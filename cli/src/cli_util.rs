@@ -372,7 +372,49 @@ impl CommandHelper {
     #[instrument(skip(self, ui))]
     pub fn workspace_helper(&self, ui: &Ui) -> Result<WorkspaceCommandHelper, CommandError> {
         let mut workspace_command = self.workspace_helper_no_snapshot(ui)?;
-        workspace_command.maybe_snapshot(ui)?;
+
+        let workspace_command = match workspace_command.maybe_snapshot_impl(ui) {
+            Ok(()) => workspace_command,
+            Err(SnapshotWorkingCopyError::Command(err)) => return Err(err),
+            Err(SnapshotWorkingCopyError::StaleWorkingCopy(err)) => {
+                let auto_update_stale = self
+                    .settings()
+                    .config()
+                    .get_bool("snapshot.auto-update-stale")?;
+                if !auto_update_stale {
+                    return Err(err);
+                }
+
+                // We detected the working copy was stale and the client is configured to
+                // auto-update-stale, so let's do that now. We need to do it up here, not at a
+                // lower level (e.g. inside snapshot_working_copy()) to avoid recursive locking
+                // of the working copy.
+                match self.load_stale_working_copy_commit(ui)? {
+                    StaleWorkingCopy::Recovered(workspace_command) => workspace_command,
+                    StaleWorkingCopy::Snapshotted((repo, stale_commit)) => {
+                        let mut workspace_command = self.workspace_helper_no_snapshot(ui)?;
+                        let (locked_ws, new_commit) =
+                            workspace_command.unchecked_start_working_copy_mutation()?;
+                        let stats = update_stale_working_copy(
+                            locked_ws,
+                            repo.op_id().clone(),
+                            &stale_commit,
+                            &new_commit,
+                        )?;
+                        writeln!(
+                            ui.warning_default(),
+                            "Automatically updated to fresh commit {}",
+                            short_commit_hash(stale_commit.id())
+                        )?;
+                        workspace_command.write_stale_commit_stats(ui, &new_commit, stats)?;
+
+                        workspace_command.user_repo = ReadonlyUserRepo::new(repo);
+                        workspace_command
+                    }
+                }
+            }
+        };
+
         Ok(workspace_command)
     }
 
@@ -854,6 +896,27 @@ pub struct WorkspaceCommandHelper {
     working_copy_shared_with_git: bool,
 }
 
+enum SnapshotWorkingCopyError {
+    Command(CommandError),
+    StaleWorkingCopy(CommandError),
+}
+
+impl SnapshotWorkingCopyError {
+    fn into_command_error(self) -> CommandError {
+        match self {
+            Self::Command(err) => err,
+            Self::StaleWorkingCopy(err) => err,
+        }
+    }
+}
+
+fn snapshot_command_error<E>(err: E) -> SnapshotWorkingCopyError
+where
+    E: Into<CommandError>,
+{
+    SnapshotWorkingCopyError::Command(err.into())
+}
+
 impl WorkspaceCommandHelper {
     #[instrument(skip_all)]
     fn new(
@@ -911,25 +974,32 @@ impl WorkspaceCommandHelper {
         }
     }
 
-    /// Snapshot the working copy if allowed, and import Git refs if the working
-    /// copy is collocated with Git.
     #[instrument(skip_all)]
-    pub fn maybe_snapshot(&mut self, ui: &Ui) -> Result<(), CommandError> {
+    fn maybe_snapshot_impl(&mut self, ui: &Ui) -> Result<(), SnapshotWorkingCopyError> {
         if self.may_update_working_copy {
             if self.working_copy_shared_with_git {
-                self.import_git_head(ui)?;
+                self.import_git_head(ui).map_err(snapshot_command_error)?;
             }
             // Because the Git refs (except HEAD) aren't imported yet, the ref
             // pointing to the new working-copy commit might not be exported.
             // In that situation, the ref would be conflicted anyway, so export
             // failure is okay.
             self.snapshot_working_copy(ui)?;
+
             // import_git_refs() can rebase the working-copy commit.
             if self.working_copy_shared_with_git {
-                self.import_git_refs(ui)?;
+                self.import_git_refs(ui).map_err(snapshot_command_error)?;
             }
         }
         Ok(())
+    }
+
+    /// Snapshot the working copy if allowed, and import Git refs if the working
+    /// copy is collocated with Git.
+    #[instrument(skip_all)]
+    pub fn maybe_snapshot(&mut self, ui: &Ui) -> Result<(), CommandError> {
+        self.maybe_snapshot_impl(ui)
+            .map_err(|err| err.into_command_error())
     }
 
     /// Imports new HEAD from the colocated Git repo.
@@ -1072,7 +1142,7 @@ impl WorkspaceCommandHelper {
         Ok((locked_ws, wc_commit))
     }
 
-    pub fn create_and_check_out_recovery_commit(&mut self, ui: &Ui) -> Result<(), CommandError> {
+    fn create_and_check_out_recovery_commit(&mut self, ui: &Ui) -> Result<(), CommandError> {
         self.check_working_copy_writable()?;
 
         let workspace_id = self.workspace_id().clone();
@@ -1098,10 +1168,9 @@ to the current parents may contain changes from multiple commits.
             short_commit_hash(new_commit.id())
         )?;
         locked_ws.finish(repo.op_id().clone())?;
-
         self.user_repo = ReadonlyUserRepo::new(repo);
-        self.maybe_snapshot(ui)?;
-        Ok(())
+
+        self.maybe_snapshot(ui)
     }
 
     pub fn workspace_root(&self) -> &Path {
@@ -1620,13 +1689,14 @@ to the current parents may contain changes from multiple commits.
     }
 
     #[instrument(skip_all)]
-    fn snapshot_working_copy(&mut self, ui: &Ui) -> Result<(), CommandError> {
+    fn snapshot_working_copy(&mut self, ui: &Ui) -> Result<(), SnapshotWorkingCopyError> {
         let workspace_id = self.workspace_id().to_owned();
         let get_wc_commit = |repo: &ReadonlyRepo| -> Result<Option<_>, _> {
             repo.view()
                 .get_wc_commit_id(&workspace_id)
                 .map(|id| repo.store().get_commit(id))
                 .transpose()
+                .map_err(snapshot_command_error)
         };
         let repo = self.repo().clone();
         let Some(wc_commit) = get_wc_commit(&repo)? else {
@@ -1634,20 +1704,34 @@ to the current parents may contain changes from multiple commits.
             // committing the working copy.
             return Ok(());
         };
-        let base_ignores = self.base_ignores()?;
-        let auto_tracking_matcher = self.auto_tracking_matcher(ui)?;
+        let base_ignores = self.base_ignores().map_err(snapshot_command_error)?;
+        let auto_tracking_matcher = self
+            .auto_tracking_matcher(ui)
+            .map_err(snapshot_command_error)?;
 
         // Compare working-copy tree and operation with repo's, and reload as needed.
-        let fsmonitor_settings = self.settings().fsmonitor_settings()?;
-        let max_new_file_size = self.settings().max_new_file_size()?;
+        let fsmonitor_settings = self
+            .settings()
+            .fsmonitor_settings()
+            .map_err(snapshot_command_error)?;
+        let max_new_file_size = self
+            .settings()
+            .max_new_file_size()
+            .map_err(snapshot_command_error)?;
         let command = self.env.command.clone();
-        let mut locked_ws = self.workspace.start_working_copy_mutation()?;
+        let mut locked_ws = self
+            .workspace
+            .start_working_copy_mutation()
+            .map_err(snapshot_command_error)?;
         let old_op_id = locked_ws.locked_wc().old_operation_id().clone();
+
         let (repo, wc_commit) =
             match WorkingCopyFreshness::check_stale(locked_ws.locked_wc(), &wc_commit, &repo) {
                 Ok(WorkingCopyFreshness::Fresh) => (repo, wc_commit),
                 Ok(WorkingCopyFreshness::Updated(wc_operation)) => {
-                    let repo = repo.reload_at(&wc_operation)?;
+                    let repo = repo
+                        .reload_at(&wc_operation)
+                        .map_err(snapshot_command_error)?;
                     let wc_commit = if let Some(wc_commit) = get_wc_commit(&repo)? {
                         wc_commit
                     } else {
@@ -1657,43 +1741,52 @@ to the current parents may contain changes from multiple commits.
                     (repo, wc_commit)
                 }
                 Ok(WorkingCopyFreshness::WorkingCopyStale) => {
-                    return Err(user_error_with_hint(
-                        format!(
-                            "The working copy is stale (not updated since operation {}).",
-                            short_operation_hash(&old_op_id)
-                        ),
-                        "Run `jj workspace update-stale` to update it.
+                    return Err(SnapshotWorkingCopyError::StaleWorkingCopy(
+                        user_error_with_hint(
+                            format!(
+                                "The working copy is stale (not updated since operation {}).",
+                                short_operation_hash(&old_op_id)
+                            ),
+                            "Run `jj workspace update-stale` to update it.
 See https://martinvonz.github.io/jj/latest/working-copy/#stale-working-copy \
-                         for more information.",
+                             for more information.",
+                        ),
                     ));
                 }
                 Ok(WorkingCopyFreshness::SiblingOperation) => {
-                    return Err(internal_error(format!(
-                        "The repo was loaded at operation {}, which seems to be a sibling of the \
-                         working copy's operation {}",
-                        short_operation_hash(repo.op_id()),
-                        short_operation_hash(&old_op_id)
+                    return Err(SnapshotWorkingCopyError::StaleWorkingCopy(internal_error(
+                        format!(
+                            "The repo was loaded at operation {}, which seems to be a sibling of \
+                             the working copy's operation {}",
+                            short_operation_hash(repo.op_id()),
+                            short_operation_hash(&old_op_id)
+                        ),
                     )));
                 }
                 Err(OpStoreError::ObjectNotFound { .. }) => {
-                    return Err(user_error_with_hint(
-                        "Could not read working copy's operation.",
-                        "Run `jj workspace update-stale` to recover.
+                    return Err(SnapshotWorkingCopyError::StaleWorkingCopy(
+                        user_error_with_hint(
+                            "Could not read working copy's operation.",
+                            "Run `jj workspace update-stale` to recover.
 See https://martinvonz.github.io/jj/latest/working-copy/#stale-working-copy \
-                         for more information.",
+                             for more information.",
+                        ),
                     ));
                 }
-                Err(e) => return Err(e.into()),
+                Err(e) => return Err(snapshot_command_error(e)),
             };
         self.user_repo = ReadonlyUserRepo::new(repo);
         let progress = crate::progress::snapshot_progress(ui);
-        let new_tree_id = locked_ws.locked_wc().snapshot(&SnapshotOptions {
-            base_ignores,
-            fsmonitor_settings,
-            progress: progress.as_ref().map(|x| x as _),
-            start_tracking_matcher: &auto_tracking_matcher,
-            max_new_file_size,
-        })?;
+        let new_tree_id = locked_ws
+            .locked_wc()
+            .snapshot(&SnapshotOptions {
+                base_ignores,
+                fsmonitor_settings,
+                progress: progress.as_ref().map(|x| x as _),
+                start_tracking_matcher: &auto_tracking_matcher,
+                max_new_file_size,
+            })
+            .map_err(snapshot_command_error)?;
         drop(progress);
         if new_tree_id != *wc_commit.tree_id() {
             let mut tx = start_repo_transaction(
@@ -1706,26 +1799,37 @@ See https://martinvonz.github.io/jj/latest/working-copy/#stale-working-copy \
             let commit = mut_repo
                 .rewrite_commit(command.settings(), &wc_commit)
                 .set_tree_id(new_tree_id)
-                .write()?;
-            mut_repo.set_wc_commit(workspace_id, commit.id().clone())?;
+                .write()
+                .map_err(snapshot_command_error)?;
+            mut_repo
+                .set_wc_commit(workspace_id, commit.id().clone())
+                .map_err(snapshot_command_error)?;
 
             // Rebase descendants
-            let num_rebased = mut_repo.rebase_descendants(command.settings())?;
+            let num_rebased = mut_repo
+                .rebase_descendants(command.settings())
+                .map_err(snapshot_command_error)?;
             if num_rebased > 0 {
                 writeln!(
                     ui.status(),
                     "Rebased {num_rebased} descendant commits onto updated working copy"
-                )?;
+                )
+                .map_err(snapshot_command_error)?;
             }
 
             if self.working_copy_shared_with_git {
-                let refs = git::export_refs(mut_repo)?;
-                print_failed_git_export(ui, &refs)?;
+                let refs = git::export_refs(mut_repo).map_err(snapshot_command_error)?;
+                print_failed_git_export(ui, &refs).map_err(snapshot_command_error)?;
             }
 
-            self.user_repo = ReadonlyUserRepo::new(tx.commit("snapshot working copy")?);
+            let repo = tx
+                .commit("snapshot working copy")
+                .map_err(snapshot_command_error)?;
+            self.user_repo = ReadonlyUserRepo::new(repo);
         }
-        locked_ws.finish(self.user_repo.repo.op_id().clone())?;
+        locked_ws
+            .finish(self.user_repo.repo.op_id().clone())
+            .map_err(snapshot_command_error)?;
         Ok(())
     }
 

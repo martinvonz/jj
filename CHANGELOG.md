@@ -31,6 +31,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   [documentation](https://martinvonz.github.io/jj/latest/install-and-setup/#command-line-completion)
   to activate them.
 
+* Added the config setting `snapshot.auto-update-stale` for automatically
+  running `jj workspace update-stale` when applicable.
+
 ### Fixed bugs
 
 ## [0.23.0] - 2024-11-06
