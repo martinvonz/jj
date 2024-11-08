@@ -685,7 +685,7 @@ fn test_config_unset_for_repo() {
     test_env.jj_cmd_ok(&repo_path, &["config", "unset", "--repo", "test-key"]);
 
     let repo_config_path = repo_path.join(".jj/repo/config.toml");
-    let repo_config_toml = std::fs::read_to_string(&repo_config_path).unwrap();
+    let repo_config_toml = std::fs::read_to_string(repo_config_path).unwrap();
     insta::assert_snapshot!(repo_config_toml, @"");
 }
 

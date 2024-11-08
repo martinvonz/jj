@@ -3514,7 +3514,7 @@ fn test_shallow_commits_lack_parents() {
         for commit in shallow_commits {
             writeln!(buf, "{commit}").unwrap();
         }
-        fs::write(&shallow_file, buf).unwrap();
+        fs::write(shallow_file, buf).unwrap();
     };
     make_shallow(repo, vec![b.id(), c.id()]);
 
