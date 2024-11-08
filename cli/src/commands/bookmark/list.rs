@@ -14,6 +14,7 @@
 
 use std::collections::HashSet;
 
+use clap_complete::ArgValueCandidates;
 use itertools::Itertools;
 use jj_lib::git;
 use jj_lib::revset::RevsetExpression;
@@ -24,6 +25,7 @@ use crate::cli_util::RevisionArg;
 use crate::command_error::CommandError;
 use crate::commit_templater::CommitTemplateLanguage;
 use crate::commit_templater::RefName;
+use crate::complete;
 use crate::ui::Ui;
 
 /// List bookmarks and their targets
@@ -57,6 +59,7 @@ pub struct BookmarkListArgs {
         value_name = "REMOTE",
         conflicts_with_all = ["all_remotes"],
         value_parser = StringPattern::parse,
+        add = ArgValueCandidates::new(complete::git_remotes),
     )]
     remotes: Option<Vec<StringPattern>>,
 

@@ -18,6 +18,7 @@ use std::io;
 use std::io::Write;
 
 use clap::ArgGroup;
+use clap_complete::ArgValueCandidates;
 use itertools::Itertools;
 use jj_lib::backend::CommitId;
 use jj_lib::git;
@@ -46,6 +47,7 @@ use crate::command_error::user_error;
 use crate::command_error::user_error_with_hint;
 use crate::command_error::CommandError;
 use crate::commands::git::get_single_remote;
+use crate::complete;
 use crate::formatter::Formatter;
 use crate::git_util::get_git_repo;
 use crate::git_util::map_git_error;
@@ -76,7 +78,7 @@ use crate::ui::Ui;
 #[command(group(ArgGroup::new("what").args(&["all", "deleted", "tracked"]).conflicts_with("specific")))]
 pub struct GitPushArgs {
     /// The remote to push to (only named remotes are supported)
-    #[arg(long)]
+    #[arg(long, add = ArgValueCandidates::new(complete::git_remotes))]
     remote: Option<String>,
     /// Push only this bookmark, or bookmarks matching a pattern (can be
     /// repeated)
