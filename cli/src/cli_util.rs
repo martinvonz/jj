@@ -1535,6 +1535,22 @@ to the current parents may contain changes from multiple commits.
         self.commit_summary_template().format(commit, formatter)
     }
 
+    pub fn write_stale_commit_stats(
+        &self,
+        ui: &Ui,
+        commit: &Commit,
+        stats: CheckoutStats,
+    ) -> std::io::Result<()> {
+        if let Some(mut formatter) = ui.status_formatter() {
+            write!(formatter, "Working copy now at: ")?;
+            formatter.with_label("working_copy", |fmt| self.write_commit_summary(fmt, commit))?;
+            writeln!(formatter)?;
+        }
+        print_checkout_stats(ui, stats, commit)?;
+
+        Ok(())
+    }
+
     pub fn check_rewritable<'a>(
         &self,
         commits: impl IntoIterator<Item = &'a CommitId>,
@@ -2243,6 +2259,28 @@ pub fn start_repo_transaction(
     quoted_strings.extend(string_args.iter().skip(1).map(shell_escape));
     tx.set_tag("args".to_string(), quoted_strings.join(" "));
     tx
+}
+
+pub fn update_stale_working_copy(
+    mut locked_ws: LockedWorkspace,
+    op_id: OperationId,
+    stale_commit: &Commit,
+    new_commit: &Commit,
+) -> Result<CheckoutStats, CommandError> {
+    // The same check as start_working_copy_mutation(), but with the stale
+    // working-copy commit.
+    if stale_commit.tree_id() != locked_ws.locked_wc().old_tree_id() {
+        return Err(user_error("Concurrent working copy operation. Try again."));
+    }
+    let stats = locked_ws.locked_wc().check_out(new_commit).map_err(|err| {
+        internal_error_with_message(
+            format!("Failed to check out commit {}", new_commit.id().hex()),
+            err,
+        )
+    })?;
+    locked_ws.finish(op_id)?;
+
+    Ok(stats)
 }
 
 #[instrument(skip_all)]

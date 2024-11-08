@@ -12,17 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use jj_lib::object_id::ObjectId;
 use jj_lib::op_store::OpStoreError;
 use jj_lib::repo::Repo;
 use jj_lib::working_copy::WorkingCopyFreshness;
 use tracing::instrument;
 
-use crate::cli_util::print_checkout_stats;
+use crate::cli_util::update_stale_working_copy;
 use crate::cli_util::CommandHelper;
 use crate::cli_util::WorkspaceCommandHelper;
-use crate::command_error::internal_error_with_message;
-use crate::command_error::user_error;
 use crate::command_error::CommandError;
 use crate::ui::Ui;
 
@@ -70,32 +67,14 @@ pub fn cmd_workspace_update_stale(
             )?;
         }
         WorkingCopyFreshness::WorkingCopyStale | WorkingCopyFreshness::SiblingOperation => {
-            // The same check as start_working_copy_mutation(), but with the stale
-            // working-copy commit.
-            if known_wc_commit.tree_id() != locked_ws.locked_wc().old_tree_id() {
-                return Err(user_error("Concurrent working copy operation. Try again."));
-            }
-            let stats = locked_ws
-                .locked_wc()
-                .check_out(&desired_wc_commit)
-                .map_err(|err| {
-                    internal_error_with_message(
-                        format!(
-                            "Failed to check out commit {}",
-                            desired_wc_commit.id().hex()
-                        ),
-                        err,
-                    )
-                })?;
-            locked_ws.finish(repo.op_id().clone())?;
-            if let Some(mut formatter) = ui.status_formatter() {
-                write!(formatter, "Working copy now at: ")?;
-                formatter.with_label("working_copy", |fmt| {
-                    workspace_command.write_commit_summary(fmt, &desired_wc_commit)
-                })?;
-                writeln!(formatter)?;
-            }
-            print_checkout_stats(ui, stats, &desired_wc_commit)?;
+            let stats = update_stale_working_copy(
+                locked_ws,
+                repo.op_id().clone(),
+                &known_wc_commit,
+                &desired_wc_commit,
+            )?;
+
+            workspace_command.write_stale_commit_stats(ui, &desired_wc_commit, stats)?;
         }
     }
     Ok(())
