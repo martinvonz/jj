@@ -54,7 +54,6 @@ use jj_lib::backend::CommitId;
 use jj_lib::backend::MergedTreeId;
 use jj_lib::backend::TreeValue;
 use jj_lib::commit::Commit;
-use jj_lib::dag_walk;
 use jj_lib::file_util;
 use jj_lib::fileset;
 use jj_lib::fileset::FilesetDiagnostics;
@@ -111,10 +110,10 @@ use jj_lib::str_util::StringPattern;
 use jj_lib::transaction::Transaction;
 use jj_lib::view::View;
 use jj_lib::working_copy::CheckoutStats;
-use jj_lib::working_copy::LockedWorkingCopy;
 use jj_lib::working_copy::SnapshotOptions;
 use jj_lib::working_copy::WorkingCopy;
 use jj_lib::working_copy::WorkingCopyFactory;
+use jj_lib::working_copy::WorkingCopyFreshness;
 use jj_lib::workspace::default_working_copy_factories;
 use jj_lib::workspace::get_working_copy_factory;
 use jj_lib::workspace::DefaultWorkspaceLoaderFactory;
@@ -1558,7 +1557,7 @@ impl WorkspaceCommandHelper {
         let mut locked_ws = self.workspace.start_working_copy_mutation()?;
         let old_op_id = locked_ws.locked_wc().old_operation_id().clone();
         let (repo, wc_commit) =
-            match check_stale_working_copy(locked_ws.locked_wc(), &wc_commit, &repo) {
+            match WorkingCopyFreshness::check_stale(locked_ws.locked_wc(), &wc_commit, &repo) {
                 Ok(WorkingCopyFreshness::Fresh) => (repo, wc_commit),
                 Ok(WorkingCopyFreshness::Updated(wc_operation)) => {
                     let repo = repo.reload_at(&wc_operation)?;
@@ -2212,55 +2211,6 @@ pub fn start_repo_transaction(
     quoted_strings.extend(string_args.iter().skip(1).map(shell_escape));
     tx.set_tag("args".to_string(), quoted_strings.join(" "));
     tx
-}
-
-/// Whether the working copy is stale or not.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum WorkingCopyFreshness {
-    /// The working copy isn't stale, and no need to reload the repo.
-    Fresh,
-    /// The working copy was updated since we loaded the repo. The repo must be
-    /// reloaded at the working copy's operation.
-    Updated(Box<Operation>),
-    /// The working copy is behind the latest operation.
-    WorkingCopyStale,
-    /// The working copy is a sibling of the latest operation.
-    SiblingOperation,
-}
-
-#[instrument(skip_all)]
-pub fn check_stale_working_copy(
-    locked_wc: &dyn LockedWorkingCopy,
-    wc_commit: &Commit,
-    repo: &ReadonlyRepo,
-) -> Result<WorkingCopyFreshness, OpStoreError> {
-    // Check if the working copy's tree matches the repo's view
-    let wc_tree_id = locked_wc.old_tree_id();
-    if wc_commit.tree_id() == wc_tree_id {
-        // The working copy isn't stale, and no need to reload the repo.
-        Ok(WorkingCopyFreshness::Fresh)
-    } else {
-        let wc_operation = repo.loader().load_operation(locked_wc.old_operation_id())?;
-        let repo_operation = repo.operation();
-        let ancestor_op = dag_walk::closest_common_node_ok(
-            [Ok(wc_operation.clone())],
-            [Ok(repo_operation.clone())],
-            |op: &Operation| op.id().clone(),
-            |op: &Operation| op.parents().collect_vec(),
-        )?
-        .expect("unrelated operations");
-        if ancestor_op.id() == repo_operation.id() {
-            // The working copy was updated since we loaded the repo. The repo must be
-            // reloaded at the working copy's operation.
-            Ok(WorkingCopyFreshness::Updated(Box::new(wc_operation)))
-        } else if ancestor_op.id() == wc_operation.id() {
-            // The working copy was not updated when some repo operation committed,
-            // meaning that it's stale compared to the repo view.
-            Ok(WorkingCopyFreshness::WorkingCopyStale)
-        } else {
-            Ok(WorkingCopyFreshness::SiblingOperation)
-        }
-    }
 }
 
 #[instrument(skip_all)]
