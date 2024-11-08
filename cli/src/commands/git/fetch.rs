@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use clap_complete::ArgValueCandidates;
 use itertools::Itertools;
 use jj_lib::repo::Repo;
 use jj_lib::settings::ConfigResultExt as _;
@@ -21,6 +22,7 @@ use jj_lib::str_util::StringPattern;
 use crate::cli_util::CommandHelper;
 use crate::command_error::CommandError;
 use crate::commands::git::get_single_remote;
+use crate::complete;
 use crate::git_util::get_git_repo;
 use crate::git_util::git_fetch;
 use crate::ui::Ui;
@@ -39,7 +41,11 @@ pub struct GitFetchArgs {
     branch: Vec<StringPattern>,
     /// The remote to fetch from (only named remotes are supported, can be
     /// repeated)
-    #[arg(long = "remote", value_name = "REMOTE")]
+    #[arg(
+        long = "remote",
+        value_name = "REMOTE",
+        add = ArgValueCandidates::new(complete::git_remotes),
+    )]
     remotes: Vec<String>,
     /// Fetch from all remotes
     #[arg(long, conflicts_with = "remotes")]

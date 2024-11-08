@@ -115,3 +115,52 @@ fn test_completions_are_generated() {
     let stdout = test_env.jj_cmd_success(test_env.env_root(), &["--"]);
     assert!(stdout.starts_with("complete --keep-order --exclusive --command jj --arguments"));
 }
+
+#[test]
+fn test_remote_names() {
+    let mut test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init"]);
+
+    test_env.jj_cmd_ok(
+        test_env.env_root(),
+        &["git", "remote", "add", "origin", "git@git.local:user/repo"],
+    );
+
+    test_env.add_env_var("COMPLETE", "fish");
+
+    let stdout = test_env.jj_cmd_success(
+        test_env.env_root(),
+        &["--", "jj", "git", "remote", "remove", "o"],
+    );
+    insta::assert_snapshot!(stdout, @r"origin");
+
+    let stdout = test_env.jj_cmd_success(
+        test_env.env_root(),
+        &["--", "jj", "git", "remote", "rename", "o"],
+    );
+    insta::assert_snapshot!(stdout, @r"origin");
+
+    let stdout = test_env.jj_cmd_success(
+        test_env.env_root(),
+        &["--", "jj", "git", "remote", "set-url", "o"],
+    );
+    insta::assert_snapshot!(stdout, @r"origin");
+
+    let stdout = test_env.jj_cmd_success(
+        test_env.env_root(),
+        &["--", "jj", "git", "push", "--remote", "o"],
+    );
+    insta::assert_snapshot!(stdout, @r"origin");
+
+    let stdout = test_env.jj_cmd_success(
+        test_env.env_root(),
+        &["--", "jj", "git", "fetch", "--remote", "o"],
+    );
+    insta::assert_snapshot!(stdout, @r"origin");
+
+    let stdout = test_env.jj_cmd_success(
+        test_env.env_root(),
+        &["--", "jj", "bookmark", "list", "--remote", "o"],
+    );
+    insta::assert_snapshot!(stdout, @r"origin");
+}

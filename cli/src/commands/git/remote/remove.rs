@@ -12,11 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use clap_complete::ArgValueCandidates;
 use jj_lib::git;
 use jj_lib::repo::Repo;
 
 use crate::cli_util::CommandHelper;
 use crate::command_error::CommandError;
+use crate::complete;
 use crate::git_util::get_git_repo;
 use crate::ui::Ui;
 
@@ -24,6 +26,7 @@ use crate::ui::Ui;
 #[derive(clap::Args, Clone, Debug)]
 pub struct GitRemoteRemoveArgs {
     /// The remote's name
+    #[arg(add = ArgValueCandidates::new(complete::git_remotes))]
     remote: String,
 }
 
