@@ -169,7 +169,7 @@ pub fn do_init(
             // chronological order.
             // No UI, because we're about to call this function again in the workspace
             // command helper, and warnings can be shown then.
-            let colocated = is_colocated_git_workspace(None, &workspace, &repo);
+            let colocated = is_colocated_git_workspace(None, &repo);
             let repo = init_git_refs(ui, command, repo, colocated)?;
             let mut workspace_command = command.for_workable_repo(ui, workspace, repo)?;
             maybe_add_gitignore(&workspace_command)?;

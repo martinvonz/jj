@@ -35,7 +35,6 @@ use jj_lib::op_store::RemoteRef;
 use jj_lib::repo::ReadonlyRepo;
 use jj_lib::repo::Repo;
 use jj_lib::store::Store;
-use jj_lib::workspace::Workspace;
 use unicode_width::UnicodeWidthStr;
 
 use crate::command_error::user_error;
@@ -60,30 +59,20 @@ pub fn get_git_backend_repo(store: &Store) -> Result<git2::Repository, CommandEr
     }
 }
 
-pub fn is_colocated_git_workspace(
-    ui: Option<&Ui>,
-    workspace: &Workspace,
-    repo: &ReadonlyRepo,
-) -> bool {
+pub fn is_colocated_git_workspace(ui: Option<&Ui>, repo: &ReadonlyRepo) -> bool {
     let Some(git_backend) = repo.store().backend_impl().downcast_ref::<GitBackend>() else {
         return false;
     };
 
-    match jj_lib::git::is_colocated_git_workspace(
-        &git_backend.git_repo(),
-        workspace.workspace_root(),
-    ) {
-        Ok(boolean) => boolean,
-        Err(warning) => {
-            if let Some(ui) = ui {
-                writeln!(ui.warning_default(), "{warning}").ok();
-                if let Some(hint) = warning.hint() {
-                    writeln!(ui.hint_default(), "{hint}").ok();
-                }
-            }
-            false
+    let colocation_type = git_backend.colocation_type();
+
+    if let Some((ui, warning)) = ui.zip(colocation_type.warning()) {
+        writeln!(ui.warning_default(), "{warning}").ok();
+        if let Some(hint) = warning.hint() {
+            writeln!(ui.hint_default(), "{hint}").ok();
         }
     }
+    colocation_type.is_colocated()
 }
 
 fn terminal_get_username(ui: &Ui, url: &str) -> Option<String> {
