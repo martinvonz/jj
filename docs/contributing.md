@@ -42,7 +42,7 @@ The commit message should describe the changes in the commit;
 the PR description can even be empty, but feel free to include a personal
 message. We start the commit message with `<topic>: `  and don't use
 [conventional commits](https://www.conventionalcommits.org/en/v1.0.0/). This means if
-you modified a command in the CLI, use its name as the topic, e.g
+you modified a command in the CLI, use its name as the topic, e.g.
 `next/prev: <your-modification>` or `conflicts: <your-modification>`. We don't
 currently have a specific guidelines on what to write in the topic field, but
 the reviewers will help you provide a topic if you have difficulties choosing
