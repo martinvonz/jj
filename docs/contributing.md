@@ -216,6 +216,56 @@ to use" instructions](https://github.com/rui314/mold#how-to-use).
 On recent versions of MacOS, the default linker Rust uses is already
 multi-threaded. It should use all the CPU cores without any configuration.
 
+### Editor setup
+
+#### Visual Studio Code
+
+We recommend at least these settings:
+
+```js
+{
+    "files.insertFinalNewline": true,
+    "files.trimTrailingWhitespace": true,
+    "[rust]": {
+        "files.trimTrailingWhitespace": false
+    }
+}
+```
+
+#### Zed
+
+```js
+// .zed/settings.json
+{
+  "ensure_final_newline_on_save": true,
+  "remove_trailing_whitespace_on_save": true,
+
+  "languages": {
+    // We don't use a formatter for Markdown files, so format_on_save would just
+    // mess with others' docs
+    "Markdown": { "format_on_save": "off" }
+    "Rust": {
+      "format_on_save": "on",
+      // Avoid removing trailing spaces within multi-line string literals
+      "remove_trailing_whitespace_on_save": false
+    }
+  },
+
+  "lsp": {
+    "rust-analyzer": {
+      "initialization_options": {
+        // If you are working on docs and don't need `cargo check`, uncomment
+        // this option:
+        //
+        //   "checkOnSave": false,
+
+        // Use nightly `rustfmt`, equivalent to `cargo +nightly fmt`
+        "rustfmt": { "extraArgs": ["+nightly"] }
+      }
+    }
+  }
+}
+```
 
 ## Previewing the HTML documentation
 
