@@ -9,6 +9,9 @@ result
 *.snap*
 !cli/tests/cli-reference@.md.snap
 
+# mkdocs
+/.venv
+
 # Editor specific ignores
 .idea
 

@@ -179,7 +179,7 @@
           openssh
 
           # For building the documentation website
-          poetry
+          uv
         ] ++ darwinDeps ++ linuxNativeDeps;
 
         shellHook = ''
