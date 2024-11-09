@@ -7060,8 +7060,13 @@ will be removed in a future version.</p>
 </li>
 <li><code>--allow-private</code> — Allow pushing commits that are private</li>
 <li><code>-r</code>, <code>--revisions &lt;REVISIONS&gt;</code> — Push bookmarks pointing to these commits (can be repeated)</li>
-<li><code>-c</code>, <code>--change &lt;CHANGE&gt;</code> — Push this commit by creating a bookmark based on its change ID (can be repeated)</li>
-<li><code>--dry-run</code> — Only display what will change on the remote</li>
+<li>
+<p><code>-c</code>, <code>--change &lt;CHANGE&gt;</code> — Push this commit by creating a bookmark based on its change ID (can be repeated)</p>
+<p>Use the <code>git.push-bookmark-prefix</code> setting to change the prefix for generated names.</p>
+</li>
+<li>
+<p><code>--dry-run</code> — Only display what will change on the remote</p>
+</li>
 </ul>
 <h2 id="jj-git-remote"><code>jj git remote</code><a class="headerlink" href="#jj-git-remote" title="Permanent link">&para;</a></h2>
 <p>Manage Git remotes</p>
@@ -7198,7 +7203,9 @@ will be removed in a future version.</p>
 </li>
 <li>
 <p><code>-T</code>, <code>--template &lt;TEMPLATE&gt;</code> — Render each revision using the given template</p>
-<p>For the syntax, see https://martinvonz.github.io/jj/latest/templates/</p>
+<p>Run <code>jj log -T</code> to list the built-in templates.</p>
+<p>You can also specify arbitrary template expressions. For the syntax, see https://martinvonz.github.io/jj/latest/templates/.</p>
+<p>If not specified, this defaults to the <code>templates.log</code> setting.</p>
 </li>
 <li>
 <p><code>-p</code>, <code>--patch</code> — Show patch</p>
