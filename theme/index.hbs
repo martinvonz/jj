@@ -143,6 +143,9 @@
                             <i class="fa fa-search"></i>
                         </button>
                         {{/if}}
+                        <i>
+                            <version-selector></version-selector>
+                        </i>
                     </div>
 
                     <h1 class="menu-title">{{ book_title }}</h1>
@@ -301,6 +304,8 @@
         {{#each additional_js}}
         <script src="{{ ../path_to_root }}{{this}}"></script>
         {{/each}}
+        
+        <script type="module" src="{{ path_to_root }}versionSelector.js"></script>
 
         {{#if is_print}}
         {{#if mathjax_support}}
