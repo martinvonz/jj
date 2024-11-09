@@ -12,6 +12,10 @@ result
 # See https://insta.rs/docs/settings/#tool-config-file for details.
 .config/insta.yaml
 
+# mkdocs
+/.venv
+/.python-version
+
 # Editor specific ignores
 .idea
 .vscode

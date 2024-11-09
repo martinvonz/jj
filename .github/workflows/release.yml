@@ -100,14 +100,13 @@ jobs:
       - uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b
         with:
           python-version: 3.11
-      - name: Install poetry
-        uses: abatilo/actions-poetry@e78f54a89cb052fff327414dd9ff010b5d2b4dbd
+      - name: Install uv
+        uses: astral-sh/setup-uv@2e657c127d5b1635d5a8e3fa40e0ac50a5bf6992
         with:
-          poetry-version: latest
+          version: "0.5.1"
       - name: Compile docs and zip them up
         run: |
-          poetry install 
-          poetry run -- mkdocs build -f mkdocs-offline.yml
+          uv run -- mkdocs build -f mkdocs-offline.yml
           archive="jj-${{ github.event.release.tag_name }}-docs-html.tar.gz"
           tar czf "$archive" -C "rendered-docs" .
           echo "ASSET=$archive" >> $GITHUB_ENV
@@ -132,10 +131,10 @@ jobs:
       - uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b
         with:
           python-version: 3.11
-      - name: Install poetry
-        uses: abatilo/actions-poetry@e78f54a89cb052fff327414dd9ff010b5d2b4dbd
+      - name: Install uv
+        uses: astral-sh/setup-uv@2e657c127d5b1635d5a8e3fa40e0ac50a5bf6992
         with:
-          poetry-version: latest
+          version: "0.5.1"
       - name: Install dependencies, compile and deploy docs to the "latest release" section of the website
         run: |
           git config user.name 'jj-docs[bot]'
