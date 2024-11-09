@@ -56,7 +56,10 @@ use crate::command_error::user_error;
 use crate::command_error::CommandError;
 use crate::ui::Ui;
 
-/// Manage bookmarks
+// Unlike most other aliases, `b` is defined in the config and can be overridden
+// by the user.
+
+/// Manage bookmarks [default alias: b]
 ///
 /// For information about bookmarks, see
 /// https://martinvonz.github.io/jj/latest/bookmarks.
