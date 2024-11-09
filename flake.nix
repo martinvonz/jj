@@ -118,13 +118,20 @@
               --fish <($out/bin/jj util completion fish) \
               --zsh <($out/bin/jj util completion zsh)
           '';
+
+          meta = {
+            description = "Git-compatible DVCS that is both simple and powerful";
+            homepage = "https://github.com/martinvonz/jj";
+            license = pkgs.lib.licenses.asl20;
+            mainProgram = "jj";
+          };
         };
         default = self.packages.${system}.jujutsu;
       };
 
       apps.default = {
         type = "app";
-        program = "${self.packages.${system}.jujutsu}/bin/jj";
+        program = pkgs.lib.getExe self.packages.${system}.jujutsu;
       };
 
       formatter = pkgs.nixpkgs-fmt;
