@@ -1,0 +1,6 @@
+[book]
+authors = ["Jujutsu contributors"]
+language = "en"
+multilingual = false
+src = "docs"
+title = "Jujutsu"
