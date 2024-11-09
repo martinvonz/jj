@@ -20,7 +20,7 @@ use crate::command_error::user_error;
 use crate::command_error::CommandError;
 use crate::ui::Ui;
 
-/// Rename `old` bookmark name to `new` bookmark name
+/// Rename `old` bookmark name to `new` bookmark name [aliases: r]
 ///
 /// The new bookmark name points at the same commit as the old bookmark name.
 #[derive(clap::Args, Clone, Debug)]

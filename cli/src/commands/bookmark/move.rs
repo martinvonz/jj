@@ -25,7 +25,7 @@ use crate::command_error::user_error_with_hint;
 use crate::command_error::CommandError;
 use crate::ui::Ui;
 
-/// Move existing bookmarks to target revision
+/// Move existing bookmarks to target revision [aliases: m]
 ///
 /// If bookmark names are given, the specified bookmarks will be updated to
 /// point to the target revision.

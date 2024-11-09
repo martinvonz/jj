@@ -22,7 +22,7 @@ use crate::command_error::CommandError;
 use crate::config::ConfigNamePathBuf;
 use crate::ui::Ui;
 
-/// Get the value of a given config option.
+/// Get the value of a given config option [aliases: g]
 ///
 /// Unlike `jj config list`, the result of `jj config get` is printed without
 /// extra formatting and therefore is usable in scripting. For example:

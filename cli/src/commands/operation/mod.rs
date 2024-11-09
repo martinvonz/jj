@@ -37,7 +37,7 @@ use crate::cli_util::CommandHelper;
 use crate::command_error::CommandError;
 use crate::ui::Ui;
 
-/// Commands for working with the operation log
+/// Commands for working with the operation log [aliases: op]
 ///
 /// For information about the operation log, see
 /// https://martinvonz.github.io/jj/latest/operation-log/.

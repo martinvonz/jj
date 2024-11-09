@@ -26,7 +26,7 @@ use crate::commit_templater::CommitTemplateLanguage;
 use crate::commit_templater::RefName;
 use crate::ui::Ui;
 
-/// List bookmarks and their targets
+/// List bookmarks and their targets [aliases: l]
 ///
 /// By default, a tracking remote bookmark will be included only if its target
 /// is different from the local target. A non-tracking remote bookmark won't be

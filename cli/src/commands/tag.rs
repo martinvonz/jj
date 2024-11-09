@@ -23,14 +23,14 @@ use crate::ui::Ui;
 /// Manage tags.
 #[derive(clap::Subcommand, Clone, Debug)]
 pub enum TagCommand {
-    #[command(visible_alias("l"))]
+    #[command(alias("l"))]
     List(TagListArgs),
 }
 
 /// List tags.
 #[derive(clap::Args, Clone, Debug)]
 pub struct TagListArgs {
-    /// Show tags whose local name matches
+    /// Show tags whose local name matches [aliases: l]
     ///
     /// By default, the specified name matches exactly. Use `glob:` prefix to
     /// select tags by wildcard pattern. For details, see

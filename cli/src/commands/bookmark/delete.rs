@@ -22,7 +22,7 @@ use crate::command_error::CommandError;
 use crate::ui::Ui;
 
 /// Delete an existing bookmark and propagate the deletion to remotes on the
-/// next push
+/// next push [aliases: d]
 #[derive(clap::Args, Clone, Debug)]
 pub struct BookmarkDeleteArgs {
     /// The bookmarks to delete

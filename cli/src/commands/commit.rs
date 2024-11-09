@@ -26,9 +26,9 @@ use crate::description_util::join_message_paragraphs;
 use crate::text_util::parse_author;
 use crate::ui::Ui;
 
-/// Update the description and create a new change on top.
+/// Update the description and create a new change on top [aliases: ci]
 #[derive(clap::Args, Clone, Debug)]
-#[command(visible_aliases=&["ci"])]
+#[command(alias = "ci")]
 pub(crate) struct CommitArgs {
     /// Interactively choose which changes to include in the first commit
     #[arg(short, long)]

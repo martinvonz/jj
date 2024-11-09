@@ -24,7 +24,7 @@ use crate::commit_templater::CommitTemplateLanguage;
 use crate::commit_templater::RefName;
 use crate::ui::Ui;
 
-/// Start tracking given remote bookmarks
+/// Start tracking given remote bookmarks [aliases: t]
 ///
 /// A tracking remote bookmark will be imported as a local bookmark of the same
 /// name. Changes to it will propagate to the existing local bookmark on future

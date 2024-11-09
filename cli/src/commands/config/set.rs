@@ -29,7 +29,7 @@ use crate::config::write_config_value_to_file;
 use crate::config::ConfigNamePathBuf;
 use crate::ui::Ui;
 
-/// Update config file to set the given option to a given value.
+/// Update config file to set the given option to a given value [aliases: s]
 #[derive(clap::Args, Clone, Debug)]
 pub struct ConfigSetArgs {
     #[arg(required = true)]

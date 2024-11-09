@@ -121,7 +121,7 @@ To get started, see the tutorial at https://martinvonz.github.io/jj/latest/tutor
 * `abandon` — Abandon a revision
 * `backout` — Apply the reverse of a revision on top of another revision
 * `bookmark` — Manage bookmarks
-* `commit` — Update the description and create a new change on top
+* `commit` — Update the description and create a new change on top [aliases: ci]
 * `config` — Manage config options
 * `describe` — Update the change description or other metadata [aliases: desc]
 * `diff` — Compare file contents between two revisions
@@ -138,7 +138,7 @@ To get started, see the tutorial at https://martinvonz.github.io/jj/latest/tutor
 * `log` — Show revision history
 * `new` — Create a new, empty change and (by default) edit it in the working copy
 * `next` — Move the working-copy commit to the child revision
-* `operation` — Commands for working with the operation log
+* `operation` — Commands for working with the operation log [aliases: op]
 * `parallelize` — Parallelize revisions by making them siblings
 * `prev` — Change the working copy revision relative to the parent revision
 * `rebase` — Move revisions to different parent(s)
@@ -245,21 +245,21 @@ For information about bookmarks, see https://martinvonz.github.io/jj/latest/book
 
 ###### **Subcommands:**
 
-* `create` — Create a new bookmark
-* `delete` — Delete an existing bookmark and propagate the deletion to remotes on the next push
-* `forget` — Forget everything about a bookmark, including its local and remote targets
-* `list` — List bookmarks and their targets
-* `move` — Move existing bookmarks to target revision
-* `rename` — Rename `old` bookmark name to `new` bookmark name
-* `set` — Create or update a bookmark to point to a certain commit
-* `track` — Start tracking given remote bookmarks
+* `create` — Create a new bookmark [aliases: c]
+* `delete` — Delete an existing bookmark and propagate the deletion to remotes on the next push [aliases: d]
+* `forget` — Forget everything about a bookmark, including its local and remote targets [aliases: f]
+* `list` — List bookmarks and their targets [aliases: l]
+* `move` — Move existing bookmarks to target revision [aliases: m]
+* `rename` — Rename `old` bookmark name to `new` bookmark name [aliases: r]
+* `set` — Create or update a bookmark to point to a certain commit [aliases: s]
+* `track` — Start tracking given remote bookmarks [aliases: t]
 * `untrack` — Stop tracking given remote bookmarks
 
 
 
 ## `jj bookmark create`
 
-Create a new bookmark
+Create a new bookmark [aliases: c]
 
 **Usage:** `jj bookmark create [OPTIONS] <NAMES>...`
 
@@ -275,7 +275,7 @@ Create a new bookmark
 
 ## `jj bookmark delete`
 
-Delete an existing bookmark and propagate the deletion to remotes on the next push
+Delete an existing bookmark and propagate the deletion to remotes on the next push [aliases: d]
 
 **Usage:** `jj bookmark delete <NAMES>...`
 
@@ -289,7 +289,7 @@ Delete an existing bookmark and propagate the deletion to remotes on the next pu
 
 ## `jj bookmark forget`
 
-Forget everything about a bookmark, including its local and remote targets
+Forget everything about a bookmark, including its local and remote targets [aliases: f]
 
 A forgotten bookmark will not impact remotes on future pushes. It will be recreated on future pulls if it still exists in the remote.
 
@@ -305,7 +305,7 @@ A forgotten bookmark will not impact remotes on future pushes. It will be recrea
 
 ## `jj bookmark list`
 
-List bookmarks and their targets
+List bookmarks and their targets [aliases: l]
 
 By default, a tracking remote bookmark will be included only if its target is different from the local target. A non-tracking remote bookmark won't be listed. For a conflicted bookmark (both local and remote), old target revisions are preceded by a "-" and new target revisions are preceded by a "+".
 
@@ -342,7 +342,7 @@ For information about bookmarks, see https://martinvonz.github.io/jj/latest/book
 
 ## `jj bookmark move`
 
-Move existing bookmarks to target revision
+Move existing bookmarks to target revision [aliases: m]
 
 If bookmark names are given, the specified bookmarks will be updated to point to the target revision.
 
@@ -372,7 +372,7 @@ $ jj bookmark move --from 'heads(::@- & bookmarks())' --to @-
 
 ## `jj bookmark rename`
 
-Rename `old` bookmark name to `new` bookmark name
+Rename `old` bookmark name to `new` bookmark name [aliases: r]
 
 The new bookmark name points at the same commit as the old bookmark name.
 
@@ -387,7 +387,7 @@ The new bookmark name points at the same commit as the old bookmark name.
 
 ## `jj bookmark set`
 
-Create or update a bookmark to point to a certain commit
+Create or update a bookmark to point to a certain commit [aliases: s]
 
 **Usage:** `jj bookmark set [OPTIONS] <NAMES>...`
 
@@ -404,7 +404,7 @@ Create or update a bookmark to point to a certain commit
 
 ## `jj bookmark track`
 
-Start tracking given remote bookmarks
+Start tracking given remote bookmarks [aliases: t]
 
 A tracking remote bookmark will be imported as a local bookmark of the same name. Changes to it will propagate to the existing local bookmark on future pulls.
 
@@ -440,7 +440,7 @@ A non-tracking remote bookmark is just a pointer to the last-fetched remote book
 
 ## `jj commit`
 
-Update the description and create a new change on top
+Update the description and create a new change on top [aliases: ci]
 
 **Usage:** `jj commit [OPTIONS] [PATHS]...`
 
@@ -478,18 +478,18 @@ For file locations, supported config options, and other details about jj config,
 
 ###### **Subcommands:**
 
-* `edit` — Start an editor on a jj config file
-* `get` — Get the value of a given config option.
-* `list` — List variables set in config file, along with their values
-* `path` — Print the path to the config file
-* `set` — Update config file to set the given option to a given value
-* `unset` — Update config file to unset the given option
+* `edit` — Start an editor on a jj config file [aliases: e]
+* `get` — Get the value of a given config option [aliases: g]
+* `list` — List variables set in config file, along with their values [aliases: l]
+* `path` — Print the path to the config file [aliases: p]
+* `set` — Update config file to set the given option to a given value [aliases: s]
+* `unset` — Update config file to unset the given option [aliases: u]
 
 
 
 ## `jj config edit`
 
-Start an editor on a jj config file.
+Start an editor on a jj config file [aliases: e]
 
 Creates the file if it doesn't already exist regardless of what the editor does.
 
@@ -504,7 +504,7 @@ Creates the file if it doesn't already exist regardless of what the editor does.
 
 ## `jj config get`
 
-Get the value of a given config option.
+Get the value of a given config option [aliases: g]
 
 Unlike `jj config list`, the result of `jj config get` is printed without
 extra formatting and therefore is usable in scripting. For example:
@@ -524,7 +524,7 @@ Martin von Zweigbergk
 
 ## `jj config list`
 
-List variables set in config file, along with their values
+List variables set in config file, along with their values [aliases: l]
 
 **Usage:** `jj config list [OPTIONS] [NAME]`
 
@@ -552,7 +552,7 @@ List variables set in config file, along with their values
 
 ## `jj config path`
 
-Print the path to the config file
+Print the path to the config file [aliases: p]
 
 A config file at that path may or may not exist.
 
@@ -569,7 +569,7 @@ See `jj config edit` if you'd like to immediately edit the file.
 
 ## `jj config set`
 
-Update config file to set the given option to a given value
+Update config file to set the given option to a given value [aliases: s]
 
 **Usage:** `jj config set <--user|--repo> <NAME> <VALUE>`
 
@@ -587,7 +587,7 @@ Update config file to set the given option to a given value
 
 ## `jj config unset`
 
-Update config file to unset the given option
+Update config file to unset the given option [aliases: u]
 
 **Usage:** `jj config unset <--user|--repo> <NAME>`
 
@@ -1417,7 +1417,7 @@ B   =>   @
 
 ## `jj operation`
 
-Commands for working with the operation log
+Commands for working with the operation log [aliases: op]
 
 For information about the operation log, see https://martinvonz.github.io/jj/latest/operation-log/.
 
@@ -2093,7 +2093,7 @@ List tags
 
 ###### **Arguments:**
 
-* `<NAMES>` — Show tags whose local name matches
+* `<NAMES>` — Show tags whose local name matches [aliases: l]
 
    By default, the specified name matches exactly. Use `glob:` prefix to select tags by wildcard pattern. For details, see https://martinvonz.github.io/jj/latest/revsets/#string-patterns.
 

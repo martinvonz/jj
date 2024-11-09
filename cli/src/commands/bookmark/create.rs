@@ -23,7 +23,7 @@ use crate::command_error::user_error_with_hint;
 use crate::command_error::CommandError;
 use crate::ui::Ui;
 
-/// Create a new bookmark
+/// Create a new bookmark [aliases: c]
 #[derive(clap::Args, Clone, Debug)]
 pub struct BookmarkCreateArgs {
     /// The bookmark's target revision

@@ -24,7 +24,7 @@ use crate::command_error::user_error_with_hint;
 use crate::command_error::CommandError;
 use crate::ui::Ui;
 
-/// Create or update a bookmark to point to a certain commit
+/// Create or update a bookmark to point to a certain commit [aliases: s]
 #[derive(clap::Args, Clone, Debug)]
 pub struct BookmarkSetArgs {
     /// The bookmark's target revision

@@ -25,7 +25,7 @@ use crate::command_error::CommandError;
 use crate::ui::Ui;
 
 /// Forget everything about a bookmark, including its local and remote
-/// targets
+/// targets [aliases: f]
 ///
 /// A forgotten bookmark will not impact remotes on future pushes. It will be
 /// recreated on future pulls if it still exists in the remote.

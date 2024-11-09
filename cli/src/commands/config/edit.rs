@@ -21,7 +21,7 @@ use crate::cli_util::CommandHelper;
 use crate::command_error::CommandError;
 use crate::ui::Ui;
 
-/// Start an editor on a jj config file.
+/// Start an editor on a jj config file [aliases: e]
 ///
 /// Creates the file if it doesn't already exist regardless of what the editor
 /// does.

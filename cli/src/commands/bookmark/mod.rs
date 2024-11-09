@@ -62,21 +62,21 @@ use crate::ui::Ui;
 /// https://martinvonz.github.io/jj/latest/bookmarks.
 #[derive(clap::Subcommand, Clone, Debug)]
 pub enum BookmarkCommand {
-    #[command(visible_alias("c"))]
+    #[command(alias("c"))]
     Create(BookmarkCreateArgs),
-    #[command(visible_alias("d"))]
+    #[command(alias("d"))]
     Delete(BookmarkDeleteArgs),
-    #[command(visible_alias("f"))]
+    #[command(alias("f"))]
     Forget(BookmarkForgetArgs),
-    #[command(visible_alias("l"))]
+    #[command(alias("l"))]
     List(BookmarkListArgs),
-    #[command(visible_alias("m"))]
+    #[command(alias("m"))]
     Move(BookmarkMoveArgs),
-    #[command(visible_alias("r"))]
+    #[command(alias("r"))]
     Rename(BookmarkRenameArgs),
-    #[command(visible_alias("s"))]
+    #[command(alias("s"))]
     Set(BookmarkSetArgs),
-    #[command(visible_alias("t"))]
+    #[command(alias("t"))]
     Track(BookmarkTrackArgs),
     Untrack(BookmarkUntrackArgs),
 }

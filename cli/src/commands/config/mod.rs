@@ -75,17 +75,17 @@ impl ConfigLevelArgs {
 /// config, see https://martinvonz.github.io/jj/latest/config/.
 #[derive(clap::Subcommand, Clone, Debug)]
 pub(crate) enum ConfigCommand {
-    #[command(visible_alias("e"))]
+    #[command(alias("e"))]
     Edit(ConfigEditArgs),
-    #[command(visible_alias("g"))]
+    #[command(alias("g"))]
     Get(ConfigGetArgs),
-    #[command(visible_alias("l"))]
+    #[command(alias("l"))]
     List(ConfigListArgs),
-    #[command(visible_alias("p"))]
+    #[command(alias("p"))]
     Path(ConfigPathArgs),
-    #[command(visible_alias("s"))]
+    #[command(alias("s"))]
     Set(ConfigSetArgs),
-    #[command(visible_alias("u"))]
+    #[command(alias("u"))]
     Unset(ConfigUnsetArgs),
 }
 

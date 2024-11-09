@@ -133,7 +133,7 @@ enum Command {
     New(new::NewArgs),
     Next(next::NextArgs),
     #[command(subcommand)]
-    #[command(visible_alias = "op")]
+    #[command(alias = "op")]
     Operation(operation::OperationCommand),
     Parallelize(parallelize::ParallelizeArgs),
     Prev(prev::PrevArgs),

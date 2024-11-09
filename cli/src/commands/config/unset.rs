@@ -23,7 +23,7 @@ use crate::config::remove_config_value_from_file;
 use crate::config::ConfigNamePathBuf;
 use crate::ui::Ui;
 
-/// Update config file to unset the given option.
+/// Update config file to unset the given option [aliases: u]
 #[derive(clap::Args, Clone, Debug)]
 pub struct ConfigUnsetArgs {
     #[arg(required = true)]
