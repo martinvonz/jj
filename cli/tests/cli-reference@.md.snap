@@ -122,7 +122,7 @@ To get started, see the tutorial at https://martinvonz.github.io/jj/latest/tutor
 
 * `abandon` — Abandon a revision
 * `backout` — Apply the reverse of a revision on top of another revision
-* `bookmark` — Manage bookmarks
+* `bookmark` — Manage bookmarks [default alias: b]
 * `commit` — Update the description and create a new change on top
 * `config` — Manage config options
 * `describe` — Update the change description or other metadata [aliases: desc]
@@ -239,7 +239,7 @@ Apply the reverse of a revision on top of another revision
 
 ## `jj bookmark`
 
-Manage bookmarks
+Manage bookmarks [default alias: b]
 
 For information about bookmarks, see https://martinvonz.github.io/jj/latest/bookmarks.
 
