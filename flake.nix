@@ -129,11 +129,6 @@
         default = self.packages.${system}.jujutsu;
       };
 
-      apps.default = {
-        type = "app";
-        program = pkgs.lib.getExe self.packages.${system}.jujutsu;
-      };
-
       formatter = pkgs.nixpkgs-fmt;
 
       checks.jujutsu = self.packages.${system}.jujutsu.overrideAttrs ({ ... }: {
