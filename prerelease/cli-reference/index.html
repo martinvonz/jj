@@ -2609,6 +2609,30 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#jj-util-exec" class="md-nav__link">
+    <span class="md-ellipsis">
+      jj util exec
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="jj util exec">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#arguments_52" class="md-nav__link">
+    <span class="md-ellipsis">
+      Arguments:
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#jj-util-gc" class="md-nav__link">
     <span class="md-ellipsis">
       jj util gc
@@ -2661,7 +2685,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#arguments_52" class="md-nav__link">
+  <a href="#arguments_53" class="md-nav__link">
     <span class="md-ellipsis">
       Arguments:
     </span>
@@ -2727,7 +2751,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#arguments_53" class="md-nav__link">
+  <a href="#arguments_54" class="md-nav__link">
     <span class="md-ellipsis">
       Arguments:
     </span>
@@ -2760,7 +2784,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#arguments_54" class="md-nav__link">
+  <a href="#arguments_55" class="md-nav__link">
     <span class="md-ellipsis">
       Arguments:
     </span>
@@ -2793,7 +2817,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#arguments_55" class="md-nav__link">
+  <a href="#arguments_56" class="md-nav__link">
     <span class="md-ellipsis">
       Arguments:
     </span>
@@ -5893,6 +5917,30 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#jj-util-exec" class="md-nav__link">
+    <span class="md-ellipsis">
+      jj util exec
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="jj util exec">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#arguments_52" class="md-nav__link">
+    <span class="md-ellipsis">
+      Arguments:
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#jj-util-gc" class="md-nav__link">
     <span class="md-ellipsis">
       jj util gc
@@ -5945,7 +5993,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#arguments_52" class="md-nav__link">
+  <a href="#arguments_53" class="md-nav__link">
     <span class="md-ellipsis">
       Arguments:
     </span>
@@ -6011,7 +6059,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#arguments_53" class="md-nav__link">
+  <a href="#arguments_54" class="md-nav__link">
     <span class="md-ellipsis">
       Arguments:
     </span>
@@ -6044,7 +6092,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#arguments_54" class="md-nav__link">
+  <a href="#arguments_55" class="md-nav__link">
     <span class="md-ellipsis">
       Arguments:
     </span>
@@ -6077,7 +6125,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#arguments_55" class="md-nav__link">
+  <a href="#arguments_56" class="md-nav__link">
     <span class="md-ellipsis">
       Arguments:
     </span>
@@ -6223,6 +6271,7 @@ does not match the <code>jj help</code> output exactly.</p>
 <li><a href="#jj-util"><code>jj util</code>↴</a></li>
 <li><a href="#jj-util-completion"><code>jj util completion</code>↴</a></li>
 <li><a href="#jj-util-config-schema"><code>jj util config-schema</code>↴</a></li>
+<li><a href="#jj-util-exec"><code>jj util exec</code>↴</a></li>
 <li><a href="#jj-util-gc"><code>jj util gc</code>↴</a></li>
 <li><a href="#jj-util-mangen"><code>jj util mangen</code>↴</a></li>
 <li><a href="#jj-util-markdown-help"><code>jj util markdown-help</code>↴</a></li>
@@ -7869,6 +7918,7 @@ commit. This is true in general; it is not specific to this command.</p>
 <ul>
 <li><code>completion</code> — Print a command-line-completion script</li>
 <li><code>config-schema</code> — Print the JSON schema for the jj TOML config format</li>
+<li><code>exec</code> — Execute an external command via jj</li>
 <li><code>gc</code> — Run backend-dependent garbage collection</li>
 <li><code>mangen</code> — Print a ROFF (manpage)</li>
 <li><code>markdown-help</code> — Print the CLI help for all subcommands in Markdown</li>
@@ -7900,6 +7950,44 @@ compinit
 <h2 id="jj-util-config-schema"><code>jj util config-schema</code><a class="headerlink" href="#jj-util-config-schema" title="Permanent link">&para;</a></h2>
 <p>Print the JSON schema for the jj TOML config format</p>
 <p><strong>Usage:</strong> <code>jj util config-schema</code></p>
+<h2 id="jj-util-exec"><code>jj util exec</code><a class="headerlink" href="#jj-util-exec" title="Permanent link">&para;</a></h2>
+<p>Execute an external command via jj</p>
+<p>This is useful for arbitrary aliases.</p>
+<p>!! WARNING !!</p>
+<p>The following technique just provides a convenient syntax for running
+arbitrary code on your system. Using it irresponsibly may cause damage
+ranging from breaking the behavior of <code>jj undo</code> to wiping your file system.
+Exercise the same amount of caution while writing these aliases as you would
+when typing commands into the terminal!</p>
+<p>This feature may be removed or replaced by an embedded scripting language in
+the future.</p>
+<p>Let's assume you have a script called "my-jj-script" in you $PATH and you
+would like to execute it as "jj my-script". You would add the following line
+to your configuration file to achieve that:</p>
+<div class="highlight"><pre><span></span><code><span class="k">[aliases]</span>
+<span class="n">my-script</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;util&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;exec&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;--&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;my-jj-script&quot;</span><span class="p">]</span>
+<span class="c1">#                            ^^^^</span>
+<span class="c1"># This makes sure that flags are passed to your script instead of parsed by jj.</span>
+</code></pre></div>
+<p>If you don't want to manage your script as a separate file, you can even
+inline it into your config file:</p>
+<div class="highlight"><pre><span></span><code><span class="k">[aliases]</span>
+<span class="n">my-inline-script</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;util&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;exec&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;--&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;bash&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;-c&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">#!/usr/bin/env bash</span>
+<span class="s2">set -euo pipefail</span>
+<span class="s2">echo &quot;Look Ma, everything in one file!&quot;</span>
+<span class="s2">echo &quot;args: $@&quot;</span>
+<span class="s2">&quot;&quot;&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;&quot;</span><span class="p">]</span>
+<span class="c1">#    ^^</span>
+<span class="c1"># This last empty string will become &quot;$0&quot; in bash, so your actual arguments</span>
+<span class="c1"># are all included in &quot;$@&quot; and start at &quot;$1&quot; as expected.</span>
+</code></pre></div>
+<p><strong>Usage:</strong> <code>jj util exec &lt;COMMAND&gt; [ARGS]...</code></p>
+<h6 id="arguments_52"><strong>Arguments:</strong><a class="headerlink" href="#arguments_52" title="Permanent link">&para;</a></h6>
+<ul>
+<li><code>&lt;COMMAND&gt;</code> — External command to execute</li>
+<li><code>&lt;ARGS&gt;</code> — Arguments to pass to the external command</li>
+</ul>
 <h2 id="jj-util-gc"><code>jj util gc</code><a class="headerlink" href="#jj-util-gc" title="Permanent link">&para;</a></h2>
 <p>Run backend-dependent garbage collection</p>
 <p><strong>Usage:</strong> <code>jj util gc [OPTIONS]</code></p>
@@ -7920,7 +8008,7 @@ compinit
 <h2 id="jj-undo"><code>jj undo</code><a class="headerlink" href="#jj-undo" title="Permanent link">&para;</a></h2>
 <p>Undo an operation (shortcut for <code>jj op undo</code>)</p>
 <p><strong>Usage:</strong> <code>jj undo [OPTIONS] [OPERATION]</code></p>
-<h6 id="arguments_52"><strong>Arguments:</strong><a class="headerlink" href="#arguments_52" title="Permanent link">&para;</a></h6>
+<h6 id="arguments_53"><strong>Arguments:</strong><a class="headerlink" href="#arguments_53" title="Permanent link">&para;</a></h6>
 <ul>
 <li>
 <p><code>&lt;OPERATION&gt;</code> — The operation to undo</p>
@@ -7965,7 +8053,7 @@ compinit
 <p>Add a workspace</p>
 <p>By default, the new workspace inherits the sparse patterns of the current workspace. You can override this with the <code>--sparse-patterns</code> option.</p>
 <p><strong>Usage:</strong> <code>jj workspace add [OPTIONS] &lt;DESTINATION&gt;</code></p>
-<h6 id="arguments_53"><strong>Arguments:</strong><a class="headerlink" href="#arguments_53" title="Permanent link">&para;</a></h6>
+<h6 id="arguments_54"><strong>Arguments:</strong><a class="headerlink" href="#arguments_54" title="Permanent link">&para;</a></h6>
 <ul>
 <li><code>&lt;DESTINATION&gt;</code> — Where to create the new workspace</li>
 </ul>
@@ -7998,7 +8086,7 @@ compinit
 <p>Stop tracking a workspace's working-copy commit in the repo</p>
 <p>The workspace will not be touched on disk. It can be deleted from disk before or after running this command.</p>
 <p><strong>Usage:</strong> <code>jj workspace forget [WORKSPACES]...</code></p>
-<h6 id="arguments_54"><strong>Arguments:</strong><a class="headerlink" href="#arguments_54" title="Permanent link">&para;</a></h6>
+<h6 id="arguments_55"><strong>Arguments:</strong><a class="headerlink" href="#arguments_55" title="Permanent link">&para;</a></h6>
 <ul>
 <li><code>&lt;WORKSPACES&gt;</code> — Names of the workspaces to forget. By default, forgets only the current workspace</li>
 </ul>
@@ -8008,7 +8096,7 @@ compinit
 <h2 id="jj-workspace-rename"><code>jj workspace rename</code><a class="headerlink" href="#jj-workspace-rename" title="Permanent link">&para;</a></h2>
 <p>Renames the current workspace</p>
 <p><strong>Usage:</strong> <code>jj workspace rename &lt;NEW_WORKSPACE_NAME&gt;</code></p>
-<h6 id="arguments_55"><strong>Arguments:</strong><a class="headerlink" href="#arguments_55" title="Permanent link">&para;</a></h6>
+<h6 id="arguments_56"><strong>Arguments:</strong><a class="headerlink" href="#arguments_56" title="Permanent link">&para;</a></h6>
 <ul>
 <li><code>&lt;NEW_WORKSPACE_NAME&gt;</code> — The name of the workspace to update to</li>
 </ul>

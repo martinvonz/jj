@@ -2941,6 +2941,36 @@ diff as the default with the <code>ui.diff</code> setting. For example:</p>
 <span class="c1"># compared to the `main` bookmark</span>
 <span class="n">aliases</span><span class="p">.</span><span class="n">l</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;log&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;-r&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;(main..@):: | (main..@)-&quot;</span><span class="p">]</span>
 </code></pre></div>
+<p>This alias syntax can only run a single jj command. However, you may want to
+execute multiple jj commands with a single alias, or run arbitrary scripts that
+complement your version control workflow. This can be done, but be aware of the
+danger:</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>The following technique just provides a convenient syntax for running
+arbitrary code on your system. Using it irresponsibly may cause damage
+ranging from breaking the behavior of <code>jj undo</code> to wiping your file system.
+Exercise the same amount of caution while writing these aliases as you would
+when typing commands into the terminal!</p>
+<p>This feature may be removed or replaced by an embedded scripting language in
+the future.</p>
+</div>
+<p>The command <code>jj util exec</code> will simply run any command you pass to it as an
+argument. Additional arguments are passed through. Here are some examples:</p>
+<div class="highlight"><pre><span></span><code><span class="k">[aliases]</span>
+<span class="n">my-script</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;util&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;exec&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;--&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;my-jj-script&quot;</span><span class="p">]</span>
+<span class="c1">#                            ^^^^</span>
+<span class="c1"># This makes sure that flags are passed to your script instead of parsed by jj.</span>
+<span class="n">my-inline-script</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;util&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;exec&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;--&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;bash&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;-c&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">#!/usr/bin/env bash</span>
+<span class="s2">set -euo pipefail</span>
+<span class="s2">echo &quot;Look Ma, everything in one file!&quot;</span>
+<span class="s2">echo &quot;args: $@&quot;</span>
+<span class="s2">&quot;&quot;&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;&quot;</span><span class="p">]</span>
+<span class="c1">#    ^^</span>
+<span class="c1"># This last empty string will become &quot;$0&quot; in bash, so your actual arguments</span>
+<span class="c1"># are all included in &quot;$@&quot; and start at &quot;$1&quot; as expected.</span>
+</code></pre></div>
 <h2 id="editor">Editor<a class="headerlink" href="#editor" title="Permanent link">&para;</a></h2>
 <p>The default editor is set via <code>ui.editor</code>, though there are several places to
 set it. The priority is as follows (environment variables are marked with
