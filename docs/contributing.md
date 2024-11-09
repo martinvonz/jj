@@ -227,33 +227,15 @@ result will look as expected when published to the website.
 
 ### Setting up the prerequisites
 
-To build the website, you must have Python and `poetry 1.8+` installed (the
-latest version is recommended). It is easiest to install `poetry` via `pipx`, as
-explained in the [Poetry installation instructions]. A few helpful points from
-the instructions: `pipx` can often be installed from your distribution, e.g.
-`sudo apt install pipx`; this will usually also install Python for you if
-necessary. Any version of `pipx` will do. If you are installing `pipx` manually,
-you may first need to follow the [Python installation instructions].
+To build the website, you must have `uv` installed. Please see: [Installing uv].
 
-[Python installation instructions]: https://docs.python.org/3/using/index.html
-[Poetry installation instructions]: https://python-poetry.org/docs/#installation
+[Installing uv]: https://docs.astral.sh/uv/getting-started/installation/
 
-Once you have `poetry` installed, you should ask it to install the rest
+Once you have `uv` installed, you should ask it to install the rest
 of the required tools into a virtual environment as follows:
 
 ```shell
-poetry install
-```
-
-You may get requests to "unlock a keyring", [an error messages about failing to
-do so](https://github.com/python-poetry/poetry/issues/1917), or Poetry may
-[simply hang indefinitely](https://github.com/python-poetry/poetry/issues/8623).
-The workaround is to either to unlock the keyring or to run the following, and
-then to try `poetry install` again:
-
-```shell
-# For sh-compatible shells or recent versions of `fish`
-export PYTHON_KEYRING_BACKEND=keyring.backends.fail.Keyring
+uv sync
 ```
 
 ### Building the HTML docs locally (with live reload)
@@ -264,7 +246,7 @@ following the above steps, you should be able to view the docs by running
 ```shell
 # Note: this and all the commands below should be run from the root of
 # the `jj` source tree.
-poetry run -- mkdocs serve
+uv run mkdocs serve
 ```
 
 and opening <http://127.0.0.1:8000> in your browser.
@@ -272,7 +254,7 @@ and opening <http://127.0.0.1:8000> in your browser.
 As you edit the `md` files, the website should be rebuilt and reloaded in your
 browser automatically, unless build errors occur.
 
-You should occasionally check the terminal from which you ran `mkdocs serve` for
+You should occasionally check the terminal from which you ran `uv run mkdocs serve` for
 any build errors or warnings. Warnings about `"GET /versions.json HTTP/1.1" code
 404` are expected and harmless.
 
@@ -286,7 +268,7 @@ the docs for the last stable version.
 
 The different versions of documentation are managed and deployed with
 [`mike`](https://github.com/jimporter/mike), which can be run with
-`poetry run -- mike`.
+`uv run mike`.
 
 On a POSIX system or WSL, one way to build the entire website is as follows (on
 Windows, you'll need to understand and adapt the shell script):
@@ -347,11 +329,11 @@ The script sets up the `site_url` mkdocs config to
 where you loaded the website, some minor website features (like the
 version switching widget) will have reduced functionality.
 
-Then, the script passes the rest of its arguments to `potery run -- mike
-deploy`, which does the rest of the job. Run `poetry run -- mike help deploy` to
+Then, the script passes the rest of its arguments to `uv run mike
+deploy`, which does the rest of the job. Run `uv run mike help deploy` to
 find out what the arguments do.
 
-If you need to do something more complicated, you can use `poetry run -- mike
+If you need to do something more complicated, you can use `uv run mike
 ...` commands. You can also edit the `gh-pages` bookmark directly, but take care
 to avoid files that will be overwritten by future invocations of `mike`. Then,
 you can submit a PR based on the `gh-pages` bookmark of

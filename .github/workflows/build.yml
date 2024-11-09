@@ -126,37 +126,12 @@ jobs:
       - uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b
         with:
           python-version: 3.11
-      - name: Install poetry (latest release)
-        uses: abatilo/actions-poetry@e78f54a89cb052fff327414dd9ff010b5d2b4dbd
+      - name: Install uv
+        uses: astral-sh/setup-uv@2e657c127d5b1635d5a8e3fa40e0ac50a5bf6992
         with:
-          poetry-version: latest
-      - name: Install dependencies
-        run: poetry install 
+          version: "0.5.1"
       - name: Check that `mkdocs` can build the docs
-        run: poetry run -- mkdocs build --strict
-
-  mkdocs-old-poetry:
-    name: Check that MkDocs can build the docs with Poetry 1.8
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-      - uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b
-        with:
-          python-version: 3.11
-      - name: Install poetry
-        uses: abatilo/actions-poetry@e78f54a89cb052fff327414dd9ff010b5d2b4dbd
-        with:
-          # Test with the version of Poetry in Debian stable. If this starts
-          # failing, we should increase this version and document the minimum
-          # necessary version of Poetry in contributing.md.
-          #
-          # One way to install old `poetry` is using `pipx`:
-          #    pipx install 'poetry<1.4' --suffix -1.3
-          poetry-version: 1.8
-      - name: Install dependencies
-        run: poetry install 
-      - name: Check that `mkdocs` can build the docs
-        run: poetry run -- mkdocs build --strict
+        run: uv run -- mkdocs build --strict
 
   cargo-deny:
     runs-on: ubuntu-latest

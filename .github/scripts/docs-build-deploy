@@ -4,7 +4,7 @@
 # Run from the root directory of the project as
 # .github/scripts/docs-build-deploy 'https://martinvonz.github.io' prerelease main
 # All arguments after the first are passed to `mike deploy`, run
-# `poetry run -- mike deploy --help` for options. Note that `mike deploy`
+# `uv run -- mike deploy --help` for options. Note that `mike deploy`
 # creates a commit directly on the `gh-pages` branch.
 set -ev
 
@@ -13,10 +13,6 @@ export "SITE_URL_FOR_MKDOCS=$1"; shift
 # https://github.com/jimporter/mike/issues/103 and
 # https://reproducible-builds.org/docs/source-date-epoch/
 export SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct docs/ mkdocs.yml)
-# https://github.com/python-poetry/poetry/issues/1917 and
-# https://github.com/python-poetry/poetry/issues/8623
-export PYTHON_KEYRING_BACKEND=keyring.backends.fail.Keyring
-poetry install  # Only really needed once per environment unless there are updates
 # TODO: `--alias-type symlink` is the
 # default, and may be nicer in some ways. However,
 # this requires deploying to GH Pages via a "custom GitHub Action", as in
@@ -24,4 +20,4 @@ poetry install  # Only really needed once per environment unless there are updat
 # Otherwise, you get an error:
 # > Site contained a symlink that should be dereferenced: /main.
 # > For more information, see https://docs.github.com/github/working-with-github-pages/troubleshooting-jekyll-build-errors-for-github-pages-sites#config-file-error.
-poetry run -- mike deploy --alias-type copy "$@"
+uv run -- mike deploy --alias-type copy "$@"
