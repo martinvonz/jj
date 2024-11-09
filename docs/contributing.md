@@ -269,47 +269,85 @@ We recommend at least these settings:
 
 ## Previewing the HTML documentation
 
-The documentation for `jj` is automatically published to the website at
+The documentation for `jj` is automatically published online at
 <https://martinvonz.github.io/jj/>.
 
-When editing documentation, we'd appreciate it if you checked that the
-result will look as expected when published to the website.
+When editing documentation, you should check your changes locally — especially
+if you are adding a new page, or doing a major rewrite.
 
-### Setting up the prerequisites
+### Install `uv`
 
-To build the website, you must have `uv` installed (version 0.5.1 or later).
-Please see: [Installing uv].
+The only thing you need is [`uv`][uv] (version 0.5.1 or newer).
 
-[Installing uv]: https://docs.astral.sh/uv/getting-started/installation/
+`uv` is a Python project manager written in Rust. It will fetch the right Python
+version and the dependencies needed to build the docs. Install it like so:
 
-Once you have `uv` installed, you should ask it to install the rest
-of the required tools into a virtual environment as follows:
+[uv]: https://docs.astral.sh/uv/
 
-```shell
-uv sync
-```
+=== "macOS/Linux"
 
-### Building the HTML docs locally (with live reload)
+    ``` { .shell .copy }
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+    ```
 
-The HTML docs are built with [MkDocs](https://github.com/mkdocs/mkdocs). After
-following the above steps, you should be able to view the docs by running
+    !!! note
+        If you don't have `~/.local/bin` in your `PATH`, the installer will
+        modify your shell profile. To avoid it:
 
-```shell
-# Note: this and all the commands below should be run from the root of
-# the `jj` source tree.
+        ``` { .shell .copy }
+        curl -LsSf https://astral.sh/uv/install.sh | env INSTALLER_NO_MODIFY_PATH=1 sh
+        ```
+
+=== "Windows"
+
+    ``` { .shell .copy }
+    powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+    ```
+
+=== "Homebrew"
+
+    ``` { .shell .copy }
+    brew install uv
+    ```
+
+=== "Cargo"
+
+    ``` { .shell .copy }
+    # This might take a while
+    cargo install --git https://github.com/astral-sh/uv uv
+    ```
+
+=== "Other options"
+
+    * Directly download the binaries from GitHub: [uv releases](https://github.com/astral-sh/uv/releases).
+    * Even more options: [Installing uv](https://docs.astral.sh/uv/getting-started/installation/).
+
+### Build the docs
+
+To build the docs, run from the root of the `jj` repository:
+
+``` { .shell .copy }
 uv run mkdocs serve
 ```
 
-and opening <http://127.0.0.1:8000> in your browser.
+Open <http://127.0.0.1:8000> in your browser to see the docs.
 
-As you edit the `md` files, the website should be rebuilt and reloaded in your
-browser automatically, unless build errors occur.
+As you edit the `.md` files in `docs/`, the website should be rebuilt and
+reloaded in your browser automatically.
 
-You should occasionally check the terminal from which you ran `uv run mkdocs serve` for
-any build errors or warnings. Warnings about `"GET /versions.json HTTP/1.1" code
-404` are expected and harmless.
+!!! note "If the docs are not updating"
+    Check the terminal from which you ran `uv run mkdocs serve` for any build
+    errors or warnings. Warnings about `"GET /versions.json HTTP/1.1" code 404`
+    are expected and harmless.
 
-### How to build the entire website (not usually necessary)
+## Building the entire website
+
+!!! tip
+    Building the entire website is not usually necessary. If you are editing
+    documentation, the previous section is enough.
+
+    These instructions are relevant if you are working on the versioning of the
+    documentation that we currently do with `mike`.
 
 The full `jj` website includes the documentation for several `jj` versions
 (`prerelease`, latest release, and the older releases). The top-level
@@ -325,16 +363,18 @@ On a POSIX system or WSL, one way to build the entire website is as follows (on
 Windows, you'll need to understand and adapt the shell script):
 
 1. Check out `jj` as a co-located `jj + git` repository (`jj clone --colocate`),
-cloned from your fork of `jj` (e.g. `jjfan.github.com/jj`). You can also use a
+cloned from your fork of `jj` (e.g. `github.com/jjfan/jj`). You can also use a
 pure Git repo if you prefer.
 
-2. Make sure `jjfan.github.com/jj` includes the `gh-pages` bookmark of the jj repo
+2. Make sure `github.com/jjfan/jj` includes the `gh-pages` bookmark of the jj repo
 and run `git fetch origin gh-pages`.
 
 3. Go to the GitHub repository settings, enable GitHub Pages, and configure them
 to use the `gh-pages` bookmark (this is usually the default).
 
-4. Run the same `sh` script that is used in GitHub CI (details below):
+4. Install `uv` as explained in [Previewing the HTML
+documentation](#previewing-the-html-documentation), and run the same `sh` script
+that is used in GitHub CI (details below):
 
     ```shell
     .github/scripts/docs-build-deploy 'https://jjfan.github.io/jj/'\
@@ -373,7 +413,7 @@ this can be done with:
     If you want to preserve some of the changes you made, you can do `jj bookmark
     set my-changes -r gh-pages` BEFORE running the above commands.
 
-#### Explanation of the `docs-build-deploy` script
+### Explanation of the `docs-build-deploy` script
 
 The script sets up the `site_url` mkdocs config to
 `'https://jjfan.github.io/jj/'`. If this config does not match the URL
