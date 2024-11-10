@@ -114,8 +114,10 @@ pub fn cmd_workspace_add(
         repo_path,
         repo,
         working_copy_factory,
+        command.get_store_factories(),
         workspace_id,
     )?;
+
     writeln!(
         ui.status(),
         "Created workspace in \"{}\"",

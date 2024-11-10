@@ -304,6 +304,7 @@ impl From<WorkspaceInitError> for CommandError {
             }
             WorkspaceInitError::SignInit(err @ SignInitError::UnknownBackend(_)) => user_error(err),
             WorkspaceInitError::SignInit(err) => internal_error(err),
+            WorkspaceInitError::Internal(err) => internal_error(err),
         }
     }
 }

@@ -33,6 +33,7 @@ use crate::file_util::PathError;
 use crate::local_backend::LocalBackend;
 use crate::local_working_copy::LocalWorkingCopy;
 use crate::local_working_copy::LocalWorkingCopyFactory;
+use crate::op_store::OpStoreError;
 use crate::op_store::OperationId;
 use crate::op_store::WorkspaceId;
 use crate::repo::read_store_type;
@@ -45,6 +46,7 @@ use crate::repo::ReadonlyRepo;
 use crate::repo::Repo;
 use crate::repo::RepoInitError;
 use crate::repo::RepoLoader;
+use crate::repo::RepoLoaderError;
 use crate::repo::StoreFactories;
 use crate::repo::StoreLoadError;
 use crate::repo::SubmoduleStoreInitializer;
@@ -75,6 +77,18 @@ pub enum WorkspaceInitError {
     Backend(#[from] BackendInitError),
     #[error(transparent)]
     SignInit(#[from] SignInitError),
+    #[error(transparent)]
+    Internal(#[from] WorkspaceInitInternalError),
+}
+
+#[derive(Error, Debug)]
+pub enum WorkspaceInitInternalError {
+    #[error("Could not load store in newly created workspace: {0}")]
+    LoadStore(#[from] StoreLoadError),
+    #[error("Could not load operation in newly created workspace: {0}")]
+    LoadOperation(#[from] OpStoreError),
+    #[error("Could not load repo in newly created workspace: {0}")]
+    LoadRepo(#[from] RepoLoaderError),
 }
 
 #[derive(Error, Debug)]
@@ -349,8 +363,9 @@ impl Workspace {
         user_settings: &UserSettings,
         workspace_root: &Path,
         repo_path: &Path,
-        repo: &Arc<ReadonlyRepo>,
+        old_repo: &Arc<ReadonlyRepo>,
         working_copy_factory: &dyn WorkingCopyFactory,
+        store_factories: &StoreFactories,
         workspace_id: WorkspaceId,
     ) -> Result<(Self, Arc<ReadonlyRepo>), WorkspaceInitError> {
         let jj_dir = create_jj_dir(workspace_root)?;
@@ -367,9 +382,30 @@ impl Workspace {
             )
             .context(&repo_file_path)?;
 
+        // Load the new repo from the file we just wrote.
+        // This gives e.g. GitBackend has an opportunity to check if we
+        // are colocated, given we have a new workspace root.
+        let repo_loader = RepoLoader::init_from_file_system(
+            user_settings,
+            &repo_path,
+            store_factories,
+            Some(workspace_root),
+        )
+        .map_err(WorkspaceInitInternalError::LoadStore)?;
+
+        // Now load a repo at the current operation. We go through OperationId
+        // as the Operation struct contains a reference to the old workspace's
+        // Store.
+        let current_op = repo_loader
+            .load_operation(old_repo.operation().id())
+            .map_err(WorkspaceInitInternalError::LoadOperation)?;
+        let repo = repo_loader
+            .load_at(&current_op)
+            .map_err(WorkspaceInitInternalError::LoadRepo)?;
+
         let (working_copy, repo) = init_working_copy(
             user_settings,
-            repo,
+            &repo,
             workspace_root,
             &jj_dir,
             working_copy_factory,
@@ -377,10 +413,11 @@ impl Workspace {
         )?;
         let workspace = Workspace::new(
             workspace_root,
-            repo_dir,
+            repo_path.to_path_buf(),
             working_copy,
-            repo.loader().clone(),
+            repo_loader,
         )?;
+
         Ok((workspace, repo))
     }
 

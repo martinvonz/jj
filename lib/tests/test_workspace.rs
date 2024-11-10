@@ -17,6 +17,7 @@ use std::thread;
 use assert_matches::assert_matches;
 use jj_lib::op_store::WorkspaceId;
 use jj_lib::repo::Repo;
+use jj_lib::repo::StoreFactories;
 use jj_lib::workspace::default_working_copy_factories;
 use jj_lib::workspace::default_working_copy_factory;
 use jj_lib::workspace::Workspace;
@@ -57,6 +58,7 @@ fn test_init_additional_workspace() {
         test_workspace.repo_path(),
         &test_workspace.repo,
         &*default_working_copy_factory(),
+        &StoreFactories::default(),
         ws2_id.clone(),
     )
     .unwrap();
