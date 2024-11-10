@@ -1863,46 +1863,45 @@ impl MaybeColocatedGitRepo {
         Self { colocated, ..self }
     }
 
+    /// Try to open `<workspace_root>/.git` as a git repository.
+    ///
+    /// If it succeeds, and the commondir matches JJ's backing repo, then the
+    /// workspace is colocated, and we return the newly opened repository.
+    ///
+    /// Easy to sanity check with git -- if `git` works and addresses the same
+    /// underlying repo (commondir), then the workspace will be colocated. So
+    /// things like worktrees, symlinks, etc just work.
     fn try_detect_colocated_workspace(
         self,
         workspace_root: &Path,
-        _open_opts: gix::open::Options,
+        open_opts: gix::open::Options,
     ) -> Self {
         let store_repo = &self.git_repo;
 
-        // The git backend may be a bare repository if we created it without --colocate
-        // but then created a workspace using `jj workspace add --colocate ../second`
-        let git_backend_workdir = store_repo.work_dir();
-
-        // 1. Check if we are in a colocated workspace, specifically the one that has
-        //    both .git and .jj/repo.
-        // --------------------------------------------------------------------------
-
-        // Fast path -- the paths are the same, without looking through symlinks.
-        if git_backend_workdir == Some(workspace_root) {
-            // We are in a colocated workspace that's home to the real .git directory.
-            // e.g. /repo with /repo/.git
-            return self.with_colocated(true);
-        }
-
-        // Otherwise, canonicalize both the git backend workdir and the workspace
-        let git_backend_workdir_canonical = git_backend_workdir.and_then(|p| p.canonicalize().ok());
-
-        // Colocated workspace should have ".git" directory, file, or symlink. Compare
-        // its parent as the git_workdir might be resolved from the real ".git" path.
-        let workspace_dot_git = workspace_root.join(".git");
-        let Ok(workspace_dot_git_canonical) = workspace_dot_git.canonicalize() else {
+        let Ok(workspace_repo) =
+            gix::ThreadSafeRepository::open_opts(workspace_root.join(".git"), open_opts)
+        else {
+            // If gix can't open it, we are not colocated.
             return self.with_colocated(false);
         };
 
-        // i.e. (/symlink_to_repo -> /repo).canonicalize() == (/repo/.git).parent()
-        if let Some(gbw) = git_backend_workdir_canonical.as_deref() {
-            if workspace_dot_git_canonical.parent() == Some(gbw) {
-                // This is the default workspace of a colocated repo
-                return self.with_colocated(true);
-            }
+        // Especially for worktrees, common_dir() returns paths with ../.. in them,
+        // usually. Must canonicalize.
+        let Ok(workspace_common_dir) = workspace_repo.to_thread_local().common_dir().canonicalize()
+        else {
+            return self.with_colocated(false);
+        };
+        let Ok(store_common_dir) = store_repo.to_thread_local().common_dir().canonicalize() else {
+            return self.with_colocated(false);
+        };
+
+        if workspace_common_dir != store_common_dir {
+            return self.with_colocated(false);
         }
 
-        self.with_colocated(false)
+        Self {
+            git_repo: workspace_repo,
+            colocated: true,
+        }
     }
 }
