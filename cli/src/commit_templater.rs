@@ -404,6 +404,24 @@ impl<'repo> IntoTemplateProperty<'repo> for CommitTemplatePropertyKind<'repo> {
             CommitTemplatePropertyKind::TreeDiff(_) => None,
         }
     }
+
+    fn try_into_eq(self, other: Self) -> Option<Box<dyn TemplateProperty<Output = bool> + 'repo>> {
+        match (self, other) {
+            (CommitTemplatePropertyKind::Core(lhs), CommitTemplatePropertyKind::Core(rhs)) => {
+                lhs.try_into_eq(rhs)
+            }
+            (CommitTemplatePropertyKind::Core(_), _) => None,
+            (CommitTemplatePropertyKind::Commit(_), _) => None,
+            (CommitTemplatePropertyKind::CommitOpt(_), _) => None,
+            (CommitTemplatePropertyKind::CommitList(_), _) => None,
+            (CommitTemplatePropertyKind::RefName(_), _) => None,
+            (CommitTemplatePropertyKind::RefNameOpt(_), _) => None,
+            (CommitTemplatePropertyKind::RefNameList(_), _) => None,
+            (CommitTemplatePropertyKind::CommitOrChangeId(_), _) => None,
+            (CommitTemplatePropertyKind::ShortestIdPrefix(_), _) => None,
+            (CommitTemplatePropertyKind::TreeDiff(_), _) => None,
+        }
+    }
 }
 
 /// Table of functions that translate method call node of self type `T`.

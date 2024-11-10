@@ -188,6 +188,18 @@ impl IntoTemplateProperty<'static> for OperationTemplatePropertyKind {
             OperationTemplatePropertyKind::OperationId(property) => Some(property.into_template()),
         }
     }
+
+    fn try_into_eq(self, other: Self) -> Option<Box<dyn TemplateProperty<Output = bool>>> {
+        match (self, other) {
+            (
+                OperationTemplatePropertyKind::Core(lhs),
+                OperationTemplatePropertyKind::Core(rhs),
+            ) => lhs.try_into_eq(rhs),
+            (OperationTemplatePropertyKind::Core(_), _) => None,
+            (OperationTemplatePropertyKind::Operation(_), _) => None,
+            (OperationTemplatePropertyKind::OperationId(_), _) => None,
+        }
+    }
 }
 
 /// Table of functions that translate method call node of self type `T`.

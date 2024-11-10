@@ -167,6 +167,16 @@ impl<'a, C: 'a> IntoTemplateProperty<'a> for GenericTemplatePropertyKind<'a, C> 
             GenericTemplatePropertyKind::Self_(_) => None,
         }
     }
+
+    fn try_into_eq(self, other: Self) -> Option<Box<dyn TemplateProperty<Output = bool> + 'a>> {
+        match (self, other) {
+            (GenericTemplatePropertyKind::Core(lhs), GenericTemplatePropertyKind::Core(rhs)) => {
+                lhs.try_into_eq(rhs)
+            }
+            (GenericTemplatePropertyKind::Core(_), _) => None,
+            (GenericTemplatePropertyKind::Self_(_), _) => None,
+        }
+    }
 }
 
 /// Function that translates keyword (or 0-ary method call node of the self type
