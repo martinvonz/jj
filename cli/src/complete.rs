@@ -15,6 +15,7 @@
 use clap::FromArgMatches as _;
 use clap_complete::CompletionCandidate;
 use config::Config;
+use itertools::Itertools;
 use jj_lib::workspace::DefaultWorkspaceLoaderFactory;
 use jj_lib::workspace::WorkspaceLoaderFactory as _;
 
@@ -40,6 +41,86 @@ pub fn local_bookmarks() -> Vec<CompletionCandidate> {
         Ok(String::from_utf8_lossy(&output.stdout)
             .lines()
             .map(CompletionCandidate::new)
+            .collect())
+    })
+}
+
+pub fn tracked_bookmarks() -> Vec<CompletionCandidate> {
+    with_jj(|mut jj, _| {
+        let output = jj
+            .arg("bookmark")
+            .arg("list")
+            .arg("--tracked")
+            .arg("--template")
+            .arg(r#"if(remote, name ++ "@" ++ remote ++ "\n")"#)
+            .output()
+            .map_err(user_error)?;
+
+        Ok(String::from_utf8_lossy(&output.stdout)
+            .lines()
+            .map(CompletionCandidate::new)
+            .collect())
+    })
+}
+
+pub fn untracked_bookmarks() -> Vec<CompletionCandidate> {
+    with_jj(|mut jj, config| {
+        let output = jj
+            .arg("bookmark")
+            .arg("list")
+            .arg("--all-remotes")
+            .arg("--template")
+            .arg(r#"if(remote && !tracked, name ++ "@" ++ remote ++ "\n")"#)
+            .output()
+            .map_err(user_error)?;
+
+        let prefix = config.get::<String>("git.push-bookmark-prefix").ok();
+
+        Ok(String::from_utf8_lossy(&output.stdout)
+            .lines()
+            .filter(|bookmark| !bookmark.ends_with("@git"))
+            .map(|bookmark| {
+                let display_order = match prefix.as_ref() {
+                    // own bookmarks are more interesting
+                    Some(prefix) if bookmark.starts_with(prefix) => 0,
+                    _ => 1,
+                };
+                CompletionCandidate::new(bookmark).display_order(Some(display_order))
+            })
+            .collect())
+    })
+}
+
+pub fn bookmarks() -> Vec<CompletionCandidate> {
+    with_jj(|mut jj, config| {
+        let output = jj
+            .arg("bookmark")
+            .arg("list")
+            .arg("--all-remotes")
+            .arg("--template")
+            .arg(r#"separate("@", name, remote) ++ "\n""#)
+            .output()
+            .map_err(user_error)?;
+        let stdout = String::from_utf8_lossy(&output.stdout);
+
+        let prefix = config.get::<String>("git.push-bookmark-prefix").ok();
+
+        Ok((&stdout
+            .lines()
+            .chunk_by(|line| line.split_once('@').map(|t| t.0).unwrap_or(line)))
+            .into_iter()
+            .map(|(bookmark, mut refs)| {
+                let local = refs.any(|r| !r.contains('@'));
+                let mine = prefix.as_ref().is_some_and(|p| bookmark.starts_with(p));
+
+                let display_order = match (local, mine) {
+                    (true, true) => 0,
+                    (true, false) => 1,
+                    (false, true) => 2,
+                    (false, false) => 3,
+                };
+                CompletionCandidate::new(bookmark).display_order(Some(display_order))
+            })
             .collect())
     })
 }

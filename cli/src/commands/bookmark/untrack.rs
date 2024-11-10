@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use clap_complete::ArgValueCandidates;
 use itertools::Itertools as _;
 use jj_lib::git;
 
@@ -19,6 +20,7 @@ use super::find_remote_bookmarks;
 use crate::cli_util::CommandHelper;
 use crate::cli_util::RemoteBookmarkNamePattern;
 use crate::command_error::CommandError;
+use crate::complete;
 use crate::ui::Ui;
 
 /// Stop tracking given remote bookmarks
@@ -34,7 +36,11 @@ pub struct BookmarkUntrackArgs {
     /// https://martinvonz.github.io/jj/latest/revsets/#string-patterns.
     ///
     /// Examples: bookmark@remote, glob:main@*, glob:jjfan-*@upstream
-    #[arg(required = true, value_name = "BOOKMARK@REMOTE")]
+    #[arg(
+        required = true,
+        value_name = "BOOKMARK@REMOTE",
+        add = ArgValueCandidates::new(complete::tracked_bookmarks)
+    )]
     names: Vec<RemoteBookmarkNamePattern>,
 }
 

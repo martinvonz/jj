@@ -15,13 +15,45 @@
 use crate::common::TestEnvironment;
 
 #[test]
-fn test_bookmark_rename() {
+fn test_bookmark_names() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
 
-    test_env.jj_cmd_ok(&repo_path, &["bookmark", "create", "aaa"]);
-    test_env.jj_cmd_ok(&repo_path, &["bookmark", "create", "bbb"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "origin"]);
+    let origin_path = test_env.env_root().join("origin");
+    let origin_git_repo_path = origin_path
+        .join(".jj")
+        .join("repo")
+        .join("store")
+        .join("git");
+
+    test_env.jj_cmd_ok(&repo_path, &["bookmark", "create", "aaa-local"]);
+    test_env.jj_cmd_ok(&repo_path, &["bookmark", "create", "bbb-local"]);
+
+    // add various remote branches
+    test_env.jj_cmd_ok(
+        &repo_path,
+        &[
+            "git",
+            "remote",
+            "add",
+            "origin",
+            origin_git_repo_path.to_str().unwrap(),
+        ],
+    );
+    test_env.jj_cmd_ok(&repo_path, &["bookmark", "create", "aaa-tracked"]);
+    test_env.jj_cmd_ok(&repo_path, &["desc", "-r", "aaa-tracked", "-m", "x"]);
+    test_env.jj_cmd_ok(&repo_path, &["bookmark", "create", "bbb-tracked"]);
+    test_env.jj_cmd_ok(&repo_path, &["desc", "-r", "bbb-tracked", "-m", "x"]);
+    test_env.jj_cmd_ok(&repo_path, &["git", "push", "--bookmark", "glob:*-tracked"]);
+
+    test_env.jj_cmd_ok(&origin_path, &["bookmark", "create", "aaa-untracked"]);
+    test_env.jj_cmd_ok(&origin_path, &["desc", "-r", "aaa-untracked", "-m", "x"]);
+    test_env.jj_cmd_ok(&origin_path, &["bookmark", "create", "bbb-untracked"]);
+    test_env.jj_cmd_ok(&origin_path, &["desc", "-r", "bbb-untracked", "-m", "x"]);
+    test_env.jj_cmd_ok(&origin_path, &["git", "export"]);
+    test_env.jj_cmd_ok(&repo_path, &["git", "fetch"]);
 
     let mut test_env = test_env;
     // Every shell hook is a little different, e.g. the zsh hooks add some
@@ -32,8 +64,10 @@ fn test_bookmark_rename() {
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["--", "jj", "bookmark", "rename", ""]);
     insta::assert_snapshot!(stdout, @r"
-    aaa
-    bbb
+    aaa-local
+    aaa-tracked
+    bbb-local
+    bbb-tracked
     --repository	Path to repository to operate on
     --ignore-working-copy	Don't snapshot the working copy, and don't update it
     --ignore-immutable	Allow rewriting immutable commits
@@ -47,7 +81,51 @@ fn test_bookmark_rename() {
     ");
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["--", "jj", "bookmark", "rename", "a"]);
-    insta::assert_snapshot!(stdout, @"aaa");
+    insta::assert_snapshot!(stdout, @r"
+    aaa-local
+    aaa-tracked
+    ");
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["--", "jj", "bookmark", "delete", "a"]);
+    insta::assert_snapshot!(stdout, @r"
+    aaa-local
+    aaa-tracked
+    ");
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["--", "jj", "bookmark", "forget", "a"]);
+    insta::assert_snapshot!(stdout, @r"
+    aaa-local
+    aaa-tracked
+    aaa-untracked
+    ");
+
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &["--", "jj", "bookmark", "list", "--bookmark", "a"],
+    );
+    insta::assert_snapshot!(stdout, @r"
+    aaa-local
+    aaa-tracked
+    aaa-untracked
+    ");
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["--", "jj", "bookmark", "move", "a"]);
+    insta::assert_snapshot!(stdout, @r"
+    aaa-local
+    aaa-tracked
+    ");
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["--", "jj", "bookmark", "set", "a"]);
+    insta::assert_snapshot!(stdout, @r"
+    aaa-local
+    aaa-tracked
+    ");
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["--", "jj", "bookmark", "track", "a"]);
+    insta::assert_snapshot!(stdout, @"aaa-untracked@origin");
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["--", "jj", "bookmark", "untrack", "a"]);
+    insta::assert_snapshot!(stdout, @"aaa-tracked@origin");
 }
 
 #[test]

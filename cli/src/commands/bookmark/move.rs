@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use clap_complete::ArgValueCandidates;
 use itertools::Itertools as _;
 use jj_lib::object_id::ObjectId as _;
 use jj_lib::op_store::RefTarget;
@@ -23,6 +24,7 @@ use crate::cli_util::CommandHelper;
 use crate::cli_util::RevisionArg;
 use crate::command_error::user_error_with_hint;
 use crate::command_error::CommandError;
+use crate::complete;
 use crate::ui::Ui;
 
 /// Move existing bookmarks to target revision
@@ -62,7 +64,11 @@ pub struct BookmarkMoveArgs {
     /// By default, the specified name matches exactly. Use `glob:` prefix to
     /// select bookmarks by wildcard pattern. For details, see
     /// https://martinvonz.github.io/jj/latest/revsets/#string-patterns.
-    #[arg(group = "source", value_parser = StringPattern::parse)]
+    #[arg(
+        group = "source",
+        value_parser = StringPattern::parse,
+        add = ArgValueCandidates::new(complete::local_bookmarks),
+    )]
     names: Vec<StringPattern>,
 }
 
