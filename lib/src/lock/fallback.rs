@@ -17,8 +17,6 @@ use std::fs::OpenOptions;
 use std::path::PathBuf;
 use std::time::Duration;
 
-use backoff::retry;
-use backoff::ExponentialBackoff;
 use tracing::instrument;
 
 pub struct FileLock {
@@ -26,42 +24,65 @@ pub struct FileLock {
     _file: File,
 }
 
+struct BackoffIterator {
+    next_sleep_secs: f32,
+    elapsed_secs: f32,
+}
+
+impl BackoffIterator {
+    fn new() -> Self {
+        Self {
+            next_sleep_secs: 0.001,
+            elapsed_secs: 0.0,
+        }
+    }
+}
+
+impl Iterator for BackoffIterator {
+    type Item = Duration;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.elapsed_secs >= 10.0 {
+            None
+        } else {
+            let current_sleep = self.next_sleep_secs * (rand::random::<f32>() + 0.5);
+            self.next_sleep_secs *= 1.5;
+            self.elapsed_secs += current_sleep;
+            return Some(Duration::from_secs_f32(current_sleep));
+        }
+    }
+}
+
 impl FileLock {
     pub fn lock(path: PathBuf) -> FileLock {
         let mut options = OpenOptions::new();
         options.create_new(true);
         options.write(true);
-        let try_write_lock_file = || match options.open(&path) {
-            Ok(file) => Ok(FileLock {
-                path: path.clone(),
-                _file: file,
-            }),
-            Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => {
-                Err(backoff::Error::Transient {
-                    err,
-                    retry_after: None,
-                })
+        let mut backoff_iterator = BackoffIterator::new();
+        loop {
+            match options.open(&path) {
+                Ok(file) => {
+                    return FileLock { path, _file: file };
+                }
+                Err(err)
+                    if err.kind() == std::io::ErrorKind::AlreadyExists
+                        || (cfg!(windows)
+                            && err.kind() == std::io::ErrorKind::PermissionDenied) =>
+                {
+                    if let Some(duration) = backoff_iterator.next() {
+                        std::thread::sleep(duration);
+                    } else {
+                        panic!(
+                            "Timed out while trying to create lock file {}: {}",
+                            path.display(),
+                            err
+                        );
+                    }
+                }
+                Err(err) => {
+                    panic!("Failed to create lock file {}: {}", path.display(), err);
+                }
             }
-            Err(err) if cfg!(windows) && err.kind() == std::io::ErrorKind::PermissionDenied => {
-                Err(backoff::Error::Transient {
-                    err,
-                    retry_after: None,
-                })
-            }
-            Err(err) => Err(backoff::Error::Permanent(err)),
-        };
-        let backoff = ExponentialBackoff {
-            initial_interval: Duration::from_millis(1),
-            max_elapsed_time: Some(Duration::from_secs(10)),
-            ..Default::default()
-        };
-        match retry(backoff, try_write_lock_file) {
-            Err(err) => panic!(
-                "failed to create lock file {}: {}",
-                path.to_string_lossy(),
-                err
-            ),
-            Ok(file_lock) => file_lock,
         }
     }
 }
@@ -69,6 +90,6 @@ impl FileLock {
 impl Drop for FileLock {
     #[instrument(skip_all)]
     fn drop(&mut self) {
-        std::fs::remove_file(&self.path).expect("failed to delete lock file");
+        std::fs::remove_file(&self.path).expect("Failed to delete lock file");
     }
 }

@@ -34,7 +34,6 @@ version_check = { workspace = true }
 
 [dependencies]
 async-trait = { workspace = true }
-backoff = { workspace = true }
 blake2 = { workspace = true }
 bstr = { workspace = true }
 chrono = { workspace = true }
