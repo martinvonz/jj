@@ -626,7 +626,7 @@ fn test_fix_immutable_commit() {
     test_env.add_config(r#"revset-aliases."immutable_heads()" = "immutable""#);
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["fix", "-s", "immutable"]);
-    insta::assert_snapshot!(redact(&stderr), @r###"
+    insta::assert_snapshot!(redact(&stderr), @r#"
     Warning: The `fix.tool-command` config option is deprecated and will be removed in a future version.
     Hint: Replace it with the following:
                 [fix.tools.legacy-tool-command]
@@ -634,8 +634,9 @@ fn test_fix_immutable_commit() {
                 patterns = ["all()"]
                 
     Error: Commit e4b41a3ce243 is immutable
+    Hint: Could not modify commit: qpvuntsm e4b41a3c immutable | (no description set)
     Hint: Pass `--ignore-immutable` or configure the set of immutable commits via `revset-aliases.immutable_heads()`.
-    "###);
+    "#);
     let content = test_env.jj_cmd_success(&repo_path, &["file", "show", "file", "-r", "immutable"]);
     insta::assert_snapshot!(content, @"immutable");
     let content = test_env.jj_cmd_success(&repo_path, &["file", "show", "file", "-r", "mutable"]);
