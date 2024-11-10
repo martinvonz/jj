@@ -14,8 +14,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### New features
 
-* Templates now support the `==` logical operator for `Boolean`, `Integer`, and
-  `String` types.
+* Templates now support the `==` and `!=` logical operators for `Boolean`,
+  `Integer`, and `String` types.
 
 * The `jj desc` and `jj st` aliases are now hidden to not interfere with shell
   completion. They remain available.

@@ -638,7 +638,7 @@ fn build_binary_operation<'a, L: TemplateLanguage<'a> + ?Sized>(
             let out = lhs.and_then(move |l| Ok(l && rhs.extract()?));
             Ok(L::wrap_boolean(out))
         }
-        BinaryOp::LogicalEq => {
+        BinaryOp::LogicalEq | BinaryOp::LogicalNe => {
             let lhs = build_expression(language, diagnostics, build_ctx, lhs_node)?;
             let rhs = build_expression(language, diagnostics, build_ctx, rhs_node)?;
             let lty = lhs.type_name();
@@ -647,7 +647,11 @@ fn build_binary_operation<'a, L: TemplateLanguage<'a> + ?Sized>(
                 let message = format!(r#"Cannot compare expressions of type "{lty}" and "{rty}""#);
                 TemplateParseError::expression(message, span)
             })?;
-            Ok(L::wrap_boolean(out))
+            match op {
+                BinaryOp::LogicalEq => Ok(L::wrap_boolean(out)),
+                BinaryOp::LogicalNe => Ok(L::wrap_boolean(out.map(|eq| !eq))),
+                _ => unreachable!(),
+            }
         }
     }
 }
@@ -1728,14 +1732,14 @@ mod tests {
         env.add_keyword("description", || L::wrap_string(Literal("".to_owned())));
         env.add_keyword("empty", || L::wrap_boolean(Literal(true)));
 
-        insta::assert_snapshot!(env.parse_err(r#"description ()"#), @r#"
+        insta::assert_snapshot!(env.parse_err(r#"description ()"#), @r"
          --> 1:13
           |
         1 | description ()
           |             ^---
           |
-          = expected <EOI>, `++`, `||`, `&&`, or `==`
-        "#);
+          = expected <EOI>, `++`, `||`, `&&`, `==`, or `!=`
+        ");
 
         insta::assert_snapshot!(env.parse_err(r#"foo"#), @r###"
          --> 1:1
@@ -1787,10 +1791,10 @@ mod tests {
           |
           = Cannot compare expressions of type "Boolean" and "Integer"
         "#);
-        insta::assert_snapshot!(env.parse_err(r#"true == 'a'"#), @r#"
+        insta::assert_snapshot!(env.parse_err(r#"true != 'a'"#), @r#"
          --> 1:1
           |
-        1 | true == 'a'
+        1 | true != 'a'
           | ^---------^
           |
           = Cannot compare expressions of type "Boolean" and "String"
@@ -1803,10 +1807,10 @@ mod tests {
           |
           = Cannot compare expressions of type "Integer" and "Boolean"
         "#);
-        insta::assert_snapshot!(env.parse_err(r#"1 == 'a'"#), @r#"
+        insta::assert_snapshot!(env.parse_err(r#"1 != 'a'"#), @r#"
          --> 1:1
           |
-        1 | 1 == 'a'
+        1 | 1 != 'a'
           | ^------^
           |
           = Cannot compare expressions of type "Integer" and "String"
@@ -1819,10 +1823,10 @@ mod tests {
           |
           = Cannot compare expressions of type "String" and "Boolean"
         "#);
-        insta::assert_snapshot!(env.parse_err(r#"'a' == 1"#), @r#"
+        insta::assert_snapshot!(env.parse_err(r#"'a' != 1"#), @r#"
          --> 1:1
           |
-        1 | 'a' == 1
+        1 | 'a' != 1
           | ^------^
           |
           = Cannot compare expressions of type "String" and "Integer"
@@ -2054,10 +2058,16 @@ mod tests {
         insta::assert_snapshot!(env.render_ok(r#"false && true"#), @"false");
         insta::assert_snapshot!(env.render_ok(r#"true == true"#), @"true");
         insta::assert_snapshot!(env.render_ok(r#"true == false"#), @"false");
+        insta::assert_snapshot!(env.render_ok(r#"true != true"#), @"false");
+        insta::assert_snapshot!(env.render_ok(r#"true != false"#), @"true");
         insta::assert_snapshot!(env.render_ok(r#"1 == 1"#), @"true");
         insta::assert_snapshot!(env.render_ok(r#"1 == 2"#), @"false");
+        insta::assert_snapshot!(env.render_ok(r#"1 != 1"#), @"false");
+        insta::assert_snapshot!(env.render_ok(r#"1 != 2"#), @"true");
         insta::assert_snapshot!(env.render_ok(r#"'a' == 'a'"#), @"true");
         insta::assert_snapshot!(env.render_ok(r#"'a' == 'b'"#), @"false");
+        insta::assert_snapshot!(env.render_ok(r#"'a' != 'a'"#), @"false");
+        insta::assert_snapshot!(env.render_ok(r#"'a' != 'b'"#), @"true");
 
         insta::assert_snapshot!(env.render_ok(r#" !"" "#), @"true");
         insta::assert_snapshot!(env.render_ok(r#" "" || "a".lines() "#), @"true");
