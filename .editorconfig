@@ -2,10 +2,12 @@ root = true
 
 [*]
 end_of_line = lf
-# Turned off because some editors otherwise remove trailing spaces within
-# multi-line string literals (intellij-rust/intellij-rust#5368).
-trim_trailing_whitespace = false
+insert_final_newline = true
+trim_trailing_whitespace = true
 
 [*.rs]
 indent_style = space
 indent_size = 4
+# Turned off because some editors otherwise remove trailing spaces within
+# multi-line string literals (intellij-rust/intellij-rust#5368).
+trim_trailing_whitespace = false
