@@ -1289,10 +1289,6 @@ impl MutableRepo {
     /// tell this case apart since the change ids of the key and the value
     /// will not match. The parent will inherit the descendants and the
     /// bookmarks of the abandoned commit.
-    ///
-    /// This function is similar to
-    /// [`MutableRepo::rebase_descendants_return_map`], but allows for
-    /// rebase behavior to be customized via [`RebaseOptions`].
     pub fn rebase_descendants_with_options_return_map(
         &mut self,
         settings: &UserSettings,
@@ -1321,28 +1317,12 @@ impl MutableRepo {
     ///
     /// The descendants of the commits registered in `self.parent_mappings` will
     /// be recursively rebased onto the new version of their parents.
-    /// Returns a map of newly rebased commit ID to original commit ID.
+    /// Returns the number of rebased descendants.
     ///
     /// All rebased descendant commits will be preserved even if they were
     /// emptied following the rebase operation. To customize the rebase
     /// behavior, use
     /// [`MutableRepo::rebase_descendants_with_options_return_map`].
-    pub fn rebase_descendants_return_map(
-        &mut self,
-        settings: &UserSettings,
-    ) -> BackendResult<HashMap<CommitId, CommitId>> {
-        self.rebase_descendants_with_options_return_map(settings, Default::default())
-    }
-
-    /// Rebase descendants of the rewritten commits.
-    ///
-    /// The descendants of the commits registered in `self.parent_mappings` will
-    /// be recursively rebased onto the new version of their parents.
-    /// Returns the number of rebased descendants.
-    ///
-    /// All rebased descendant commits will be preserved even if they were
-    /// emptied following the rebase operation. To customize the rebase
-    /// behavior, use [`MutableRepo::rebase_descendants_return_map`].
     pub fn rebase_descendants(&mut self, settings: &UserSettings) -> BackendResult<usize> {
         let roots = self.parent_mapping.keys().cloned().collect_vec();
         let mut num_rebased = 0;

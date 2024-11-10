@@ -352,7 +352,7 @@ fn test_commit_builder_descendants(backend: TestRepoBackend) {
         .unwrap();
     let rebase_map = tx
         .repo_mut()
-        .rebase_descendants_return_map(&settings)
+        .rebase_descendants_with_options_return_map(&settings, Default::default())
         .unwrap();
     assert_eq!(rebase_map.len(), 0);
 
@@ -365,7 +365,7 @@ fn test_commit_builder_descendants(backend: TestRepoBackend) {
         .unwrap();
     let rebase_map = tx
         .repo_mut()
-        .rebase_descendants_return_map(&settings)
+        .rebase_descendants_with_options_return_map(&settings, Default::default())
         .unwrap();
     assert_rebased_onto(tx.repo_mut(), &rebase_map, &commit3, &[commit4.id()]);
     assert_eq!(rebase_map.len(), 1);
@@ -379,7 +379,7 @@ fn test_commit_builder_descendants(backend: TestRepoBackend) {
         .unwrap();
     let rebase_map = tx
         .repo_mut()
-        .rebase_descendants_return_map(&settings)
+        .rebase_descendants_with_options_return_map(&settings, Default::default())
         .unwrap();
     assert!(rebase_map.is_empty());
 }
