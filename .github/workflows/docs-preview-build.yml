@@ -1,0 +1,80 @@
+# This workflow builds the docs for each PR, and uploads the rendered docs as an
+# artifact.
+#
+# The artifact will be picked up by docs-preview-deploy.yml and published at
+# https://jj-preview.github.io/docs/pr-<number>.
+#
+# The split into "build" and "deploy" follows GitHub's guide at
+# https://securitylab.github.com/resources/github-actions-preventing-pwn-requests/.
+# The build workflow has no access to the deploy key. The deploy workflow has
+# access, but is only allowed to run from the main branch (by requesting the
+# 'preview' environment).
+
+name: docs-preview-build
+
+permissions: read-all
+
+on:
+  pull_request:
+    # Run the workflow only when these paths have changed
+    paths:
+      - "docs/**"
+      - "mkdocs.yml"
+      - "pyproject.toml"
+      - "uv.lock"
+      - ".github/workflows/docs-preview-build.yml"
+    # Run the workflow when anything changes OR when the PR is merged/closed.
+    # When the PR is closed, we will push a dir with a special file to tell the
+    # deploy workflow to remove the preview.
+    types: [opened, reopened, synchronize, closed]
+    branches: [main]
+
+jobs:
+  upload-pr-number:
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          PR_NUMBER: ${{ github.event.number }}
+        run: |
+          echo "$PR_NUMBER" > pr_number
+
+      - uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882
+        with:
+          name: pr_number
+          path: pr_number
+
+  # This job runs whenever the PR is opened, reopened, or pushed into.
+  build-preview:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.action != 'closed' }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@2e657c127d5b1635d5a8e3fa40e0ac50a5bf6992
+
+      - name: Build the docs
+        # Intentionally without --strict, to have previews even if the docs are
+        # mildly broken
+        run: uv run mkdocs build
+
+      - uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882
+        with:
+          name: rendered-docs
+          path: rendered-docs
+
+  # This job runs whenever the PR is closed.
+  delete-preview:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.action == 'closed' }}
+    steps:
+      - run: |
+          mkdir -p rendered-docs
+          touch rendered-docs/.delete-this-preview
+
+      - uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882
+        with:
+          name: rendered-docs
+          path: rendered-docs
