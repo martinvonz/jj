@@ -322,12 +322,12 @@ pub fn rebase_commit_with_options(
         [parent_id] => Some(parent_id.clone()),
         _ => None,
     };
-    let new_parents = rewriter.new_parents.clone();
+    let new_parents_len = rewriter.new_parents.len();
     if let Some(builder) = rewriter.rebase_with_empty_behavior(settings, options.empty)? {
         let new_commit = builder.write()?;
         Ok(RebasedCommit::Rewritten(new_commit))
     } else {
-        assert_eq!(new_parents.len(), 1);
+        assert_eq!(new_parents_len, 1);
         Ok(RebasedCommit::Abandoned {
             parent_id: single_parent.unwrap(),
         })
