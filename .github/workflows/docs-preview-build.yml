@@ -1,0 +1,49 @@
+
+# This workflow builds the docs for each PR (including from forks), and uploads
+# the rendered docs as an artifact.
+#
+# The artifact will be picked up by docs-preview-deploy.yml and uploaded to
+# https://jj-preview.github.io/docs/.
+#
+# The split into "build" and "deploy" follows GitHub's guide at
+# https://securitylab.github.com/resources/github-actions-preventing-pwn-requests/.
+# The build workflow has no access to the repo secrets. The deploy workflow runs
+# in the context of the main repo rather than the PR branch.
+
+name: docs-preview-build
+
+on:
+  pull_request:
+    paths:
+      - 'docs/**'
+      - 'mkdocs.yml'
+      - 'pyproject.toml'
+      - 'uv.lock'
+      - '.github/workflows/docs-preview-build.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@2e657c127d5b1635d5a8e3fa40e0ac50a5bf6992
+
+      - name: Build the docs
+        # Intentionally without --strict, to have previews even if the docs are
+        # mildly broken
+        run: uv run mkdocs build
+
+      - uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882
+        with:
+          name: rendered-docs
+          path: rendered-docs
+
+      - run: |
+          echo ${{ github.event.pull_request.number }} > pr_number
+
+      - uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882
+        with:
+          name: pr_number
+          path: pr_number

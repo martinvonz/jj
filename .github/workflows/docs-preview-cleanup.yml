@@ -1,0 +1,32 @@
+name: docs-preview-cleanup
+
+permissions:
+  contents: write
+
+on:
+  # This always uses the workflow file from the base branch, and only runs if
+  # base == main
+  pull_request_target:
+    types: [closed]
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - run: mkdir -p empty-dir
+
+      - name: Deploy
+        uses: JamesIves/github-pages-deploy-action@62fec3add6773ec5dbbf18d2ee4260911aa35cf4
+        with:
+          folder: empty-dir
+          repository-name: jj-preview/docs
+          branch: 'main'
+          clean: true
+          target-folder: 'pr-${{ github.event.pull_request.number }}'
+          ssh-key: ${{ secrets.DOCS_DEPLOY_KEY }}
+          git-config-name: 'jj-docs[bot]'
+          git-config-email: 'jj-docs[bot]@users.noreply.github.io'
+          commit-message: "Remove preview for PR ${{ github.event.pull_request.number }}"
+          single-commit: true

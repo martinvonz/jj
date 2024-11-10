@@ -1,0 +1,93 @@
+# This workflow pushes docs rendered by docs-preview-build.yml to
+# https://github.com/jj-preview/docs.
+#
+# There, GitHub's own "deploy pages" action will run to publish the static files
+# to https://jj-preview.github.io/docs/. This adds a 30s delay before the docs
+# are actually published/updated.
+#
+# jj-preview/docs has a top-level .nojekyll file. Otherwise GitHub will try
+# rendering with Jekyll, and the delay will be longer.
+#
+# We use a separate repo for two reasons:
+#   1. No chance to accidentally mess up the main GH Pages
+#   2. Avoid the impression that the published content is "official"
+
+# TODO: PRs touching workflows should be approved by a maintainer
+# TODO: enable docs-preview-build for PRs from forks
+
+name: docs-preview-deploy
+
+permissions:
+  contents: write
+  pull-requests: write
+
+on:
+  # NB: 'workflow_run' only triggers if this workflow is on the default branch,
+  # which is needed for security but makes it a bit annoying to test
+  workflow_run:
+    workflows: [docs-preview-build]
+    types: [completed]
+
+# Limit to one concurrent deployment.
+#
+# If we ever need parallel deployments, we'll need single-commit=false and
+# force=false in the deploy step.
+concurrency:
+  group: preview_deploy
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16
+        with:
+          name: rendered-docs
+          path: rendered-docs
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event.workflow_run.id }}
+
+      - uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16
+        with:
+          name: pr_number
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event.workflow_run.id }}
+
+      # Security note: The PR number is uploaded by the build workflow, and can
+      # be manipulated. The only thing an attacker can do, though, is overwrite
+      # someone else's docs preview. See
+      # https://github.com/orgs/community/discussions/25220
+      - run: |
+          echo "PR_NUMBER=$(grep -o '[0-9]\+' pr_number)" >> $GITHUB_ENV
+
+      - name: Deploy
+        uses: JamesIves/github-pages-deploy-action@62fec3add6773ec5dbbf18d2ee4260911aa35cf4
+        with:
+          folder: rendered-docs
+          repository-name: jj-preview/docs
+          branch: main
+          clean: true
+          target-folder: 'pr-${{ env.PR_NUMBER }}'
+          # This key allows pushing to jj-preview/docs. How to set it up:
+          #
+          #   1. ssh-keygen -t ed25519 -C "" -N "" -f <where to put the keypair>
+          #   2. Add the public key to https://github.com/jj-preview/docs/settings/keys/new
+          #   3. Add the private key to https://github.com/martinvonz/jj/settings/secrets/actions/new
+          ssh-key: ${{ secrets.DOCS_DEPLOY_KEY }}
+          git-config-name: 'jj-docs[bot]'
+          git-config-email: 'jj-docs[bot]@users.noreply.github.io'
+          commit-message: "Update preview for PR ${{ env.PR_NUMBER }}"
+          single-commit: true
+
+      - name: Post a link to the docs in the PR
+        uses: thollander/actions-comment-pull-request@65f9e5c9a1f2cd378bd74b2e057c9736982a8e74
+        with:
+          message: |
+            **📖 Documentation preview is published to https://jj-preview.github.io/docs/pr-${{ env.PR_NUMBER }}.**
+            Thanks for working on the docs!
+
+            Note: it will take about 30 seconds before the preview is available.
+          pr-number: ${{ env.PR_NUMBER }}
+          comment-tag: docs-preview
