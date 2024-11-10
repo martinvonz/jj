@@ -1271,23 +1271,28 @@ impl MutableRepo {
         Ok(())
     }
 
-    // TODO(ilyagr): Either document that this also moves bookmarks (rename the
-    // function and the related functions?) or change things so that this only
-    // rebases descendants.
-
-    /// This is similar to `rebase_descendants_return_map`, but the return value
-    /// needs more explaining.
+    /// Rebase descendants of the rewritten commits.
     ///
-    /// If the `options.empty` is the default, this function will only
-    /// rebase commits, and the return value is what you'd expect it to be.
+    /// The descendants of the commits registered in `self.parent_mappings` will
+    /// be recursively rebased onto the new version of their parents.
     ///
-    /// Otherwise, this function may rebase some commits and abandon others. The
-    /// behavior is such that only commits with a single parent will ever be
-    /// abandoned. In the returned map, an abandoned commit will look as a
-    /// key-value pair where the key is the abandoned commit and the value is
-    /// **its parent**. One can tell this case apart since the change ids of the
-    /// key and the value will not match. The parent will inherit the
-    /// descendants and the bookmarks of the abandoned commit.
+    /// If `options.empty` is the default (`EmptyBehaviour::Keep`), all
+    /// rebased descendant commits will be preserved even if they were
+    /// emptied following the rebase operation. A map of newly rebased
+    /// commit ID to original commit ID will be returned.
+    ///
+    /// Otherwise, this function may rebase some commits and abandon others,
+    /// based on the given `EmptyBehaviour`. The behavior is such that only
+    /// commits with a single parent will ever be abandoned. In the returned
+    /// map, an abandoned commit will look as a key-value pair where the key
+    /// is the abandoned commit and the value is **its parent**. One can
+    /// tell this case apart since the change ids of the key and the value
+    /// will not match. The parent will inherit the descendants and the
+    /// bookmarks of the abandoned commit.
+    ///
+    /// This function is similar to
+    /// [`MutableRepo::rebase_descendants_return_map`], but allows for
+    /// rebase behavior to be customized via [`RebaseOptions`].
     pub fn rebase_descendants_with_options_return_map(
         &mut self,
         settings: &UserSettings,
@@ -1312,6 +1317,16 @@ impl MutableRepo {
         Ok(rebased)
     }
 
+    /// Rebase descendants of the rewritten commits.
+    ///
+    /// The descendants of the commits registered in `self.parent_mappings` will
+    /// be recursively rebased onto the new version of their parents.
+    /// Returns a map of newly rebased commit ID to original commit ID.
+    ///
+    /// All rebased descendant commits will be preserved even if they were
+    /// emptied following the rebase operation. To customize the rebase
+    /// behavior, use
+    /// [`MutableRepo::rebase_descendants_with_options_return_map`].
     pub fn rebase_descendants_return_map(
         &mut self,
         settings: &UserSettings,
@@ -1319,6 +1334,14 @@ impl MutableRepo {
         self.rebase_descendants_with_options_return_map(settings, Default::default())
     }
 
+    /// Rebase descendants of the rewritten commits.
+    ///
+    /// The descendants of the commits registered in `self.parent_mappings` will
+    /// be recursively rebased onto the new version of their parents.
+    /// Returns the number of rebased descendants.
+    ///
+    /// This function is similar to [`MutableRepo::rebase_descendants`], but
+    /// allows for rebase behavior to be customized via [`RebaseOptions`].
     pub fn rebase_descendants_with_options(
         &mut self,
         settings: &UserSettings,
@@ -1335,6 +1358,10 @@ impl MutableRepo {
     /// The descendants of the commits registered in `self.parent_mappings` will
     /// be recursively rebased onto the new version of their parents.
     /// Returns the number of rebased descendants.
+    ///
+    /// All rebased descendant commits will be preserved even if they were
+    /// emptied following the rebase operation. To customize the rebase
+    /// behavior, use [`MutableRepo::rebase_descendants_with_options`].
     pub fn rebase_descendants(&mut self, settings: &UserSettings) -> BackendResult<usize> {
         let roots = self.parent_mapping.keys().cloned().collect_vec();
         let mut num_rebased = 0;
