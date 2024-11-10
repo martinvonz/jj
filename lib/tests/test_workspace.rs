@@ -57,6 +57,7 @@ fn test_init_additional_workspace() {
         test_workspace.repo_path(),
         &test_workspace.repo,
         &*default_working_copy_factory(),
+        &test_workspace.env.default_store_factories(),
         ws2_id.clone(),
     )
     .unwrap();
