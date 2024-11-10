@@ -7,6 +7,7 @@
 <br/>
 ![](https://img.shields.io/github/license/martinvonz/jj)
 [![Discord](https://img.shields.io/discord/968932220549103686.svg?label=&logo=discord&logoColor=ffffff&color=7389D8&labelColor=6A7EC2)](https://discord.gg/dkmfj3aGQN)
+[![IRC](https://img.shields.io/badge/irc-%23jujutsu-blue.svg)](https://web.libera.chat/?channel=#jujutsu)
 
 **[Homepage] &nbsp;&nbsp;&bull;&nbsp;&nbsp;**
 **[Installation] &nbsp;&nbsp;&bull;&nbsp;&nbsp;**
@@ -124,9 +125,15 @@ to replace (rare in English). The project is called "Jujutsu" because it matches
 
 Jujutsu is relatively young, with lots of work to still be done. If you have any
 questions, or want to talk about future plans, please join us on Discord
-[![Discord](https://img.shields.io/discord/968932220549103686.svg?label=&logo=discord&logoColor=ffffff&color=7389D8&labelColor=6A7EC2)](https://discord.gg/dkmfj3aGQN)
-or start a [GitHub Discussion](https://github.com/martinvonz/jj/discussions); the
-developers monitor both channels.
+[![Discord](https://img.shields.io/discord/968932220549103686.svg?label=&logo=discord&logoColor=ffffff&color=7389D8&labelColor=6A7EC2)](https://discord.gg/dkmfj3aGQN),
+start a [GitHub Discussion](https://github.com/martinvonz/jj/discussions), or
+send an IRC message to [`#jujutsu` on Libera
+Chat](https://web.libera.chat/?channel=#jujutsu). The developers monitor all of
+these channels[^bridge].
+
+[^bridge]: To be more precise, the `#jujutsu` Libera IRC channel is bridged to
+one of the channels on jj's Discord. Some of the developers stay on Discord and
+use the bridge to follow IRC.
 
 ### News and Updates 📣
 
