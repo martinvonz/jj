@@ -919,7 +919,8 @@ where
         // rewritten sources. Otherwise it will likely already have the content
         // changes we're moving, so applying them will have no effect and the
         // changes will disappear.
-        let rebase_map = repo.rebase_descendants_return_map(settings)?;
+        let rebase_map =
+            repo.rebase_descendants_with_options_return_map(settings, Default::default())?;
         let rebased_destination_id = rebase_map.get(destination.id()).unwrap().clone();
         rewritten_destination = repo.store().get_commit(&rebased_destination_id)?;
     }

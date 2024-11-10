@@ -556,7 +556,7 @@ fn test_rebase_descendants_simple() {
     mut_repo.record_abandoned_commit(commit4.id().clone());
     let rebase_map = tx
         .repo_mut()
-        .rebase_descendants_return_map(&settings)
+        .rebase_descendants_with_options_return_map(&settings, Default::default())
         .unwrap();
     // Commit 3 got rebased onto commit 2's replacement, i.e. commit 6
     assert_rebased_onto(tx.repo_mut(), &rebase_map, &commit3, &[commit6.id()]);
@@ -567,7 +567,7 @@ fn test_rebase_descendants_simple() {
     // No more descendants to rebase if we try again.
     let rebase_map = tx
         .repo_mut()
-        .rebase_descendants_return_map(&settings)
+        .rebase_descendants_with_options_return_map(&settings, Default::default())
         .unwrap();
     assert_eq!(rebase_map.len(), 0);
 }
@@ -601,7 +601,7 @@ fn test_rebase_descendants_divergent_rewrite() {
     // commit 4 or commit 5
     let rebase_map = tx
         .repo_mut()
-        .rebase_descendants_return_map(&settings)
+        .rebase_descendants_with_options_return_map(&settings, Default::default())
         .unwrap();
     assert!(rebase_map.is_empty());
 }
