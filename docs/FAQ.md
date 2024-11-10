@@ -329,7 +329,7 @@ There are some trade-offs and there is no definitive answer yet.
 * Using `jj-lib` avoids parsing command output and makes error handling easier.
 * `jj-lib` is not a stable API, so you may have to make changes to your tool
 when the API changes.
-* The CLI is not stable either, so you may need to make your tool detect the 
+* The CLI is not stable either, so you may need to make your tool detect the
 different versions and call the right command.
 * Using the CLI means that your tool will work with custom-built `jj` binaries,
 like the one at Google (if you're using the library, you will not be able to
