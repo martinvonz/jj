@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use clap_complete::ArgValueCandidates;
 use itertools::Itertools as _;
 use jj_lib::op_store::RefTarget;
 use jj_lib::str_util::StringPattern;
@@ -19,6 +20,7 @@ use jj_lib::str_util::StringPattern;
 use super::find_local_bookmarks;
 use crate::cli_util::CommandHelper;
 use crate::command_error::CommandError;
+use crate::complete;
 use crate::ui::Ui;
 
 /// Delete an existing bookmark and propagate the deletion to remotes on the
@@ -30,7 +32,11 @@ pub struct BookmarkDeleteArgs {
     /// By default, the specified name matches exactly. Use `glob:` prefix to
     /// select bookmarks by wildcard pattern. For details, see
     /// https://martinvonz.github.io/jj/latest/revsets/#string-patterns.       
-    #[arg(required = true, value_parser = StringPattern::parse)]
+    #[arg(
+        required = true,
+        value_parser = StringPattern::parse,
+        add = ArgValueCandidates::new(complete::local_bookmarks),
+    )]
     names: Vec<StringPattern>,
 }
 

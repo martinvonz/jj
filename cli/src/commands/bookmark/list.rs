@@ -77,7 +77,7 @@ pub struct BookmarkListArgs {
     /// By default, the specified name matches exactly. Use `glob:` prefix to
     /// select bookmarks by wildcard pattern. For details, see
     /// https://martinvonz.github.io/jj/latest/revsets/#string-patterns.
-    #[arg(value_parser = StringPattern::parse)]
+    #[arg(value_parser = StringPattern::parse, add = ArgValueCandidates::new(complete::bookmarks))]
     names: Option<Vec<StringPattern>>,
 
     /// Show bookmarks whose local targets are in the given revisions
