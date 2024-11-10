@@ -81,9 +81,10 @@ use crate::revset;
 use crate::revset::RevsetExpression;
 use crate::revset::RevsetIteratorExt;
 use crate::rewrite::merge_commit_trees;
+use crate::rewrite::rebase_commit_with_options;
 use crate::rewrite::CommitRewriter;
-use crate::rewrite::DescendantRebaser;
 use crate::rewrite::RebaseOptions;
+use crate::rewrite::RebasedCommit;
 use crate::settings::RepoSettings;
 use crate::settings::UserSettings;
 use crate::signing::SignInitError;
@@ -1270,26 +1271,6 @@ impl MutableRepo {
         Ok(())
     }
 
-    /// After the rebaser returned by this function is dropped,
-    /// self.parent_mapping needs to be cleared.
-    fn rebase_descendants_return_rebaser<'settings, 'repo>(
-        &'repo mut self,
-        settings: &'settings UserSettings,
-        options: RebaseOptions,
-    ) -> BackendResult<Option<DescendantRebaser<'settings, 'repo>>> {
-        if !self.has_rewrites() {
-            // Optimization
-            return Ok(None);
-        }
-
-        let to_visit =
-            self.find_descendants_to_rebase(self.parent_mapping.keys().cloned().collect())?;
-        let mut rebaser = DescendantRebaser::new(settings, self, to_visit);
-        *rebaser.mut_options() = options;
-        rebaser.rebase_all()?;
-        Ok(Some(rebaser))
-    }
-
     // TODO(ilyagr): Either document that this also moves bookmarks (rename the
     // function and the related functions?) or change things so that this only
     // rebases descendants.
@@ -1298,11 +1279,10 @@ impl MutableRepo {
         settings: &UserSettings,
         options: RebaseOptions,
     ) -> BackendResult<usize> {
-        let result = self
-            .rebase_descendants_return_rebaser(settings, options)?
-            .map_or(0, |rebaser| rebaser.into_map().len());
-        self.parent_mapping.clear();
-        Ok(result)
+        let num_rebased = self
+            .rebase_descendants_with_options_return_map(settings, options)?
+            .len();
+        Ok(num_rebased)
     }
 
     /// This is similar to `rebase_descendants_return_map`, but the return value
@@ -1318,20 +1298,28 @@ impl MutableRepo {
     /// **its parent**. One can tell this case apart since the change ids of the
     /// key and the value will not match. The parent will inherit the
     /// descendants and the bookmarks of the abandoned commit.
-    // TODO: Rewrite this using `transform_descendants()`
     pub fn rebase_descendants_with_options_return_map(
         &mut self,
         settings: &UserSettings,
         options: RebaseOptions,
     ) -> BackendResult<HashMap<CommitId, CommitId>> {
-        let result = Ok(self
-            // We do not set RebaseOptions here, since this function does not currently return
-            // enough information to describe the results of a rebase if some commits got
-            // abandoned
-            .rebase_descendants_return_rebaser(settings, options)?
-            .map_or(HashMap::new(), |rebaser| rebaser.into_map()));
+        let mut rebased: HashMap<CommitId, CommitId> = HashMap::new();
+        let roots = self.parent_mapping.keys().cloned().collect_vec();
+        self.transform_descendants(settings, roots, |rewriter| {
+            if rewriter.parents_changed() {
+                let old_commit_id = rewriter.old_commit().id().clone();
+                let rebased_commit: RebasedCommit =
+                    rebase_commit_with_options(settings, rewriter, &options)?;
+                let new_commit = match rebased_commit {
+                    RebasedCommit::Rewritten(new_commit) => new_commit,
+                    RebasedCommit::Abandoned { parent } => parent,
+                };
+                rebased.insert(old_commit_id, new_commit.id().clone());
+            }
+            Ok(())
+        })?;
         self.parent_mapping.clear();
-        result
+        Ok(rebased)
     }
 
     /// Rebase descendants of the rewritten commits.
