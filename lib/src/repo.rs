@@ -1340,28 +1340,9 @@ impl MutableRepo {
     /// be recursively rebased onto the new version of their parents.
     /// Returns the number of rebased descendants.
     ///
-    /// This function is similar to [`MutableRepo::rebase_descendants`], but
-    /// allows for rebase behavior to be customized via [`RebaseOptions`].
-    pub fn rebase_descendants_with_options(
-        &mut self,
-        settings: &UserSettings,
-        options: RebaseOptions,
-    ) -> BackendResult<usize> {
-        let num_rebased = self
-            .rebase_descendants_with_options_return_map(settings, options)?
-            .len();
-        Ok(num_rebased)
-    }
-
-    /// Rebase descendants of the rewritten commits.
-    ///
-    /// The descendants of the commits registered in `self.parent_mappings` will
-    /// be recursively rebased onto the new version of their parents.
-    /// Returns the number of rebased descendants.
-    ///
     /// All rebased descendant commits will be preserved even if they were
     /// emptied following the rebase operation. To customize the rebase
-    /// behavior, use [`MutableRepo::rebase_descendants_with_options`].
+    /// behavior, use [`MutableRepo::rebase_descendants_return_map`].
     pub fn rebase_descendants(&mut self, settings: &UserSettings) -> BackendResult<usize> {
         let roots = self.parent_mapping.keys().cloned().collect_vec();
         let mut num_rebased = 0;
