@@ -1,0 +1,67 @@
+name: Docs - preview deploy
+
+permissions:
+  contents: write
+  pull-requests: write
+
+on:
+  workflow_run:
+    workflows:
+      - "Docs - preview build"
+    types:
+      - completed
+
+# Since we use single-commit and force on the deploy action, only one deploy action can run at a time.
+concurrency:
+  group: preview_deploy
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: 'Download build artifact'
+        uses: actions/download-artifact@v4
+        with:
+          name: rendered-docs
+          path: rendered-docs
+          # TODO: what token is that?
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event.workflow_run.id }}
+      - name: 'Download build meta'
+        uses: actions/download-artifact@v4
+        with:
+          name: meta.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event.workflow_run.id }}
+
+      - name: Parse meta.json
+        run: |
+          echo "PR_NUMBER=$(jq -r .pr_number meta.json)" >> $GITHUB_ENV
+          echo "PR_BRANCH=$(jq -r .pr_branch meta.json)" >> $GITHUB_ENV
+
+      - name: Url slug variable
+        run: |
+          echo "URL_SLUG=${{ env.PR_NUMBER }}-${{ env.PR_BRANCH }}" >> $GITHUB_ENV
+
+      # TODO: this is where we have to use mike? but for now it's fine not to have it
+      - name: Deploy
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          folder: rendered-docs
+          repository-name: neongreen/jj-pr-preview  # TODO: change
+          branch: 'main'
+          clean: true
+          target-folder: ${{ env.URL_SLUG }}
+          ssh-key: ${{ secrets.DEPLOY_KEY }}
+          commit-message: "Update preview for PR ${{ env.URL_SLUG }}"
+          single-commit: true
+
+      - name: Comment on the PR
+        uses: thollander/actions-comment-pull-request@v2
+        with:
+          message: |
+            Docs preview is available at https://neongreen.github.io/jj-pr-preview/${{ env.URL_SLUG }}.
+          pr_number: ${{ env.PR_NUMBER }}
+          comment_tag: 'docs-preview'

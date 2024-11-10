@@ -1,0 +1,55 @@
+
+# This action builds and deploys the docs on each pull request created
+# Security notes:
+# The preview deployment is split in two workflows, preview_build and preview_deploy.
+# `preview_build` runs on pull_request, so it won't have any access to the repositories secrets, so it is safe to
+# build / execute untrusted code.
+# `preview_deploy` has access to the repositories secrets (so it can push to the pr preview repo) but won't run
+# any untrusted code (it will just extract the build artifact and push it to the pages branch where it will
+# automatically be deployed).
+
+# TODO: rewrite the comment and clarify
+
+# TODO: use commit hashes for actions
+
+# TODO: the publish job should run sequentially so that it does proper version switcher generation?
+
+name: Docs - preview build
+
+on:
+  - pull_request
+  
+# TODO: trailing whitespace
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      
+      - name: Install uv
+        uses: astral-sh/setup-uv@2e657c127d5b1635d5a8e3fa40e0ac50a5bf6992
+        
+      - name: Build the docs
+        # Intentionally without --strict, to have previews even if the docs are
+        # mildly broken
+        run: uv run mkdocs build  
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rendered-docs
+          path: rendered-docs
+
+      # TODO: this should indicate forks in the name, maybe? PR numbers are
+      # unique but pr_branch is not I suppose
+      - name: Generate meta.json
+        env:
+          PR_NUMBER: ${{ github.event.number }}
+          PR_BRANCH: ${{ github.head_ref }}
+        run: |
+          echo "{\"pr_number\": \"$PR_NUMBER\", \"pr_branch\": \"$PR_BRANCH\"}" > meta.json
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: meta.json
+          path: meta.json
