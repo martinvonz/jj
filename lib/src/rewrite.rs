@@ -305,7 +305,7 @@ impl<'repo> CommitRewriter<'repo> {
 
 pub enum RebasedCommit {
     Rewritten(Commit),
-    Abandoned { parent: Commit },
+    Abandoned { parent_id: CommitId },
 }
 
 pub fn rebase_commit_with_options(
@@ -318,11 +318,8 @@ pub fn rebase_commit_with_options(
         rewriter.simplify_ancestor_merge();
     }
 
-    // TODO: avoid this lookup by not returning the old parent for
-    // RebasedCommit::Abandoned
-    let store = rewriter.mut_repo().store().clone();
     let single_parent = match &rewriter.new_parents[..] {
-        [parent] => Some(store.get_commit(parent)?),
+        [parent_id] => Some(parent_id.clone()),
         _ => None,
     };
     let new_parents = rewriter.new_parents.clone();
@@ -332,7 +329,7 @@ pub fn rebase_commit_with_options(
     } else {
         assert_eq!(new_parents.len(), 1);
         Ok(RebasedCommit::Abandoned {
-            parent: single_parent.unwrap(),
+            parent_id: single_parent.unwrap(),
         })
     }
 }

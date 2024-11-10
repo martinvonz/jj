@@ -1305,11 +1305,11 @@ impl MutableRepo {
                 let old_commit_id = rewriter.old_commit().id().clone();
                 let rebased_commit: RebasedCommit =
                     rebase_commit_with_options(settings, rewriter, &options)?;
-                let new_commit = match rebased_commit {
-                    RebasedCommit::Rewritten(new_commit) => new_commit,
-                    RebasedCommit::Abandoned { parent } => parent,
+                let new_commit_id = match rebased_commit {
+                    RebasedCommit::Rewritten(new_commit) => new_commit.id().clone(),
+                    RebasedCommit::Abandoned { parent_id } => parent_id,
                 };
-                rebased.insert(old_commit_id, new_commit.id().clone());
+                rebased.insert(old_commit_id, new_commit_id);
             }
             Ok(())
         })?;
