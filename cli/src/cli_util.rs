@@ -1517,11 +1517,18 @@ impl WorkspaceCommandHelper {
         let error = if &commit_id == self.repo().store().root_commit_id() {
             user_error(format!("The root commit {commit_id:.12} is immutable"))
         } else {
-            user_error_with_hint(
-                format!("Commit {commit_id:.12} is immutable"),
+            let mut error = user_error(format!("Commit {commit_id:.12} is immutable"));
+            let commit = self.repo().store().get_commit(&commit_id)?;
+            error.add_formatted_hint_with(|formatter| {
+                write!(formatter, "Could not modify commit: ")?;
+                self.write_commit_summary(formatter, &commit)?;
+                Ok(())
+            });
+            error.add_hint(
                 "Pass `--ignore-immutable` or configure the set of immutable commits via \
                  `revset-aliases.immutable_heads()`.",
-            )
+            );
+            error
         };
         Err(error)
     }
