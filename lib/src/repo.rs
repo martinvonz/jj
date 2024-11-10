@@ -1274,16 +1274,6 @@ impl MutableRepo {
     // TODO(ilyagr): Either document that this also moves bookmarks (rename the
     // function and the related functions?) or change things so that this only
     // rebases descendants.
-    pub fn rebase_descendants_with_options(
-        &mut self,
-        settings: &UserSettings,
-        options: RebaseOptions,
-    ) -> BackendResult<usize> {
-        let num_rebased = self
-            .rebase_descendants_with_options_return_map(settings, options)?
-            .len();
-        Ok(num_rebased)
-    }
 
     /// This is similar to `rebase_descendants_return_map`, but the return value
     /// needs more explaining.
@@ -1320,6 +1310,24 @@ impl MutableRepo {
         })?;
         self.parent_mapping.clear();
         Ok(rebased)
+    }
+
+    pub fn rebase_descendants_return_map(
+        &mut self,
+        settings: &UserSettings,
+    ) -> BackendResult<HashMap<CommitId, CommitId>> {
+        self.rebase_descendants_with_options_return_map(settings, Default::default())
+    }
+
+    pub fn rebase_descendants_with_options(
+        &mut self,
+        settings: &UserSettings,
+        options: RebaseOptions,
+    ) -> BackendResult<usize> {
+        let num_rebased = self
+            .rebase_descendants_with_options_return_map(settings, options)?
+            .len();
+        Ok(num_rebased)
     }
 
     /// Rebase descendants of the rewritten commits.
@@ -1361,13 +1369,6 @@ impl MutableRepo {
         })?;
         self.parent_mapping.clear();
         Ok(num_reparented)
-    }
-
-    pub fn rebase_descendants_return_map(
-        &mut self,
-        settings: &UserSettings,
-    ) -> BackendResult<HashMap<CommitId, CommitId>> {
-        self.rebase_descendants_with_options_return_map(settings, Default::default())
     }
 
     pub fn set_wc_commit(
