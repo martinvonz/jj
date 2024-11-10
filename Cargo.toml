@@ -21,7 +21,6 @@ anyhow = "1.0.93"
 assert_cmd = "2.0.8"
 assert_matches = "1.5.0"
 async-trait = "0.1.83"
-backoff = "0.4.0"
 blake2 = "0.10.6"
 bstr = "1.10.0"
 clap = { version = "4.5.20", features = [
