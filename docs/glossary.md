@@ -29,7 +29,7 @@ for details.
 
 Unlike in Git, there is no concept of a "current bookmark"; bookmarks *do not*
 move when you create a new commit. Bookmarks *do* automatically follow the
-commit if it gets [rewritten](#rewrite). 
+commit if it gets [rewritten](#rewrite).
 
 ## Branch
 

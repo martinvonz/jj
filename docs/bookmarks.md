@@ -59,7 +59,7 @@ target there, `jj log` will show the bookmark name with an asterisk suffix (e.g.
 `main*`). That is meant to remind you that you may want to push the bookmark to
 some remote.
 
-If you want to know the internals of bookmark tracking, consult the 
+If you want to know the internals of bookmark tracking, consult the
 [Design Doc][design].
 
 ### Terminology summary
@@ -85,9 +85,9 @@ must match.
 
 ### Manually tracking a bookmark
 
-To track a bookmark permanently use `jj bookmark track <bookmark name>@<remote name>`. 
+To track a bookmark permanently use `jj bookmark track <bookmark name>@<remote name>`.
 It will now be imported as a local bookmark until you untrack it or it is deleted
-on the remote. 
+on the remote.
 
 Example:
 
@@ -110,7 +110,7 @@ To stop following a remote bookmark, you can `jj bookmark untrack` it. After tha
 subsequent fetches of that remote will no longer move the local bookmark to match
 the position of the remote bookmark.
 
-Example: 
+Example:
 
 ```sh
 $ # List all local and remote bookmarks.
@@ -141,7 +141,7 @@ marked as tracked.
 
 By default, every other remote bookmark is marked as "not tracked" when it's
 fetched. If desired, you need to manually `jj bookmark track` them. This works
-well for repositories where multiple people work on a large number of bookmarks. 
+well for repositories where multiple people work on a large number of bookmarks.
 
 The default can be changed by setting the config `git.auto-local-bookmark = true`.
 Then, `jj git fetch` tracks every *newly fetched* bookmark with a local bookmark.
@@ -154,13 +154,13 @@ bookmarks) by default.
 Currently Jujutsu automatically moves local bookmarks when these conditions are
 met:
 
- * When a commit has been rewritten (e.g, when you rebase) bookmarks and the  
+ * When a commit has been rewritten (e.g, when you rebase) bookmarks and the
    working-copy will move along with it.
- * When a commit has been abandoned, all associated bookmarks will be moved 
+ * When a commit has been abandoned, all associated bookmarks will be moved
    to its parent(s). If a working copy was pointing to the abandoned commit,
    then a new working-copy commit will be created on top of the parent(s).
 
-You could describe the movement as following along the change-id of the 
+You could describe the movement as following along the change-id of the
 current bookmark commit, even if it isn't entirely accurate.
 
 ## Pushing bookmarks: Safety checks
