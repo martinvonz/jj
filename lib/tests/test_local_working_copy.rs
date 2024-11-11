@@ -1242,6 +1242,13 @@ fn test_git_submodule() {
     // when we snapshot
     let new_tree = test_workspace.snapshot().unwrap();
     assert_eq!(new_tree.id(), tree_id2);
+
+    // Check out the empty tree, which shouldn't fail
+    let ws = &mut test_workspace.workspace;
+    let stats = ws
+        .check_out(repo.op_id().clone(), None, &store.root_commit())
+        .unwrap();
+    assert_eq!(stats.skipped_files, 1);
 }
 
 #[test]
@@ -1260,15 +1267,47 @@ fn test_check_out_existing_file_cannot_be_removed() {
     let ws = &mut test_workspace.workspace;
     ws.check_out(repo.op_id().clone(), None, &commit1).unwrap();
 
-    // Trigger IO error by replacing file with directory.
+    // Make the parent directory readonly.
+    let writable_dir_perm = workspace_root.symlink_metadata().unwrap().permissions();
+    let mut readonly_dir_perm = writable_dir_perm.clone();
+    readonly_dir_perm.set_readonly(true);
+
+    std::fs::set_permissions(&workspace_root, readonly_dir_perm).unwrap();
+    let result = ws.check_out(repo.op_id().clone(), None, &commit2);
+    std::fs::set_permissions(&workspace_root, writable_dir_perm).unwrap();
+
+    // TODO: find a way to trigger the error on Windows
+    if !cfg!(windows) {
+        assert_matches!(
+            result,
+            Err(CheckoutError::Other { message, .. }) if message.contains("Failed to remove")
+        );
+    }
+}
+
+#[test]
+fn test_check_out_existing_file_replaced_with_directory() {
+    let settings = testutils::user_settings();
+    let mut test_workspace = TestWorkspace::init(&settings);
+    let repo = &test_workspace.repo;
+    let workspace_root = test_workspace.workspace.workspace_root().to_owned();
+
+    let file_path = RepoPath::from_internal_string("file");
+    let tree1 = create_tree(repo, &[(file_path, "0")]);
+    let tree2 = create_tree(repo, &[(file_path, "1")]);
+    let commit1 = commit_with_tree(repo.store(), tree1.id());
+    let commit2 = commit_with_tree(repo.store(), tree2.id());
+
+    let ws = &mut test_workspace.workspace;
+    ws.check_out(repo.op_id().clone(), None, &commit1).unwrap();
+
     std::fs::remove_file(file_path.to_fs_path_unchecked(&workspace_root)).unwrap();
     std::fs::create_dir(file_path.to_fs_path_unchecked(&workspace_root)).unwrap();
 
-    let result = ws.check_out(repo.op_id().clone(), None, &commit2);
-    assert_matches!(
-        result,
-        Err(CheckoutError::Other { message, .. }) if message.contains("Failed to remove")
-    );
+    // Checkout doesn't fail, but the file should be skipped.
+    let stats = ws.check_out(repo.op_id().clone(), None, &commit2).unwrap();
+    assert_eq!(stats.skipped_files, 1);
+    assert!(file_path.to_fs_path_unchecked(&workspace_root).is_dir());
 }
 
 #[test]
