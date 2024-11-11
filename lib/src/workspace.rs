@@ -357,6 +357,30 @@ impl Workspace {
         )
     }
 
+    /// Reloads the repo and the working copy from the file system.
+    pub fn reload(
+        &self,
+        workspace_loader: &dyn WorkspaceLoader,
+        user_settings: &UserSettings,
+        working_copy_factory: &dyn WorkingCopyFactory,
+        store_factories: &StoreFactories,
+    ) -> Result<Self, WorkspaceLoadError> {
+        let repo_loader =
+            RepoLoader::init_from_file_system(user_settings, self.repo_path(), store_factories)?;
+
+        let working_copy =
+            workspace_loader.load_working_copy(repo_loader.store(), working_copy_factory)?;
+
+        let new_workspace = Workspace::new(
+            self.workspace_root(),
+            self.repo_path.clone(),
+            working_copy,
+            repo_loader,
+            self.is_primary_workspace,
+        )?;
+        Ok(new_workspace)
+    }
+
     pub fn init_workspace_with_existing_repo(
         user_settings: &UserSettings,
         workspace_root: &Path,
