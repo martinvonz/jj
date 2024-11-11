@@ -1165,7 +1165,7 @@ fn test_git_submodule() {
 
     let settings = testutils::user_settings();
     let mut test_workspace = TestWorkspace::init_with_backend(&settings, TestRepoBackend::Git);
-    let repo = &test_workspace.repo;
+    let repo = test_workspace.repo.clone();
     let store = repo.store().clone();
     let workspace_root = test_workspace.workspace.workspace_root().to_owned();
     let mut tx = repo.start_transaction(&settings);
@@ -1175,6 +1175,7 @@ fn test_git_submodule() {
     let added_submodule_path = RepoPath::from_internal_string("submodule/added");
 
     let mut tree_builder = MergedTreeBuilder::new(store.empty_merged_tree_id());
+
     tree_builder.set_or_remove(
         added_path.to_owned(),
         Merge::normal(TreeValue::File {
@@ -1183,17 +1184,27 @@ fn test_git_submodule() {
         }),
     );
 
-    let submodule_id = write_random_commit(tx.repo_mut(), &settings).id().clone();
+    let submodule_id1 = write_random_commit(tx.repo_mut(), &settings).id().clone();
 
     tree_builder.set_or_remove(
         submodule_path.to_owned(),
-        Merge::normal(TreeValue::GitSubmodule(submodule_id)),
+        Merge::normal(TreeValue::GitSubmodule(submodule_id1)),
     );
 
-    let tree_id = tree_builder.write_tree(&store).unwrap();
-    let commit = commit_with_tree(repo.store(), tree_id.clone());
+    let tree_id1 = tree_builder.write_tree(&store).unwrap();
+    let commit1 = commit_with_tree(repo.store(), tree_id1.clone());
+
+    let mut tree_builder = MergedTreeBuilder::new(tree_id1.clone());
+    let submodule_id2 = write_random_commit(tx.repo_mut(), &settings).id().clone();
+    tree_builder.set_or_remove(
+        submodule_path.to_owned(),
+        Merge::normal(TreeValue::GitSubmodule(submodule_id2)),
+    );
+    let tree_id2 = tree_builder.write_tree(&store).unwrap();
+    let commit2 = commit_with_tree(repo.store(), tree_id2.clone());
+
     let ws = &mut test_workspace.workspace;
-    ws.check_out(repo.op_id().clone(), None, &commit).unwrap();
+    ws.check_out(repo.op_id().clone(), None, &commit1).unwrap();
 
     std::fs::create_dir(submodule_path.to_fs_path_unchecked(&workspace_root)).unwrap();
 
@@ -1206,7 +1217,7 @@ fn test_git_submodule() {
     // Check that the files present in the submodule are not tracked
     // when we snapshot
     let new_tree = test_workspace.snapshot().unwrap();
-    assert_eq!(new_tree.id(), tree_id);
+    assert_eq!(new_tree.id(), tree_id1);
 
     // Check that the files in the submodule are not deleted
     let file_in_submodule_path = added_submodule_path.to_fs_path_unchecked(&workspace_root);
@@ -1214,6 +1225,23 @@ fn test_git_submodule() {
         file_in_submodule_path.metadata().is_ok(),
         "{file_in_submodule_path:?} should exist"
     );
+
+    // Check out new commit updating the submodule, which shouldn't fail because
+    // of existing submodule files
+    let ws = &mut test_workspace.workspace;
+    ws.check_out(repo.op_id().clone(), None, &commit2).unwrap();
+
+    // Check that the files in the submodule are not deleted
+    let file_in_submodule_path = added_submodule_path.to_fs_path_unchecked(&workspace_root);
+    assert!(
+        file_in_submodule_path.metadata().is_ok(),
+        "{file_in_submodule_path:?} should exist"
+    );
+
+    // Check that the files present in the submodule are not tracked
+    // when we snapshot
+    let new_tree = test_workspace.snapshot().unwrap();
+    assert_eq!(new_tree.id(), tree_id2);
 }
 
 #[test]
