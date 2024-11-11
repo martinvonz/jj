@@ -6,7 +6,6 @@
 ![](https://img.shields.io/github/release-date/martinvonz/jj)
 <br/>
 ![](https://img.shields.io/github/license/martinvonz/jj)
-![](https://github.com/martinvonz/jj/workflows/build/badge.svg)
 [![Discord](https://img.shields.io/discord/968932220549103686.svg?label=&logo=discord&logoColor=ffffff&color=7389D8&labelColor=6A7EC2)](https://discord.gg/dkmfj3aGQN)
 
 **[Homepage] &nbsp;&nbsp;&bull;&nbsp;&nbsp;**
