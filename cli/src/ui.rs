@@ -132,6 +132,11 @@ impl UiOutput {
     fn new_paged(pager_cmd: &CommandNameAndArgs) -> io::Result<UiOutput> {
         let mut cmd = pager_cmd.to_command();
         tracing::info!(?cmd, "spawning pager");
+        if env::var_os("LESS").is_none() {
+            // LESS=FRX causes escape sequences to render correctly when PAGER=less.
+            // It's harmless when using other pagers
+            cmd.env("LESS", "FRX");
+        };
         let mut child = cmd.stdin(Stdio::piped()).spawn()?;
         let child_stdin = child.stdin.take().unwrap();
         Ok(UiOutput::Paged { child, child_stdin })
