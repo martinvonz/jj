@@ -1509,7 +1509,7 @@ impl TreeState {
                     match values {
                         Ok((before, after)) => {
                             let result = materialize_tree_value(&self.store, &path, after).await;
-                            (path, result.map(|value| (before.is_present(), value)))
+                            (path, result.map(|value| (before, value)))
                         }
                         Err(err) => (path, Err(err)),
                     }
@@ -1517,13 +1517,29 @@ impl TreeState {
                 .buffered(self.store.concurrency().max(1)),
         );
         while let Some((path, data)) = diff_stream.next().await {
-            let (present_before, after) = data?;
+            let (before, after) = data?;
             if after.is_absent() {
                 stats.removed_files += 1;
-            } else if !present_before {
+            } else if before.is_absent() {
                 stats.added_files += 1;
             } else {
                 stats.updated_files += 1;
+            }
+
+            // Existing Git submodule can be a non-empty directory on disk. We
+            // shouldn't attempt to manage it as a tracked path.
+            //
+            // TODO: It might be better to add general support for paths not
+            // tracked by jj than processing submodules specially. For example,
+            // paths excluded by .gitignore can be marked as such so that
+            // newly-"unignored" paths won't be snapshotted automatically.
+            if matches!(before.as_normal(), Some(TreeValue::GitSubmodule(_)))
+                && matches!(after, MaterializedTreeValue::GitSubmodule(_))
+            {
+                eprintln!("ignoring git submodule at {path:?}");
+                // Not updating the file state as if there were no diffs. Leave
+                // the state type as FileType::GitSubmodule if it was before.
+                continue;
             }
 
             // Create parent directories no matter if after.is_present(). This
@@ -1534,7 +1550,7 @@ impl TreeState {
                 continue;
             };
             // If the path was present, check reserved path first and delete it.
-            let was_present = present_before && remove_old_file(&disk_path)?;
+            let was_present = before.is_present() && remove_old_file(&disk_path)?;
             // If not, create temporary file to test the path validity.
             if !was_present && !can_create_new_file(&disk_path)? {
                 changed_file_states.push((path, FileState::placeholder()));
