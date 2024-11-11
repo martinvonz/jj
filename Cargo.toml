@@ -91,7 +91,7 @@ rayon = "1.10.0"
 ref-cast = "1.0.23"
 regex = "1.11.1"
 rpassword = "7.3.1"
-rustix = { version = "0.38.39", features = ["fs"] }
+rustix = { version = "0.38.40", features = ["fs"] }
 same-file = "1.0.6"
 scm-record = "0.4.0"
 serde = { version = "1.0", features = ["derive"] }
@@ -107,7 +107,7 @@ syn = "2.0.87"
 tempfile = "3.14.0"
 test-case = "3.3.1"
 textwrap = "0.16.1"
-thiserror = "1.0.68"
+thiserror = "1.0.69"
 timeago = { version = "0.4.2", default-features = false }
 tokio = { version = "1.41.1" }
 toml_edit = { version = "0.19.15", features = ["serde"] }
