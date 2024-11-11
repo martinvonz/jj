@@ -1160,7 +1160,7 @@ fn test_dotgit_ignored() {
 }
 
 #[test]
-fn test_gitsubmodule() {
+fn test_git_submodule() {
     // Tests that git submodules are ignored.
 
     let settings = testutils::user_settings();
@@ -1168,33 +1168,30 @@ fn test_gitsubmodule() {
     let repo = &test_workspace.repo;
     let store = repo.store().clone();
     let workspace_root = test_workspace.workspace.workspace_root().to_owned();
-
-    let mut tree_builder = store.tree_builder(store.empty_tree_id().clone());
+    let mut tx = repo.start_transaction(&settings);
 
     let added_path = RepoPath::from_internal_string("added");
     let submodule_path = RepoPath::from_internal_string("submodule");
     let added_submodule_path = RepoPath::from_internal_string("submodule/added");
 
-    tree_builder.set(
+    let mut tree_builder = MergedTreeBuilder::new(store.empty_merged_tree_id());
+    tree_builder.set_or_remove(
         added_path.to_owned(),
-        TreeValue::File {
+        Merge::normal(TreeValue::File {
             id: testutils::write_file(repo.store(), added_path, "added\n"),
             executable: false,
-        },
+        }),
     );
 
-    let mut tx = repo.start_transaction(&settings);
     let submodule_id = write_random_commit(tx.repo_mut(), &settings).id().clone();
-    tx.commit("create submodule commit");
 
-    tree_builder.set(
+    tree_builder.set_or_remove(
         submodule_path.to_owned(),
-        TreeValue::GitSubmodule(submodule_id),
+        Merge::normal(TreeValue::GitSubmodule(submodule_id)),
     );
 
-    let tree_id = MergedTreeId::Legacy(tree_builder.write_tree().unwrap());
-    let tree = store.get_root_tree(&tree_id).unwrap();
-    let commit = commit_with_tree(repo.store(), tree.id());
+    let tree_id = tree_builder.write_tree(&store).unwrap();
+    let commit = commit_with_tree(repo.store(), tree_id.clone());
     let ws = &mut test_workspace.workspace;
     ws.check_out(repo.op_id().clone(), None, &commit).unwrap();
 
