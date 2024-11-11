@@ -487,7 +487,7 @@ fn create_parent_dirs(
 }
 
 /// Removes existing file named `disk_path` if any. Returns `Ok(true)` if the
-/// file was there and got removed.
+/// file was there and got removed, meaning that new file can be safely created.
 ///
 /// If the existing file points to ".git" or ".jj", this function returns an
 /// error.
@@ -496,6 +496,8 @@ fn remove_old_file(disk_path: &Path) -> Result<bool, CheckoutError> {
     match fs::remove_file(disk_path) {
         Ok(()) => Ok(true),
         Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(false),
+        // TODO: Use io::ErrorKind::IsADirectory if it gets stabilized
+        Err(_) if disk_path.symlink_metadata().is_ok_and(|m| m.is_dir()) => Ok(false),
         Err(err) => Err(CheckoutError::Other {
             message: format!("Failed to remove file {}", disk_path.display()),
             err: err.into(),
@@ -1550,9 +1552,9 @@ impl TreeState {
                 continue;
             };
             // If the path was present, check reserved path first and delete it.
-            let was_present = before.is_present() && remove_old_file(&disk_path)?;
+            let present_file_deleted = before.is_present() && remove_old_file(&disk_path)?;
             // If not, create temporary file to test the path validity.
-            if !was_present && !can_create_new_file(&disk_path)? {
+            if !present_file_deleted && !can_create_new_file(&disk_path)? {
                 changed_file_states.push((path, FileState::placeholder()));
                 stats.skipped_files += 1;
                 continue;
