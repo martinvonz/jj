@@ -30,8 +30,8 @@ fn test_report_conflicts() {
     let (stdout, stderr) =
         test_env.jj_cmd_ok(&repo_path, &["rebase", "-s=description(B)", "-d=root()"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
-    Rebased 3 commits
+    insta::assert_snapshot!(stderr, @r#"
+    Rebased 3 commits onto destination
     Working copy now at: zsuskuln aa73e2ae (conflict) (empty) (no description set)
     Parent commit      : kkmpptxz 64bdec0c (conflict) C
     Added 0 files, modified 1 files, removed 0 files
@@ -45,19 +45,19 @@ fn test_report_conflicts() {
     Then use `jj resolve`, or edit the conflict markers in the file directly.
     Once the conflicts are resolved, you may want to inspect the result with `jj diff`.
     Then run `jj squash` to move the resolution into the conflicted commit.
-    "###);
+    "#);
 
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-d=description(A)"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
-    Rebased 3 commits
+    insta::assert_snapshot!(stderr, @r#"
+    Rebased 3 commits onto destination
     Working copy now at: zsuskuln d70c003d (empty) (no description set)
     Parent commit      : kkmpptxz 43e94449 C
     Added 0 files, modified 1 files, removed 0 files
     Existing conflicts were resolved or abandoned from these commits:
       kkmpptxz hidden 64bdec0c (conflict) C
       rlvkpnrz hidden 10a5fd45 (conflict) B
-    "###);
+    "#);
 
     // Can get hint about multiple root commits
     let (stdout, stderr) =
@@ -121,9 +121,9 @@ fn test_report_conflicts_with_divergent_commits() {
     let (stdout, stderr) =
         test_env.jj_cmd_ok(&repo_path, &["rebase", "-s=description(B)", "-d=root()"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
+    insta::assert_snapshot!(stderr, @r#"
     Concurrent modification detected, resolving automatically.
-    Rebased 3 commits
+    Rebased 3 commits onto destination
     Working copy now at: zsuskuln?? 97ce1783 (conflict) C2
     Parent commit      : kkmpptxz eb93a73d (conflict) B
     Added 0 files, modified 1 files, removed 0 files
@@ -138,12 +138,12 @@ fn test_report_conflicts_with_divergent_commits() {
     Then use `jj resolve`, or edit the conflict markers in the file directly.
     Once the conflicts are resolved, you may want to inspect the result with `jj diff`.
     Then run `jj squash` to move the resolution into the conflicted commit.
-    "###);
+    "#);
 
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-d=description(A)"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
-    Rebased 3 commits
+    insta::assert_snapshot!(stderr, @r#"
+    Rebased 3 commits onto destination
     Working copy now at: zsuskuln?? f2d7a228 C2
     Parent commit      : kkmpptxz db069a22 B
     Added 0 files, modified 1 files, removed 0 files
@@ -151,14 +151,14 @@ fn test_report_conflicts_with_divergent_commits() {
       zsuskuln hidden b535189c (conflict) C3
       zsuskuln hidden 97ce1783 (conflict) C2
       kkmpptxz hidden eb93a73d (conflict) B
-    "###);
+    "#);
 
     // Same thing when rebasing the divergent commits one at a time
     let (stdout, stderr) =
         test_env.jj_cmd_ok(&repo_path, &["rebase", "-s=description(C2)", "-d=root()"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
-    Rebased 1 commits
+    insta::assert_snapshot!(stderr, @r#"
+    Rebased 1 commits onto destination
     Working copy now at: zsuskuln?? b15416ac (conflict) C2
     Parent commit      : zzzzzzzz 00000000 (empty) (no description set)
     Added 0 files, modified 1 files, removed 0 files
@@ -171,13 +171,13 @@ fn test_report_conflicts_with_divergent_commits() {
     Then use `jj resolve`, or edit the conflict markers in the file directly.
     Once the conflicts are resolved, you may want to inspect the result with `jj diff`.
     Then run `jj squash` to move the resolution into the conflicted commit.
-    "###);
+    "#);
 
     let (stdout, stderr) =
         test_env.jj_cmd_ok(&repo_path, &["rebase", "-s=description(C3)", "-d=root()"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r#"
-    Rebased 1 commits
+    Rebased 1 commits onto destination
     New conflicts appeared in these commits:
       zsuskuln?? 8cc7fde6 (conflict) C3
     To resolve the conflicts, start by updating to it:
@@ -192,23 +192,23 @@ fn test_report_conflicts_with_divergent_commits() {
         &["rebase", "-s=description(C2)", "-d=description(B)"],
     );
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
-    Rebased 1 commits
+    insta::assert_snapshot!(stderr, @r#"
+    Rebased 1 commits onto destination
     Working copy now at: zsuskuln?? 1f9680bd C2
     Parent commit      : kkmpptxz db069a22 B
     Added 0 files, modified 1 files, removed 0 files
     Existing conflicts were resolved or abandoned from these commits:
       zsuskuln hidden b15416ac (conflict) C2
-    "###);
+    "#);
 
     let (stdout, stderr) = test_env.jj_cmd_ok(
         &repo_path,
         &["rebase", "-s=description(C3)", "-d=description(B)"],
     );
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
-    Rebased 1 commits
+    insta::assert_snapshot!(stderr, @r#"
+    Rebased 1 commits onto destination
     Existing conflicts were resolved or abandoned from these commits:
       zsuskuln hidden 8cc7fde6 (conflict) C3
-    "###);
+    "#);
 }

@@ -409,12 +409,7 @@ fn rebase_descendants_transaction(
         )
     };
 
-    let MoveCommitsStats {
-        num_rebased_targets,
-        num_rebased_descendants,
-        num_skipped_rebases,
-        num_abandoned,
-    } = move_commits(
+    let stats = move_commits(
         settings,
         tx.repo_mut(),
         new_parent_ids,
@@ -422,29 +417,7 @@ fn rebase_descendants_transaction(
         &MoveCommitsTarget::Roots(target_roots),
         rebase_options,
     )?;
-
-    if num_skipped_rebases > 0 {
-        writeln!(
-            ui.status(),
-            "Skipped rebase of {num_skipped_rebases} commits that were already in place"
-        )?;
-    }
-    if num_rebased_targets > 0 {
-        writeln!(ui.status(), "Rebased {num_rebased_targets} commits")?;
-    }
-    if num_rebased_descendants > 0 {
-        writeln!(
-            ui.status(),
-            "Rebased {num_rebased_descendants} descendant commits"
-        )?;
-    }
-    if num_abandoned > 0 {
-        writeln!(
-            ui.status(),
-            "Abandoned {num_abandoned} newly emptied commits"
-        )?;
-    }
-
+    print_move_commits_stats(ui, &stats)?;
     tx.finish(ui, tx_description)
 }
 
@@ -541,12 +514,7 @@ fn rebase_revisions_transaction(
         )
     };
 
-    let MoveCommitsStats {
-        num_rebased_targets,
-        num_rebased_descendants,
-        num_skipped_rebases,
-        num_abandoned,
-    } = move_commits(
+    let stats = move_commits(
         settings,
         tx.repo_mut(),
         new_parent_ids,
@@ -554,28 +522,7 @@ fn rebase_revisions_transaction(
         &MoveCommitsTarget::Commits(target_commits),
         rebase_options,
     )?;
-
-    if let Some(mut fmt) = ui.status_formatter() {
-        if num_skipped_rebases > 0 {
-            writeln!(
-                fmt,
-                "Skipped rebase of {num_skipped_rebases} commits that were already in place"
-            )?;
-        }
-        if num_rebased_targets > 0 {
-            writeln!(
-                fmt,
-                "Rebased {num_rebased_targets} commits onto destination"
-            )?;
-        }
-        if num_rebased_descendants > 0 {
-            writeln!(fmt, "Rebased {num_rebased_descendants} descendant commits")?;
-        }
-        if num_abandoned > 0 {
-            writeln!(fmt, "Abandoned {num_abandoned} newly emptied commits")?;
-        }
-    }
-
+    print_move_commits_stats(ui, &stats)?;
     tx.finish(ui, tx_description)
 }
 
@@ -615,6 +562,41 @@ fn check_rebase_destinations(
                 short_commit_hash(parent.id())
             )));
         }
+    }
+    Ok(())
+}
+
+/// Print details about the provided [`MoveCommitsStats`].
+fn print_move_commits_stats(ui: &Ui, stats: &MoveCommitsStats) -> std::io::Result<()> {
+    let Some(mut formatter) = ui.status_formatter() else {
+        return Ok(());
+    };
+    let &MoveCommitsStats {
+        num_rebased_targets,
+        num_rebased_descendants,
+        num_skipped_rebases,
+        num_abandoned,
+    } = stats;
+    if num_skipped_rebases > 0 {
+        writeln!(
+            formatter,
+            "Skipped rebase of {num_skipped_rebases} commits that were already in place"
+        )?;
+    }
+    if num_rebased_targets > 0 {
+        writeln!(
+            formatter,
+            "Rebased {num_rebased_targets} commits onto destination"
+        )?;
+    }
+    if num_rebased_descendants > 0 {
+        writeln!(
+            formatter,
+            "Rebased {num_rebased_descendants} descendant commits"
+        )?;
+    }
+    if num_abandoned > 0 {
+        writeln!(formatter, "Abandoned {num_abandoned} newly emptied commits")?;
     }
     Ok(())
 }

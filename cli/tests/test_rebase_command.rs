@@ -156,9 +156,7 @@ fn test_rebase_bookmark() {
 
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-b", "c", "-d", "e"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
-    Rebased 3 commits
-    "###);
+    insta::assert_snapshot!(stderr, @"Rebased 3 commits onto destination");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     ○  d: b
     │ ○  c: b
@@ -173,13 +171,13 @@ fn test_rebase_bookmark() {
     test_env.jj_cmd_ok(&repo_path, &["undo"]);
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-b=e", "-b=d", "-d=b"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
+    insta::assert_snapshot!(stderr, @r#"
     Skipped rebase of 1 commits that were already in place
-    Rebased 1 commits
+    Rebased 1 commits onto destination
     Working copy now at: znkkpsqq 9ca2a154 e | e
     Parent commit      : zsuskuln 1394f625 b | b
     Added 1 files, modified 0 files, removed 0 files
-    "###);
+    "#);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  e: b
     │ ○  d: b
@@ -203,13 +201,13 @@ fn test_rebase_bookmark() {
     "###);
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-b=all:e|d", "-d=b"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
+    insta::assert_snapshot!(stderr, @r#"
     Skipped rebase of 1 commits that were already in place
-    Rebased 1 commits
+    Rebased 1 commits onto destination
     Working copy now at: znkkpsqq 817e3fb0 e | e
     Parent commit      : zsuskuln 1394f625 b | b
     Added 1 files, modified 0 files, removed 0 files
-    "###);
+    "#);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  e: b
     │ ○  d: b
@@ -248,13 +246,13 @@ fn test_rebase_bookmark_with_merge() {
 
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-b", "d", "-d", "b"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
-    Rebased 3 commits
+    insta::assert_snapshot!(stderr, @r#"
+    Rebased 3 commits onto destination
     Working copy now at: znkkpsqq 5f8a3db2 e | e
     Parent commit      : rlvkpnrz 2443ea76 a | a
     Parent commit      : vruxwmqv 1677f795 d | d
     Added 1 files, modified 0 files, removed 0 files
-    "###);
+    "#);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    e: a d
     ├─╮
@@ -269,13 +267,13 @@ fn test_rebase_bookmark_with_merge() {
     test_env.jj_cmd_ok(&repo_path, &["undo"]);
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-d", "b"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
-    Rebased 3 commits
+    insta::assert_snapshot!(stderr, @r#"
+    Rebased 3 commits onto destination
     Working copy now at: znkkpsqq a331ac11 e | e
     Parent commit      : rlvkpnrz 2443ea76 a | a
     Parent commit      : vruxwmqv 3d0f3644 d | d
     Added 1 files, modified 0 files, removed 0 files
-    "###);
+    "#);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    e: a d
     ├─╮
@@ -798,11 +796,11 @@ fn test_rebase_with_descendants() {
 
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-s", "b", "-d", "a"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
-    Rebased 3 commits
+    insta::assert_snapshot!(stderr, @r#"
+    Rebased 3 commits onto destination
     Working copy now at: vruxwmqv 705832bd d | d
     Parent commit      : royxmykx 57c7246a c | c
-    "###);
+    "#);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  d: c
     ○    c: a b
@@ -817,12 +815,12 @@ fn test_rebase_with_descendants() {
     test_env.jj_cmd_ok(&repo_path, &["undo"]);
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-s=c", "-s=d", "-d=a"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
-    Rebased 2 commits
+    insta::assert_snapshot!(stderr, @r#"
+    Rebased 2 commits onto destination
     Working copy now at: vruxwmqv 92c2bc9a d | d
     Parent commit      : rlvkpnrz 2443ea76 a | a
     Added 0 files, modified 0 files, removed 2 files
-    "###);
+    "#);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  d: a
     │ ○  c: a
@@ -849,12 +847,12 @@ fn test_rebase_with_descendants() {
     // `a`. `c` remains a descendant of `b`.
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-s=b", "-s=d", "-d=a"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
-    Rebased 3 commits
+    insta::assert_snapshot!(stderr, @r#"
+    Rebased 3 commits onto destination
     Working copy now at: vruxwmqv f1e71cb7 d | d
     Parent commit      : rlvkpnrz 2443ea76 a | a
     Added 0 files, modified 0 files, removed 2 files
-    "###);
+    "#);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  d: a
     │ ○  c: a b
@@ -877,12 +875,12 @@ fn test_rebase_with_descendants() {
     "###);
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-s=all:b|d", "-d=a"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
-    Rebased 3 commits
+    insta::assert_snapshot!(stderr, @r#"
+    Rebased 3 commits onto destination
     Working copy now at: vruxwmqv d17539f7 d | d
     Parent commit      : rlvkpnrz 2443ea76 a | a
     Added 0 files, modified 0 files, removed 2 files
-    "###);
+    "#);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  d: a
     │ ○  c: a b
@@ -983,11 +981,11 @@ fn test_rebase_with_child_and_descendant_bug_2600() {
     test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-s", "a", "-d", "root()"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
-    Rebased 3 commits
+    insta::assert_snapshot!(stderr, @r#"
+    Rebased 3 commits onto destination
     Working copy now at: znkkpsqq cf8ecff5 c | c
     Parent commit      : vruxwmqv 24e1a270 b | b
-    "###);
+    "#);
     // Commit "a" should be rebased onto the root commit. Commit "b" should have
     // "base" and "a" as parents as before.
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
@@ -1037,11 +1035,11 @@ fn test_rebase_with_child_and_descendant_bug_2600() {
     test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-b", "c", "-d", "a"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
-    Rebased 2 commits
+    insta::assert_snapshot!(stderr, @r#"
+    Rebased 2 commits onto destination
     Working copy now at: znkkpsqq 76914dcc c | c
     Parent commit      : vruxwmqv f73f03c7 b | b
-    "###);
+    "#);
     // The commits in roots(a..c), i.e. commit "b" should be rebased onto "a",
     // which means "b" loses its "base" parent
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
@@ -1694,13 +1692,13 @@ fn test_rebase_after() {
         &["rebase", "-s", "c", "--after", "b1", "--after", "b3"],
     );
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
-    Rebased 4 commits
+    insta::assert_snapshot!(stderr, @r#"
+    Rebased 4 commits onto destination
     Rebased 2 descendant commits
     Working copy now at: xznxytkn a4ace41c f | f
     Parent commit      : nkmrtpmo c7744d08 e | e
     Added 0 files, modified 0 files, removed 2 files
-    "###);
+    "#);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     ○    b4: d f
     ├─╮
@@ -2201,13 +2199,13 @@ fn test_rebase_before() {
         &["rebase", "-s", "c", "--before", "b2", "--before", "b4"],
     );
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
-    Rebased 4 commits
+    insta::assert_snapshot!(stderr, @r#"
+    Rebased 4 commits onto destination
     Rebased 2 descendant commits
     Working copy now at: xznxytkn 84704387 f | f
     Parent commit      : nkmrtpmo cff61821 e | e
     Added 0 files, modified 0 files, removed 2 files
-    "###);
+    "#);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     ○    b4: d f
     ├─╮
@@ -2399,13 +2397,13 @@ fn test_rebase_after_before() {
         &["rebase", "-s", "c", "--before", "b1", "--after", "b2"],
     );
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
-    Rebased 4 commits
+    insta::assert_snapshot!(stderr, @r#"
+    Rebased 4 commits onto destination
     Rebased 1 descendant commits
     Working copy now at: lylxulpl 108f0202 f | f
     Parent commit      : kmkuslsw 52245d71 e | e
     Added 0 files, modified 0 files, removed 1 files
-    "###);
+    "#);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     ○      b1: a d f
     ├─┬─╮
@@ -2459,7 +2457,7 @@ fn test_rebase_skip_emptied() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-d=b", "--skip-emptied"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r#"
-    Rebased 2 commits
+    Rebased 2 commits onto destination
     Abandoned 1 newly emptied commits
     Working copy now at: yostqsxw bc4222f2 (empty) also already empty
     Parent commit      : vruxwmqv 6b41ecb2 (empty) already empty
