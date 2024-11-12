@@ -48,11 +48,13 @@ impl Iterator for BackoffIterator {
             let current_sleep = self.next_sleep_secs * (rand::random::<f32>() + 0.5);
             self.next_sleep_secs *= 1.5;
             self.elapsed_secs += current_sleep;
-            return Some(Duration::from_secs_f32(current_sleep));
+            Some(Duration::from_secs_f32(current_sleep))
         }
     }
 }
 
+// Suppress warning on platforms where specialized lock impl is available
+#[cfg_attr(unix, allow(dead_code))]
 impl FileLock {
     pub fn lock(path: PathBuf) -> FileLock {
         let mut options = OpenOptions::new();
