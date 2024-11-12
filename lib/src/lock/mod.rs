@@ -14,11 +14,15 @@
 
 #![allow(missing_docs)]
 
-#[cfg_attr(unix, path = "lock/unix.rs")]
-#[cfg_attr(not(unix), path = "lock/fallback.rs")]
-mod platform;
+#[cfg(not(unix))]
+mod fallback;
+#[cfg(unix)]
+mod unix;
 
-pub use platform::FileLock;
+#[cfg(not(unix))]
+pub use self::fallback::FileLock;
+#[cfg(unix)]
+pub use self::unix::FileLock;
 
 #[cfg(test)]
 mod tests {
