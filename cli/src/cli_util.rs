@@ -283,11 +283,6 @@ struct CommandHelperData {
     working_copy_factories: WorkingCopyFactories,
 }
 
-pub enum StaleWorkingCopy {
-    Recovered(WorkspaceCommandHelper),
-    Snapshotted((Arc<ReadonlyRepo>, Commit)),
-}
-
 impl CommandHelper {
     pub fn app(&self) -> &Command {
         &self.data.app
@@ -389,29 +384,7 @@ impl CommandHelper {
                 // auto-update-stale, so let's do that now. We need to do it up here, not at a
                 // lower level (e.g. inside snapshot_working_copy()) to avoid recursive locking
                 // of the working copy.
-                match self.load_stale_working_copy_commit(ui)? {
-                    StaleWorkingCopy::Recovered(workspace_command) => workspace_command,
-                    StaleWorkingCopy::Snapshotted((repo, stale_commit)) => {
-                        let mut workspace_command = self.workspace_helper_no_snapshot(ui)?;
-                        let (locked_ws, new_commit) =
-                            workspace_command.unchecked_start_working_copy_mutation()?;
-                        let stats = update_stale_working_copy(
-                            locked_ws,
-                            repo.op_id().clone(),
-                            &stale_commit,
-                            &new_commit,
-                        )?;
-                        writeln!(
-                            ui.warning_default(),
-                            "Automatically updated to fresh commit {}",
-                            short_commit_hash(stale_commit.id())
-                        )?;
-                        workspace_command.write_stale_commit_stats(ui, &new_commit, stats)?;
-
-                        workspace_command.user_repo = ReadonlyUserRepo::new(repo);
-                        workspace_command
-                    }
-                }
+                self.recover_stale_working_copy(ui)?
             }
         };
 
@@ -460,10 +433,10 @@ impl CommandHelper {
             })
     }
 
-    pub fn load_stale_working_copy_commit(
+    pub fn recover_stale_working_copy(
         &self,
         ui: &Ui,
-    ) -> Result<StaleWorkingCopy, CommandError> {
+    ) -> Result<WorkspaceCommandHelper, CommandError> {
         let workspace = self.load_workspace()?;
         let op_id = workspace.working_copy().operation_id();
 
@@ -471,12 +444,61 @@ impl CommandHelper {
             Ok(op) => {
                 let repo = workspace.repo_loader().load_at(&op)?;
                 let mut workspace_command = self.for_workable_repo(ui, workspace, repo)?;
+
+                // Snapshot the current working copy on top of the last known working-copy
+                // operation, then merge the divergent operations. The wc_commit_id of the
+                // merged repo wouldn't change because the old one wins, but it's probably
+                // fine if we picked the new wc_commit_id.
                 workspace_command.maybe_snapshot(ui)?;
 
                 let wc_commit_id = workspace_command.get_wc_commit_id().unwrap();
                 let repo = workspace_command.repo().clone();
-                let wc_commit = repo.store().get_commit(wc_commit_id)?;
-                Ok(StaleWorkingCopy::Snapshotted((repo, wc_commit)))
+                let stale_wc_commit = repo.store().get_commit(wc_commit_id)?;
+
+                let mut workspace_command = self.workspace_helper_no_snapshot(ui)?;
+
+                let repo = workspace_command.repo().clone();
+                let (mut locked_ws, desired_wc_commit) =
+                    workspace_command.unchecked_start_working_copy_mutation()?;
+                match WorkingCopyFreshness::check_stale(
+                    locked_ws.locked_wc(),
+                    &desired_wc_commit,
+                    &repo,
+                )? {
+                    WorkingCopyFreshness::Fresh | WorkingCopyFreshness::Updated(_) => {
+                        writeln!(
+                            ui.status(),
+                            "Attempted recovery, but the working copy is not stale"
+                        )?;
+                    }
+                    WorkingCopyFreshness::WorkingCopyStale
+                    | WorkingCopyFreshness::SiblingOperation => {
+                        let stats = update_stale_working_copy(
+                            locked_ws,
+                            repo.op_id().clone(),
+                            &stale_wc_commit,
+                            &desired_wc_commit,
+                        )?;
+
+                        // TODO: Share this code with new/checkout somehow.
+                        if let Some(mut formatter) = ui.status_formatter() {
+                            write!(formatter, "Working copy now at: ")?;
+                            formatter.with_label("working_copy", |fmt| {
+                                workspace_command.write_commit_summary(fmt, &desired_wc_commit)
+                            })?;
+                            writeln!(formatter)?;
+                        }
+                        print_checkout_stats(ui, stats, &desired_wc_commit)?;
+
+                        writeln!(
+                            ui.status(),
+                            "Updated working copy to fresh commit {}",
+                            short_commit_hash(desired_wc_commit.id())
+                        )?;
+                    }
+                };
+
+                Ok(workspace_command)
             }
             Err(e @ OpStoreError::ObjectNotFound { .. }) => {
                 writeln!(
@@ -487,7 +509,7 @@ impl CommandHelper {
 
                 let mut workspace_command = self.workspace_helper_no_snapshot(ui)?;
                 workspace_command.create_and_check_out_recovery_commit(ui)?;
-                Ok(StaleWorkingCopy::Recovered(workspace_command))
+                Ok(workspace_command)
             }
             Err(e) => Err(e.into()),
         }
@@ -1643,22 +1665,6 @@ to the current parents may contain changes from multiple commits.
         self.commit_summary_template().format(commit, formatter)
     }
 
-    pub fn write_stale_commit_stats(
-        &self,
-        ui: &Ui,
-        commit: &Commit,
-        stats: CheckoutStats,
-    ) -> std::io::Result<()> {
-        if let Some(mut formatter) = ui.status_formatter() {
-            write!(formatter, "Working copy now at: ")?;
-            formatter.with_label("working_copy", |fmt| self.write_commit_summary(fmt, commit))?;
-            writeln!(formatter)?;
-        }
-        print_checkout_stats(ui, stats, commit)?;
-
-        Ok(())
-    }
-
     pub fn check_rewritable<'a>(
         &self,
         commits: impl IntoIterator<Item = &'a CommitId>,
@@ -2404,7 +2410,7 @@ pub fn start_repo_transaction(
     tx
 }
 
-pub fn update_stale_working_copy(
+fn update_stale_working_copy(
     mut locked_ws: LockedWorkspace,
     op_id: OperationId,
     stale_commit: &Commit,

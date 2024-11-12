@@ -523,6 +523,7 @@ fn test_workspaces_conflicting_edits() {
     Rebased 1 descendant commits onto commits rewritten by other operation
     Working copy now at: pmmvwywv?? e82cd4ee (empty) (no description set)
     Added 0 files, modified 1 files, removed 0 files
+    Updated working copy to fresh commit e82cd4ee8faa
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &secondary_path),
     @r###"
@@ -600,6 +601,7 @@ fn test_workspaces_updated_by_other() {
     insta::assert_snapshot!(stderr, @r###"
     Working copy now at: pmmvwywv e82cd4ee (empty) (no description set)
     Added 0 files, modified 1 files, removed 0 files
+    Updated working copy to fresh commit e82cd4ee8faa
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &secondary_path),
     @r###"
@@ -657,13 +659,13 @@ fn test_workspaces_updated_by_other_automatic() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&secondary_path, &["st"]);
     insta::assert_snapshot!(stdout, @r###"
     The working copy is clean
-    Working copy : pmmvwywv 3224de8a (empty) (no description set)
-    Parent commit: qpvuntsm 506f4ec3 (no description set)
+    Working copy : pmmvwywv e82cd4ee (empty) (no description set)
+    Parent commit: qpvuntsm d4124476 (no description set)
     "###);
     insta::assert_snapshot!(stderr, @r###"
-    Warning: Automatically updated to fresh commit 3224de8ae048
     Working copy now at: pmmvwywv e82cd4ee (empty) (no description set)
     Added 0 files, modified 1 files, removed 0 files
+    Updated working copy to fresh commit e82cd4ee8faa
     "###);
 
     insta::assert_snapshot!(get_log_output(&test_env, &secondary_path),
@@ -848,9 +850,7 @@ fn test_workspaces_update_stale_noop() {
 
     let (stdout, stderr) = test_env.jj_cmd_ok(&main_path, &["workspace", "update-stale"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
-    Nothing to do (the working copy is not stale).
-    "###);
+    insta::assert_snapshot!(stderr, @"Attempted recovery, but the working copy is not stale");
 
     let stderr = test_env.jj_cmd_failure(
         &main_path,
@@ -890,7 +890,7 @@ fn test_workspaces_update_stale_snapshot() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Concurrent modification detected, resolving automatically.
-    Nothing to do (the working copy is not stale).
+    Attempted recovery, but the working copy is not stale
     "###);
 
     insta::assert_snapshot!(get_log_output(&test_env, &secondary_path), @r###"
