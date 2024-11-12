@@ -14,7 +14,6 @@
 
 #![allow(missing_docs)]
 
-#[cfg(not(unix))]
 mod fallback;
 #[cfg(unix)]
 mod unix;
@@ -28,25 +27,30 @@ pub use self::unix::FileLock;
 mod tests {
     use std::cmp::max;
     use std::fs;
+    use std::path::PathBuf;
     use std::thread;
     use std::time::Duration;
 
+    use test_case::test_case;
+
     use super::*;
 
-    #[test]
-    fn lock_basic() {
+    #[test_case(FileLock::lock)]
+    #[cfg_attr(unix, test_case(fallback::FileLock::lock))]
+    fn lock_basic<T>(lock_fn: fn(PathBuf) -> T) {
         let temp_dir = testutils::new_temp_dir();
         let lock_path = temp_dir.path().join("test.lock");
         assert!(!lock_path.exists());
         {
-            let _lock = FileLock::lock(lock_path.clone());
+            let _lock = lock_fn(lock_path.clone());
             assert!(lock_path.exists());
         }
         assert!(!lock_path.exists());
     }
 
-    #[test]
-    fn lock_concurrent() {
+    #[test_case(FileLock::lock)]
+    #[cfg_attr(unix, test_case(fallback::FileLock::lock))]
+    fn lock_concurrent<T>(lock_fn: fn(PathBuf) -> T) {
         let temp_dir = testutils::new_temp_dir();
         let data_path = temp_dir.path().join("test");
         let lock_path = temp_dir.path().join("test.lock");
@@ -55,7 +59,7 @@ mod tests {
         thread::scope(|s| {
             for _ in 0..num_threads {
                 s.spawn(|| {
-                    let _lock = FileLock::lock(lock_path.clone());
+                    let _lock = lock_fn(lock_path.clone());
                     let data = fs::read(&data_path).unwrap();
                     let value = u32::from_le_bytes(data.try_into().unwrap());
                     thread::sleep(Duration::from_millis(1));
