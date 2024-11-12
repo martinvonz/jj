@@ -1663,7 +1663,7 @@ remote. If a local bookmark also exists on some remote but points to a different
 target there, <code>jj log</code> will show the bookmark name with an asterisk suffix (e.g.
 <code>main*</code>). That is meant to remind you that you may want to push the bookmark to
 some remote.</p>
-<p>If you want to know the internals of bookmark tracking, consult the 
+<p>If you want to know the internals of bookmark tracking, consult the
 <a href="../design/tracking-branches/">Design Doc</a>.</p>
 <h3 id="terminology-summary">Terminology summary<a class="headerlink" href="#terminology-summary" title="Permanent link">&para;</a></h3>
 <ul>
@@ -1686,9 +1686,9 @@ some remote.</p>
 bookmarks on multiple remotes, and the names of the local and remote bookmarks
 must match.</p>
 <h3 id="manually-tracking-a-bookmark">Manually tracking a bookmark<a class="headerlink" href="#manually-tracking-a-bookmark" title="Permanent link">&para;</a></h3>
-<p>To track a bookmark permanently use <code>jj bookmark track &lt;bookmark name&gt;@&lt;remote name&gt;</code>. 
+<p>To track a bookmark permanently use <code>jj bookmark track &lt;bookmark name&gt;@&lt;remote name&gt;</code>.
 It will now be imported as a local bookmark until you untrack it or it is deleted
-on the remote. </p>
+on the remote.</p>
 <p>Example:</p>
 <div class="highlight"><pre><span></span><code>$<span class="w"> </span><span class="c1"># List all available bookmarks, as we want our colleague&#39;s bookmark.</span>
 $<span class="w"> </span>jj<span class="w"> </span>bookmark<span class="w"> </span>list<span class="w"> </span>--all
@@ -1705,7 +1705,7 @@ $<span class="w"> </span>jj<span class="w"> </span>new<span class="w"> </span>&l
 <p>To stop following a remote bookmark, you can <code>jj bookmark untrack</code> it. After that,
 subsequent fetches of that remote will no longer move the local bookmark to match
 the position of the remote bookmark.</p>
-<p>Example: </p>
+<p>Example:</p>
 <div class="highlight"><pre><span></span><code>$<span class="w"> </span><span class="c1"># List all local and remote bookmarks.</span>
 $<span class="w"> </span>jj<span class="w"> </span>bookmark<span class="w"> </span>list<span class="w"> </span>--all
 $<span class="w"> </span><span class="c1"># Find the bookmark we no longer want to track.</span>
@@ -1727,7 +1727,7 @@ tracked. When you push a local bookmark, the newly created bookmark on the remot
 marked as tracked.</p>
 <p>By default, every other remote bookmark is marked as "not tracked" when it's
 fetched. If desired, you need to manually <code>jj bookmark track</code> them. This works
-well for repositories where multiple people work on a large number of bookmarks. </p>
+well for repositories where multiple people work on a large number of bookmarks.</p>
 <p>The default can be changed by setting the config <code>git.auto-local-bookmark = true</code>.
 Then, <code>jj git fetch</code> tracks every <em>newly fetched</em> bookmark with a local bookmark.
 Branches that already existed before the <code>jj git fetch</code> are not affected. This
@@ -1737,13 +1737,13 @@ bookmarks) by default.</p>
 <p>Currently Jujutsu automatically moves local bookmarks when these conditions are
 met:</p>
 <ul>
-<li>When a commit has been rewritten (e.g, when you rebase) bookmarks and the<br />
+<li>When a commit has been rewritten (e.g, when you rebase) bookmarks and the
    working-copy will move along with it.</li>
-<li>When a commit has been abandoned, all associated bookmarks will be moved 
+<li>When a commit has been abandoned, all associated bookmarks will be moved
    to its parent(s). If a working copy was pointing to the abandoned commit,
    then a new working-copy commit will be created on top of the parent(s).</li>
 </ul>
-<p>You could describe the movement as following along the change-id of the 
+<p>You could describe the movement as following along the change-id of the
 current bookmark commit, even if it isn't entirely accurate.</p>
 <h2 id="pushing-bookmarks-safety-checks">Pushing bookmarks: Safety checks<a class="headerlink" href="#pushing-bookmarks-safety-checks" title="Permanent link">&para;</a></h2>
 <p>Before <code>jj git push</code> actually moves, creates, or deletes a remote bookmark, it

@@ -1161,6 +1161,39 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#editor-setup" class="md-nav__link">
+    <span class="md-ellipsis">
+      Editor setup
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Editor setup">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#visual-studio-code" class="md-nav__link">
+    <span class="md-ellipsis">
+      Visual Studio Code
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#zed" class="md-nav__link">
+    <span class="md-ellipsis">
+      Zed
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1662,6 +1695,39 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#editor-setup" class="md-nav__link">
+    <span class="md-ellipsis">
+      Editor setup
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Editor setup">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#visual-studio-code" class="md-nav__link">
+    <span class="md-ellipsis">
+      Visual Studio Code
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#zed" class="md-nav__link">
+    <span class="md-ellipsis">
+      Zed
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1939,6 +2005,49 @@ can verify that <code>mold</code> was indeed used by running
 to use" instructions</a>.</p>
 <p>On recent versions of MacOS, the default linker Rust uses is already
 multi-threaded. It should use all the CPU cores without any configuration.</p>
+<h3 id="editor-setup">Editor setup<a class="headerlink" href="#editor-setup" title="Permanent link">&para;</a></h3>
+<h4 id="visual-studio-code">Visual Studio Code<a class="headerlink" href="#visual-studio-code" title="Permanent link">&para;</a></h4>
+<p>We recommend at least these settings:</p>
+<div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">    </span><span class="s2">&quot;files.insertFinalNewline&quot;</span><span class="o">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+<span class="w">    </span><span class="s2">&quot;files.trimTrailingWhitespace&quot;</span><span class="o">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+<span class="w">    </span><span class="s2">&quot;[rust]&quot;</span><span class="o">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="s2">&quot;files.trimTrailingWhitespace&quot;</span><span class="o">:</span><span class="w"> </span><span class="kc">false</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+<h4 id="zed">Zed<a class="headerlink" href="#zed" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code><span class="c1">// .zed/settings.json</span>
+<span class="p">{</span>
+<span class="w">  </span><span class="s2">&quot;ensure_final_newline_on_save&quot;</span><span class="o">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+<span class="w">  </span><span class="s2">&quot;remove_trailing_whitespace_on_save&quot;</span><span class="o">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+
+<span class="w">  </span><span class="s2">&quot;languages&quot;</span><span class="o">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// We don&#39;t use a formatter for Markdown files, so format_on_save would just</span>
+<span class="w">    </span><span class="c1">// mess with others&#39; docs</span>
+<span class="w">    </span><span class="s2">&quot;Markdown&quot;</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="s2">&quot;format_on_save&quot;</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;off&quot;</span><span class="w"> </span><span class="p">}</span>
+<span class="w">    </span><span class="s2">&quot;Rust&quot;</span><span class="o">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="s2">&quot;format_on_save&quot;</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;on&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="c1">// Avoid removing trailing spaces within multi-line string literals</span>
+<span class="w">      </span><span class="s2">&quot;remove_trailing_whitespace_on_save&quot;</span><span class="o">:</span><span class="w"> </span><span class="kc">false</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">  </span><span class="p">},</span>
+
+<span class="w">  </span><span class="s2">&quot;lsp&quot;</span><span class="o">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="s2">&quot;rust-analyzer&quot;</span><span class="o">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="s2">&quot;initialization_options&quot;</span><span class="o">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// If you are working on docs and don&#39;t need `cargo check`, uncomment</span>
+<span class="w">        </span><span class="c1">// this option:</span>
+<span class="w">        </span><span class="c1">//</span>
+<span class="w">        </span><span class="c1">//   &quot;checkOnSave&quot;: false,</span>
+
+<span class="w">        </span><span class="c1">// Use nightly `rustfmt`, equivalent to `cargo +nightly fmt`</span>
+<span class="w">        </span><span class="s2">&quot;rustfmt&quot;</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="s2">&quot;extraArgs&quot;</span><span class="o">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;+nightly&quot;</span><span class="p">]</span><span class="w"> </span><span class="p">}</span>
+<span class="w">      </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
 <h2 id="previewing-the-html-documentation">Previewing the HTML documentation<a class="headerlink" href="#previewing-the-html-documentation" title="Permanent link">&para;</a></h2>
 <p>The documentation for <code>jj</code> is automatically published to the website at
 <a href="https://martinvonz.github.io/jj/">https://martinvonz.github.io/jj/</a>.</p>
