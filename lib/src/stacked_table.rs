@@ -435,7 +435,8 @@ impl TableStore {
     }
 
     fn lock(&self) -> FileLock {
-        FileLock::lock(self.dir.join("lock"))
+        // TODO: propagate error
+        FileLock::lock(self.dir.join("lock")).unwrap()
     }
 
     fn load_table(&self, name: String) -> TableStoreResult<Arc<ReadonlyTable>> {

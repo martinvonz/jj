@@ -1729,7 +1729,10 @@ impl WorkingCopy for LocalWorkingCopy {
 
     fn start_mutation(&self) -> Result<Box<dyn LockedWorkingCopy>, WorkingCopyStateError> {
         let lock_path = self.state_path.join("working_copy.lock");
-        let lock = FileLock::lock(lock_path);
+        let lock = FileLock::lock(lock_path).map_err(|err| WorkingCopyStateError {
+            message: "Failed to lock working copy".to_owned(),
+            err: err.into(),
+        })?;
 
         let wc = LocalWorkingCopy {
             store: self.store.clone(),
