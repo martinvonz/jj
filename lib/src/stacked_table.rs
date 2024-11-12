@@ -40,6 +40,7 @@ use thiserror::Error;
 
 use crate::file_util::persist_content_addressed_temp_file;
 use crate::lock::FileLock;
+use crate::lock::FileLockError;
 
 pub trait TableSegment {
     fn segment_num_entries(&self) -> usize;
@@ -79,15 +80,20 @@ impl ReadonlyTable {
         name: String,
         key_size: usize,
     ) -> TableStoreResult<Arc<ReadonlyTable>> {
-        let read_u32 = |file: &mut dyn Read| -> io::Result<u32> {
+        let to_load_err = |err| TableStoreError::LoadSegment {
+            name: name.clone(),
+            err,
+        };
+        let read_u32 = |file: &mut dyn Read| -> TableStoreResult<u32> {
             let mut buf = [0; 4];
-            file.read_exact(&mut buf)?;
+            file.read_exact(&mut buf).map_err(to_load_err)?;
             Ok(u32::from_le_bytes(buf))
         };
         let parent_filename_len = read_u32(file)?;
         let maybe_parent_file = if parent_filename_len > 0 {
             let mut parent_filename_bytes = vec![0; parent_filename_len as usize];
-            file.read_exact(&mut parent_filename_bytes)?;
+            file.read_exact(&mut parent_filename_bytes)
+                .map_err(to_load_err)?;
             let parent_filename = String::from_utf8(parent_filename_bytes).unwrap();
             let parent_file = store.load_table(parent_filename)?;
             Some(parent_file)
@@ -97,7 +103,7 @@ impl ReadonlyTable {
         let num_local_entries = read_u32(file)? as usize;
         let index_size = num_local_entries * ReadonlyTableIndexEntry::size(key_size);
         let mut data = vec![];
-        file.read_to_end(&mut data)?;
+        file.read_to_end(&mut data).map_err(to_load_err)?;
         let values = data.split_off(index_size);
         let index = data;
         Ok(Arc::new(ReadonlyTable {
@@ -337,11 +343,15 @@ impl MutableTable {
         hasher.update(&buf);
         let file_id_hex = hex::encode(hasher.finalize());
         let file_path = store.dir.join(&file_id_hex);
+        let to_save_err = |err| TableStoreError::SaveSegment {
+            name: file_id_hex.clone(),
+            err,
+        };
 
-        let mut temp_file = NamedTempFile::new_in(&store.dir)?;
+        let mut temp_file = NamedTempFile::new_in(&store.dir).map_err(to_save_err)?;
         let file = temp_file.as_file_mut();
-        file.write_all(&buf)?;
-        persist_content_addressed_temp_file(temp_file, file_path)?;
+        file.write_all(&buf).map_err(to_save_err)?;
+        persist_content_addressed_temp_file(temp_file, file_path).map_err(to_save_err)?;
 
         ReadonlyTable::load_from(&mut buf.as_slice(), store, file_id_hex, store.key_size)
     }
@@ -368,8 +378,26 @@ impl TableSegment for MutableTable {
 }
 
 #[derive(Debug, Error)]
-#[error(transparent)]
-pub struct TableStoreError(#[from] pub io::Error);
+pub enum TableStoreError {
+    #[error("Failed to load table heads")]
+    LoadHeads(#[source] io::Error),
+    #[error("Failed to save table heads")]
+    SaveHeads(#[source] io::Error),
+    #[error("Failed to load table segment '{name}'")]
+    LoadSegment {
+        name: String,
+        #[source]
+        err: io::Error,
+    },
+    #[error("Failed to save table segment '{name}'")]
+    SaveSegment {
+        name: String,
+        #[source]
+        err: io::Error,
+    },
+    #[error("Failed to lock table store")]
+    Lock(#[source] FileLockError),
+}
 
 pub type TableStoreResult<T> = Result<T, TableStoreError>;
 
@@ -422,8 +450,9 @@ impl TableStore {
         Ok(table)
     }
 
-    fn add_head(&self, table: &Arc<ReadonlyTable>) -> std::io::Result<()> {
+    fn add_head(&self, table: &Arc<ReadonlyTable>) -> TableStoreResult<()> {
         std::fs::write(self.dir.join("heads").join(&table.name), "")
+            .map_err(TableStoreError::SaveHeads)
     }
 
     fn remove_head(&self, table: &Arc<ReadonlyTable>) {
@@ -434,9 +463,8 @@ impl TableStore {
         std::fs::remove_file(self.dir.join("heads").join(&table.name)).ok();
     }
 
-    fn lock(&self) -> FileLock {
-        // TODO: propagate error
-        FileLock::lock(self.dir.join("lock")).unwrap()
+    fn lock(&self) -> TableStoreResult<FileLock> {
+        FileLock::lock(self.dir.join("lock")).map_err(TableStoreError::Lock)
     }
 
     fn load_table(&self, name: String) -> TableStoreResult<Arc<ReadonlyTable>> {
@@ -446,8 +474,12 @@ impl TableStore {
                 return Ok(table);
             }
         }
+        let to_load_err = |err| TableStoreError::LoadSegment {
+            name: name.clone(),
+            err,
+        };
         let table_file_path = self.dir.join(&name);
-        let mut table_file = File::open(table_file_path)?;
+        let mut table_file = File::open(table_file_path).map_err(to_load_err)?;
         let table = ReadonlyTable::load_from(&mut table_file, self, name, self.key_size)?;
         {
             let mut write_locked_cache = self.cached_tables.write().unwrap();
@@ -458,8 +490,10 @@ impl TableStore {
 
     fn get_head_tables(&self) -> TableStoreResult<Vec<Arc<ReadonlyTable>>> {
         let mut tables = vec![];
-        for head_entry in std::fs::read_dir(self.dir.join("heads"))? {
-            let head_file_name = head_entry?.file_name();
+        for head_entry in
+            std::fs::read_dir(self.dir.join("heads")).map_err(TableStoreError::LoadHeads)?
+        {
+            let head_file_name = head_entry.map_err(TableStoreError::LoadHeads)?.file_name();
             let table = self.load_table(head_file_name.to_str().unwrap().to_string())?;
             tables.push(table);
         }
@@ -488,7 +522,7 @@ impl TableStore {
     }
 
     pub fn get_head_locked(&self) -> TableStoreResult<(Arc<ReadonlyTable>, FileLock)> {
-        let lock = self.lock();
+        let lock = self.lock()?;
         let mut tables = self.get_head_tables()?;
 
         if tables.is_empty() {
