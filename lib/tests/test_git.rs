@@ -3485,6 +3485,7 @@ ignoreThisSection = foo
 fn test_shallow_commits_lack_parents() {
     let settings = testutils::user_settings();
     let test_repo = TestRepo::init_with_backend(TestRepoBackend::Git);
+    let test_env = &test_repo.env;
     let repo = &test_repo.repo;
     let git_repo = get_git_repo(repo);
 
@@ -3515,8 +3516,10 @@ fn test_shallow_commits_lack_parents() {
             writeln!(buf, "{commit}").unwrap();
         }
         fs::write(shallow_file, buf).unwrap();
+        // Reload the repo to invalidate mtime-based in-memory cache
+        test_env.load_repo_at_head(&settings, test_repo.repo_path())
     };
-    make_shallow(repo, vec![b.id(), c.id()]);
+    let repo = make_shallow(repo, vec![b.id(), c.id()]);
 
     let mut tx = repo.start_transaction(&settings);
     git::import_refs(tx.repo_mut(), &GitSettings::default()).unwrap();
@@ -3547,7 +3550,7 @@ fn test_shallow_commits_lack_parents() {
     );
 
     // deepen the shallow clone
-    make_shallow(&repo, vec![a.id()]);
+    let repo = make_shallow(&repo, vec![a.id()]);
 
     let mut tx = repo.start_transaction(&settings);
     git::import_refs(tx.repo_mut(), &GitSettings::default()).unwrap();
@@ -3560,15 +3563,16 @@ fn test_shallow_commits_lack_parents() {
         vec![root.clone()],
         "shallow commits have the root commit as a parent"
     );
-    // TODO: These should be assert_eq!
-    assert_ne!(
+    assert_eq!(
         parents(store, &b),
         vec![jj_id(&a)],
         "unshallowed commits have parents"
     );
-    assert_ne!(
+    assert_eq!(
         parents(store, &c),
         vec![jj_id(&a)],
         "unshallowed commits have correct parents"
     );
+    // FIXME: new ancestors should be indexed
+    assert!(!repo.index().has_id(&jj_id(&a)));
 }
