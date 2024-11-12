@@ -200,7 +200,7 @@ impl UnpublishedOperation {
     }
 
     pub fn publish(self) -> Result<Arc<ReadonlyRepo>, OpHeadsStoreError> {
-        let _lock = self.op_heads_store.lock();
+        let _lock = self.op_heads_store.lock()?;
         self.op_heads_store
             .update_op_heads(self.operation().parent_ids(), self.operation().id())?;
         Ok(self.repo)

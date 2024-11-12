@@ -37,6 +37,8 @@ pub enum OpHeadsStoreError {
         new_op_id: OperationId,
         source: Box<dyn std::error::Error + Send + Sync>,
     },
+    #[error("Failed to lock operation heads store")]
+    Lock(#[source] Box<dyn std::error::Error + Send + Sync>),
 }
 
 #[derive(Debug, Error)]
@@ -68,7 +70,7 @@ pub trait OpHeadsStore: Send + Sync + Debug {
     /// is to prevent concurrent processes from resolving the same divergent
     /// operations. It is not needed for correctness; implementations are free
     /// to return a type that doesn't hold a lock.
-    fn lock(&self) -> Box<dyn OpHeadsStoreLock + '_>;
+    fn lock(&self) -> Result<Box<dyn OpHeadsStoreLock + '_>, OpHeadsStoreError>;
 }
 
 // Given an OpHeadsStore, fetch and resolve its op heads down to one under a
@@ -102,7 +104,7 @@ where
     // Note that the locking isn't necessary for correctness of merge; we take
     // the lock only to prevent other concurrent processes from doing the same
     // work (and producing another set of divergent heads).
-    let _lock = op_heads_store.lock();
+    let _lock = op_heads_store.lock()?;
     let op_head_ids = op_heads_store.get_op_heads()?;
 
     if op_head_ids.is_empty() {

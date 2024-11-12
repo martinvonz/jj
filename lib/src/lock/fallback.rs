@@ -19,6 +19,8 @@ use std::time::Duration;
 
 use tracing::instrument;
 
+use super::FileLockError;
+
 pub struct FileLock {
     path: PathBuf,
     _file: File,
@@ -56,7 +58,7 @@ impl Iterator for BackoffIterator {
 // Suppress warning on platforms where specialized lock impl is available
 #[cfg_attr(unix, allow(dead_code))]
 impl FileLock {
-    pub fn lock(path: PathBuf) -> FileLock {
+    pub fn lock(path: PathBuf) -> Result<FileLock, FileLockError> {
         let mut options = OpenOptions::new();
         options.create_new(true);
         options.write(true);
@@ -64,7 +66,7 @@ impl FileLock {
         loop {
             match options.open(&path) {
                 Ok(file) => {
-                    return FileLock { path, _file: file };
+                    return Ok(FileLock { path, _file: file });
                 }
                 Err(err)
                     if err.kind() == std::io::ErrorKind::AlreadyExists
@@ -74,15 +76,19 @@ impl FileLock {
                     if let Some(duration) = backoff_iterator.next() {
                         std::thread::sleep(duration);
                     } else {
-                        panic!(
-                            "Timed out while trying to create lock file {}: {}",
-                            path.display(),
-                            err
-                        );
+                        return Err(FileLockError {
+                            message: "Timed out while trying to create lock file",
+                            path,
+                            err,
+                        });
                     }
                 }
                 Err(err) => {
-                    panic!("Failed to create lock file {}: {}", path.display(), err);
+                    return Err(FileLockError {
+                        message: "Failed to create lock file",
+                        path,
+                        err,
+                    })
                 }
             }
         }
@@ -92,6 +98,8 @@ impl FileLock {
 impl Drop for FileLock {
     #[instrument(skip_all)]
     fn drop(&mut self) {
-        std::fs::remove_file(&self.path).expect("Failed to delete lock file");
+        std::fs::remove_file(&self.path)
+            .inspect_err(|err| tracing::warn!(?err, ?self.path, "Failed to delete lock file"))
+            .ok();
     }
 }

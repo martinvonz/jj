@@ -20,21 +20,36 @@ use std::path::PathBuf;
 use rustix::fs::FlockOperation;
 use tracing::instrument;
 
+use super::FileLockError;
+
 pub struct FileLock {
     path: PathBuf,
     file: File,
 }
 
 impl FileLock {
-    pub fn lock(path: PathBuf) -> FileLock {
+    pub fn lock(path: PathBuf) -> Result<FileLock, FileLockError> {
         loop {
             // Create lockfile, or open pre-existing one
-            let file = File::create(&path).expect("failed to open lockfile");
+            let file = File::create(&path).map_err(|err| FileLockError {
+                message: "Failed to open lock file",
+                path: path.clone(),
+                err,
+            })?;
             // If the lock was already held, wait for it to be released
-            rustix::fs::flock(&file, FlockOperation::LockExclusive)
-                .expect("failed to lock lockfile");
+            rustix::fs::flock(&file, FlockOperation::LockExclusive).map_err(|errno| {
+                FileLockError {
+                    message: "Failed to lock lock file",
+                    path: path.clone(),
+                    err: errno.into(),
+                }
+            })?;
 
-            let stat = rustix::fs::fstat(&file).expect("failed to stat lockfile");
+            let stat = rustix::fs::fstat(&file).map_err(|errno| FileLockError {
+                message: "failed to stat lock file",
+                path: path.clone(),
+                err: errno.into(),
+            })?;
             if stat.st_nlink == 0 {
                 // Lockfile was deleted, probably by the previous holder's `Drop` impl; create a
                 // new one so our ownership is visible, rather than hidden in an
@@ -43,7 +58,7 @@ impl FileLock {
                 continue;
             }
 
-            return Self { path, file };
+            return Ok(Self { path, file });
         }
     }
 }
