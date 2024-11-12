@@ -77,6 +77,14 @@
           buildFeatures = [ "packaging" ];
           cargoBuildFlags = [ "--bin" "jj" ]; # don't build and install the fake editors
           useNextest = true;
+
+          checkFlags = [
+            # https://github.com/martinvonz/jj/issues/4784
+            # seems to fail reliably under Nix/nix-shell only, but otherwise
+            # is an unknown anomaly?
+            "--skip" "test_shallow_commits_lack_parents"
+          ];
+          
           src = filterSrc ./. [
             ".*\\.nix$"
             "^.jj/"
