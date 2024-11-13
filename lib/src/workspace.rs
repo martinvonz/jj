@@ -33,6 +33,7 @@ use crate::file_util::PathError;
 use crate::local_backend::LocalBackend;
 use crate::local_working_copy::LocalWorkingCopy;
 use crate::local_working_copy::LocalWorkingCopyFactory;
+use crate::op_heads_store::OpHeadsStoreError;
 use crate::op_store::OperationId;
 use crate::op_store::WorkspaceId;
 use crate::repo::read_store_type;
@@ -71,6 +72,8 @@ pub enum WorkspaceInitError {
     WorkingCopyState(#[from] WorkingCopyStateError),
     #[error(transparent)]
     Path(#[from] PathError),
+    #[error(transparent)]
+    OpHeadsStore(#[from] OpHeadsStoreError),
     #[error(transparent)]
     Backend(#[from] BackendInitError),
     #[error(transparent)]
@@ -305,6 +308,7 @@ impl Workspace {
             )
             .map_err(|repo_init_err| match repo_init_err {
                 RepoInitError::Backend(err) => WorkspaceInitError::Backend(err),
+                RepoInitError::OpHeadsStore(err) => WorkspaceInitError::OpHeadsStore(err),
                 RepoInitError::Path(err) => WorkspaceInitError::Path(err),
             })?;
             let (working_copy, repo) = init_working_copy(

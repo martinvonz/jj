@@ -197,8 +197,10 @@ impl UnpublishedOperation {
 
     pub fn publish(self) -> Arc<ReadonlyRepo> {
         let _lock = self.op_heads_store.lock();
+        // TODO: propagate errors
         self.op_heads_store
-            .update_op_heads(self.operation().parent_ids(), self.operation().id());
+            .update_op_heads(self.operation().parent_ids(), self.operation().id())
+            .unwrap();
         self.repo
     }
 

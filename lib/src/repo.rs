@@ -62,6 +62,7 @@ use crate::object_id::PrefixResolution;
 use crate::op_heads_store;
 use crate::op_heads_store::OpHeadResolutionError;
 use crate::op_heads_store::OpHeadsStore;
+use crate::op_heads_store::OpHeadsStoreError;
 use crate::op_store;
 use crate::op_store::OpStore;
 use crate::op_store::OpStoreError;
@@ -149,6 +150,8 @@ pub enum RepoInitError {
     #[error(transparent)]
     Backend(#[from] BackendInitError),
     #[error(transparent)]
+    OpHeadsStore(#[from] OpHeadsStoreError),
+    #[error(transparent)]
     Path(#[from] PathError),
 }
 
@@ -208,7 +211,7 @@ impl ReadonlyRepo {
         let op_heads_store = op_heads_store_initializer(user_settings, &op_heads_path);
         let op_heads_type_path = op_heads_path.join("type");
         fs::write(&op_heads_type_path, op_heads_store.name()).context(&op_heads_type_path)?;
-        op_heads_store.update_op_heads(&[], op_store.root_operation_id());
+        op_heads_store.update_op_heads(&[], op_store.root_operation_id())?;
         let op_heads_store: Arc<dyn OpHeadsStore> = Arc::from(op_heads_store);
 
         let index_path = repo_path.join("index");
@@ -615,6 +618,8 @@ pub enum RepoLoaderError {
     IndexRead(#[from] IndexReadError),
     #[error(transparent)]
     OpHeadResolution(#[from] OpHeadResolutionError),
+    #[error(transparent)]
+    OpHeadsStoreError(#[from] OpHeadsStoreError),
     #[error(transparent)]
     OpStore(#[from] OpStoreError),
 }

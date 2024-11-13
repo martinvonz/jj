@@ -123,7 +123,7 @@ pub fn cmd_op_abandon(
         stats.rewritten_count,
     )?;
     for (old, new_id) in reparented_head_ops().filter(|&(old, new_id)| old.id() != new_id) {
-        op_heads_store.update_op_heads(slice::from_ref(old.id()), new_id);
+        op_heads_store.update_op_heads(slice::from_ref(old.id()), new_id)?;
     }
     // Remap the operation id of the current workspace. If there were any
     // divergent operations, user will need to re-abandon their ancestors.
