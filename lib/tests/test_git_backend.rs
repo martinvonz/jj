@@ -128,7 +128,7 @@ fn test_gc() {
         .set_predecessors(vec![commit_d.id().clone()])
         .write()
         .unwrap();
-    let repo = tx.commit("test");
+    let repo = tx.commit("test").unwrap();
     assert_eq!(
         *repo.view().heads(),
         hashset! {

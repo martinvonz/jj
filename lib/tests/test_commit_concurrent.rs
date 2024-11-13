@@ -59,7 +59,7 @@ fn test_commit_parallel(backend: TestRepoBackend) {
             s.spawn(move || {
                 let mut tx = repo.start_transaction(&settings);
                 write_random_commit(tx.repo_mut(), &settings);
-                tx.commit("test");
+                tx.commit("test").unwrap();
             });
         }
     });
@@ -90,7 +90,7 @@ fn test_commit_parallel_instances(backend: TestRepoBackend) {
             s.spawn(move || {
                 let mut tx = repo.start_transaction(&settings);
                 write_random_commit(tx.repo_mut(), &settings);
-                tx.commit("test");
+                tx.commit("test").unwrap();
             });
         }
     });

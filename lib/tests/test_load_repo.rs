@@ -24,11 +24,11 @@ fn test_load_at_operation() {
 
     let mut tx = repo.start_transaction(&settings);
     let commit = write_random_commit(tx.repo_mut(), &settings);
-    let repo = tx.commit("add commit");
+    let repo = tx.commit("add commit").unwrap();
 
     let mut tx = repo.start_transaction(&settings);
     tx.repo_mut().remove_head(commit.id());
-    tx.commit("remove commit");
+    tx.commit("remove commit").unwrap();
 
     // If we load the repo at head, we should not see the commit since it was
     // removed

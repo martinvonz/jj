@@ -114,7 +114,7 @@ fn test_bad_locking_children(backend: TestRepoBackend) {
         .set_parents(vec![repo.store().root_commit_id().clone()])
         .write()
         .unwrap();
-    tx.commit("test");
+    tx.commit("test").unwrap();
 
     // Simulate a write of a commit that happens on one machine
     let machine1_root = test_workspace.root_dir().join("machine1");
@@ -135,7 +135,7 @@ fn test_bad_locking_children(backend: TestRepoBackend) {
         .set_parents(vec![initial.id().clone()])
         .write()
         .unwrap();
-    machine1_tx.commit("test");
+    machine1_tx.commit("test").unwrap();
 
     // Simulate a write of a commit that happens on another machine
     let machine2_root = test_workspace.root_dir().join("machine2");
@@ -156,7 +156,7 @@ fn test_bad_locking_children(backend: TestRepoBackend) {
         .set_parents(vec![initial.id().clone()])
         .write()
         .unwrap();
-    machine2_tx.commit("test");
+    machine2_tx.commit("test").unwrap();
 
     // Simulate that the distributed file system now has received the changes from
     // both machines
@@ -196,7 +196,7 @@ fn test_bad_locking_interrupted(backend: TestRepoBackend) {
         .set_parents(vec![repo.store().root_commit_id().clone()])
         .write()
         .unwrap();
-    let repo = tx.commit("test");
+    let repo = tx.commit("test").unwrap();
 
     // Simulate a crash that resulted in the old op-head left in place. We simulate
     // it somewhat hackily by copying the .jj/op_heads/ directory before the
@@ -210,7 +210,7 @@ fn test_bad_locking_interrupted(backend: TestRepoBackend) {
         .set_parents(vec![initial.id().clone()])
         .write()
         .unwrap();
-    let op_id = tx.commit("test").operation().id().clone();
+    let op_id = tx.commit("test").unwrap().operation().id().clone();
 
     copy_directory(&backup_path, &op_heads_dir);
     // Reload the repo and check that only the new head is present.

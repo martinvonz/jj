@@ -242,7 +242,7 @@ fn test_checkout_file_transitions(backend: TestRepoBackend) {
             Kind::GitSubmodule => {
                 let mut tx = repo.start_transaction(settings);
                 let id = write_random_commit(tx.repo_mut(), settings).id().clone();
-                tx.commit("test");
+                tx.commit("test").unwrap();
                 Merge::normal(TreeValue::GitSubmodule(id))
             }
         };

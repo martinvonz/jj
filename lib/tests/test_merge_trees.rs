@@ -625,7 +625,7 @@ fn test_simplify_conflict_after_resolving_parent() {
     )
     .unwrap();
     tx.repo_mut().rebase_descendants(&settings).unwrap();
-    let repo = tx.commit("test");
+    let repo = tx.commit("test").unwrap();
 
     // The conflict should now be resolved.
     let tree_c2 = commit_c3.tree().unwrap();
