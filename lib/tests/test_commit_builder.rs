@@ -97,7 +97,7 @@ fn test_initial(backend: TestRepoBackend) {
     assert_eq!(builder.author(), &author_signature);
     assert_eq!(builder.committer(), &committer_signature);
     let commit = builder.write().unwrap();
-    tx.commit("test");
+    tx.commit("test").unwrap();
 
     let parents: Vec<_> = commit.parents().try_collect().unwrap();
     assert_eq!(parents, vec![store.root_commit()]);
@@ -142,7 +142,7 @@ fn test_rewrite(backend: TestRepoBackend) {
         )
         .write()
         .unwrap();
-    let repo = tx.commit("test");
+    let repo = tx.commit("test").unwrap();
 
     let rewritten_tree = create_tree(
         &repo,
@@ -168,7 +168,7 @@ fn test_rewrite(backend: TestRepoBackend) {
         .write()
         .unwrap();
     tx.repo_mut().rebase_descendants(&settings).unwrap();
-    tx.commit("test");
+    tx.commit("test").unwrap();
     let parents: Vec<_> = rewritten_commit.parents().try_collect().unwrap();
     assert_eq!(parents, vec![store.root_commit()]);
     let predecessors: Vec<_> = rewritten_commit.predecessors().try_collect().unwrap();
@@ -338,7 +338,7 @@ fn test_commit_builder_descendants(backend: TestRepoBackend) {
     let commit1 = graph_builder.initial_commit();
     let commit2 = graph_builder.commit_with_parents(&[&commit1]);
     let commit3 = graph_builder.commit_with_parents(&[&commit2]);
-    let repo = tx.commit("test");
+    let repo = tx.commit("test").unwrap();
 
     // Test with for_new_commit()
     let mut tx = repo.start_transaction(&settings);

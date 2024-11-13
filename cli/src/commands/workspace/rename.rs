@@ -71,7 +71,7 @@ pub fn cmd_workspace_rename(
         "Renamed workspace '{}' to '{}'",
         old_workspace_id.as_str(),
         args.new_workspace_name
-    ));
+    ))?;
     locked_ws.finish(repo.op_id().clone())?;
 
     Ok(())

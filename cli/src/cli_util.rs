@@ -934,7 +934,7 @@ impl WorkspaceCommandHelper {
             // state to it without updating working copy files.
             locked_ws.locked_wc().reset(&new_git_head_commit)?;
             tx.repo_mut().rebase_descendants(command.settings())?;
-            self.user_repo = ReadonlyUserRepo::new(tx.commit("import git head"));
+            self.user_repo = ReadonlyUserRepo::new(tx.commit("import git head")?);
             locked_ws.finish(self.user_repo.repo.op_id().clone())?;
             if old_git_head.is_present() {
                 writeln!(
@@ -1637,7 +1637,7 @@ See https://martinvonz.github.io/jj/latest/working-copy/#stale-working-copy \
                 print_failed_git_export(ui, &refs)?;
             }
 
-            self.user_repo = ReadonlyUserRepo::new(tx.commit("snapshot working copy"));
+            self.user_repo = ReadonlyUserRepo::new(tx.commit("snapshot working copy")?);
         }
         locked_ws.finish(self.user_repo.repo.op_id().clone())?;
         Ok(())
@@ -1755,7 +1755,7 @@ See https://martinvonz.github.io/jj/latest/working-copy/#stale-working-copy \
             print_failed_git_export(ui, &refs)?;
         }
 
-        self.user_repo = ReadonlyUserRepo::new(tx.commit(description));
+        self.user_repo = ReadonlyUserRepo::new(tx.commit(description)?);
 
         // Update working copy before reporting repo changes, so that
         // potential errors while reporting changes (broken pipe, etc)

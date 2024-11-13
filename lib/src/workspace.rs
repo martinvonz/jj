@@ -139,7 +139,7 @@ fn init_working_copy(
         user_settings,
         &repo.store().root_commit(),
     )?;
-    let repo = tx.commit(format!("add workspace '{}'", workspace_id.as_str()));
+    let repo = tx.commit(format!("add workspace '{}'", workspace_id.as_str()))?;
 
     let working_copy = working_copy_factory.init_working_copy(
         repo.store().clone(),

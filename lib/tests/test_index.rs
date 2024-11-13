@@ -104,7 +104,7 @@ fn test_index_commits_standard_cases() {
     let commit_f = graph_builder.commit_with_parents(&[&commit_b, &commit_e]);
     let commit_g = graph_builder.commit_with_parents(&[&commit_f]);
     let commit_h = graph_builder.commit_with_parents(&[&commit_e]);
-    let repo = tx.commit("test");
+    let repo = tx.commit("test").unwrap();
 
     let index = as_readonly_composite(&repo);
     // There should be the root commit, plus 8 more
@@ -163,7 +163,7 @@ fn test_index_commits_criss_cross() {
         left_commits.push(new_left);
         right_commits.push(new_right);
     }
-    let repo = tx.commit("test");
+    let repo = tx.commit("test").unwrap();
 
     let index = as_readonly_composite(&repo);
     // There should the root commit, plus 2 for each generation
@@ -311,11 +311,11 @@ fn test_index_commits_previous_operations() {
     let commit_a = graph_builder.initial_commit();
     let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
     let commit_c = graph_builder.commit_with_parents(&[&commit_b]);
-    let repo = tx.commit("test");
+    let repo = tx.commit("test").unwrap();
 
     let mut tx = repo.start_transaction(&settings);
     tx.repo_mut().remove_head(commit_c.id());
-    let repo = tx.commit("test");
+    let repo = tx.commit("test").unwrap();
 
     // Delete index from disk
     let default_index_store: &DefaultIndexStore =
@@ -367,7 +367,7 @@ fn test_index_commits_hidden_but_referenced() {
             state: jj_lib::op_store::RemoteRefState::New,
         },
     );
-    let repo = tx.commit("test");
+    let repo = tx.commit("test").unwrap();
 
     // All commits should be indexed
     assert!(repo.index().has_id(commit_a.id()));
@@ -407,7 +407,7 @@ fn test_index_commits_incremental() {
     let commit_a = child_commit(tx.repo_mut(), &settings, &root_commit)
         .write()
         .unwrap();
-    let repo = tx.commit("test");
+    let repo = tx.commit("test").unwrap();
 
     let index = as_readonly_composite(&repo);
     // There should be the root commit, plus 1 more
@@ -420,7 +420,7 @@ fn test_index_commits_incremental() {
     let commit_c = child_commit(tx.repo_mut(), &settings, &commit_b)
         .write()
         .unwrap();
-    tx.commit("test");
+    tx.commit("test").unwrap();
 
     let repo = test_env.load_repo_at_head(&settings, test_repo.repo_path());
     let index = as_readonly_composite(&repo);
@@ -459,13 +459,13 @@ fn test_index_commits_incremental_empty_transaction() {
     let commit_a = child_commit(tx.repo_mut(), &settings, &root_commit)
         .write()
         .unwrap();
-    let repo = tx.commit("test");
+    let repo = tx.commit("test").unwrap();
 
     let index = as_readonly_composite(&repo);
     // There should be the root commit, plus 1 more
     assert_eq!(index.num_commits(), 1 + 1);
 
-    repo.start_transaction(&settings).commit("test");
+    repo.start_transaction(&settings).commit("test").unwrap();
 
     let repo = test_env.load_repo_at_head(&settings, test_repo.repo_path());
     let index = as_readonly_composite(&repo);
@@ -501,7 +501,7 @@ fn test_index_commits_incremental_already_indexed() {
     let commit_a = child_commit(tx.repo_mut(), &settings, &root_commit)
         .write()
         .unwrap();
-    let repo = tx.commit("test");
+    let repo = tx.commit("test").unwrap();
 
     assert!(repo.index().has_id(commit_a.id()));
     assert_eq!(as_readonly_composite(&repo).num_commits(), 1 + 1);
@@ -521,7 +521,7 @@ fn create_n_commits(
     for _ in 0..num_commits {
         write_random_commit(tx.repo_mut(), settings);
     }
-    tx.commit("test")
+    tx.commit("test").unwrap()
 }
 
 fn as_readonly_composite(repo: &Arc<ReadonlyRepo>) -> &CompositeIndex {
@@ -621,7 +621,7 @@ fn test_reindex_no_segments_dir() {
 
     let mut tx = repo.start_transaction(&settings);
     let commit_a = write_random_commit(tx.repo_mut(), &settings);
-    let repo = tx.commit("test");
+    let repo = tx.commit("test").unwrap();
     assert!(repo.index().has_id(commit_a.id()));
 
     // jj <= 0.14 doesn't have "segments" directory
@@ -642,7 +642,7 @@ fn test_reindex_corrupt_segment_files() {
 
     let mut tx = repo.start_transaction(&settings);
     let commit_a = write_random_commit(tx.repo_mut(), &settings);
-    let repo = tx.commit("test");
+    let repo = tx.commit("test").unwrap();
     assert!(repo.index().has_id(commit_a.id()));
 
     // Corrupt the index files
@@ -680,7 +680,7 @@ fn test_reindex_from_merged_operation() {
     for _ in 0..2 {
         let mut tx = repo.start_transaction(&settings);
         let commit = write_random_commit(tx.repo_mut(), &settings);
-        let repo = tx.commit("test");
+        let repo = tx.commit("test").unwrap();
         let mut tx = repo.start_transaction(&settings);
         tx.repo_mut().remove_head(commit.id());
         txs.push(tx);
@@ -690,7 +690,7 @@ fn test_reindex_from_merged_operation() {
     op_ids_to_delete.push(repo.op_id());
     let mut tx = repo.start_transaction(&settings);
     write_random_commit(tx.repo_mut(), &settings);
-    let repo = tx.commit("test");
+    let repo = tx.commit("test").unwrap();
     op_ids_to_delete.push(repo.op_id());
     let operation_to_reload = repo.operation();
 
@@ -720,12 +720,12 @@ fn test_reindex_missing_commit() {
 
     let mut tx = repo.start_transaction(&settings);
     let missing_commit = write_random_commit(tx.repo_mut(), &settings);
-    let repo = tx.commit("test");
+    let repo = tx.commit("test").unwrap();
     let bad_op_id = repo.op_id();
 
     let mut tx = repo.start_transaction(&settings);
     tx.repo_mut().remove_head(missing_commit.id());
-    let repo = tx.commit("test");
+    let repo = tx.commit("test").unwrap();
 
     // Remove historical head commit to simulate bad GC.
     let test_backend: &TestBackend = repo.store().backend_impl().downcast_ref().unwrap();

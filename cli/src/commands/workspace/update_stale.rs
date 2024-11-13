@@ -137,7 +137,7 @@ to the current parents may contain changes from multiple commits.
         )
         .write()?;
     mut_repo.set_wc_commit(workspace_id, new_commit.id().clone())?;
-    let repo = tx.commit("recovery commit");
+    let repo = tx.commit("recovery commit")?;
 
     locked_workspace.locked_wc().recover(&new_commit)?;
     locked_workspace.finish(repo.op_id().clone())?;

@@ -51,7 +51,7 @@ fn test_heads_fork() {
     let initial = graph_builder.initial_commit();
     let child1 = graph_builder.commit_with_parents(&[&initial]);
     let child2 = graph_builder.commit_with_parents(&[&initial]);
-    let repo = tx.commit("test");
+    let repo = tx.commit("test").unwrap();
 
     assert_eq!(
         *repo.view().heads(),
@@ -74,7 +74,7 @@ fn test_heads_merge() {
     let child1 = graph_builder.commit_with_parents(&[&initial]);
     let child2 = graph_builder.commit_with_parents(&[&initial]);
     let merge = graph_builder.commit_with_parents(&[&child1, &child2]);
-    let repo = tx.commit("test");
+    let repo = tx.commit("test").unwrap();
 
     assert_eq!(*repo.view().heads(), hashset! {merge.id().clone()});
 }
@@ -91,7 +91,7 @@ fn test_merge_views_heads() {
     let head_unchanged = write_random_commit(mut_repo, &settings);
     let head_remove_tx1 = write_random_commit(mut_repo, &settings);
     let head_remove_tx2 = write_random_commit(mut_repo, &settings);
-    let repo = tx.commit("test");
+    let repo = tx.commit("test").unwrap();
 
     let mut tx1 = repo.start_transaction(&settings);
     tx1.repo_mut().remove_head(head_remove_tx1.id());
@@ -156,7 +156,7 @@ fn test_merge_views_checkout() {
         .repo_mut()
         .set_wc_commit(ws5_id.clone(), commit1.id().clone())
         .unwrap();
-    let repo = initial_tx.commit("test");
+    let repo = initial_tx.commit("test").unwrap();
 
     let mut tx1 = repo.start_transaction(&settings);
     tx1.repo_mut()
@@ -237,7 +237,7 @@ fn test_merge_views_bookmarks() {
         "feature",
         RefTarget::normal(feature_bookmark_local_tx0.id().clone()),
     );
-    let repo = tx.commit("test");
+    let repo = tx.commit("test").unwrap();
 
     let mut tx1 = repo.start_transaction(&settings);
     let main_bookmark_local_tx1 = write_random_commit(tx1.repo_mut(), &settings);
@@ -310,7 +310,7 @@ fn test_merge_views_tags() {
     mut_repo.set_tag_target("v1.0", RefTarget::normal(v1_tx0.id().clone()));
     let v2_tx0 = write_random_commit(mut_repo, &settings);
     mut_repo.set_tag_target("v2.0", RefTarget::normal(v2_tx0.id().clone()));
-    let repo = tx.commit("test");
+    let repo = tx.commit("test").unwrap();
 
     let mut tx1 = repo.start_transaction(&settings);
     let v1_tx1 = write_random_commit(tx1.repo_mut(), &settings);
@@ -360,7 +360,7 @@ fn test_merge_views_git_refs() {
         "refs/heads/feature",
         RefTarget::normal(feature_bookmark_tx0.id().clone()),
     );
-    let repo = tx.commit("test");
+    let repo = tx.commit("test").unwrap();
 
     let mut tx1 = repo.start_transaction(&settings);
     let main_bookmark_tx1 = write_random_commit(tx1.repo_mut(), &settings);
@@ -411,7 +411,7 @@ fn test_merge_views_git_heads() {
     let tx0_head = write_random_commit(tx0.repo_mut(), &settings);
     tx0.repo_mut()
         .set_git_head_target(RefTarget::normal(tx0_head.id().clone()));
-    let repo = tx0.commit("test");
+    let repo = tx0.commit("test").unwrap();
 
     let mut tx1 = repo.start_transaction(&settings);
     let tx1_head = write_random_commit(tx1.repo_mut(), &settings);
@@ -440,7 +440,7 @@ fn test_merge_views_divergent() {
 
     let mut tx = test_repo.repo.start_transaction(&settings);
     let commit_a = write_random_commit(tx.repo_mut(), &settings);
-    let repo = tx.commit("test");
+    let repo = tx.commit("test").unwrap();
 
     let mut tx1 = repo.start_transaction(&settings);
     let commit_a2 = tx1
@@ -479,7 +479,7 @@ fn test_merge_views_child_on_rewritten(child_first: bool) {
 
     let mut tx = test_repo.repo.start_transaction(&settings);
     let commit_a = write_random_commit(tx.repo_mut(), &settings);
-    let repo = tx.commit("test");
+    let repo = tx.commit("test").unwrap();
 
     let mut tx1 = repo.start_transaction(&settings);
     let commit_b = create_random_commit(tx1.repo_mut(), &settings)
@@ -529,7 +529,7 @@ fn test_merge_views_child_on_rewritten_divergent(on_rewritten: bool, child_first
         .set_change_id(commit_a2.change_id().clone())
         .write()
         .unwrap();
-    let repo = tx.commit("test");
+    let repo = tx.commit("test").unwrap();
 
     let mut tx1 = repo.start_transaction(&settings);
     let parent = if on_rewritten { &commit_a2 } else { &commit_a3 };
@@ -585,7 +585,7 @@ fn test_merge_views_child_on_abandoned(child_first: bool) {
         .set_parents(vec![commit_a.id().clone()])
         .write()
         .unwrap();
-    let repo = tx.commit("test");
+    let repo = tx.commit("test").unwrap();
 
     let mut tx1 = repo.start_transaction(&settings);
     let commit_c = create_random_commit(tx1.repo_mut(), &settings)

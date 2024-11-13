@@ -144,7 +144,7 @@ fn test_resolve_symbol_commit_id() {
             .unwrap();
         commits.push(commit);
     }
-    let repo = tx.commit("test");
+    let repo = tx.commit("test").unwrap();
 
     // Test the test setup
     assert_eq!(
@@ -298,7 +298,7 @@ fn test_resolve_symbol_change_id(readonly: bool) {
 
     let _readonly_repo;
     let repo: &dyn Repo = if readonly {
-        _readonly_repo = tx.commit("test");
+        _readonly_repo = tx.commit("test").unwrap();
         _readonly_repo.as_ref()
     } else {
         tx.repo_mut()
@@ -383,7 +383,7 @@ fn test_resolve_symbol_in_different_disambiguation_context() {
     for _ in 0..50 {
         write_random_commit(tx.repo_mut(), &settings);
     }
-    let repo1 = tx.commit("test");
+    let repo1 = tx.commit("test").unwrap();
 
     let mut tx = repo1.start_transaction(&settings);
     let commit2 = tx
@@ -392,7 +392,7 @@ fn test_resolve_symbol_in_different_disambiguation_context() {
         .write()
         .unwrap();
     tx.repo_mut().rebase_descendants(&settings).unwrap();
-    let repo2 = tx.commit("test");
+    let repo2 = tx.commit("test").unwrap();
 
     // Set up disambiguation index which only contains the commit2.id().
     let id_prefix_context = IdPrefixContext::new(Default::default())
@@ -2838,7 +2838,7 @@ fn test_evaluate_expression_at_operation() {
         .unwrap();
     tx.repo_mut()
         .set_local_bookmark_target("commit1_ref", RefTarget::normal(commit1_op1.id().clone()));
-    let repo1 = tx.commit("test");
+    let repo1 = tx.commit("test").unwrap();
 
     let mut tx = repo1.start_transaction(&settings);
     let commit1_op2 = tx
@@ -2852,7 +2852,7 @@ fn test_evaluate_expression_at_operation() {
         .write()
         .unwrap();
     tx.repo_mut().rebase_descendants(&settings).unwrap();
-    let repo2 = tx.commit("test");
+    let repo2 = tx.commit("test").unwrap();
 
     let mut tx = repo2.start_transaction(&settings);
     let _commit4_op3 = create_random_commit(tx.repo_mut(), &settings)
@@ -3705,7 +3705,7 @@ fn test_reverse_graph_iterator() {
     let commit_d = graph_builder.commit_with_parents(&[&commit_c]);
     let commit_e = graph_builder.commit_with_parents(&[&commit_c]);
     let commit_f = graph_builder.commit_with_parents(&[&commit_d, &commit_e]);
-    let repo = tx.commit("test");
+    let repo = tx.commit("test").unwrap();
 
     let revset = revset_for_commits(
         repo.as_ref(),
@@ -3771,7 +3771,7 @@ fn test_revset_containing_fn() {
     let commit_b = write_random_commit(mut_repo, &settings);
     let commit_c = write_random_commit(mut_repo, &settings);
     let commit_d = write_random_commit(mut_repo, &settings);
-    let repo = tx.commit("test");
+    let repo = tx.commit("test").unwrap();
 
     let revset = revset_for_commits(repo.as_ref(), &[&commit_b, &commit_d]);
 

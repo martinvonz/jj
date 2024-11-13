@@ -224,7 +224,7 @@ fn init_git_refs(
         let failed_refs = git::export_refs(tx.repo_mut())?;
         print_failed_git_export(ui, &failed_refs)?;
     }
-    let repo = tx.commit("import git refs");
+    let repo = tx.commit("import git refs")?;
     writeln!(
         ui.status(),
         "Done importing changes from the underlying Git repo."

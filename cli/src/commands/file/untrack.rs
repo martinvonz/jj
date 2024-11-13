@@ -107,7 +107,7 @@ Make sure they're ignored, then try again.",
     if num_rebased > 0 {
         writeln!(ui.status(), "Rebased {num_rebased} descendant commits")?;
     }
-    let repo = tx.commit("untrack paths");
+    let repo = tx.commit("untrack paths")?;
     locked_ws.finish(repo.op_id().clone())?;
     Ok(())
 }

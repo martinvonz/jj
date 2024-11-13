@@ -22,6 +22,7 @@ use crate::backend::Timestamp;
 use crate::dag_walk;
 use crate::index::ReadonlyIndex;
 use crate::op_heads_store::OpHeadsStore;
+use crate::op_heads_store::OpHeadsStoreError;
 use crate::op_store;
 use crate::op_store::OperationMetadata;
 use crate::operation::Operation;
@@ -102,7 +103,10 @@ impl Transaction {
     }
 
     /// Writes the transaction to the operation store and publishes it.
-    pub fn commit(self, description: impl Into<String>) -> Arc<ReadonlyRepo> {
+    pub fn commit(
+        self,
+        description: impl Into<String>,
+    ) -> Result<Arc<ReadonlyRepo>, OpHeadsStoreError> {
         self.write(description).publish()
     }
 
@@ -195,13 +199,11 @@ impl UnpublishedOperation {
         self.repo.operation()
     }
 
-    pub fn publish(self) -> Arc<ReadonlyRepo> {
+    pub fn publish(self) -> Result<Arc<ReadonlyRepo>, OpHeadsStoreError> {
         let _lock = self.op_heads_store.lock();
-        // TODO: propagate errors
         self.op_heads_store
-            .update_op_heads(self.operation().parent_ids(), self.operation().id())
-            .unwrap();
-        self.repo
+            .update_op_heads(self.operation().parent_ids(), self.operation().id())?;
+        Ok(self.repo)
     }
 
     pub fn leave_unpublished(self) -> Arc<ReadonlyRepo> {

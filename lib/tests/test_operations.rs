@@ -57,7 +57,7 @@ fn test_unpublished_operation() {
     let op_id1 = unpublished_op.operation().id().clone();
     assert_ne!(op_id1, op_id0);
     assert_eq!(list_dir(&op_heads_dir), vec![op_id0.hex()]);
-    unpublished_op.publish();
+    unpublished_op.publish().unwrap();
     assert_eq!(list_dir(&op_heads_dir), vec![op_id1.hex()]);
 }
 
@@ -75,14 +75,24 @@ fn test_consecutive_operations() {
 
     let mut tx1 = repo.start_transaction(&settings);
     write_random_commit(tx1.repo_mut(), &settings);
-    let op_id1 = tx1.commit("transaction 1").operation().id().clone();
+    let op_id1 = tx1
+        .commit("transaction 1")
+        .unwrap()
+        .operation()
+        .id()
+        .clone();
     assert_ne!(op_id1, op_id0);
     assert_eq!(list_dir(&op_heads_dir), vec![op_id1.hex()]);
 
     let repo = repo.reload_at_head(&settings).unwrap();
     let mut tx2 = repo.start_transaction(&settings);
     write_random_commit(tx2.repo_mut(), &settings);
-    let op_id2 = tx2.commit("transaction 2").operation().id().clone();
+    let op_id2 = tx2
+        .commit("transaction 2")
+        .unwrap()
+        .operation()
+        .id()
+        .clone();
     assert_ne!(op_id2, op_id0);
     assert_ne!(op_id2, op_id1);
     assert_eq!(list_dir(&op_heads_dir), vec![op_id2.hex()]);
@@ -107,7 +117,12 @@ fn test_concurrent_operations() {
 
     let mut tx1 = repo.start_transaction(&settings);
     write_random_commit(tx1.repo_mut(), &settings);
-    let op_id1 = tx1.commit("transaction 1").operation().id().clone();
+    let op_id1 = tx1
+        .commit("transaction 1")
+        .unwrap()
+        .operation()
+        .id()
+        .clone();
     assert_ne!(op_id1, op_id0);
     assert_eq!(list_dir(&op_heads_dir), vec![op_id1.hex()]);
 
@@ -115,7 +130,12 @@ fn test_concurrent_operations() {
     // since they were run in parallel.
     let mut tx2 = repo.start_transaction(&settings);
     write_random_commit(tx2.repo_mut(), &settings);
-    let op_id2 = tx2.commit("transaction 2").operation().id().clone();
+    let op_id2 = tx2
+        .commit("transaction 2")
+        .unwrap()
+        .operation()
+        .id()
+        .clone();
     assert_ne!(op_id2, op_id0);
     assert_ne!(op_id2, op_id1);
     let mut actual_heads_on_disk = list_dir(&op_heads_dir);
@@ -150,7 +170,7 @@ fn test_isolation() {
         .set_parents(vec![repo.store().root_commit_id().clone()])
         .write()
         .unwrap();
-    let repo = tx.commit("test");
+    let repo = tx.commit("test").unwrap();
 
     let mut tx1 = repo.start_transaction(&settings);
     let mut_repo1 = tx1.repo_mut();
@@ -181,12 +201,12 @@ fn test_isolation() {
     assert_heads(mut_repo2, vec![rewrite2.id()]);
 
     // The base repo and tx2 don't see the commits from tx1.
-    tx1.commit("transaction 1");
+    tx1.commit("transaction 1").unwrap();
     assert_heads(repo.as_ref(), vec![initial.id()]);
     assert_heads(mut_repo2, vec![rewrite2.id()]);
 
     // The base repo still doesn't see the commits after both transactions commit.
-    tx2.commit("transaction 2");
+    tx2.commit("transaction 2").unwrap();
     assert_heads(repo.as_ref(), vec![initial.id()]);
     // After reload, the base repo sees both rewrites.
     let repo = repo.reload_at_head(&settings).unwrap();
@@ -219,10 +239,10 @@ fn test_reparent_range_linear() {
         write_random_commit(tx.repo_mut(), &settings);
         tx
     };
-    let repo_a = random_tx(&repo_0).commit("op A");
-    let repo_b = random_tx(&repo_a).commit("op B");
-    let repo_c = random_tx(&repo_b).commit("op C");
-    let repo_d = random_tx(&repo_c).commit("op D");
+    let repo_a = random_tx(&repo_0).commit("op A").unwrap();
+    let repo_b = random_tx(&repo_a).commit("op B").unwrap();
+    let repo_c = random_tx(&repo_b).commit("op C").unwrap();
+    let repo_d = random_tx(&repo_c).commit("op D").unwrap();
 
     // Reparent B..D (=C|D) onto A:
     // D'
@@ -291,10 +311,10 @@ fn test_reparent_range_bookmarky() {
         write_random_commit(tx.repo_mut(), &settings);
         tx
     };
-    let repo_a = random_tx(&repo_0).commit("op A");
-    let repo_b = random_tx(&repo_a).commit("op B");
-    let repo_c = random_tx(&repo_b).commit("op C");
-    let repo_d = random_tx(&repo_c).commit("op D");
+    let repo_a = random_tx(&repo_0).commit("op A").unwrap();
+    let repo_b = random_tx(&repo_a).commit("op B").unwrap();
+    let repo_c = random_tx(&repo_b).commit("op C").unwrap();
+    let repo_d = random_tx(&repo_c).commit("op D").unwrap();
     let tx_e = random_tx(&repo_d);
     let tx_f = random_tx(&repo_c);
     let repo_g = testutils::commit_transactions(&settings, vec![tx_e, tx_f]);
@@ -424,7 +444,7 @@ fn test_resolve_op_id() {
     // up with hashes with ambiguous prefixes.
     for i in (1..5).chain([39, 62]) {
         let tx = repo.start_transaction(&settings);
-        let repo = tx.commit(format!("transaction {i}"));
+        let repo = tx.commit(format!("transaction {i}")).unwrap();
         operations.push(repo.operation().clone());
     }
     // "b" and "0" are ambiguous
@@ -510,7 +530,7 @@ fn test_resolve_op_parents_children() {
     let mut repos = Vec::new();
     for _ in 0..3 {
         let tx = repo.start_transaction(&settings);
-        repos.push(tx.commit("test"));
+        repos.push(tx.commit("test").unwrap());
         repo = repos.last().unwrap();
     }
     let operations = repos.iter().map(|repo| repo.operation()).collect_vec();
@@ -613,12 +633,12 @@ fn test_gc() {
         write_random_commit(tx.repo_mut(), &settings);
         tx
     };
-    let repo_a = random_tx(&repo_0).commit("op A");
-    let repo_b = random_tx(&repo_a).commit("op B");
-    let repo_c = random_tx(&repo_b).commit("op C");
-    let repo_d = random_tx(&repo_c).commit("op D");
-    let repo_e = empty_tx(&repo_b).commit("op E");
-    let repo_f = random_tx(&repo_e).commit("op F");
+    let repo_a = random_tx(&repo_0).commit("op A").unwrap();
+    let repo_b = random_tx(&repo_a).commit("op B").unwrap();
+    let repo_c = random_tx(&repo_b).commit("op C").unwrap();
+    let repo_d = random_tx(&repo_c).commit("op D").unwrap();
+    let repo_e = empty_tx(&repo_b).commit("op E").unwrap();
+    let repo_f = random_tx(&repo_e).commit("op F").unwrap();
 
     // Sanity check for the original state
     let mut expected_op_entries = list_dir(&op_dir);

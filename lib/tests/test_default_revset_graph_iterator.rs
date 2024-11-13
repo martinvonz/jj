@@ -73,7 +73,7 @@ fn test_graph_iterator_linearized(skip_transitive_edges: bool) {
     let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
     let commit_c = graph_builder.commit_with_parents(&[&commit_a]);
     let commit_d = graph_builder.commit_with_parents(&[&commit_b, &commit_c]);
-    let repo = tx.commit("test");
+    let repo = tx.commit("test").unwrap();
     let root_commit = repo.store().root_commit();
 
     let revset = revset_for_commits(repo.as_ref(), &[&commit_a, &commit_d]);
@@ -113,7 +113,7 @@ fn test_graph_iterator_virtual_octopus(skip_transitive_edges: bool) {
     let commit_d = graph_builder.commit_with_parents(&[&commit_a, &commit_b]);
     let commit_e = graph_builder.commit_with_parents(&[&commit_b, &commit_c]);
     let commit_f = graph_builder.commit_with_parents(&[&commit_d, &commit_e]);
-    let repo = tx.commit("test");
+    let repo = tx.commit("test").unwrap();
     let root_commit = repo.store().root_commit();
 
     let revset = revset_for_commits(repo.as_ref(), &[&commit_a, &commit_b, &commit_c, &commit_f]);
@@ -164,7 +164,7 @@ fn test_graph_iterator_simple_fork(skip_transitive_edges: bool) {
     let commit_c = graph_builder.commit_with_parents(&[&commit_b]);
     let commit_d = graph_builder.commit_with_parents(&[&commit_b]);
     let commit_e = graph_builder.commit_with_parents(&[&commit_d]);
-    let repo = tx.commit("test");
+    let repo = tx.commit("test").unwrap();
     let root_commit = repo.store().root_commit();
 
     let revset = revset_for_commits(repo.as_ref(), &[&commit_a, &commit_c, &commit_e]);
@@ -205,7 +205,7 @@ fn test_graph_iterator_multiple_missing(skip_transitive_edges: bool) {
     let commit_d = graph_builder.commit_with_parents(&[&commit_a, &commit_b]);
     let commit_e = graph_builder.commit_with_parents(&[&commit_b, &commit_c]);
     let commit_f = graph_builder.commit_with_parents(&[&commit_d, &commit_e]);
-    let repo = tx.commit("test");
+    let repo = tx.commit("test").unwrap();
     let root_commit = repo.store().root_commit();
 
     let revset = revset_for_commits(repo.as_ref(), &[&commit_b, &commit_f]);
@@ -250,7 +250,7 @@ fn test_graph_iterator_edge_to_ancestor(skip_transitive_edges: bool) {
     let commit_d = graph_builder.commit_with_parents(&[&commit_b, &commit_c]);
     let commit_e = graph_builder.commit_with_parents(&[&commit_c]);
     let commit_f = graph_builder.commit_with_parents(&[&commit_d, &commit_e]);
-    let repo = tx.commit("test");
+    let repo = tx.commit("test").unwrap();
 
     let revset = revset_for_commits(repo.as_ref(), &[&commit_c, &commit_d, &commit_f]);
     let commits: Vec<_> = revset
@@ -305,7 +305,7 @@ fn test_graph_iterator_edge_escapes_from_(skip_transitive_edges: bool) {
     let commit_h = graph_builder.commit_with_parents(&[&commit_f]);
     let commit_i = graph_builder.commit_with_parents(&[&commit_e, &commit_h]);
     let commit_j = graph_builder.commit_with_parents(&[&commit_g, &commit_i]);
-    let repo = tx.commit("test");
+    let repo = tx.commit("test").unwrap();
     let root_commit = repo.store().root_commit();
 
     let revset = revset_for_commits(

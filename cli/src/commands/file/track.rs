@@ -62,7 +62,7 @@ pub(crate) fn cmd_file_track(
     if num_rebased > 0 {
         writeln!(ui.status(), "Rebased {num_rebased} descendant commits")?;
     }
-    let repo = tx.commit("track paths");
+    let repo = tx.commit("track paths")?;
     locked_ws.finish(repo.op_id().clone())?;
     Ok(())
 }
