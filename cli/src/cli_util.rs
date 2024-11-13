@@ -2105,6 +2105,7 @@ See https://martinvonz.github.io/jj/latest/working-copy/#stale-working-copy \
                     .collect(),
             )?;
         }
+        revset_util::warn_unresolvable_trunk(ui, new_repo, &self.env().revset_parse_context())?;
 
         Ok(())
     }

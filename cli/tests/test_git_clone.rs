@@ -546,7 +546,14 @@ fn test_git_clone_trunk_deleted() {
     Added 1 files, modified 0 files, removed 0 files
     "#);
 
-    test_env.jj_cmd_ok(&clone_path, &["bookmark", "forget", "main"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&clone_path, &["bookmark", "forget", "main"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r#"
+    Forgot 1 bookmarks.
+    Warning: Failed to resolve `revset-aliases.trunk()`: Revision "main@origin" doesn't exist
+    Hint: Use `jj config edit --repo` to adjust the `trunk()` alias.
+    "#);
+
     let (stdout, stderr) = test_env.jj_cmd_ok(&clone_path, &["log"]);
     insta::assert_snapshot!(stdout, @r#"
     @  sqpuoqvx test.user@example.com 2001-02-03 08:05:07 cad212e1
