@@ -32,6 +32,7 @@ use jj_lib::git::GitImportError;
 use jj_lib::git::GitRemoteManagementError;
 use jj_lib::gitignore::GitIgnoreError;
 use jj_lib::op_heads_store::OpHeadResolutionError;
+use jj_lib::op_heads_store::OpHeadsStoreError;
 use jj_lib::op_store::OpStoreError;
 use jj_lib::op_walk::OpsetEvaluationError;
 use jj_lib::op_walk::OpsetResolutionError;
@@ -281,6 +282,12 @@ impl From<BackendError> for CommandError {
     }
 }
 
+impl From<OpHeadsStoreError> for CommandError {
+    fn from(err: OpHeadsStoreError) -> Self {
+        internal_error_with_message("Unexpected error from operation heads store", err)
+    }
+}
+
 impl From<WorkspaceInitError> for CommandError {
     fn from(err: WorkspaceInitError) -> Self {
         match err {
@@ -295,6 +302,9 @@ impl From<WorkspaceInitError> for CommandError {
             }
             WorkspaceInitError::Path(err) => {
                 internal_error_with_message("Failed to access the repository", err)
+            }
+            WorkspaceInitError::OpHeadsStore(err) => {
+                user_error_with_message("Failed to record initial operation", err)
             }
             WorkspaceInitError::Backend(err) => {
                 user_error_with_message("Failed to access the repository", err)
@@ -328,6 +338,7 @@ impl From<OpsetEvaluationError> for CommandError {
                 cmd_err
             }
             OpsetEvaluationError::OpHeadResolution(err) => err.into(),
+            OpsetEvaluationError::OpHeadsStore(err) => err.into(),
             OpsetEvaluationError::OpStore(err) => err.into(),
         }
     }

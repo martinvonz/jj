@@ -29,6 +29,17 @@ use crate::op_store::OperationId;
 use crate::operation::Operation;
 
 #[derive(Debug, Error)]
+pub enum OpHeadsStoreError {
+    #[error("Failed to read operation heads")]
+    Read(#[source] Box<dyn std::error::Error + Send + Sync>),
+    #[error("Failed to record operation head {new_op_id}")]
+    Write {
+        new_op_id: OperationId,
+        source: Box<dyn std::error::Error + Send + Sync>,
+    },
+}
+
+#[derive(Debug, Error)]
 pub enum OpHeadResolutionError {
     #[error("Operation log has no heads")]
     NoHeads,
@@ -45,14 +56,18 @@ pub trait OpHeadsStore: Send + Sync + Debug {
     /// Remove the old op heads and add the new one.
     ///
     /// The old op heads must not contain the new one.
-    fn update_op_heads(&self, old_ids: &[OperationId], new_id: &OperationId);
+    fn update_op_heads(
+        &self,
+        old_ids: &[OperationId],
+        new_id: &OperationId,
+    ) -> Result<(), OpHeadsStoreError>;
 
-    fn get_op_heads(&self) -> Vec<OperationId>;
+    fn get_op_heads(&self) -> Result<Vec<OperationId>, OpHeadsStoreError>;
 
     /// Optionally takes a lock on the op heads store. The purpose of the lock
     /// is to prevent concurrent processes from resolving the same divergent
     /// operations. It is not needed for correctness; implementations are free
-    /// to return a type that doesn't hold.
+    /// to return a type that doesn't hold a lock.
     fn lock(&self) -> Box<dyn OpHeadsStoreLock + '_>;
 }
 
@@ -66,12 +81,12 @@ pub fn resolve_op_heads<E>(
     resolver: impl FnOnce(Vec<Operation>) -> Result<Operation, E>,
 ) -> Result<Operation, E>
 where
-    E: From<OpHeadResolutionError> + From<OpStoreError>,
+    E: From<OpHeadResolutionError> + From<OpHeadsStoreError> + From<OpStoreError>,
 {
     // This can be empty if the OpHeadsStore doesn't support atomic updates.
     // For example, all entries ahead of a readdir() pointer could be deleted by
     // another concurrent process.
-    let mut op_heads = op_heads_store.get_op_heads();
+    let mut op_heads = op_heads_store.get_op_heads()?;
 
     if op_heads.len() == 1 {
         let operation_id = op_heads.pop().unwrap();
@@ -88,7 +103,7 @@ where
     // the lock only to prevent other concurrent processes from doing the same
     // work (and producing another set of divergent heads).
     let _lock = op_heads_store.lock();
-    let op_head_ids = op_heads_store.get_op_heads();
+    let op_head_ids = op_heads_store.get_op_heads()?;
 
     if op_head_ids.is_empty() {
         return Err(OpHeadResolutionError::NoHeads.into());
@@ -125,7 +140,7 @@ where
 
     // Return without creating a merge operation
     if let [op_head] = &*op_heads {
-        op_heads_store.update_op_heads(&ancestor_op_heads, op_head.id());
+        op_heads_store.update_op_heads(&ancestor_op_heads, op_head.id())?;
         return Ok(op_head.clone());
     }
 
@@ -133,6 +148,6 @@ where
     let new_op = resolver(op_heads)?;
     let mut old_op_heads = ancestor_op_heads;
     old_op_heads.extend_from_slice(new_op.parent_ids());
-    op_heads_store.update_op_heads(&old_op_heads, new_op.id());
+    op_heads_store.update_op_heads(&old_op_heads, new_op.id())?;
     Ok(new_op)
 }

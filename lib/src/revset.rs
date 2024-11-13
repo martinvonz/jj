@@ -1811,6 +1811,7 @@ fn reload_repo_at_operation(
         RepoLoaderError::Backend(err) => RevsetResolutionError::StoreError(err),
         RepoLoaderError::IndexRead(_)
         | RepoLoaderError::OpHeadResolution(_)
+        | RepoLoaderError::OpHeadsStoreError(_)
         | RepoLoaderError::OpStore(_) => RevsetResolutionError::Other(err.into()),
     })
 }

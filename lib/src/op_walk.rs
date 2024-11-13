@@ -29,6 +29,7 @@ use crate::object_id::PrefixResolution;
 use crate::op_heads_store;
 use crate::op_heads_store::OpHeadResolutionError;
 use crate::op_heads_store::OpHeadsStore;
+use crate::op_heads_store::OpHeadsStoreError;
 use crate::op_store::OpStore;
 use crate::op_store::OpStoreError;
 use crate::op_store::OpStoreResult;
@@ -44,6 +45,9 @@ pub enum OpsetEvaluationError {
     /// Failed to resolve operation set expression.
     #[error(transparent)]
     OpsetResolution(#[from] OpsetResolutionError),
+    /// Failed to read op heads.
+    #[error(transparent)]
+    OpHeadsStore(#[from] OpHeadsStoreError),
     /// Failed to resolve the current operation heads.
     #[error(transparent)]
     OpHeadResolution(#[from] OpHeadResolutionError),
@@ -134,7 +138,7 @@ pub fn resolve_op_at(
 fn resolve_single_op(
     op_store: &Arc<dyn OpStore>,
     get_current_op: impl FnOnce() -> Result<Operation, OpsetEvaluationError>,
-    get_head_ops: impl FnOnce() -> OpStoreResult<Vec<Operation>>,
+    get_head_ops: impl FnOnce() -> Result<Vec<Operation>, OpsetEvaluationError>,
     op_str: &str,
 ) -> Result<Operation, OpsetEvaluationError> {
     let op_symbol = op_str.trim_end_matches(['-', '+']);
@@ -190,9 +194,9 @@ fn resolve_single_op_from_store(
 pub fn get_current_head_ops(
     op_store: &Arc<dyn OpStore>,
     op_heads_store: &dyn OpHeadsStore,
-) -> OpStoreResult<Vec<Operation>> {
+) -> Result<Vec<Operation>, OpsetEvaluationError> {
     let mut head_ops: Vec<_> = op_heads_store
-        .get_op_heads()
+        .get_op_heads()?
         .into_iter()
         .map(|id| -> OpStoreResult<Operation> {
             let data = op_store.read_operation(&id)?;
