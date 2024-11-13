@@ -74,6 +74,20 @@ fn get_log_output(test_env: &TestEnvironment, workspace_root: &Path) -> String {
     test_env.jj_cmd_success(workspace_root, &["log", "-T", template, "-r=all()"])
 }
 
+fn get_log_output_with_stderr(
+    test_env: &TestEnvironment,
+    workspace_root: &Path,
+) -> (String, String) {
+    let template = r#"
+    separate(" ",
+      commit_id.short(),
+      bookmarks,
+      if(git_head, "git_head()"),
+      description,
+    )"#;
+    test_env.jj_cmd_ok(workspace_root, &["log", "-T", template, "-r=all()"])
+}
+
 fn read_git_target(workspace_root: &Path) -> String {
     let mut path = workspace_root.to_path_buf();
     path.extend([".jj", "repo", "store", "git_target"]);
@@ -689,23 +703,263 @@ fn test_git_init_external_but_git_dir_exists() {
         &["git", "init", "--git-repo", git_repo_path.to_str().unwrap()],
     );
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
+    insta::assert_snapshot!(stderr, @r#"
+    Warning: Workspace has a .git directory that is not managed by JJ
     Initialized repo in "."
-    "###);
+    "#);
 
     // The local ".git" repository is unrelated, so no commits should be imported
-    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
+    let (stdout, stderr) = get_log_output_with_stderr(&test_env, &workspace_root);
+    insta::assert_snapshot!(stdout, @r###"
     @  230dd059e1b0
     ◆  000000000000
+    "###);
+    insta::assert_snapshot!(stderr, @r###"
+    Warning: Workspace has a .git directory that is not managed by JJ
     "###);
 
     // Check that Git HEAD is not set because this isn't a colocated repo
     test_env.jj_cmd_ok(&workspace_root, &["new"]);
-    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
+    let (stdout, stderr) = get_log_output_with_stderr(&test_env, &workspace_root);
+    insta::assert_snapshot!(stdout, @r###"
     @  4db490c88528
     ○  230dd059e1b0
     ◆  000000000000
     "###);
+    insta::assert_snapshot!(stderr, @r###"
+    Warning: Workspace has a .git directory that is not managed by JJ
+    "###);
+}
+
+fn create_commit(git_repo: &git2::Repository, msg: &str, parents: &[&git2::Commit]) -> git2::Oid {
+    let author = git2::Signature::new("JJ test", "jj@example.com", &git2::Time::new(0, 0)).unwrap();
+    let empty_tree = git_repo.treebuilder(None).unwrap().write().unwrap();
+    let oid = git_repo
+        .commit(
+            Some("HEAD"),
+            &author,
+            &author,
+            msg,
+            &git_repo.find_tree(empty_tree).unwrap(),
+            parents,
+        )
+        .unwrap();
+    oid
+}
+
+#[test]
+fn test_git_init_external_pointing_at_worktree_from_outside() {
+    let test_env = TestEnvironment::default();
+    let git_repo_path = test_env.env_root().join("git-repo");
+    let worktree_path = test_env.env_root().join("worktree");
+    let workspace_root = test_env.env_root().join("repo");
+    let git_repo = git2::Repository::init(&git_repo_path).unwrap();
+    // Must create a commit so we can create a worktree
+    let initial_commit = create_commit(&git_repo, "initial commit", &[]);
+    let _worktree = git_repo
+        .worktree("jj-worktree", &worktree_path, None)
+        .unwrap();
+
+    // now commit in the worktree, so we know where we are importing from
+    let worktree_repo = git2::Repository::open(&worktree_path).unwrap();
+    let _initial_commit = create_commit(
+        &worktree_repo,
+        "second commit",
+        &[&worktree_repo.find_commit(initial_commit).unwrap()],
+    )
+    .to_string();
+
+    std::fs::create_dir(&workspace_root).unwrap();
+    let (stdout, stderr) = test_env.jj_cmd_ok(
+        &workspace_root,
+        &["git", "init", "--git-repo", worktree_path.to_str().unwrap()],
+    );
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r#"
+    Done importing changes from the underlying Git repo.
+    Working copy now at: sqpuoqvx 58a55009 (empty) (no description set)
+    Parent commit      : kyuukqus 49c63010 jj-worktree | (empty) second commit
+    Initialized repo in "."
+    "#);
+
+    assert_eq!(
+        PathBuf::from(read_git_target(&workspace_root))
+            .canonicalize()
+            .unwrap(),
+        worktree_path.join(".git")
+    );
+
+    // This is similar to a normal `jj git init --git-repo=` -- we import the
+    // commits, but in this case our HEAD@git comes from the worktree.
+    let (stdout, stderr) = get_log_output_with_stderr(&test_env, &workspace_root);
+    insta::assert_snapshot!(stdout, @r#"
+    @  58a55009f1c1
+    ○  49c630103a76 jj-worktree git_head() second commit
+    ○  70618e4d103f master initial commit
+    ◆  000000000000
+    "#);
+    insta::assert_snapshot!(stderr, @"");
+
+    // The git HEAD should not advance, because this is not colocated
+    test_env.jj_cmd_ok(&workspace_root, &["new"]);
+    let (stdout, stderr) = get_log_output_with_stderr(&test_env, &workspace_root);
+    insta::assert_snapshot!(stdout, @r#"
+    @  f133c02dde73
+    ○  58a55009f1c1
+    ○  49c630103a76 jj-worktree git_head() second commit
+    ○  70618e4d103f master initial commit
+    ◆  000000000000
+    "#);
+    insta::assert_snapshot!(stderr, @"");
+}
+
+#[test]
+fn test_git_init_external_in_worktree_pointing_worktree() {
+    let test_env = TestEnvironment::default();
+    let git_repo_path = test_env.env_root().join("git-repo");
+    let workspace_root = test_env.env_root().join("repo");
+    let git_repo = git2::Repository::init(&git_repo_path).unwrap();
+    // Must create a commit so we can create a worktree
+    let initial_commit = create_commit(&git_repo, "initial commit", &[]);
+    let _worktree = git_repo
+        .worktree("jj-worktree", &workspace_root, None)
+        .unwrap();
+    assert!(workspace_root.join(".git").is_file());
+
+    // now commit in the worktree, so we know where we are importing from
+    let worktree_repo = git2::Repository::open(&workspace_root).unwrap();
+    let _initial_commit = create_commit(
+        &worktree_repo,
+        "second commit",
+        &[&worktree_repo.find_commit(initial_commit).unwrap()],
+    )
+    .to_string();
+
+    let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "init", "--git-repo", "."]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r#"
+    Done importing changes from the underlying Git repo.
+    Initialized repo in "."
+    "#);
+
+    assert_eq!(read_git_target(&workspace_root), "../../../.git");
+
+    // The local ".git" repository is related, so commits should be imported
+    let (stdout, stderr) = get_log_output_with_stderr(&test_env, &workspace_root);
+    insta::assert_snapshot!(stdout, @r#"
+    @  58a55009f1c1
+    ○  49c630103a76 jj-worktree git_head() second commit
+    ○  70618e4d103f master initial commit
+    ◆  000000000000
+    "#);
+    insta::assert_snapshot!(stderr, @"");
+
+    // Check that Git HEAD is advanced because this is colocated
+    test_env.jj_cmd_ok(&workspace_root, &["new"]);
+    let (stdout, stderr) = get_log_output_with_stderr(&test_env, &workspace_root);
+    insta::assert_snapshot!(stdout, @r#"
+    @  f133c02dde73
+    ○  58a55009f1c1 git_head()
+    ○  49c630103a76 jj-worktree second commit
+    ○  70618e4d103f master initial commit
+    ◆  000000000000
+    "#);
+    insta::assert_snapshot!(stderr, @"");
+
+    let stdout = test_env.jj_cmd_success(&workspace_root, OP_LOG_COMPACT);
+    insta::assert_snapshot!(stdout, @r#"
+    @  0c47efd49cba new empty commit
+    │  args: jj new
+    ○  5fd008dad5b5 import git head
+    │  args: jj git init --git-repo .
+    ○  ec635623258d import git refs
+    │  args: jj git init --git-repo .
+    ○  eac759b9ab75 add workspace 'default'
+    ○  000000000000
+    "#);
+}
+
+const OP_LOG_COMPACT: &[&str] = &[
+    "op",
+    "log",
+    "-Tself.id().short() ++ ' ' ++ separate(\"\\n\", self.description().first_line(), self.tags())",
+];
+
+/// This one is a bit weird, but technically you can do it. Should be roughly
+/// equivalent to the --git-repo=. case, but with a different git_target file.
+#[test]
+fn test_git_init_external_in_worktree_pointing_commondir() {
+    let test_env = TestEnvironment::default();
+    let git_repo_path = test_env.env_root().join("git-repo");
+    let workspace_root = test_env.env_root().join("repo");
+    let git_repo = git2::Repository::init(&git_repo_path).unwrap();
+    // Must create a commit so we can create a worktree
+    let initial_commit = create_commit(&git_repo, "initial commit", &[]);
+    let _worktree = git_repo
+        .worktree("jj-worktree", &workspace_root, None)
+        .unwrap();
+    assert!(workspace_root.join(".git").is_file());
+
+    // now commit in the worktree, so we know where we are importing from
+    let worktree_repo = git2::Repository::open(&workspace_root).unwrap();
+    let _initial_commit = create_commit(
+        &worktree_repo,
+        "second commit",
+        &[&worktree_repo.find_commit(initial_commit).unwrap()],
+    )
+    .to_string();
+
+    let (stdout, stderr) = test_env.jj_cmd_ok(
+        &workspace_root,
+        &["git", "init", "--git-repo", "../git-repo"],
+    );
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r#"
+    Done importing changes from the underlying Git repo.
+    Initialized repo in "."
+    "#);
+
+    assert_eq!(
+        PathBuf::from(read_git_target(&workspace_root))
+            .canonicalize()
+            .unwrap(),
+        git_repo_path.join(".git")
+    );
+
+    // The local ".git" repository is related, so commits should be imported,
+    // specifically from the worktree, not the original repo.
+    let (stdout, stderr) = get_log_output_with_stderr(&test_env, &workspace_root);
+    insta::assert_snapshot!(stdout, @r#"
+    @  58a55009f1c1
+    ○  49c630103a76 jj-worktree git_head() second commit
+    ○  70618e4d103f master initial commit
+    ◆  000000000000
+    "#);
+    insta::assert_snapshot!(stderr, @"");
+
+    // Check that Git HEAD is advanced because this is colocated
+    test_env.jj_cmd_ok(&workspace_root, &["new"]);
+    let (stdout, stderr) = get_log_output_with_stderr(&test_env, &workspace_root);
+    insta::assert_snapshot!(stdout, @r#"
+    @  f133c02dde73
+    ○  58a55009f1c1 git_head()
+    ○  49c630103a76 jj-worktree second commit
+    ○  70618e4d103f master initial commit
+    ◆  000000000000
+    "#);
+    insta::assert_snapshot!(stderr, @"");
+
+    let stdout = test_env.jj_cmd_success(&workspace_root, OP_LOG_COMPACT);
+    insta::assert_snapshot!(stdout, @r#"
+    @  79619167098b new empty commit
+    │  args: jj new
+    ○  db043dbad297 import git head
+    │  args: jj git init --git-repo ../git-repo
+    ○  7296ad45aee9 import git refs
+    │  args: jj git init --git-repo ../git-repo
+    ○  eac759b9ab75 add workspace 'default'
+    ○  000000000000
+    "#);
 }
 
 #[test]

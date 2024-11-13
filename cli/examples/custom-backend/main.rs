@@ -60,7 +60,13 @@ fn create_store_factories() -> StoreFactories {
     // must match `Backend::name()`.
     store_factories.add_backend(
         "jit",
-        Box::new(|settings, store_path| Ok(Box::new(JitBackend::load(settings, store_path)?))),
+        Box::new(|settings, store_path, workspace_root| {
+            Ok(Box::new(JitBackend::load(
+                settings,
+                store_path,
+                workspace_root,
+            )?))
+        }),
     );
     store_factories
 }
@@ -105,8 +111,12 @@ impl JitBackend {
         Ok(JitBackend { inner })
     }
 
-    fn load(settings: &UserSettings, store_path: &Path) -> Result<Self, BackendLoadError> {
-        let inner = GitBackend::load(settings, store_path)?;
+    fn load(
+        settings: &UserSettings,
+        store_path: &Path,
+        workspace_root: Option<&Path>,
+    ) -> Result<Self, BackendLoadError> {
+        let inner = GitBackend::load(settings, store_path, workspace_root)?;
         Ok(JitBackend { inner })
     }
 }
