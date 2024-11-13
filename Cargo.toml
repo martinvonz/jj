@@ -46,7 +46,7 @@ digest = "0.10.7"
 dirs = "5.0.1"
 dunce = "1.0.5"
 either = "1.13.0"
-esl01-renderdag = "0.3.0"
+sapling-renderdag = "0.1.0"
 futures = "0.3.31"
 git2 = { version = "0.19.0", features = [
     # Do *not* disable this feature even if you'd like dynamic linking. Instead,
