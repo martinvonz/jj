@@ -208,11 +208,9 @@ fn test_simplify_parents_multiple_redundant_parents() {
     let (stdout, stderr) =
         test_env.jj_cmd_ok(&repo_path, &["simplify-parents", "-r", "c", "-r", "f"]);
     insta::assert_snapshot!(stdout, @"");
-    // TODO: The output should indicate that edges were removed from 2 commits
-    // (c, f) and 2 descendant commits were rebased (d, e).
     insta::assert_snapshot!(stderr, @r#"
     Removed 2 edges from 2 out of 2 commits.
-    Rebased 3 descendant commits
+    Rebased 2 descendant commits
     Working copy now at: kmkuslsw 8cc01e1b f | f
     Parent commit      : znkkpsqq 040ae3a6 e | e
     "#);
@@ -232,11 +230,9 @@ fn test_simplify_parents_multiple_redundant_parents() {
     test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["simplify-parents", "-s", "c"]);
     insta::assert_snapshot!(stdout, @"");
-    // TODO: The output should indicate that edges were removed from 2 commits
-    // (c, f) and 2 descendant commits were rebased (d, e).
     insta::assert_snapshot!(stderr, @r#"
     Removed 2 edges from 2 out of 4 commits.
-    Rebased 3 descendant commits
+    Rebased 2 descendant commits
     Working copy now at: kmkuslsw 70a39dff f | f
     Parent commit      : znkkpsqq a021fee9 e | e
     "#);
