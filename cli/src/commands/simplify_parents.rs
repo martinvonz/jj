@@ -2,10 +2,7 @@ use std::collections::HashSet;
 
 use clap_complete::ArgValueCandidates;
 use itertools::Itertools;
-use jj_lib::backend::BackendResult;
 use jj_lib::revset::RevsetExpression;
-use jj_lib::rewrite::CommitRewriter;
-use jj_lib::settings::UserSettings;
 
 use crate::cli_util::CommandHelper;
 use crate::cli_util::RevisionArg;
@@ -67,63 +64,47 @@ pub(crate) fn cmd_simplify_parents(
     let num_orig_commits = commit_ids.len();
 
     let mut tx = workspace_command.start_transaction();
-    let mut stats = SimplifyStats::default();
-    tx.repo_mut()
-        .transform_descendants(command.settings(), commit_ids, |rewriter| {
-            if commit_ids_set.contains(rewriter.old_commit().id()) {
-                simplify_commit_parents(command.settings(), rewriter, &mut stats)?;
-            }
+    let mut simplified_commits = 0;
+    let mut edges = 0;
+    let mut reparented_descendants = 0;
 
+    tx.repo_mut()
+        .transform_descendants(command.settings(), commit_ids, |mut rewriter| {
+            let num_old_heads = rewriter.new_parents().len();
+            if commit_ids_set.contains(rewriter.old_commit().id()) && num_old_heads > 1 {
+                rewriter.simplify_ancestor_merge();
+            }
+            let num_new_heads = rewriter.new_parents().len();
+
+            if rewriter.parents_changed() {
+                rewriter.reparent(command.settings())?.write()?;
+
+                if num_new_heads < num_old_heads {
+                    simplified_commits += 1;
+                    edges += num_old_heads - num_new_heads;
+                } else {
+                    reparented_descendants += 1;
+                }
+            }
             Ok(())
         })?;
 
     if let Some(mut formatter) = ui.status_formatter() {
-        if !stats.is_empty() {
+        if simplified_commits > 0 {
             writeln!(
                 formatter,
-                "Removed {} edges from {} out of {} commits.",
-                stats.edges, stats.commits, num_orig_commits
+                "Removed {edges} edges from {simplified_commits} out of {num_orig_commits} \
+                 commits.",
             )?;
+            if reparented_descendants > 0 {
+                writeln!(
+                    formatter,
+                    "Rebased {reparented_descendants} descendant commits",
+                )?;
+            }
         }
     }
     tx.finish(ui, format!("simplify {num_orig_commits} commits"))?;
-
-    Ok(())
-}
-
-#[derive(Default)]
-struct SimplifyStats {
-    commits: usize,
-    edges: usize,
-}
-
-impl SimplifyStats {
-    fn is_empty(&self) -> bool {
-        self.commits == 0 && self.edges == 0
-    }
-}
-
-fn simplify_commit_parents(
-    settings: &UserSettings,
-    mut rewriter: CommitRewriter,
-    stats: &mut SimplifyStats,
-) -> BackendResult<()> {
-    if rewriter.old_commit().parent_ids().len() <= 1 {
-        return Ok(());
-    }
-
-    let num_old_heads = rewriter.new_parents().len();
-    rewriter.simplify_ancestor_merge();
-    let num_new_heads = rewriter.new_parents().len();
-
-    if rewriter.parents_changed() {
-        rewriter.reparent(settings)?.write()?;
-
-        if num_new_heads < num_old_heads {
-            stats.commits += 1;
-            stats.edges += num_old_heads - num_new_heads;
-        }
-    }
 
     Ok(())
 }
