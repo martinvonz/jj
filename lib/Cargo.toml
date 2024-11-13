@@ -86,7 +86,7 @@ winreg = { workspace = true }
 [dev-dependencies]
 assert_matches = { workspace = true }
 criterion = { workspace = true }
-esl01-renderdag = { workspace = true }
+sapling-renderdag = { workspace = true }
 indoc = { workspace = true }
 insta = { workspace = true }
 num_cpus = { workspace = true }

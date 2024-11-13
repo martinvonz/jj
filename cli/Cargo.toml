@@ -61,7 +61,7 @@ criterion = { workspace = true, optional = true }
 crossterm = { workspace = true }
 dirs = { workspace = true }
 dunce = { workspace = true }
-esl01-renderdag = { workspace = true }
+sapling-renderdag = { workspace = true }
 futures = { workspace = true }
 git2 = { workspace = true }
 gix = { workspace = true }
