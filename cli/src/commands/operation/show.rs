@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use clap_complete::ArgValueCandidates;
 use itertools::Itertools;
 
 use super::diff::show_op_diff;
@@ -19,6 +20,7 @@ use crate::cli_util::CommandHelper;
 use crate::cli_util::LogContentFormat;
 use crate::command_error::CommandError;
 use crate::commit_templater::CommitTemplateLanguage;
+use crate::complete;
 use crate::diff_util::diff_formats_for_log;
 use crate::diff_util::DiffFormatArgs;
 use crate::diff_util::DiffRenderer;
@@ -29,7 +31,7 @@ use crate::ui::Ui;
 #[derive(clap::Args, Clone, Debug)]
 pub struct OperationShowArgs {
     /// Show repository changes in this operation, compared to its parent(s)
-    #[arg(default_value = "@")]
+    #[arg(default_value = "@", add = ArgValueCandidates::new(complete::operations))]
     operation: String,
     /// Don't show the graph, show a flat list of modified changes
     #[arg(long)]

@@ -241,6 +241,36 @@ pub fn all_revisions() -> Vec<CompletionCandidate> {
     revisions("all()")
 }
 
+pub fn operations() -> Vec<CompletionCandidate> {
+    with_jj(|mut jj, _| {
+        let output = jj
+            .arg("operation")
+            .arg("log")
+            .arg("--no-graph")
+            .arg("--limit")
+            .arg("100")
+            .arg("--template")
+            .arg(
+                r#"
+                separate(" ",
+                    id.short(),
+                    "(" ++ format_timestamp(time.end()) ++ ")",
+                    description.first_line(),
+                ) ++ "\n""#,
+            )
+            .output()
+            .map_err(user_error)?;
+
+        Ok(String::from_utf8_lossy(&output.stdout)
+            .lines()
+            .map(|line| {
+                let (id, help) = split_help_text(line);
+                CompletionCandidate::new(id).help(help)
+            })
+            .collect())
+    })
+}
+
 /// Shell out to jj during dynamic completion generation
 ///
 /// In case of errors, print them and early return an empty vector.
@@ -267,13 +297,13 @@ where
 /// requirements of completions aren't very high.
 fn get_jj_command() -> Result<(std::process::Command, Config), CommandError> {
     let current_exe = std::env::current_exe().map_err(user_error)?;
-    let mut command = std::process::Command::new(current_exe);
+    let mut cmd_args = Vec::<String>::new();
 
     // Snapshotting could make completions much slower in some situations
     // and be undesired by the user.
-    command.arg("--ignore-working-copy");
-    command.arg("--color=never");
-    command.arg("--no-pager");
+    cmd_args.push("--ignore-working-copy".into());
+    cmd_args.push("--color=never".into());
+    cmd_args.push("--no-pager".into());
 
     // Parse some of the global args we care about for passing along to the
     // child process. This shouldn't fail, since none of the global args are
@@ -311,17 +341,43 @@ fn get_jj_command() -> Result<(std::process::Command, Config), CommandError> {
             let _ = layered_configs.read_repo_config(loader.repo_path());
             config = layered_configs.merge();
         }
-        command.arg("--repository");
-        command.arg(repository);
+        cmd_args.push("--repository".into());
+        cmd_args.push(repository);
     }
     if let Some(at_operation) = args.at_operation {
-        command.arg("--at-operation");
-        command.arg(at_operation);
+        // We cannot assume that the value of at_operation is valid, because
+        // the user may be requesting completions precisely for this invalid
+        // operation ID. Additionally, the user may have mistyped the ID,
+        // in which case adding the argument blindly would break all other
+        // completions, even unrelated ones.
+        //
+        // To avoid this, we shell out to ourselves once with the argument
+        // and check the exit code. There is some performance overhead to this,
+        // but this code path is probably only executed in exceptional
+        // situations.
+        let mut canary_cmd = std::process::Command::new(&current_exe);
+        canary_cmd.args(&cmd_args);
+        canary_cmd.arg("--at-operation");
+        canary_cmd.arg(&at_operation);
+        canary_cmd.arg("debug");
+        canary_cmd.arg("snapshot");
+
+        match canary_cmd.output() {
+            Ok(output) if output.status.success() => {
+                // Operation ID is valid, add it to the completion command.
+                cmd_args.push("--at-operation".into());
+                cmd_args.push(at_operation);
+            }
+            _ => {} // Invalid operation ID, ignore.
+        }
     }
     for config_toml in args.early_args.config_toml {
-        command.arg("--config-toml");
-        command.arg(config_toml);
+        cmd_args.push("--config-toml".into());
+        cmd_args.push(config_toml);
     }
 
-    Ok((command, config))
+    let mut cmd = std::process::Command::new(current_exe);
+    cmd.args(&cmd_args);
+
+    Ok((cmd, config))
 }
