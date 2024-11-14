@@ -86,7 +86,12 @@ pub struct GitPushArgs {
     /// By default, the specified name matches exactly. Use `glob:` prefix to
     /// select bookmarks by wildcard pattern. For details, see
     /// https://martinvonz.github.io/jj/latest/revsets#string-patterns.
-    #[arg(long, short, alias="branch", value_parser = StringPattern::parse)]
+    #[arg(
+        long, short,
+        alias = "branch",
+        value_parser = StringPattern::parse,
+        add = ArgValueCandidates::new(complete::local_bookmarks),
+    )]
     bookmark: Vec<StringPattern>,
     /// Push all bookmarks (including deleted bookmarks)
     #[arg(long)]
