@@ -134,10 +134,11 @@ nav:
       - 'Temporary Voting for Governance': 'governance/temporary-voting.md'
 
 - 'Design docs':
-    - 'Roadmap': "roadmap.md"
     - 'git-submodules': 'design/git-submodules.md'
     - 'git-submodule-storage': 'design/git-submodule-storage.md'
     - 'JJ run': 'design/run.md'
     - 'Sparse Patterns v2': 'design/sparse-v2.md'
     - 'Tracking branches': 'design/tracking-branches.md'
     - 'Copy tracking and tracing': 'design/copy-tracking.md'
+
+- 'Development Roadmap': "roadmap.md"

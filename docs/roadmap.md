@@ -88,4 +88,4 @@ future cloud-based server using the same model as [XetHub][xet-storage].
 [gg]: https://github.com/gulbanana/gg
 [jj-run]: https://github.com/martinvonz/jj/issues/1869
 [submodules]: https://github.com/martinvonz/jj/issues/494
-[xet-storage]: https://xethub.com/assets/docs/concepts/xet-storage
+[xet-storage]: https://web.archive.org/web/20240914200921/https://xethub.com/assets/docs/concepts/xet-storage
