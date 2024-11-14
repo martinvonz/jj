@@ -126,6 +126,19 @@ fn test_bookmark_names() {
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["--", "jj", "bookmark", "untrack", "a"]);
     insta::assert_snapshot!(stdout, @"aaa-tracked@origin");
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["--", "jj", "git", "push", "-b", "a"]);
+    insta::assert_snapshot!(stdout, @r"
+    aaa-local
+    aaa-tracked
+    ");
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["--", "jj", "git", "fetch", "-b", "a"]);
+    insta::assert_snapshot!(stdout, @r"
+    aaa-local
+    aaa-tracked
+    aaa-untracked
+    ");
 }
 
 #[test]
