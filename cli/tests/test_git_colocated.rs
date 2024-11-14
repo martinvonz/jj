@@ -888,3 +888,150 @@ fn get_bookmark_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
     // --quiet to suppress deleted bookmarks hint
     test_env.jj_cmd_success(repo_path, &["bookmark", "list", "--all-remotes", "--quiet"])
 }
+
+#[test]
+fn test_colocate_primary_workspace() {
+    let test_env = TestEnvironment::default();
+    let repo_path = test_env.env_root().join("repo");
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-mempty"]);
+    test_env.jj_cmd_ok(&repo_path, &["git", "colocate"]);
+    assert!(repo_path.join(".git").exists());
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r#"
+    @  33a8e41e1f142f207e08b9853c959f983cdf0ddf
+    ○  1e9d9f0fff69aa7d6b71b6ab1eb542bdc09a7173 git_head() empty
+    ◆  0000000000000000000000000000000000000000
+    "#);
+}
+
+#[test]
+fn test_colocate_primary_workspace_at_root() {
+    let test_env = TestEnvironment::default();
+    let repo_path = test_env.env_root().join("repo");
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    // Don't do an initial commit
+    let (_, stderr) = test_env.jj_cmd_ok(&repo_path, &["git", "colocate"]);
+    insta::assert_snapshot!(stderr, @"");
+    assert!(repo_path.join(".git").exists());
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r"
+    @  230dd059e1b059aefc0da06a2e5a7dbf22362f22
+    ◆  0000000000000000000000000000000000000000
+    ");
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-mempty"]);
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r"
+    @  a3ff8b1dfd5dc5686564cf761d5b9ce96d7fd967
+    ○  6a23f77161e78397716aac30d5000f67a17a83ff git_head() empty
+    ◆  0000000000000000000000000000000000000000
+    ");
+}
+
+#[test]
+fn test_colocate_primary_workspace_unsupported() {
+    let test_env = TestEnvironment::default();
+    let repo_path = test_env.env_root().join("repo");
+    let unsupported: &[&dyn Fn(&TestEnvironment) -> &'static str] = &[
+        &|test_env| {
+            test_env.jj_cmd_ok(
+                test_env.env_root(),
+                &["--config-toml=ui.allow-init-native=true", "init", "repo"],
+            );
+            "jj init (native backend)"
+        },
+        &|test_env| {
+            test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "--colocate", "repo"]);
+            "jj git init --colocate"
+        },
+        &|test_env| {
+            let _git_repo = gix::init(&repo_path).unwrap();
+            test_env.jj_cmd_ok(&repo_path, &["git", "init", "--git-repo=."]);
+            "jj git init --git-repo=."
+        },
+        &|test_env| {
+            test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+            std::fs::write(repo_path.join(".git"), "hello").unwrap();
+            ".git file exists"
+        },
+        &|test_env| {
+            let abs = test_env.env_root().join("external-git");
+            let _git_repo = gix::init(&abs).unwrap();
+            test_env.jj_cmd_ok(
+                test_env.env_root(),
+                &["git", "init", "--git-repo=external-git", "repo"],
+            );
+            "jj git init --git-repo=external-git"
+        },
+        &|test_env| {
+            let external_git = test_env.env_root().join("external-git3");
+            let _git_repo = gix::init(&external_git).unwrap();
+            test_env.jj_cmd_ok(
+                test_env.env_root(),
+                &["git", "init", "--git-repo=external-git3", "repo"],
+            );
+            // Move it into place. Less annoying than setting the config on a jj-managed one
+            std::fs::rename(
+                external_git.join(".git"),
+                repo_path.join(".jj/repo/store/git"),
+            )
+            .unwrap();
+            std::fs::write(repo_path.join(".jj/repo/store/git_target"), "git").unwrap();
+            "non-bare repo (somehow)"
+        },
+        &|test_env| {
+            let external_git = test_env.env_root().join("external-git2");
+            let _git_repo = gix::init(&external_git).unwrap();
+            test_env.jj_cmd_ok(
+                test_env.env_root(),
+                &["git", "init", "--git-repo=external-git2", "repo"],
+            );
+            #[cfg(unix)]
+            std::os::unix::fs::symlink(&external_git, repo_path.join(".jj/repo/store/git"))
+                .unwrap();
+            #[cfg(windows)]
+            std::os::windows::fs::symlink_dir(&external_git, repo_path.join(".jj/repo/store/git"))
+                .unwrap();
+            std::fs::write(
+                repo_path.join(".jj/repo/store/git_target"),
+                external_git.join(".git").to_str().unwrap(),
+            )
+            .unwrap();
+
+            ".jj/repo/store/git replaced with symlink"
+        },
+    ];
+
+    let mut stderrs = String::new();
+    for configuration in unsupported {
+        if repo_path.exists() {
+            std::fs::remove_dir_all(&repo_path).ok();
+        }
+        let name = configuration(&test_env);
+        let stderr = test_env.jj_cmd_failure(&repo_path, &["git", "colocate"]);
+        stderrs.push_str(name);
+        stderrs.push('\n');
+        stderrs.push_str(stderr.trim());
+        stderrs.push_str("\n\n");
+    }
+
+    insta::assert_snapshot!(stderrs.trim(), @r"
+    jj init (native backend)
+    Error: This repo is not using the Git backend, so you cannot colocate a workspace.
+
+    jj git init --colocate
+    Error: Workspace 'default' is already colocated.
+
+    jj git init --git-repo=.
+    Error: Workspace 'default' is already colocated.
+
+    .git file exists
+    Error: Path $TEST_ENV/repo/.git already exists, cannot colocate this workspace.
+
+    jj git init --git-repo=external-git
+    Error: Unsupported Git repo setup for colocation: requires bare repo at $TEST_ENV/repo/.jj/repo/store/git
+
+    non-bare repo (somehow)
+    Error: Unsupported Git repo setup for colocation: requires bare repo at $TEST_ENV/repo/.jj/repo/store/git
+
+    .jj/repo/store/git replaced with symlink
+    Error: Unsupported Git repo setup for colocation: requires bare repo at $TEST_ENV/repo/.jj/repo/store/git
+    ");
+}

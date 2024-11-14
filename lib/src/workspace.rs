@@ -109,6 +109,10 @@ pub struct Workspace {
     repo_path: PathBuf,
     repo_loader: RepoLoader,
     working_copy: Box<dyn WorkingCopy>,
+    // To avoid problems with non-canonicalized paths to determine this on the fly,
+    // we store a bool representing whether this is the workspace with the actual
+    // jj repo in it.
+    is_primary_workspace: bool,
 }
 
 fn create_jj_dir(workspace_root: &Path) -> Result<PathBuf, WorkspaceInitError> {
@@ -159,6 +163,7 @@ impl Workspace {
         repo_path: PathBuf,
         working_copy: Box<dyn WorkingCopy>,
         repo_loader: RepoLoader,
+        is_primary_workspace: bool,
     ) -> Result<Workspace, PathError> {
         let workspace_root = workspace_root.canonicalize().context(workspace_root)?;
         Ok(Self::new_no_canonicalize(
@@ -166,6 +171,7 @@ impl Workspace {
             repo_path,
             working_copy,
             repo_loader,
+            is_primary_workspace,
         ))
     }
 
@@ -174,13 +180,19 @@ impl Workspace {
         repo_path: PathBuf,
         working_copy: Box<dyn WorkingCopy>,
         repo_loader: RepoLoader,
+        is_primary_workspace: bool,
     ) -> Self {
         Self {
             workspace_root,
             repo_path,
             repo_loader,
             working_copy,
+            is_primary_workspace,
         }
+    }
+
+    pub fn is_primary_workspace(&self) -> bool {
+        self.is_primary_workspace
     }
 
     pub fn init_local(
@@ -320,7 +332,8 @@ impl Workspace {
                 workspace_id,
             )?;
             let repo_loader = repo.loader().clone();
-            let workspace = Workspace::new(workspace_root, repo_dir, working_copy, repo_loader)?;
+            let workspace =
+                Workspace::new(workspace_root, repo_dir, working_copy, repo_loader, true)?;
             Ok((workspace, repo))
         })()
         .inspect_err(|_err| {
@@ -346,6 +359,30 @@ impl Workspace {
             &*default_working_copy_factory(),
             WorkspaceId::default(),
         )
+    }
+
+    /// Reloads the repo and the working copy from the file system.
+    pub fn reload(
+        &self,
+        workspace_loader: &dyn WorkspaceLoader,
+        user_settings: &UserSettings,
+        working_copy_factory: &dyn WorkingCopyFactory,
+        store_factories: &StoreFactories,
+    ) -> Result<Self, WorkspaceLoadError> {
+        let repo_loader =
+            RepoLoader::init_from_file_system(user_settings, self.repo_path(), store_factories)?;
+
+        let working_copy =
+            workspace_loader.load_working_copy(repo_loader.store(), working_copy_factory)?;
+
+        let new_workspace = Workspace::new(
+            self.workspace_root(),
+            self.repo_path.clone(),
+            working_copy,
+            repo_loader,
+            self.is_primary_workspace,
+        )?;
+        Ok(new_workspace)
     }
 
     pub fn init_workspace_with_existing_repo(
@@ -383,6 +420,7 @@ impl Workspace {
             repo_dir,
             working_copy,
             repo.loader().clone(),
+            false,
         )?;
         Ok((workspace, repo))
     }
@@ -544,6 +582,7 @@ impl WorkspaceLoaderFactory for DefaultWorkspaceLoaderFactory {
 struct DefaultWorkspaceLoader {
     workspace_root: PathBuf,
     repo_path: PathBuf,
+    is_primary_workspace: bool,
     working_copy_state_path: PathBuf,
 }
 
@@ -558,6 +597,7 @@ impl DefaultWorkspaceLoader {
             ));
         }
         let mut repo_dir = jj_dir.join("repo");
+        let mut is_primary_workspace = true;
         // If .jj/repo is a file, then we interpret its contents as a relative path to
         // the actual repo directory (typically in another workspace).
         if repo_dir.is_file() {
@@ -571,11 +611,13 @@ impl DefaultWorkspaceLoader {
             if !repo_dir.is_dir() {
                 return Err(WorkspaceLoadError::RepoDoesNotExist(repo_dir));
             }
+            is_primary_workspace = false;
         }
         let working_copy_state_path = jj_dir.join("working_copy");
         Ok(Self {
             workspace_root: workspace_root.to_owned(),
             repo_path: repo_dir,
+            is_primary_workspace,
             working_copy_state_path,
         })
     }
@@ -605,6 +647,7 @@ impl WorkspaceLoader for DefaultWorkspaceLoader {
             self.repo_path.clone(),
             working_copy,
             repo_loader,
+            self.is_primary_workspace,
         )?;
         Ok(workspace)
     }

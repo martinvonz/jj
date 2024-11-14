@@ -49,6 +49,7 @@ This document contains the help content for the `jj` command-line program.
 * [`jj fix`↴](#jj-fix)
 * [`jj git`↴](#jj-git)
 * [`jj git clone`↴](#jj-git-clone)
+* [`jj git colocate`↴](#jj-git-colocate)
 * [`jj git export`↴](#jj-git-export)
 * [`jj git fetch`↴](#jj-git-fetch)
 * [`jj git import`↴](#jj-git-import)
@@ -1034,6 +1035,7 @@ For a comparison with Git, including a table of commands, see https://martinvonz
 ###### **Subcommands:**
 
 * `clone` — Create a new repo backed by a clone of a Git repo
+* `colocate` — Make the current workspace colocated
 * `export` — Update the underlying Git repo with changes made in the repo
 * `fetch` — Fetch from a Git remote
 * `import` — Update repo with changes made in the underlying Git repo
@@ -1063,6 +1065,22 @@ The Git repo will be a bare git repo stored inside the `.jj/` directory.
   Default value: `origin`
 * `--colocate` — Whether or not to colocate the Jujutsu repo with the git repo
 * `--depth <DEPTH>` — Create a shallow clone of the given depth
+
+
+
+## `jj git colocate`
+
+Make the current workspace colocated
+
+This has a similar effect to `jj git init --colocate`, except it works on existing JJ repositories. The end result is a repo where you can run Git commands as well as JJ commands.
+
+Limitations:
+
+- Currently only works in the primary workspace.
+
+- Your repo must have been initialized by `jj git init/clone`. Other configurations are not supported.
+
+**Usage:** `jj git colocate`
 
 
 

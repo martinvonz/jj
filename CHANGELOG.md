@@ -31,6 +31,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   [documentation](https://martinvonz.github.io/jj/latest/install-and-setup/#command-line-completion)
   to activate them.
 
+* New command `jj git colocate` that turns a non-colocated repo into a 
+  colocated one.
+
 ### Fixed bugs
 
 ## [0.23.0] - 2024-11-06
