@@ -16,6 +16,7 @@ use std::io::Write as _;
 use std::iter;
 use std::slice;
 
+use clap_complete::ArgValueCandidates;
 use itertools::Itertools as _;
 use jj_lib::op_walk;
 
@@ -24,6 +25,7 @@ use crate::cli_util::CommandHelper;
 use crate::command_error::cli_error;
 use crate::command_error::user_error;
 use crate::command_error::CommandError;
+use crate::complete;
 use crate::ui::Ui;
 
 /// Abandon operation history
@@ -40,6 +42,7 @@ use crate::ui::Ui;
 #[derive(clap::Args, Clone, Debug)]
 pub struct OperationAbandonArgs {
     /// The operation or operation range to abandon
+    #[arg(add = ArgValueCandidates::new(complete::operations))]
     operation: String,
 }
 

@@ -15,17 +15,19 @@
 use std::fmt::Debug;
 use std::io::Write as _;
 
+use clap_complete::ArgValueCandidates;
 use jj_lib::object_id::ObjectId;
 use jj_lib::op_walk;
 
 use crate::cli_util::CommandHelper;
 use crate::command_error::CommandError;
+use crate::complete;
 use crate::ui::Ui;
 
 /// Show information about an operation and its view
 #[derive(clap::Args, Clone, Debug)]
 pub struct DebugOperationArgs {
-    #[arg(default_value = "@")]
+    #[arg(default_value = "@", add = ArgValueCandidates::new(complete::operations))]
     operation: String,
     #[arg(long, value_enum, default_value = "all")]
     display: OperationDisplay,

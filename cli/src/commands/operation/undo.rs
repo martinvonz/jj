@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use clap_complete::ArgValueCandidates;
 use jj_lib::object_id::ObjectId;
 use jj_lib::repo::Repo;
 
@@ -21,6 +22,7 @@ use super::DEFAULT_UNDO_WHAT;
 use crate::cli_util::CommandHelper;
 use crate::command_error::user_error;
 use crate::command_error::CommandError;
+use crate::complete;
 use crate::ui::Ui;
 
 /// Create a new operation that undoes an earlier operation
@@ -32,7 +34,7 @@ pub struct OperationUndoArgs {
     /// The operation to undo
     ///
     /// Use `jj op log` to find an operation to undo.
-    #[arg(default_value = "@")]
+    #[arg(default_value = "@", add = ArgValueCandidates::new(complete::operations))]
     operation: String,
 
     /// What portions of the local state to restore (can be repeated)

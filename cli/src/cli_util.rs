@@ -46,6 +46,7 @@ use clap::ArgAction;
 use clap::ArgMatches;
 use clap::Command;
 use clap::FromArgMatches;
+use clap_complete::ArgValueCandidates;
 use indexmap::IndexMap;
 use indexmap::IndexSet;
 use itertools::Itertools;
@@ -140,6 +141,7 @@ use crate::command_error::user_error_with_message;
 use crate::command_error::CommandError;
 use crate::commit_templater::CommitTemplateLanguage;
 use crate::commit_templater::CommitTemplateLanguageExtension;
+use crate::complete;
 use crate::config::new_config_path;
 use crate::config::AnnotatedValue;
 use crate::config::CommandNameAndArgs;
@@ -2984,7 +2986,12 @@ pub struct GlobalArgs {
     /// earlier operation. Doing that is equivalent to having run concurrent
     /// commands starting at the earlier operation. There's rarely a reason to
     /// do that, but it is possible.
-    #[arg(long, visible_alias = "at-op", global = true)]
+    #[arg(
+        long,
+        visible_alias = "at-op",
+        global = true,
+        add = ArgValueCandidates::new(complete::operations),
+    )]
     pub at_operation: Option<String>,
     /// Enable debug logging
     #[arg(long, global = true)]

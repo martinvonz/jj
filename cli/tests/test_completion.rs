@@ -345,3 +345,58 @@ fn test_revisions() {
     r	mutable
     ");
 }
+
+#[test]
+fn test_operations() {
+    let test_env = TestEnvironment::default();
+
+    // suppress warnings on stderr of completions for invalid args
+    test_env.add_config("ui.default-command = 'log'");
+
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+    test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "description 0"]);
+    test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "description 1"]);
+    test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "description 2"]);
+    test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "description 3"]);
+    test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "description 4"]);
+
+    let mut test_env = test_env;
+    test_env.add_env_var("COMPLETE", "fish");
+    let test_env = test_env;
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["--", "jj", "op", "show", ""]);
+    let add_workspace_id = stdout.lines().nth(5).unwrap().split('\t').next().unwrap();
+    insta::assert_snapshot!(add_workspace_id, @"eac759b9ab75");
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["--", "jj", "op", "show", "5"]);
+    insta::assert_snapshot!(stdout, @r"
+    5bbb4ca536a8	(2001-02-03 08:05:12) describe commit 968261075dddabf4b0e333c1cc9a49ce26a3f710
+    518b588abbc6	(2001-02-03 08:05:09) describe commit 19611c995a342c01f525583e5fcafdd211f6d009
+    ");
+    // make sure global --at-op flag is respected
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &["--", "jj", "--at-op", "518b588abbc6", "op", "show", "5"],
+    );
+    insta::assert_snapshot!(stdout, @"518b588abbc6	(2001-02-03 08:05:09) describe commit 19611c995a342c01f525583e5fcafdd211f6d009");
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["--", "jj", "--at-op", "5b"]);
+    insta::assert_snapshot!(stdout, @"5bbb4ca536a8	(2001-02-03 08:05:12) describe commit 968261075dddabf4b0e333c1cc9a49ce26a3f710");
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["--", "jj", "op", "abandon", "5b"]);
+    insta::assert_snapshot!(stdout, @"5bbb4ca536a8	(2001-02-03 08:05:12) describe commit 968261075dddabf4b0e333c1cc9a49ce26a3f710");
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["--", "jj", "op", "diff", "--op", "5b"]);
+    insta::assert_snapshot!(stdout, @"5bbb4ca536a8	(2001-02-03 08:05:12) describe commit 968261075dddabf4b0e333c1cc9a49ce26a3f710");
+    let stdout = test_env.jj_cmd_success(&repo_path, &["--", "jj", "op", "diff", "--from", "5b"]);
+    insta::assert_snapshot!(stdout, @"5bbb4ca536a8	(2001-02-03 08:05:12) describe commit 968261075dddabf4b0e333c1cc9a49ce26a3f710");
+    let stdout = test_env.jj_cmd_success(&repo_path, &["--", "jj", "op", "diff", "--to", "5b"]);
+    insta::assert_snapshot!(stdout, @"5bbb4ca536a8	(2001-02-03 08:05:12) describe commit 968261075dddabf4b0e333c1cc9a49ce26a3f710");
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["--", "jj", "op", "restore", "5b"]);
+    insta::assert_snapshot!(stdout, @"5bbb4ca536a8	(2001-02-03 08:05:12) describe commit 968261075dddabf4b0e333c1cc9a49ce26a3f710");
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["--", "jj", "op", "undo", "5b"]);
+    insta::assert_snapshot!(stdout, @"5bbb4ca536a8	(2001-02-03 08:05:12) describe commit 968261075dddabf4b0e333c1cc9a49ce26a3f710");
+}

@@ -16,6 +16,7 @@ use std::collections::HashMap;
 use std::convert::Infallible;
 use std::sync::Arc;
 
+use clap_complete::ArgValueCandidates;
 use indexmap::IndexMap;
 use itertools::Itertools;
 use jj_lib::backend::ChangeId;
@@ -41,6 +42,7 @@ use crate::cli_util::CommandHelper;
 use crate::cli_util::LogContentFormat;
 use crate::command_error::CommandError;
 use crate::commit_templater::CommitTemplateLanguage;
+use crate::complete;
 use crate::diff_util::diff_formats_for_log;
 use crate::diff_util::DiffFormatArgs;
 use crate::diff_util::DiffRenderer;
@@ -55,13 +57,25 @@ use crate::ui::Ui;
 #[derive(clap::Args, Clone, Debug)]
 pub struct OperationDiffArgs {
     /// Show repository changes in this operation, compared to its parent
-    #[arg(long, visible_alias = "op")]
+    #[arg(
+        long,
+        visible_alias = "op",
+        add = ArgValueCandidates::new(complete::operations),
+    )]
     operation: Option<String>,
     /// Show repository changes from this operation
-    #[arg(long, conflicts_with = "operation")]
+    #[arg(
+        long,
+        conflicts_with = "operation",
+        add = ArgValueCandidates::new(complete::operations),
+    )]
     from: Option<String>,
     /// Show repository changes to this operation
-    #[arg(long, conflicts_with = "operation")]
+    #[arg(
+        long,
+        conflicts_with = "operation",
+        add = ArgValueCandidates::new(complete::operations),
+    )]
     to: Option<String>,
     /// Don't show the graph, show a flat list of modified changes
     #[arg(long)]
