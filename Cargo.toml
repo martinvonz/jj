@@ -58,11 +58,11 @@ git2 = { version = "0.19.0", features = [
     "vendored-libgit2"
 ] }
 gix = { version = "0.66.0", default-features = false, features = [
+    "attributes",
+    "blob-diff",
     "index",
     "max-performance-safe",
-    "blob-diff",
 ] }
-gix-filter = "0.13.0"
 glob = "0.3.1"
 hashbrown = { version = "0.15.1", default-features = false, features = ["inline-more"] }
 hex = "0.4.3"

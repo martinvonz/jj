@@ -1872,7 +1872,6 @@ dependencies = [
  "futures 0.3.31",
  "git2",
  "gix",
- "gix-filter",
  "glob",
  "hashbrown 0.15.1",
  "hex",

@@ -45,7 +45,6 @@ either = { workspace = true }
 futures = { workspace = true }
 git2 = { workspace = true, optional = true }
 gix = { workspace = true, optional = true }
-gix-filter = { workspace = true, optional = true }
 glob = { workspace = true }
 hashbrown = { workspace = true }
 hex = { workspace = true }
@@ -97,7 +96,7 @@ tokio = { workspace = true, features = ["full"] }
 
 [features]
 default = ["git"]
-git = ["dep:git2", "dep:gix", "dep:gix-filter"]
+git = ["dep:git2", "dep:gix"]
 vendored-openssl = ["git2/vendored-openssl"]
 watchman = ["dep:tokio", "dep:watchman_client"]
 testing = ["git"]
