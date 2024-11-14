@@ -61,13 +61,18 @@ impl SimpleOpHeadsStore {
         std::fs::write(self.dir.join(id.hex()), "")
     }
 
-    fn remove_op_head(&self, id: &OperationId) {
-        // It's fine if the old head was not found. It probably means
-        // that we're on a distributed file system where the locking
-        // doesn't work. We'll probably end up with two current
-        // heads. We'll detect that next time we load the view.
-        // TODO: Propagate other errors than NotFound
-        std::fs::remove_file(self.dir.join(id.hex())).ok();
+    fn remove_op_head(&self, id: &OperationId) -> io::Result<()> {
+        std::fs::remove_file(self.dir.join(id.hex())).or_else(|err| {
+            if err.kind() == io::ErrorKind::NotFound {
+                // It's fine if the old head was not found. It probably means
+                // that we're on a distributed file system where the locking
+                // doesn't work. We'll probably end up with two current
+                // heads. We'll detect that next time we load the view.
+                Ok(())
+            } else {
+                Err(err)
+            }
+        })
     }
 }
 
@@ -98,7 +103,11 @@ impl OpHeadsStore for SimpleOpHeadsStore {
                 source: err.into(),
             })?;
         for old_id in old_ids {
-            self.remove_op_head(old_id);
+            self.remove_op_head(old_id)
+                .map_err(|err| OpHeadsStoreError::Write {
+                    new_op_id: new_id.clone(),
+                    source: err.into(),
+                })?;
         }
         Ok(())
     }
