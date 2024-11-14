@@ -430,7 +430,7 @@ impl GitBackend {
         );
         let filter = gix::diff::blob::Pipeline::new(
             Default::default(),
-            gix_filter::Pipeline::new(
+            gix::filter::plumbing::Pipeline::new(
                 self.git_repo()
                     .command_context()
                     .map_err(|err| BackendError::Other(Box::new(err)))?,
