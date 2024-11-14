@@ -1319,14 +1319,10 @@ impl Backend for GitBackend {
 
         let change_to_copy_record =
             |change: gix::object::tree::diff::Change| -> BackendResult<Option<CopyRecord>> {
-                let gix::object::tree::diff::Change {
+                let gix::object::tree::diff::Change::Rewrite {
+                    source_location,
+                    source_id,
                     location: dest_location,
-                    event:
-                        gix::object::tree::diff::change::Event::Rewrite {
-                            source_location,
-                            source_id,
-                            ..
-                        },
                     ..
                 } = change
                 else {
@@ -1353,19 +1349,19 @@ impl Backend for GitBackend {
             };
 
         let mut records: Vec<BackendResult<CopyRecord>> = Vec::new();
-        let mut change_platform = root_tree
+        root_tree
             .changes()
-            .map_err(|err| BackendError::Other(err.into()))?;
-        change_platform.track_path();
-        change_platform.track_rewrites(Some(gix::diff::Rewrites {
-            copies: Some(gix::diff::rewrites::Copies {
-                source: gix::diff::rewrites::CopySource::FromSetOfModifiedFiles,
-                percentage: Some(0.5),
-            }),
-            percentage: Some(0.5),
-            limit: 1000,
-        }));
-        change_platform
+            .map_err(|err| BackendError::Other(err.into()))?
+            .options(|opts| {
+                opts.track_path().track_rewrites(Some(gix::diff::Rewrites {
+                    copies: Some(gix::diff::rewrites::Copies {
+                        source: gix::diff::rewrites::CopySource::FromSetOfModifiedFiles,
+                        percentage: Some(0.5),
+                    }),
+                    percentage: Some(0.5),
+                    limit: 1000,
+                }));
+            })
             .for_each_to_obtain_tree_with_cache(
                 &head_tree,
                 &mut self.new_diff_platform()?,
@@ -1770,10 +1766,11 @@ mod tests {
         // libgit2-rs works with &strs here for some reason
         let commit_buf = std::str::from_utf8(&commit_buf).unwrap();
         let secure_sig =
-            "here are some ASCII bytes to be used as a test signature\n\ndefinitely not PGP";
+            "here are some ASCII bytes to be used as a test signature\n\ndefinitely not PGP\n";
 
+        // git2 appears to append newline unconditionally
         let git_commit_id = git_repo
-            .commit_signed(commit_buf, secure_sig, None)
+            .commit_signed(commit_buf, secure_sig.trim_end_matches('\n'), None)
             .unwrap();
 
         let backend = GitBackend::init_external(&settings, store_path, git_repo.path()).unwrap();
@@ -2157,7 +2154,7 @@ mod tests {
 
         let mut signer = |data: &_| {
             let hash: String = blake2b_hash(data).encode_hex();
-            Ok(format!("test sig\n\n\nhash={hash}").into_bytes())
+            Ok(format!("test sig\n\n\nhash={hash}\n").into_bytes())
         };
 
         let (id, commit) = backend
