@@ -61,7 +61,6 @@ criterion = { workspace = true, optional = true }
 crossterm = { workspace = true }
 dirs = { workspace = true }
 dunce = { workspace = true }
-sapling-renderdag = { workspace = true }
 futures = { workspace = true }
 git2 = { workspace = true }
 gix = { workspace = true }
@@ -78,6 +77,7 @@ pollster = { workspace = true }
 rayon = { workspace = true }
 regex = { workspace = true }
 rpassword = { workspace = true }
+sapling-renderdag = { workspace = true }
 scm-record = { workspace = true }
 serde = { workspace = true }
 slab = { workspace = true }

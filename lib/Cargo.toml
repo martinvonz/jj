@@ -86,11 +86,11 @@ winreg = { workspace = true }
 [dev-dependencies]
 assert_matches = { workspace = true }
 criterion = { workspace = true }
-sapling-renderdag = { workspace = true }
 indoc = { workspace = true }
 insta = { workspace = true }
 num_cpus = { workspace = true }
 pretty_assertions = { workspace = true }
+sapling-renderdag = { workspace = true }
 test-case = { workspace = true }
 testutils = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
