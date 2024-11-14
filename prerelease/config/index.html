@@ -2609,15 +2609,16 @@ right of the <code>=</code> sign) should be surrounded in quotes if it's a strin
 <span class="k">[colors]</span>
 <span class="s2">&quot;commit_id prefix&quot;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">bold</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="kc">true</span><span class="w"> </span><span class="p">}</span>
 </code></pre></div>
-<p>Jujutsu favors the dotted style in these instructions, if only because it's
-easier to write down in an unconfusing way. If you are confident with TOML
+<p>The docs below refer to keys in text using dotted notation, but example
+blocks will use heading notation to be unambiguous. If you are confident with TOML
 then use whichever suits you in your config. If you mix dotted keys and headings,
-<strong>put the dotted keys before the first heading</strong>.</p>
+<strong>you must put the dotted keys before the first heading</strong>.</p>
 <p>That's probably enough TOML to keep you out of trouble but the <a href="https://toml.io/en/v1.0.0">syntax guide</a> is
 very short if you ever need to check.</p>
 <h2 id="user-settings">User settings<a class="headerlink" href="#user-settings" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><span class="n">user</span><span class="p">.</span><span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;YOUR NAME&quot;</span>
-<span class="n">user</span><span class="p">.</span><span class="n">email</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;YOUR_EMAIL@example.com&quot;</span>
+<div class="highlight"><pre><span></span><code><span class="k">[user]</span>
+<span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;YOUR NAME&quot;</span>
+<span class="n">email</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;YOUR_EMAIL@example.com&quot;</span>
 </code></pre></div>
 <p>Don't forget to change these to your own details!</p>
 <h2 id="ui-settings">UI settings<a class="headerlink" href="#ui-settings" title="Permanent link">&para;</a></h2>
@@ -2626,11 +2627,13 @@ very short if you ever need to check.</p>
 <code>auto</code> will use color only when writing to a terminal. <code>debug</code> will print the
 active labels alongside the regular colorized output.</p>
 <p>This setting overrides the <code>NO_COLOR</code> environment variable (if set).</p>
-<div class="highlight"><pre><span></span><code><span class="n">ui</span><span class="p">.</span><span class="n">color</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;never&quot;</span><span class="w"> </span><span class="c1"># Turn off color</span>
+<div class="highlight"><pre><span></span><code><span class="k">[ui]</span>
+<span class="n">color</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;never&quot;</span><span class="w"> </span><span class="c1"># Turn off color</span>
 </code></pre></div>
 <h3 id="custom-colors-and-styles">Custom colors and styles<a class="headerlink" href="#custom-colors-and-styles" title="Permanent link">&para;</a></h3>
 <p>You can customize the colors used for various elements of the UI. For example:</p>
-<div class="highlight"><pre><span></span><code><span class="n">colors</span><span class="p">.</span><span class="n">commit_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;green&quot;</span>
+<div class="highlight"><pre><span></span><code><span class="k">[colors]</span>
+<span class="n">commit_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;green&quot;</span>
 </code></pre></div>
 <p>The following colors are available:</p>
 <ul>
@@ -2648,20 +2651,23 @@ active labels alongside the regular colorized output.</p>
 "default" color can be used to override a color defined by a parent style
 (explained below).</p>
 <p>You can also use a 6-digit hex code for more control over the exact color used:</p>
-<div class="highlight"><pre><span></span><code><span class="n">colors</span><span class="p">.</span><span class="n">change_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;#ff1525&quot;</span>
+<div class="highlight"><pre><span></span><code><span class="k">[colors]</span>
+<span class="n">change_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;#ff1525&quot;</span>
 </code></pre></div>
 <p>If you use a string value for a color, as in the examples above, it will be used
 for the foreground color. You can also set the background color, or make the
 text bold or underlined. For that, you need to use a table:</p>
-<div class="highlight"><pre><span></span><code><span class="n">colors</span><span class="p">.</span><span class="n">commit_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">fg</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s2">&quot;green&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">bg</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s2">&quot;#ff1525&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">bold</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span><span class="w"> </span><span class="n">underline</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="kc">true</span><span class="w"> </span><span class="p">}</span>
+<div class="highlight"><pre><span></span><code><span class="k">[colors]</span>
+<span class="n">commit_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">fg</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s2">&quot;green&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">bg</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s2">&quot;#ff1525&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">bold</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span><span class="w"> </span><span class="n">underline</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="kc">true</span><span class="w"> </span><span class="p">}</span>
 </code></pre></div>
 <p>The key names are called "labels". The above used <code>commit_id</code> as label. You can
 also create rules combining multiple labels. The rules work a bit like CSS
 selectors. For example, if you want to color commit IDs green in general but
 make the commit ID of the working-copy commit also be underlined, you can do
 this:</p>
-<div class="highlight"><pre><span></span><code><span class="n">colors</span><span class="p">.</span><span class="n">commit_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;green&quot;</span>
-<span class="n">colors</span><span class="p">.</span><span class="s2">&quot;working_copy commit_id&quot;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">underline</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="kc">true</span><span class="w"> </span><span class="p">}</span>
+<div class="highlight"><pre><span></span><code><span class="k">[colors]</span>
+<span class="n">commit_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;green&quot;</span>
+<span class="s2">&quot;working_copy commit_id&quot;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">underline</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="kc">true</span><span class="w"> </span><span class="p">}</span>
 </code></pre></div>
 <p>Parts of the style that are not overridden - such as the foreground color in the
 example above - are inherited from the parent style.</p>
@@ -2672,7 +2678,8 @@ for some examples of what's possible.</p>
 <p>When <code>jj</code> is run with no explicit subcommand, the value of the
 <code>ui.default-command</code> setting will be used instead. Possible values are any valid
 subcommand name, subcommand alias, or user-defined alias (defaults to <code>"log"</code>).</p>
-<div class="highlight"><pre><span></span><code><span class="n">ui</span><span class="p">.</span><span class="n">default-command</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;log&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;--reversed&quot;</span><span class="p">]</span>
+<div class="highlight"><pre><span></span><code><span class="k">[ui]</span>
+<span class="n">default-command</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;log&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;--reversed&quot;</span><span class="p">]</span>
 </code></pre></div>
 <h3 id="default-description">Default description<a class="headerlink" href="#default-description" title="Permanent link">&para;</a></h3>
 <p>The editor content of a commit description can be populated by the
@@ -2690,7 +2697,8 @@ subcommand name, subcommand alias, or user-defined alias (defaults to <code>"log
 </code></pre></div>
 <p>The value of the <code>ui.default-description</code> setting can also be used in order to
 fill in things like BUG=, TESTED= etc.</p>
-<div class="highlight"><pre><span></span><code><span class="n">ui</span><span class="p">.</span><span class="n">default-description</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;</span><span class="se">\n\n</span><span class="s2">TESTED=TODO&quot;</span>
+<div class="highlight"><pre><span></span><code><span class="k">[ui]</span>
+<span class="n">default-description</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;</span><span class="se">\n\n</span><span class="s2">TESTED=TODO&quot;</span>
 </code></pre></div>
 <h3 id="diff-colors-and-styles">Diff colors and styles<a class="headerlink" href="#diff-colors-and-styles" title="Permanent link">&para;</a></h3>
 <p>In color-words and git diffs, word-level hunks are rendered with underline. You
@@ -2701,8 +2709,9 @@ can override the default style with the following keys:</p>
 <span class="s2">&quot;diff added token&quot;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">bg</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s2">&quot;#002200&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">underline</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="kc">false</span><span class="w"> </span><span class="p">}</span>
 </code></pre></div>
 <h3 id="diff-format">Diff format<a class="headerlink" href="#diff-format" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><span class="c1"># Possible values: &quot;color-words&quot; (default), &quot;git&quot;, &quot;summary&quot;</span>
-<span class="n">ui</span><span class="p">.</span><span class="n">diff</span><span class="p">.</span><span class="n">format</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;git&quot;</span>
+<div class="highlight"><pre><span></span><code><span class="k">[ui]</span>
+<span class="c1"># Possible values: &quot;color-words&quot; (default), &quot;git&quot;, &quot;summary&quot;</span>
+<span class="n">diff</span><span class="p">.</span><span class="n">format</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;git&quot;</span>
 </code></pre></div>
 <h4 id="color-words-diff-options">Color-words diff options<a class="headerlink" href="#color-words-diff-options" title="Permanent link">&para;</a></h4>
 <p>In color-words diffs, changed words are displayed inline by default. Because
@@ -2774,20 +2783,23 @@ invocations as follows:</p>
 <code>builtin_immutable_heads()</code>, which in turn is defined as
 <code>present(trunk()) | tags() | untracked_remote_bookmarks()</code>. For example, to
 also consider the <code>release@origin</code> bookmark immutable:</p>
-<div class="highlight"><pre><span></span><code><span class="n">revset-aliases</span><span class="p">.</span><span class="s2">&quot;immutable_heads()&quot;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;builtin_immutable_heads() | release@origin&quot;</span>
+<div class="highlight"><pre><span></span><code><span class="k">[revset-aliases]</span>
+<span class="s2">&quot;immutable_heads()&quot;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;builtin_immutable_heads() | release@origin&quot;</span>
 </code></pre></div>
 <p>To prevent rewriting commits authored by other users:</p>
 <div class="highlight"><pre><span></span><code><span class="c1"># The `trunk().. &amp;` bit is an optimization to scan for non-`mine()` commits</span>
 <span class="c1"># only among commits that are not in `trunk()`.</span>
-<span class="n">revset-aliases</span><span class="p">.</span><span class="s2">&quot;immutable_heads()&quot;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;builtin_immutable_heads() | (trunk().. &amp; ~mine())&quot;</span>
+<span class="k">[revset-aliases]</span>
+<span class="s2">&quot;immutable_heads()&quot;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;builtin_immutable_heads() | (trunk().. &amp; ~mine())&quot;</span>
 </code></pre></div>
 <p>Ancestors of the configured set are also immutable. The root commit is always
 immutable even if the set is empty.</p>
 <h2 id="log">Log<a class="headerlink" href="#log" title="Permanent link">&para;</a></h2>
 <h3 id="default-revisions">Default revisions<a class="headerlink" href="#default-revisions" title="Permanent link">&para;</a></h3>
 <p>You can configure the revisions <code>jj log</code> would show when neither <code>-r</code> nor any paths are specified.</p>
-<div class="highlight"><pre><span></span><code><span class="c1"># Show commits that are not in `main@origin`</span>
-<span class="n">revsets</span><span class="p">.</span><span class="n">log</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;main@origin..&quot;</span>
+<div class="highlight"><pre><span></span><code><span class="k">[revsets]</span>
+<span class="c1"># Show commits that are not in `main@origin`</span>
+<span class="n">log</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;main@origin..&quot;</span>
 </code></pre></div>
 <p>The default value for <code>revsets.log</code> is
 <code>'present(@) | ancestors(immutable_heads().., 2) | present(trunk())'</code>.</p>
@@ -2812,8 +2824,9 @@ your config:</p>
 <span class="n">log</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;builtin_log_compact_full_description&quot;</span>
 </code></pre></div>
 <h3 id="graph-style">Graph style<a class="headerlink" href="#graph-style" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><span class="c1"># Possible values: &quot;curved&quot; (default), &quot;square&quot;, &quot;ascii&quot;, &quot;ascii-large&quot;</span>
-<span class="n">ui</span><span class="p">.</span><span class="n">graph</span><span class="p">.</span><span class="n">style</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;square&quot;</span>
+<div class="highlight"><pre><span></span><code><span class="k">[ui]</span>
+<span class="c1"># Possible values: &quot;curved&quot; (default), &quot;square&quot;, &quot;ascii&quot;, &quot;ascii-large&quot;</span>
+<span class="n">graph</span><span class="p">.</span><span class="n">style</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;square&quot;</span>
 </code></pre></div>
 <h4 id="node-style">Node style<a class="headerlink" href="#node-style" title="Permanent link">&para;</a></h4>
 <p>The symbols used to represent commits or operations can be customized via
@@ -2837,7 +2850,8 @@ templates.</p>
 <h3 id="wrap-log-content">Wrap log content<a class="headerlink" href="#wrap-log-content" title="Permanent link">&para;</a></h3>
 <p>If enabled, <code>log</code>/<code>evolog</code>/<code>op log</code> content will be wrapped based on
 the terminal width.</p>
-<div class="highlight"><pre><span></span><code><span class="n">ui</span><span class="p">.</span><span class="n">log-word-wrap</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+<div class="highlight"><pre><span></span><code><span class="k">[ui]</span>
+<span class="n">log-word-wrap</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
 </code></pre></div>
 <h3 id="display-of-commit-and-change-ids">Display of commit and change ids<a class="headerlink" href="#display-of-commit-and-change-ids" title="Permanent link">&para;</a></h3>
 <p>Can be customized by the <code>format_short_id()</code> template alias.</p>
@@ -2858,8 +2872,9 @@ the terminal width.</p>
 <span class="s1">&#39;format_short_change_id(id)&#39;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;format_short_id(id).upper()&#39;</span>
 </code></pre></div>
 <p>To get shorter prefixes for certain revisions, set <code>revsets.short-prefixes</code>:</p>
-<div class="highlight"><pre><span></span><code><span class="c1"># Prioritize the current bookmark</span>
-<span class="n">revsets</span><span class="p">.</span><span class="n">short-prefixes</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;(main..@)::&quot;</span>
+<div class="highlight"><pre><span></span><code><span class="k">[revsets]</span>
+<span class="c1"># Prioritize the current bookmark</span>
+<span class="n">short-prefixes</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;(main..@)::&quot;</span>
 </code></pre></div>
 <h3 id="relative-timestamps">Relative timestamps<a class="headerlink" href="#relative-timestamps" title="Permanent link">&para;</a></h3>
 <p>Can be customized by the <code>format_timestamp()</code> template alias.</p>
@@ -2893,8 +2908,9 @@ modifier</a>.</p>
 <p>Another way you can override this check is by setting
 <code>ui.always-allow-large-revsets</code> to <code>true</code>. Then, <code>jj</code> will allow every one of
 the revset arguments of such commands to expand to any number of revisions.</p>
-<div class="highlight"><pre><span></span><code><span class="c1"># Assume `all:` prefix before revsets whenever it would make a difference</span>
-<span class="n">ui</span><span class="p">.</span><span class="n">always-allow-large-revsets</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+<div class="highlight"><pre><span></span><code><span class="k">[ui]</span>
+<span class="c1"># Assume `all:` prefix before revsets whenever it would make a difference</span>
+<span class="n">always-allow-large-revsets</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
 </code></pre></div>
 <h2 id="pager">Pager<a class="headerlink" href="#pager" title="Permanent link">&para;</a></h2>
 <p>The default pager is can be set via <code>ui.pager</code> or the <code>PAGER</code> environment
@@ -2914,17 +2930,19 @@ bindings and some more details.</p>
 <p>It is possible the default will change to <code>:builtin</code> for all platforms in the
 future.</p>
 <p>Additionally, paging behavior can be toggled via <code>ui.paginate</code> like so:</p>
-<div class="highlight"><pre><span></span><code><span class="c1"># Enable pagination for commands that support it (default)</span>
-<span class="n">ui</span><span class="p">.</span><span class="n">paginate</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;auto&quot;</span>
+<div class="highlight"><pre><span></span><code><span class="k">[ui]</span>
+<span class="c1"># Enable pagination for commands that support it (default)</span>
+<span class="n">paginate</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;auto&quot;</span>
 <span class="c1"># Disable all pagination, equivalent to using --no-pager</span>
-<span class="n">ui</span><span class="p">.</span><span class="n">paginate</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;never&quot;</span>
+<span class="n">paginate</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;never&quot;</span>
 </code></pre></div>
 <h3 id="processing-contents-to-be-paged">Processing contents to be paged<a class="headerlink" href="#processing-contents-to-be-paged" title="Permanent link">&para;</a></h3>
 <p>If you'd like to pass the output through a formatter e.g.
 <a href="https://github.com/so-fancy/diff-so-fancy"><code>diff-so-fancy</code></a> before piping it
 through a pager you must do it using a subshell as, unlike <code>git</code> or <code>hg</code>, the
 command will be executed directly. For example:</p>
-<div class="highlight"><pre><span></span><code><span class="n">ui</span><span class="p">.</span><span class="n">pager</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;sh&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;-c&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;diff-so-fancy | less -RFX&quot;</span><span class="p">]</span>
+<div class="highlight"><pre><span></span><code><span class="k">[ui]</span>
+<span class="n">pager</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;sh&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;-c&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;diff-so-fancy | less -RFX&quot;</span><span class="p">]</span>
 </code></pre></div>
 <p>Some formatters (like <a href="https://github.com/dandavison/delta"><code>delta</code></a>) require
 git style diffs for formatting. You can configure this style of
@@ -2937,9 +2955,10 @@ diff as the default with the <code>ui.diff</code> setting. For example:</p>
 </code></pre></div>
 <h2 id="aliases">Aliases<a class="headerlink" href="#aliases" title="Permanent link">&para;</a></h2>
 <p>You can define aliases for commands, including their arguments. For example:</p>
-<div class="highlight"><pre><span></span><code><span class="c1"># `jj l` shows commits on the working-copy commit&#39;s (anonymous) bookmark</span>
+<div class="highlight"><pre><span></span><code><span class="k">[aliases]</span>
+<span class="c1"># `jj l` shows commits on the working-copy commit&#39;s (anonymous) bookmark</span>
 <span class="c1"># compared to the `main` bookmark</span>
-<span class="n">aliases</span><span class="p">.</span><span class="n">l</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;log&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;-r&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;(main..@):: | (main..@)-&quot;</span><span class="p">]</span>
+<span class="n">l</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;log&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;-r&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;(main..@):: | (main..@)-&quot;</span><span class="p">]</span>
 </code></pre></div>
 <p>This alias syntax can only run a single jj command. However, you may want to
 execute multiple jj commands with a single alias, or run arbitrary scripts that
@@ -2978,20 +2997,23 @@ a <code>$</code>):</p>
 <p><code>$JJ_EDITOR</code> &gt; <code>ui.editor</code> &gt; <code>$VISUAL</code> &gt; <code>$EDITOR</code></p>
 <p>Pico is the default editor (Notepad on Windows) in the absence of any other
 setting, but you could set it explicitly too.</p>
-<div class="highlight"><pre><span></span><code><span class="n">ui</span><span class="p">.</span><span class="n">editor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;pico&quot;</span>
+<div class="highlight"><pre><span></span><code><span class="k">[ui]</span>
+<span class="n">editor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;pico&quot;</span>
 </code></pre></div>
 <p>To use NeoVim instead:</p>
-<div class="highlight"><pre><span></span><code><span class="n">ui</span><span class="p">.</span><span class="n">editor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;nvim&quot;</span>
+<div class="highlight"><pre><span></span><code><span class="k">[ui]</span>
+<span class="n">editor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;nvim&quot;</span>
 </code></pre></div>
 <p>For GUI editors you possibly need to use a <code>-w</code> or <code>--wait</code>. Some examples:</p>
-<div class="highlight"><pre><span></span><code><span class="n">ui</span><span class="p">.</span><span class="n">editor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;code -w&quot;</span><span class="w">       </span><span class="c1"># VS Code</span>
-<span class="n">ui</span><span class="p">.</span><span class="n">editor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;code.cmd -w&quot;</span><span class="w">   </span><span class="c1"># VS Code on Windows</span>
-<span class="n">ui</span><span class="p">.</span><span class="n">editor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;bbedit -w&quot;</span><span class="w">     </span><span class="c1"># BBEdit</span>
-<span class="n">ui</span><span class="p">.</span><span class="n">editor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;subl -n -w&quot;</span><span class="w">    </span><span class="c1"># Sublime Text</span>
-<span class="n">ui</span><span class="p">.</span><span class="n">editor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;mate -w&quot;</span><span class="w">       </span><span class="c1"># TextMate</span>
-<span class="n">ui</span><span class="p">.</span><span class="n">editor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;C:/Program Files/Notepad++/notepad++.exe&quot;</span><span class="p">,</span>
+<div class="highlight"><pre><span></span><code><span class="k">[ui]</span>
+<span class="n">editor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;code -w&quot;</span><span class="w">       </span><span class="c1"># VS Code</span>
+<span class="n">editor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;code.cmd -w&quot;</span><span class="w">   </span><span class="c1"># VS Code on Windows</span>
+<span class="n">editor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;bbedit -w&quot;</span><span class="w">     </span><span class="c1"># BBEdit</span>
+<span class="n">editor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;subl -n -w&quot;</span><span class="w">    </span><span class="c1"># Sublime Text</span>
+<span class="n">editor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;mate -w&quot;</span><span class="w">       </span><span class="c1"># TextMate</span>
+<span class="n">editor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;C:/Program Files/Notepad++/notepad++.exe&quot;</span><span class="p">,</span>
 <span class="w">    </span><span class="s2">&quot;-multiInst&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;-notabbar&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;-nosession&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;-noPlugin&quot;</span><span class="p">]</span><span class="w"> </span><span class="c1"># Notepad++</span>
-<span class="n">ui</span><span class="p">.</span><span class="n">editor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;idea --temp-project --wait&quot;</span><span class="w">   </span><span class="c1">#IntelliJ</span>
+<span class="n">editor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;idea --temp-project --wait&quot;</span><span class="w">   </span><span class="c1">#IntelliJ</span>
 </code></pre></div>
 <p>Obviously, you would only set one line, don't copy them all in!</p>
 <h2 id="editing-diffs">Editing diffs<a class="headerlink" href="#editing-diffs" title="Permanent link">&para;</a></h2>
@@ -3013,9 +3035,10 @@ portions of lines from the diff or even arbitrarily editing the text of the
 files.</p>
 <p>If <code>ui.diff-editor</code> is a string, e.g. <code>"meld"</code>, the arguments will be read from
 the following config keys.</p>
-<div class="highlight"><pre><span></span><code><span class="c1"># merge-tools.meld.program = &quot;meld&quot;      # Defaults to the name of the tool if not specified</span>
-<span class="n">merge-tools</span><span class="p">.</span><span class="n">meld</span><span class="p">.</span><span class="n">program</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/path/to/meld&quot;</span><span class="w"> </span><span class="c1"># May be necessary if `meld` is not in the PATH</span>
-<span class="n">merge-tools</span><span class="p">.</span><span class="n">meld</span><span class="p">.</span><span class="n">edit-args</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;--newtab&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;$left&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;$right&quot;</span><span class="p">]</span>
+<div class="highlight"><pre><span></span><code><span class="k">[merge-tools.meld]</span>
+<span class="c1"># program = &quot;meld&quot;      # Defaults to the name of the tool if not specified</span>
+<span class="n">program</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/path/to/meld&quot;</span><span class="w"> </span><span class="c1"># May be necessary if `meld` is not in the PATH</span>
+<span class="n">edit-args</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;--newtab&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;$left&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;$right&quot;</span><span class="p">]</span>
 </code></pre></div>
 <p><code>jj</code> makes the following substitutions:</p>
 <ul>
@@ -3029,12 +3052,13 @@ the following config keys.</p>
 </ul>
 <p>Finally, <code>ui.diff-editor</code> can be a list that specifies a command and its arguments.</p>
 <p>Some examples:</p>
-<div class="highlight"><pre><span></span><code><span class="c1"># Use merge-tools.meld.edit-args</span>
-<span class="n">ui</span><span class="p">.</span><span class="n">diff-editor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;meld&quot;</span><span class="w">  </span><span class="c1"># Or `kdiff3`, or `diffedit3`, ...</span>
+<div class="highlight"><pre><span></span><code><span class="k">[ui]</span>
+<span class="c1"># Use merge-tools.meld.edit-args</span>
+<span class="n">diff-editor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;meld&quot;</span><span class="w">  </span><span class="c1"># Or `kdiff3`, or `diffedit3`, ...</span>
 <span class="c1"># Specify edit-args inline</span>
-<span class="n">ui</span><span class="p">.</span><span class="n">diff-editor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;/path/to/binary&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;--be-helpful&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;$left&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;$right&quot;</span><span class="p">]</span>
+<span class="n">diff-editor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;/path/to/binary&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;--be-helpful&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;$left&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;$right&quot;</span><span class="p">]</span>
 <span class="c1"># Equivalent to [&quot;binary&quot;, &quot;$left&quot;, &quot;$right&quot;] arguments by default</span>
-<span class="n">ui</span><span class="p">.</span><span class="n">diff-editor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;binary&quot;</span>
+<span class="n">diff-editor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;binary&quot;</span>
 </code></pre></div>
 <h3 id="experimental-3-pane-diff-editing">Experimental 3-pane diff editing<a class="headerlink" href="#experimental-3-pane-diff-editing" title="Permanent link">&para;</a></h3>
 <p>We offer two special "3-pane" diff editor configs:</p>
@@ -3110,10 +3134,11 @@ experience, you can follow <a href="https://github.com/martinvonz/jj/wiki/Vim#us
 <h2 id="3-way-merge-tools-for-conflict-resolution">3-way merge tools for conflict resolution<a class="headerlink" href="#3-way-merge-tools-for-conflict-resolution" title="Permanent link">&para;</a></h2>
 <p>The <code>ui.merge-editor</code> key specifies the tool used for three-way merge tools
 by <code>jj resolve</code>. For example:</p>
-<div class="highlight"><pre><span></span><code><span class="c1"># Use merge-tools.meld.merge-args</span>
-<span class="n">ui</span><span class="p">.</span><span class="n">merge-editor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;meld&quot;</span><span class="w">  </span><span class="c1"># Or &quot;vscode&quot; or &quot;vscodium&quot; or &quot;kdiff3&quot; or &quot;vimdiff&quot;</span>
+<div class="highlight"><pre><span></span><code><span class="k">[ui]</span>
+<span class="c1"># Use merge-tools.meld.merge-args</span>
+<span class="n">merge-editor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;meld&quot;</span><span class="w">  </span><span class="c1"># Or &quot;vscode&quot; or &quot;vscodium&quot; or &quot;kdiff3&quot; or &quot;vimdiff&quot;</span>
 <span class="c1"># Specify merge-args inline</span>
-<span class="n">ui</span><span class="p">.</span><span class="n">merge-editor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;meld&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;$left&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;$base&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;$right&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;-o&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;$output&quot;</span><span class="p">]</span>
+<span class="n">merge-editor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;meld&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;$left&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;$base&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;$right&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;-o&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;$output&quot;</span><span class="p">]</span>
 </code></pre></div>
 <p>The "vscode", "vscodium", "meld", "kdiff3", and "vimdiff" tools can be used out of the box,
 as long as they are installed.</p>
@@ -3126,16 +3151,19 @@ specified either inline or in the <code>merge-tools.TOOL.merge-args</code> key. 
 example of how to set this key and other tool configuration options, here is
 the out-of-the-box configuration of the three default tools. (There is no need
 to copy it to your config file verbatim, but you are welcome to customize it.)</p>
-<div class="highlight"><pre><span></span><code><span class="c1"># merge-tools.kdiff3.program  = &quot;kdiff3&quot;     # Defaults to the name of the tool if not specified</span>
-<span class="n">merge-tools</span><span class="p">.</span><span class="n">kdiff3</span><span class="p">.</span><span class="n">merge-args</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;$base&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;$left&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;$right&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;-o&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;$output&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;--auto&quot;</span><span class="p">]</span>
-<span class="n">merge-tools</span><span class="p">.</span><span class="n">meld</span><span class="p">.</span><span class="n">merge-args</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;$left&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;$base&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;$right&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;-o&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;$output&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;--auto-merge&quot;</span><span class="p">]</span>
+<div class="highlight"><pre><span></span><code><span class="k">[merge-tools.kdiff3]</span>
+<span class="c1"># program  = &quot;kdiff3&quot;     # Defaults to the name of the tool if not specified</span>
+<span class="n">merge-args</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;$base&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;$left&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;$right&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;-o&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;$output&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;--auto&quot;</span><span class="p">]</span>
+<span class="k">[merge-tools.meld]</span>
+<span class="n">merge-args</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;$left&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;$base&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;$right&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;-o&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;$output&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;--auto-merge&quot;</span><span class="p">]</span>
 
-<span class="n">merge-tools</span><span class="p">.</span><span class="n">vimdiff</span><span class="p">.</span><span class="n">merge-args</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;-f&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;-d&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;$output&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;-M&quot;</span><span class="p">,</span>
+<span class="k">[merge-tools.vimdiff]</span>
+<span class="n">merge-args</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;-f&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;-d&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;$output&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;-M&quot;</span><span class="p">,</span>
 <span class="w">    </span><span class="s2">&quot;$left&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;$base&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;$right&quot;</span><span class="p">,</span>
 <span class="w">    </span><span class="s2">&quot;-c&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;wincmd J&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;-c&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;set modifiable&quot;</span><span class="p">,</span>
 <span class="w">    </span><span class="s2">&quot;-c&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;set write&quot;</span><span class="p">]</span>
-<span class="n">merge-tools</span><span class="p">.</span><span class="n">vimdiff</span><span class="p">.</span><span class="n">program</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;vim&quot;</span>
-<span class="n">merge-tools</span><span class="p">.</span><span class="n">vimdiff</span><span class="p">.</span><span class="n">merge-tool-edits-conflict-markers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span><span class="w">    </span><span class="c1"># See below for an explanation</span>
+<span class="n">program</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;vim&quot;</span>
+<span class="n">merge-tool-edits-conflict-markers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span><span class="w">    </span><span class="c1"># See below for an explanation</span>
 </code></pre></div>
 <p><code>jj</code> makes the following substitutions:</p>
 <ul>
@@ -3225,11 +3253,13 @@ GnuPG or SSH signing keys.</p>
 </code></pre></div>
 <p>By default the gpg backend will look for a <code>gpg</code> binary on your path. If you want
 to change the program used or specify a path to <code>gpg</code> explicitly you can set:</p>
-<div class="highlight"><pre><span></span><code><span class="n">signing</span><span class="p">.</span><span class="n">backends</span><span class="p">.</span><span class="n">gpg</span><span class="p">.</span><span class="n">program</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;gpg2&quot;</span>
+<div class="highlight"><pre><span></span><code><span class="k">[signing]</span>
+<span class="n">backends</span><span class="p">.</span><span class="n">gpg</span><span class="p">.</span><span class="n">program</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;gpg2&quot;</span>
 </code></pre></div>
 <p>Also by default the gpg backend will ignore key expiry when verifying commit signatures.
 To consider expired keys as invalid you can set:</p>
-<div class="highlight"><pre><span></span><code><span class="n">signing</span><span class="p">.</span><span class="n">backends</span><span class="p">.</span><span class="n">gpg</span><span class="p">.</span><span class="n">allow-expired-keys</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span>
+<div class="highlight"><pre><span></span><code><span class="k">[signing]</span>
+<span class="n">backends</span><span class="p">.</span><span class="n">gpg</span><span class="p">.</span><span class="n">allow-expired-keys</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span>
 </code></pre></div>
 <h3 id="ssh-signing">SSH Signing<a class="headerlink" href="#ssh-signing" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><span class="k">[signing]</span>
@@ -3241,14 +3271,16 @@ To consider expired keys as invalid you can set:</p>
 </code></pre></div>
 <p>By default the ssh backend will look for a <code>ssh-keygen</code> binary on your path. If you want
 to change the program used or specify a path to <code>ssh-keygen</code> explicitly you can set:</p>
-<div class="highlight"><pre><span></span><code><span class="n">signing</span><span class="p">.</span><span class="n">backends</span><span class="p">.</span><span class="n">ssh</span><span class="p">.</span><span class="n">program</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/path/to/ssh-keygen&quot;</span>
+<div class="highlight"><pre><span></span><code><span class="k">[signing]</span>
+<span class="n">backends</span><span class="p">.</span><span class="n">ssh</span><span class="p">.</span><span class="n">program</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/path/to/ssh-keygen&quot;</span>
 </code></pre></div>
 <p>When verifying commit signatures the ssh backend needs to be provided with an allowed-signers
 file containing the public keys of authors whose signatures you want to be able to verify.</p>
 <p>You can find the format for this file in the
 <a href="https://man.openbsd.org/ssh-keygen#ALLOWED_SIGNERS">ssh-keygen man page</a>. This can be provided
 as follows:</p>
-<div class="highlight"><pre><span></span><code><span class="n">signing</span><span class="p">.</span><span class="n">backends</span><span class="p">.</span><span class="n">ssh</span><span class="p">.</span><span class="n">allowed-signers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/path/to/allowed-signers&quot;</span>
+<div class="highlight"><pre><span></span><code><span class="k">[signing]</span>
+<span class="n">backends</span><span class="p">.</span><span class="n">ssh</span><span class="p">.</span><span class="n">allowed-signers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/path/to/allowed-signers&quot;</span>
 </code></pre></div>
 <h2 id="git-settings">Git settings<a class="headerlink" href="#git-settings" title="Permanent link">&para;</a></h2>
 <h3 id="default-remotes-for-jj-git-fetch-and-jj-git-push">Default remotes for <code>jj git fetch</code> and <code>jj git push</code><a class="headerlink" href="#default-remotes-for-jj-git-fetch-and-jj-git-push" title="Permanent link">&para;</a></h3>
@@ -3280,7 +3312,8 @@ may be undesirable in some repositories, e.g.:</p>
   resulting in an unhelpful conflicted state.</li>
 </ul>
 <p>You can enable this behavior by setting <code>git.auto-local-bookmark</code> like so,</p>
-<div class="highlight"><pre><span></span><code><span class="n">git</span><span class="p">.</span><span class="n">auto-local-bookmark</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+<div class="highlight"><pre><span></span><code><span class="k">[git]</span>
+<span class="n">auto-local-bookmark</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
 </code></pre></div>
 <p>This setting is applied only to new remote bookmarks. Existing remote bookmarks
 can be tracked individually by using <code>jj bookmark track</code>/<code>untrack</code> commands.</p>
@@ -3296,21 +3329,23 @@ to be <a href="https://git-scm.com/docs/gitglossary/#Documentation/gitglossary.t
 then be abandoned, and any descendant commits will be rebased off of them (as
 usual when commits are abandoned). You can disable this behavior and instead
 leave the Git-unreachable commits in your repo by setting:</p>
-<div class="highlight"><pre><span></span><code><span class="n">git</span><span class="p">.</span><span class="n">abandon-unreachable-commits</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span>
+<div class="highlight"><pre><span></span><code><span class="k">[git]</span>
+<span class="n">abandon-unreachable-commits</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span>
 </code></pre></div>
 <h3 id="prefix-for-generated-bookmarks-on-push">Prefix for generated bookmarks on push<a class="headerlink" href="#prefix-for-generated-bookmarks-on-push" title="Permanent link">&para;</a></h3>
 <p><code>jj git push --change</code> generates bookmark names with a prefix of "push-" by
 default. You can pick a different prefix by setting <code>git.push-bookmark-prefix</code>. For
 example:</p>
-<div class="codehilite"><pre><span></span><code>git.push-bookmark-prefix = &quot;martinvonz/push-&quot;
+<div class="highlight"><pre><span></span><code><span class="k">[git]</span>
+<span class="n">push-bookmark-prefix</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;martinvonz/push-&quot;</span>
 </code></pre></div>
-
 <h3 id="set-of-private-commits">Set of private commits<a class="headerlink" href="#set-of-private-commits" title="Permanent link">&para;</a></h3>
 <p>You can configure the set of private commits by setting <code>git.private-commits</code> to
 a revset. The value is a revset of commits that Jujutsu will refuse to push. If
 unset, all commits are eligible to be pushed.</p>
-<div class="highlight"><pre><span></span><code><span class="c1"># Prevent pushing work in progress or anything explicitly labeled &quot;private&quot;</span>
-<span class="n">git</span><span class="p">.</span><span class="n">private-commits</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;description(glob:&#39;wip:*&#39;) | description(glob:&#39;private:*&#39;)&quot;</span>
+<div class="highlight"><pre><span></span><code><span class="k">[git]</span>
+<span class="c1"># Prevent pushing work in progress or anything explicitly labeled &quot;private&quot;</span>
+<span class="n">private-commits</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;description(glob:&#39;wip:*&#39;) | description(glob:&#39;private:*&#39;)&quot;</span>
 </code></pre></div>
 <p>If a commit is in <code>git.private-commits</code> but is already on the remote, then it is
 not considered a private commit. Commits that are immutable are also excluded
@@ -3348,9 +3383,10 @@ tracked again.</p>
 snapshot that are larger than a certain size; the default is 1MiB. This can be
 changed by setting <code>snapshot.max-new-file-size</code> to a different value. For
 example:</p>
-<div class="highlight"><pre><span></span><code><span class="n">snapshot</span><span class="p">.</span><span class="n">max-new-file-size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;10MiB&quot;</span>
+<div class="highlight"><pre><span></span><code><span class="k">[snapshot]</span>
+<span class="n">max-new-file-size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;10MiB&quot;</span>
 <span class="c1"># the following is equivalent</span>
-<span class="n">snapshot</span><span class="p">.</span><span class="n">max-new-file-size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">10485760</span>
+<span class="n">max-new-file-size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">10485760</span>
 </code></pre></div>
 <p>The value can be specified using a human readable string with typical suffixes;
 <code>B</code>, <code>MiB</code>, <code>GB</code>, etc. By default, if no suffix is provided, or the value is a
