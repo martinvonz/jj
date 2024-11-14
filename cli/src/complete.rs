@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use clap::builder::StyledStr;
 use clap::FromArgMatches as _;
 use clap_complete::CompletionCandidate;
 use config::Config;
@@ -28,19 +29,45 @@ use crate::config::default_config;
 use crate::config::LayeredConfigs;
 use crate::ui::Ui;
 
+const BOOKMARK_HELP_TEMPLATE: &str = r#"
+[template-aliases]
+"bookmark_help()" = """
+" " ++
+if(normal_target,
+    if(normal_target.description(),
+        normal_target.description().first_line(),
+        "(no description set)",
+    ),
+    "(conflicted bookmark)",
+)
+"""
+"#;
+
+/// A helper function for various completer functions. It returns
+/// (candidate, help) assuming they are separated by a space.
+fn split_help_text(line: &str) -> (&str, Option<StyledStr>) {
+    match line.split_once(' ') {
+        Some((name, help)) => (name, Some(help.to_string().into())),
+        None => (line, None),
+    }
+}
+
 pub fn local_bookmarks() -> Vec<CompletionCandidate> {
     with_jj(|mut jj, _| {
         let output = jj
             .arg("bookmark")
             .arg("list")
+            .arg("--config-toml")
+            .arg(BOOKMARK_HELP_TEMPLATE)
             .arg("--template")
-            .arg(r#"if(!remote, name ++ "\n")"#)
+            .arg(r#"if(!remote, name ++ bookmark_help()) ++ "\n""#)
             .output()
             .map_err(user_error)?;
 
         Ok(String::from_utf8_lossy(&output.stdout)
             .lines()
-            .map(CompletionCandidate::new)
+            .map(split_help_text)
+            .map(|(name, help)| CompletionCandidate::new(name).help(help))
             .collect())
     })
 }
@@ -51,14 +78,17 @@ pub fn tracked_bookmarks() -> Vec<CompletionCandidate> {
             .arg("bookmark")
             .arg("list")
             .arg("--tracked")
+            .arg("--config-toml")
+            .arg(BOOKMARK_HELP_TEMPLATE)
             .arg("--template")
-            .arg(r#"if(remote, name ++ "@" ++ remote ++ "\n")"#)
+            .arg(r#"if(remote, name ++ '@' ++ remote ++ bookmark_help() ++ "\n")"#)
             .output()
             .map_err(user_error)?;
 
         Ok(String::from_utf8_lossy(&output.stdout)
             .lines()
-            .map(CompletionCandidate::new)
+            .map(split_help_text)
+            .map(|(name, help)| CompletionCandidate::new(name).help(help))
             .collect())
     })
 }
@@ -69,8 +99,14 @@ pub fn untracked_bookmarks() -> Vec<CompletionCandidate> {
             .arg("bookmark")
             .arg("list")
             .arg("--all-remotes")
+            .arg("--config-toml")
+            .arg(BOOKMARK_HELP_TEMPLATE)
             .arg("--template")
-            .arg(r#"if(remote && !tracked, name ++ "@" ++ remote ++ "\n")"#)
+            .arg(
+                r#"if(remote && !tracked && remote != "git",
+                    name ++ '@' ++ remote ++ bookmark_help() ++ "\n"
+                )"#,
+            )
             .output()
             .map_err(user_error)?;
 
@@ -78,14 +114,17 @@ pub fn untracked_bookmarks() -> Vec<CompletionCandidate> {
 
         Ok(String::from_utf8_lossy(&output.stdout)
             .lines()
-            .filter(|bookmark| !bookmark.ends_with("@git"))
-            .map(|bookmark| {
+            .map(|line| {
+                let (name, help) = split_help_text(line);
+
                 let display_order = match prefix.as_ref() {
                     // own bookmarks are more interesting
-                    Some(prefix) if bookmark.starts_with(prefix) => 0,
+                    Some(prefix) if name.starts_with(prefix) => 0,
                     _ => 1,
                 };
-                CompletionCandidate::new(bookmark).display_order(Some(display_order))
+                CompletionCandidate::new(name)
+                    .help(help)
+                    .display_order(Some(display_order))
             })
             .collect())
     })
@@ -97,8 +136,13 @@ pub fn bookmarks() -> Vec<CompletionCandidate> {
             .arg("bookmark")
             .arg("list")
             .arg("--all-remotes")
+            .arg("--config-toml")
+            .arg(BOOKMARK_HELP_TEMPLATE)
             .arg("--template")
-            .arg(r#"separate("@", name, remote) ++ "\n""#)
+            .arg(
+                // only provide help for local refs, remote could be ambiguous
+                r#"name ++ if(remote, "@" ++ remote, bookmark_help()) ++ "\n""#,
+            )
             .output()
             .map_err(user_error)?;
         let stdout = String::from_utf8_lossy(&output.stdout);
@@ -107,10 +151,13 @@ pub fn bookmarks() -> Vec<CompletionCandidate> {
 
         Ok((&stdout
             .lines()
-            .chunk_by(|line| line.split_once('@').map(|t| t.0).unwrap_or(line)))
+            .map(split_help_text)
+            .chunk_by(|(name, _)| name.split_once('@').map(|t| t.0).unwrap_or(name)))
             .into_iter()
             .map(|(bookmark, mut refs)| {
-                let local = refs.any(|r| !r.contains('@'));
+                let help = refs.find_map(|(_, help)| help);
+
+                let local = help.is_some();
                 let mine = prefix.as_ref().is_some_and(|p| bookmark.starts_with(p));
 
                 let display_order = match (local, mine) {
@@ -119,7 +166,9 @@ pub fn bookmarks() -> Vec<CompletionCandidate> {
                     (false, true) => 2,
                     (false, false) => 3,
                 };
-                CompletionCandidate::new(bookmark).display_order(Some(display_order))
+                CompletionCandidate::new(bookmark)
+                    .help(help)
+                    .display_order(Some(display_order))
             })
             .collect())
     })

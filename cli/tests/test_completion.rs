@@ -64,10 +64,10 @@ fn test_bookmark_names() {
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["--", "jj", "bookmark", "rename", ""]);
     insta::assert_snapshot!(stdout, @r"
-    aaa-local
-    aaa-tracked
-    bbb-local
-    bbb-tracked
+    aaa-local	x
+    aaa-tracked	x
+    bbb-local	x
+    bbb-tracked	x
     --repository	Path to repository to operate on
     --ignore-working-copy	Don't snapshot the working copy, and don't update it
     --ignore-immutable	Allow rewriting immutable commits
@@ -82,20 +82,20 @@ fn test_bookmark_names() {
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["--", "jj", "bookmark", "rename", "a"]);
     insta::assert_snapshot!(stdout, @r"
-    aaa-local
-    aaa-tracked
+    aaa-local	x
+    aaa-tracked	x
     ");
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["--", "jj", "bookmark", "delete", "a"]);
     insta::assert_snapshot!(stdout, @r"
-    aaa-local
-    aaa-tracked
+    aaa-local	x
+    aaa-tracked	x
     ");
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["--", "jj", "bookmark", "forget", "a"]);
     insta::assert_snapshot!(stdout, @r"
-    aaa-local
-    aaa-tracked
+    aaa-local	x
+    aaa-tracked	x
     aaa-untracked
     ");
 
@@ -104,39 +104,39 @@ fn test_bookmark_names() {
         &["--", "jj", "bookmark", "list", "--bookmark", "a"],
     );
     insta::assert_snapshot!(stdout, @r"
-    aaa-local
-    aaa-tracked
+    aaa-local	x
+    aaa-tracked	x
     aaa-untracked
     ");
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["--", "jj", "bookmark", "move", "a"]);
     insta::assert_snapshot!(stdout, @r"
-    aaa-local
-    aaa-tracked
+    aaa-local	x
+    aaa-tracked	x
     ");
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["--", "jj", "bookmark", "set", "a"]);
     insta::assert_snapshot!(stdout, @r"
-    aaa-local
-    aaa-tracked
+    aaa-local	x
+    aaa-tracked	x
     ");
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["--", "jj", "bookmark", "track", "a"]);
-    insta::assert_snapshot!(stdout, @"aaa-untracked@origin");
+    insta::assert_snapshot!(stdout, @"aaa-untracked@origin	x");
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["--", "jj", "bookmark", "untrack", "a"]);
-    insta::assert_snapshot!(stdout, @"aaa-tracked@origin");
+    insta::assert_snapshot!(stdout, @"aaa-tracked@origin	x");
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["--", "jj", "git", "push", "-b", "a"]);
     insta::assert_snapshot!(stdout, @r"
-    aaa-local
-    aaa-tracked
+    aaa-local	x
+    aaa-tracked	x
     ");
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["--", "jj", "git", "fetch", "-b", "a"]);
     insta::assert_snapshot!(stdout, @r"
-    aaa-local
-    aaa-tracked
+    aaa-local	x
+    aaa-tracked	x
     aaa-untracked
     ");
 }
@@ -165,7 +165,7 @@ fn test_global_arg_repository_is_respected() {
             "a",
         ],
     );
-    insta::assert_snapshot!(stdout, @"aaa");
+    insta::assert_snapshot!(stdout, @"aaa	(no description set)");
 }
 
 #[test]
@@ -189,10 +189,10 @@ fn test_aliases_are_resolved() {
     let test_env = test_env;
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["--", "jj", "b", "rename", "a"]);
-    insta::assert_snapshot!(stdout, @"aaa");
+    insta::assert_snapshot!(stdout, @"aaa	(no description set)");
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["--", "jj", "b2", "rename", "a"]);
-    insta::assert_snapshot!(stdout, @"aaa");
+    insta::assert_snapshot!(stdout, @"aaa	(no description set)");
 }
 
 #[test]
