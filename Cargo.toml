@@ -46,7 +46,6 @@ digest = "0.10.7"
 dirs = "5.0.1"
 dunce = "1.0.5"
 either = "1.13.0"
-sapling-renderdag = "0.1.0"
 futures = "0.3.31"
 git2 = { version = "0.19.0", features = [
     # Do *not* disable this feature even if you'd like dynamic linking. Instead,
@@ -93,6 +92,7 @@ regex = "1.11.1"
 rpassword = "7.3.1"
 rustix = { version = "0.38.40", features = ["fs"] }
 same-file = "1.0.6"
+sapling-renderdag = "0.1.0"
 scm-record = "0.4.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.132"
@@ -140,7 +140,7 @@ implicit_clone = "warn"
 needless_for_each = "warn"
 semicolon_if_nothing_returned = "warn"
 uninlined_format_args = "warn"
- 
+
 # Insta suggests compiling these packages in opt mode for faster testing.
 # See https://docs.rs/insta/latest/insta/#optional-faster-runs.
 [profile.dev.package]
