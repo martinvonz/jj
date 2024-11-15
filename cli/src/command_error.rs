@@ -46,7 +46,6 @@ use jj_lib::revset::RevsetEvaluationError;
 use jj_lib::revset::RevsetParseError;
 use jj_lib::revset::RevsetParseErrorKind;
 use jj_lib::revset::RevsetResolutionError;
-use jj_lib::signing::SignInitError;
 use jj_lib::str_util::StringPatternParseError;
 use jj_lib::view::RenameWorkspaceError;
 use jj_lib::working_copy::RecoverWorkspaceError;
@@ -313,8 +312,7 @@ impl From<WorkspaceInitError> for CommandError {
             WorkspaceInitError::WorkingCopyState(err) => {
                 internal_error_with_message("Failed to access the repository", err)
             }
-            WorkspaceInitError::SignInit(err @ SignInitError::UnknownBackend(_)) => user_error(err),
-            WorkspaceInitError::SignInit(err) => internal_error(err),
+            WorkspaceInitError::SignInit(err) => user_error(err),
         }
     }
 }
