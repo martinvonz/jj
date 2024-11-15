@@ -16,6 +16,7 @@ use std::collections::HashMap;
 use std::io;
 use std::io::Read;
 
+use clap_complete::ArgValueCandidates;
 use itertools::Itertools;
 use jj_lib::backend::Signature;
 use jj_lib::commit::CommitIteratorExt;
@@ -26,6 +27,7 @@ use crate::cli_util::CommandHelper;
 use crate::cli_util::RevisionArg;
 use crate::command_error::user_error;
 use crate::command_error::CommandError;
+use crate::complete;
 use crate::description_util::description_template;
 use crate::description_util::edit_description;
 use crate::description_util::edit_multiple_descriptions;
@@ -42,7 +44,7 @@ use crate::ui::Ui;
 #[command(alias = "desc")]
 pub(crate) struct DescribeArgs {
     /// The revision(s) whose description to edit
-    #[arg(default_value = "@")]
+    #[arg(default_value = "@", add = ArgValueCandidates::new(complete::mutable_revisions))]
     revisions: Vec<RevisionArg>,
     /// Ignored (but lets you pass `-r` for consistency with other commands)
     #[arg(short = 'r', hide = true, action = clap::ArgAction::Count)]

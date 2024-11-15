@@ -16,6 +16,7 @@ use std::collections::HashSet;
 use std::io::Write;
 use std::rc::Rc;
 
+use clap_complete::ArgValueCandidates;
 use itertools::Itertools;
 use jj_lib::backend::CommitId;
 use jj_lib::commit::CommitIteratorExt;
@@ -33,6 +34,7 @@ use crate::cli_util::CommandHelper;
 use crate::cli_util::RevisionArg;
 use crate::command_error::user_error;
 use crate::command_error::CommandError;
+use crate::complete;
 use crate::description_util::join_message_paragraphs;
 use crate::ui::Ui;
 
@@ -50,7 +52,7 @@ use crate::ui::Ui;
 #[derive(clap::Args, Clone, Debug)]
 pub(crate) struct NewArgs {
     /// Parent(s) of the new change
-    #[arg(default_value = "@")]
+    #[arg(default_value = "@", add = ArgValueCandidates::new(complete::all_revisions))]
     pub(crate) revisions: Vec<RevisionArg>,
     /// Ignored (but lets you pass `-d`/`-r` for consistency with other
     /// commands)
@@ -70,7 +72,8 @@ pub(crate) struct NewArgs {
         long,
         short = 'A',
         visible_alias = "after",
-        conflicts_with = "revisions"
+        conflicts_with = "revisions",
+        add = ArgValueCandidates::new(complete::all_revisions),
     )]
     insert_after: Vec<RevisionArg>,
     /// Insert the new change before the given commit(s)
@@ -78,7 +81,8 @@ pub(crate) struct NewArgs {
         long,
         short = 'B',
         visible_alias = "before",
-        conflicts_with = "revisions"
+        conflicts_with = "revisions",
+        add = ArgValueCandidates::new(complete::mutable_revisions),
     )]
     insert_before: Vec<RevisionArg>,
 }

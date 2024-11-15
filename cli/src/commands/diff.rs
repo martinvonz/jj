@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use clap_complete::ArgValueCandidates;
 use itertools::Itertools;
 use jj_lib::copies::CopyRecords;
 use jj_lib::repo::Repo;
@@ -22,6 +23,7 @@ use crate::cli_util::print_unmatched_explicit_paths;
 use crate::cli_util::CommandHelper;
 use crate::cli_util::RevisionArg;
 use crate::command_error::CommandError;
+use crate::complete;
 use crate::diff_util::get_copy_records;
 use crate::diff_util::DiffFormatArgs;
 use crate::ui::Ui;
@@ -46,13 +48,13 @@ pub(crate) struct DiffArgs {
     /// If the revision is a merge commit, this shows changes *from* the
     /// automatic merge of the contents of all of its parents *to* the contents
     /// of the revision itself.
-    #[arg(long, short)]
+    #[arg(long, short, add = ArgValueCandidates::new(complete::all_revisions))]
     revision: Option<RevisionArg>,
     /// Show changes from this revision
-    #[arg(long, conflicts_with = "revision")]
+    #[arg(long, conflicts_with = "revision", add = ArgValueCandidates::new(complete::all_revisions))]
     from: Option<RevisionArg>,
     /// Show changes to this revision
-    #[arg(long, conflicts_with = "revision")]
+    #[arg(long, conflicts_with = "revision", add = ArgValueCandidates::new(complete::all_revisions))]
     to: Option<RevisionArg>,
     /// Restrict the diff to these paths
     #[arg(value_hint = clap::ValueHint::AnyPath)]

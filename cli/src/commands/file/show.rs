@@ -15,6 +15,7 @@
 use std::io;
 use std::io::Write;
 
+use clap_complete::ArgValueCandidates;
 use jj_lib::backend::BackendResult;
 use jj_lib::conflicts::materialize_merge_result;
 use jj_lib::conflicts::materialize_tree_value;
@@ -33,6 +34,7 @@ use crate::cli_util::RevisionArg;
 use crate::cli_util::WorkspaceCommandHelper;
 use crate::command_error::user_error;
 use crate::command_error::CommandError;
+use crate::complete;
 use crate::ui::Ui;
 
 /// Print contents of files in a revision
@@ -42,7 +44,11 @@ use crate::ui::Ui;
 #[derive(clap::Args, Clone, Debug)]
 pub(crate) struct FileShowArgs {
     /// The revision to get the file contents from
-    #[arg(long, short, default_value = "@")]
+    #[arg(
+        long, short,
+        default_value = "@",
+        add = ArgValueCandidates::new(complete::all_revisions),
+    )]
     revision: RevisionArg,
     /// Paths to print
     #[arg(required = true, value_hint = clap::ValueHint::FilePath)]

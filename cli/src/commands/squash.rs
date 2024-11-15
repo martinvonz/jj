@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use clap_complete::ArgValueCandidates;
 use itertools::Itertools as _;
 use jj_lib::commit::Commit;
 use jj_lib::commit::CommitIteratorExt;
@@ -29,6 +30,7 @@ use crate::cli_util::WorkspaceCommandTransaction;
 use crate::command_error::user_error;
 use crate::command_error::user_error_with_hint;
 use crate::command_error::CommandError;
+use crate::complete;
 use crate::description_util::combine_messages;
 use crate::description_util::join_message_paragraphs;
 use crate::ui::Ui;
@@ -57,13 +59,22 @@ use crate::ui::Ui;
 #[derive(clap::Args, Clone, Debug)]
 pub(crate) struct SquashArgs {
     /// Revision to squash into its parent (default: @)
-    #[arg(long, short)]
+    #[arg(long, short, add = ArgValueCandidates::new(complete::mutable_revisions))]
     revision: Option<RevisionArg>,
     /// Revision(s) to squash from (default: @)
-    #[arg(long, short, conflicts_with = "revision")]
+    #[arg(
+        long, short,
+        conflicts_with = "revision",
+        add = ArgValueCandidates::new(complete::mutable_revisions),
+    )]
     from: Vec<RevisionArg>,
     /// Revision to squash into (default: @)
-    #[arg(long, short = 't', conflicts_with = "revision", visible_alias = "to")]
+    #[arg(
+        long, short = 't',
+        conflicts_with = "revision",
+        visible_alias = "to",
+        add = ArgValueCandidates::new(complete::mutable_revisions),
+    )]
     into: Option<RevisionArg>,
     /// The description to use for squashed revision (don't open editor)
     #[arg(long = "message", short, value_name = "MESSAGE")]

@@ -14,6 +14,7 @@
 
 use std::io::Write;
 
+use clap_complete::ArgValueCandidates;
 use itertools::Itertools;
 use jj_lib::object_id::ObjectId;
 use tracing::instrument;
@@ -23,6 +24,7 @@ use crate::cli_util::CommandHelper;
 use crate::cli_util::RevisionArg;
 use crate::command_error::cli_error;
 use crate::command_error::CommandError;
+use crate::complete;
 use crate::ui::Ui;
 
 /// Resolve a conflicted file with an external merge tool
@@ -42,7 +44,11 @@ use crate::ui::Ui;
 //     simplify the present one.
 #[derive(clap::Args, Clone, Debug)]
 pub(crate) struct ResolveArgs {
-    #[arg(long, short, default_value = "@")]
+    #[arg(
+        long, short,
+        default_value = "@",
+        add = ArgValueCandidates::new(complete::mutable_revisions),
+    )]
     revision: RevisionArg,
     /// Instead of resolving one conflict, list all the conflicts
     // TODO: Also have a `--summary` option. `--list` currently acts like

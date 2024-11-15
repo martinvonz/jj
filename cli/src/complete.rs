@@ -208,6 +208,39 @@ pub fn aliases() -> Vec<CompletionCandidate> {
     })
 }
 
+fn revisions(revisions: &str) -> Vec<CompletionCandidate> {
+    with_jj(|mut jj, _| {
+        let output = jj
+            .arg("log")
+            .arg("--no-graph")
+            .arg("--limit")
+            .arg("100")
+            .arg("--revisions")
+            .arg(revisions)
+            .arg("--template")
+            .arg(r#"change_id.shortest() ++ " " ++ if(description, description.first_line(), "(no description set)") ++ "\n""#)
+            .output()
+            .map_err(user_error)?;
+        let stdout = String::from_utf8_lossy(&output.stdout);
+
+        Ok(stdout
+            .lines()
+            .map(|line| {
+                let (id, desc) = split_help_text(line);
+                CompletionCandidate::new(id).help(desc)
+            })
+            .collect())
+    })
+}
+
+pub fn mutable_revisions() -> Vec<CompletionCandidate> {
+    revisions("mutable()")
+}
+
+pub fn all_revisions() -> Vec<CompletionCandidate> {
+    revisions("all()")
+}
+
 /// Shell out to jj during dynamic completion generation
 ///
 /// In case of errors, print them and early return an empty vector.

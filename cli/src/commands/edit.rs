@@ -14,12 +14,14 @@
 
 use std::io::Write;
 
+use clap_complete::ArgValueCandidates;
 use jj_lib::object_id::ObjectId;
 use tracing::instrument;
 
 use crate::cli_util::CommandHelper;
 use crate::cli_util::RevisionArg;
 use crate::command_error::CommandError;
+use crate::complete;
 use crate::ui::Ui;
 
 /// Sets the specified revision as the working-copy revision
@@ -31,6 +33,7 @@ use crate::ui::Ui;
 #[derive(clap::Args, Clone, Debug)]
 pub(crate) struct EditArgs {
     /// The commit to edit
+    #[arg(add = ArgValueCandidates::new(complete::mutable_revisions))]
     revision: RevisionArg,
     /// Ignored (but lets you pass `-r` for consistency with other commands)
     #[arg(short = 'r', hide = true)]

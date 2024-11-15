@@ -14,6 +14,7 @@
 
 use std::collections::HashMap;
 
+use clap_complete::ArgValueCandidates;
 use indexmap::IndexSet;
 use itertools::Itertools;
 use jj_lib::backend::CommitId;
@@ -24,6 +25,7 @@ use tracing::instrument;
 use crate::cli_util::CommandHelper;
 use crate::cli_util::RevisionArg;
 use crate::command_error::CommandError;
+use crate::complete;
 use crate::ui::Ui;
 
 /// Parallelize revisions by making them siblings
@@ -55,6 +57,7 @@ use crate::ui::Ui;
 #[command(verbatim_doc_comment)]
 pub(crate) struct ParallelizeArgs {
     /// Revisions to parallelize
+    #[arg(add = ArgValueCandidates::new(complete::mutable_revisions))]
     revisions: Vec<RevisionArg>,
 }
 

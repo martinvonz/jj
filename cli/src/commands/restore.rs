@@ -14,6 +14,7 @@
 
 use std::io::Write;
 
+use clap_complete::ArgValueCandidates;
 use jj_lib::object_id::ObjectId;
 use jj_lib::rewrite::restore_tree;
 use tracing::instrument;
@@ -22,6 +23,7 @@ use crate::cli_util::CommandHelper;
 use crate::cli_util::RevisionArg;
 use crate::command_error::user_error;
 use crate::command_error::CommandError;
+use crate::complete;
 use crate::ui::Ui;
 
 /// Restore paths from another revision
@@ -46,10 +48,10 @@ pub(crate) struct RestoreArgs {
     #[arg(value_hint = clap::ValueHint::AnyPath)]
     paths: Vec<String>,
     /// Revision to restore from (source)
-    #[arg(long)]
+    #[arg(long, add = ArgValueCandidates::new(complete::all_revisions))]
     from: Option<RevisionArg>,
     /// Revision to restore into (destination)
-    #[arg(long)]
+    #[arg(long, add = ArgValueCandidates::new(complete::mutable_revisions))]
     to: Option<RevisionArg>,
     /// Undo the changes in a revision as compared to the merge of its parents.
     ///
@@ -59,7 +61,12 @@ pub(crate) struct RestoreArgs {
     ///
     /// The default behavior of `jj restore` is equivalent to `jj restore
     /// --changes-in @`.
-    #[arg(long, short, value_name="REVISION", conflicts_with_all=["to", "from"])]
+    #[arg(
+        long, short,
+        value_name = "REVISION",
+        conflicts_with_all = ["to", "from"],
+        add = ArgValueCandidates::new(complete::all_revisions),
+    )]
     changes_in: Option<RevisionArg>,
     /// Prints an error. DO NOT USE.
     ///

@@ -17,6 +17,7 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 use clap::ArgGroup;
+use clap_complete::ArgValueCandidates;
 use itertools::Itertools;
 use jj_lib::backend::CommitId;
 use jj_lib::commit::Commit;
@@ -42,6 +43,7 @@ use crate::cli_util::WorkspaceCommandHelper;
 use crate::command_error::cli_error;
 use crate::command_error::user_error;
 use crate::command_error::CommandError;
+use crate::complete;
 use crate::ui::Ui;
 
 /// Move revisions to different parent(s)
@@ -140,7 +142,7 @@ pub(crate) struct RebaseArgs {
     /// -d=dst`.
     ///
     /// If none of `-b`, `-s`, or `-r` is provided, then the default is `-b @`.
-    #[arg(long, short)]
+    #[arg(long, short, add = ArgValueCandidates::new(complete::mutable_revisions))]
     branch: Vec<RevisionArg>,
 
     /// Rebase specified revision(s) together with their trees of descendants
@@ -151,7 +153,7 @@ pub(crate) struct RebaseArgs {
     /// of others.
     ///
     /// If none of `-b`, `-s`, or `-r` is provided, then the default is `-b @`.
-    #[arg(long, short)]
+    #[arg(long, short, add = ArgValueCandidates::new(complete::mutable_revisions))]
     source: Vec<RevisionArg>,
     /// Rebase the given revisions, rebasing descendants onto this revision's
     /// parent(s)
@@ -160,7 +162,7 @@ pub(crate) struct RebaseArgs {
     /// descendant of `A`.
     ///
     /// If none of `-b`, `-s`, or `-r` is provided, then the default is `-b @`.
-    #[arg(long, short)]
+    #[arg(long, short, add = ArgValueCandidates::new(complete::mutable_revisions))]
     revisions: Vec<RevisionArg>,
 
     #[command(flatten)]
@@ -183,7 +185,7 @@ pub(crate) struct RebaseArgs {
 pub struct RebaseDestinationArgs {
     /// The revision(s) to rebase onto (can be repeated to create a merge
     /// commit)
-    #[arg(long, short)]
+    #[arg(long, short, add = ArgValueCandidates::new(complete::all_revisions))]
     destination: Option<Vec<RevisionArg>>,
     /// The revision(s) to insert after (can be repeated to create a merge
     /// commit)
@@ -191,7 +193,8 @@ pub struct RebaseDestinationArgs {
         long,
         short = 'A',
         visible_alias = "after",
-        conflicts_with = "destination"
+        conflicts_with = "destination",
+        add = ArgValueCandidates::new(complete::all_revisions),
     )]
     insert_after: Option<Vec<RevisionArg>>,
     /// The revision(s) to insert before (can be repeated to create a merge
@@ -200,7 +203,8 @@ pub struct RebaseDestinationArgs {
         long,
         short = 'B',
         visible_alias = "before",
-        conflicts_with = "destination"
+        conflicts_with = "destination",
+        add = ArgValueCandidates::new(complete::mutable_revisions),
     )]
     insert_before: Option<Vec<RevisionArg>>,
 }

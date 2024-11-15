@@ -15,6 +15,7 @@
 use std::io::Write;
 use std::rc::Rc;
 
+use clap_complete::ArgValueCandidates;
 use itertools::Itertools;
 use jj_lib::backend::CommitId;
 use jj_lib::commit::CommitIteratorExt;
@@ -32,6 +33,7 @@ use crate::cli_util::CommandHelper;
 use crate::cli_util::RevisionArg;
 use crate::command_error::user_error;
 use crate::command_error::CommandError;
+use crate::complete;
 use crate::ui::Ui;
 
 /// Create new changes with the same content as existing ones
@@ -50,14 +52,14 @@ use crate::ui::Ui;
 #[derive(clap::Args, Clone, Debug)]
 pub(crate) struct DuplicateArgs {
     /// The revision(s) to duplicate
-    #[arg(default_value = "@")]
+    #[arg(default_value = "@", add = ArgValueCandidates::new(complete::all_revisions))]
     revisions: Vec<RevisionArg>,
     /// Ignored (but lets you pass `-r` for consistency with other commands)
     #[arg(short = 'r', hide = true, action = clap::ArgAction::Count)]
     unused_revision: u8,
     /// The revision(s) to duplicate onto (can be repeated to create a merge
     /// commit)
-    #[arg(long, short)]
+    #[arg(long, short, add = ArgValueCandidates::new(complete::all_revisions))]
     destination: Vec<RevisionArg>,
     /// The revision(s) to insert after (can be repeated to create a merge
     /// commit)
@@ -65,7 +67,8 @@ pub(crate) struct DuplicateArgs {
         long,
         short = 'A',
         visible_alias = "after",
-        conflicts_with = "destination"
+        conflicts_with = "destination",
+        add = ArgValueCandidates::new(complete::all_revisions),
     )]
     insert_after: Vec<RevisionArg>,
     /// The revision(s) to insert before (can be repeated to create a merge
@@ -74,7 +77,8 @@ pub(crate) struct DuplicateArgs {
         long,
         short = 'B',
         visible_alias = "before",
-        conflicts_with = "destination"
+        conflicts_with = "destination",
+        add = ArgValueCandidates::new(complete::mutable_revisions)
     )]
     insert_before: Vec<RevisionArg>,
 }

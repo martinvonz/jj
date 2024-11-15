@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use clap_complete::ArgValueCandidates;
 use jj_lib::annotate::get_annotation_for_file;
 use jj_lib::annotate::FileAnnotation;
 use jj_lib::commit::Commit;
@@ -23,6 +24,7 @@ use crate::cli_util::CommandHelper;
 use crate::cli_util::RevisionArg;
 use crate::command_error::user_error;
 use crate::command_error::CommandError;
+use crate::complete;
 use crate::templater::TemplateRenderer;
 use crate::ui::Ui;
 
@@ -38,7 +40,7 @@ pub(crate) struct FileAnnotateArgs {
     #[arg(value_hint = clap::ValueHint::AnyPath)]
     path: String,
     /// an optional revision to start at
-    #[arg(long, short)]
+    #[arg(long, short, add = ArgValueCandidates::new(complete::all_revisions))]
     revision: Option<RevisionArg>,
 }
 
