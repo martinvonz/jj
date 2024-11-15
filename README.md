@@ -322,6 +322,8 @@ We do have [a few policies and
 suggestions](https://martinvonz.github.io/jj/prerelease/contributing/)
 for contributors. The broad TL;DR:
 
+<!-- Keep this section in sync with CONTRIBUTING.md -->
+
 - Bug reports are very welcome!
 - Every commit that lands in the `main` branch is code reviewed.
 - Please behave yourself, and obey the Community Guidelines.
