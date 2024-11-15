@@ -1975,12 +1975,14 @@ Removes all parents of each of the specified revisions that are also indirect an
 
 In other words, for all (A, B, C) where A has (B, C) as parents and C is an ancestor of B, A will be rewritten to have only B as a parent instead of B+C.
 
-**Usage:** `jj simplify-parents <--source <SOURCE>|--revisions <REVISIONS>>`
+**Usage:** `jj simplify-parents [OPTIONS]`
 
 ###### **Options:**
 
 * `-s`, `--source <SOURCE>` — Simplify specified revision(s) together with their trees of descendants (can be repeated)
 * `-r`, `--revisions <REVISIONS>` — Simplify specified revision(s) (can be repeated)
+
+   If both `--source` and `--revisions` are not provided, this defaults to the `revsets.simplify-parents` setting, or `reachable(@, mutable())` if it is not set.
 
 
 

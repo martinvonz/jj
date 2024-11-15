@@ -20,22 +20,17 @@ use crate::ui::Ui;
 /// ancestor of B, A will be rewritten to have only B as a parent instead of
 /// B+C.
 #[derive(clap::Args, Clone, Debug)]
-#[command(group = clap::ArgGroup::new("revision-args").multiple(true).required(true))]
 pub(crate) struct SimplifyParentsArgs {
     /// Simplify specified revision(s) together with their trees of descendants
     /// (can be repeated)
-    #[arg(
-        long, short,
-        group = "revision-args",
-        add = ArgValueCandidates::new(complete::mutable_revisions),
-    )]
+    #[arg(long, short, add = ArgValueCandidates::new(complete::mutable_revisions))]
     source: Vec<RevisionArg>,
     /// Simplify specified revision(s) (can be repeated)
-    #[arg(
-        long, short,
-        group = "revision-args",
-        add = ArgValueCandidates::new(complete::mutable_revisions),
-    )]
+    ///
+    /// If both `--source` and `--revisions` are not provided, this defaults to
+    /// the `revsets.simplify-parents` setting, or `reachable(@, mutable())`
+    /// if it is not set.
+    #[arg(long, short, add = ArgValueCandidates::new(complete::mutable_revisions))]
     revisions: Vec<RevisionArg>,
 }
 
@@ -45,16 +40,24 @@ pub(crate) fn cmd_simplify_parents(
     args: &SimplifyParentsArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let revs = RevsetExpression::descendants(
+    let revs = if args.source.is_empty() && args.revisions.is_empty() {
+        let revs = command.settings().get_string("revsets.simplify-parents")?;
         workspace_command
-            .parse_union_revsets(ui, &args.source)?
-            .expression(),
-    )
-    .union(
-        workspace_command
-            .parse_union_revsets(ui, &args.revisions)?
-            .expression(),
-    );
+            .parse_revset(ui, &RevisionArg::from(revs))?
+            .expression()
+            .clone()
+    } else {
+        RevsetExpression::descendants(
+            workspace_command
+                .parse_union_revsets(ui, &args.source)?
+                .expression(),
+        )
+        .union(
+            workspace_command
+                .parse_union_revsets(ui, &args.revisions)?
+                .expression(),
+        )
+    };
     let commit_ids: Vec<_> = workspace_command
         .attach_revset_evaluator(revs)
         .evaluate_to_commit_ids()?

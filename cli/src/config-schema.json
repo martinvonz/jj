@@ -421,6 +421,11 @@
                     "type": "string",
                     "description": "Revisions to give shorter change and commit IDs to",
                     "default": "<revsets.log>"
+                },
+                "simplify-parents": {
+                    "type": "string",
+                    "description": "Default set of revisions to simplify when no explicit revset is given for jj simplify-parents",
+                    "default": "reachable(@, mutable())"
                 }
             },
             "additionalProperties": {
