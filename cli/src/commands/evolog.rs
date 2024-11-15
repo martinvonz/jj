@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use clap_complete::ArgValueCandidates;
 use itertools::Itertools;
 use jj_lib::commit::Commit;
 use jj_lib::dag_walk::topo_order_reverse_ok;
@@ -25,6 +26,7 @@ use crate::cli_util::LogContentFormat;
 use crate::cli_util::RevisionArg;
 use crate::command_error::CommandError;
 use crate::commit_templater::CommitTemplateLanguage;
+use crate::complete;
 use crate::diff_util::DiffFormatArgs;
 use crate::graphlog::get_graphlog;
 use crate::graphlog::Edge;
@@ -37,7 +39,11 @@ use crate::ui::Ui;
 /// of a change evolves when the change is updated, rebased, etc.
 #[derive(clap::Args, Clone, Debug)]
 pub(crate) struct EvologArgs {
-    #[arg(long, short, default_value = "@")]
+    #[arg(
+        long, short,
+        default_value = "@",
+        add = ArgValueCandidates::new(complete::all_revisions),
+    )]
     revision: RevisionArg,
     /// Limit number of revisions to show
     #[arg(long, short = 'n')]

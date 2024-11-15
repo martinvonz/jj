@@ -18,6 +18,7 @@ use std::io::Write;
 use std::process::Stdio;
 use std::sync::mpsc::channel;
 
+use clap_complete::ArgValueCandidates;
 use futures::StreamExt;
 use itertools::Itertools;
 use jj_lib::backend::BackendError;
@@ -49,6 +50,7 @@ use crate::cli_util::RevisionArg;
 use crate::command_error::config_error;
 use crate::command_error::print_parse_diagnostics;
 use crate::command_error::CommandError;
+use crate::complete;
 use crate::config::to_toml_value;
 use crate::config::CommandNameAndArgs;
 use crate::ui::Ui;
@@ -124,7 +126,7 @@ pub(crate) struct FixArgs {
     /// Fix files in the specified revision(s) and their descendants. If no
     /// revisions are specified, this defaults to the `revsets.fix` setting, or
     /// `reachable(@, mutable())` if it is not set.
-    #[arg(long, short)]
+    #[arg(long, short, add = ArgValueCandidates::new(complete::mutable_revisions))]
     source: Vec<RevisionArg>,
     /// Fix only these paths
     #[arg(value_hint = clap::ValueHint::AnyPath)]

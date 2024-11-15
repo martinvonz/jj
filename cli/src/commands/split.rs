@@ -13,6 +13,7 @@
 // limitations under the License.
 use std::io::Write;
 
+use clap_complete::ArgValueCandidates;
 use jj_lib::object_id::ObjectId;
 use jj_lib::repo::Repo;
 use tracing::instrument;
@@ -21,6 +22,7 @@ use crate::cli_util::CommandHelper;
 use crate::cli_util::RevisionArg;
 use crate::command_error::user_error_with_hint;
 use crate::command_error::CommandError;
+use crate::complete;
 use crate::description_util::description_template;
 use crate::description_util::edit_description;
 use crate::ui::Ui;
@@ -52,7 +54,11 @@ pub(crate) struct SplitArgs {
     #[arg(long, value_name = "NAME")]
     tool: Option<String>,
     /// The revision to split
-    #[arg(long, short, default_value = "@")]
+    #[arg(
+        long, short,
+        default_value = "@",
+        add = ArgValueCandidates::new(complete::mutable_revisions)
+    )]
     revision: RevisionArg,
     /// Split the revision into two parallel revisions instead of a parent and
     /// child.

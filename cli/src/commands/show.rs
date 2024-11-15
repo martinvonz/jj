@@ -12,12 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use clap_complete::ArgValueCandidates;
 use jj_lib::matchers::EverythingMatcher;
 use tracing::instrument;
 
 use crate::cli_util::CommandHelper;
 use crate::cli_util::RevisionArg;
 use crate::command_error::CommandError;
+use crate::complete;
 use crate::diff_util::DiffFormatArgs;
 use crate::ui::Ui;
 
@@ -25,7 +27,7 @@ use crate::ui::Ui;
 #[derive(clap::Args, Clone, Debug)]
 pub(crate) struct ShowArgs {
     /// Show changes in this revision, compared to its parent(s)
-    #[arg(default_value = "@")]
+    #[arg(default_value = "@", add = ArgValueCandidates::new(complete::all_revisions))]
     revision: RevisionArg,
     /// Ignored (but lets you pass `-r` for consistency with other commands)
     #[arg(short = 'r', hide = true)]

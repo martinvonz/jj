@@ -309,3 +309,39 @@ fn test_aliases_are_completed() {
     );
     insta::assert_snapshot!(stdout, @"");
 }
+
+#[test]
+fn test_revisions() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "immutable"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "mutable"]);
+    test_env.jj_cmd_ok(&repo_path, &["bookmark", "create", "main", "-r", "@--"]);
+    test_env.add_config(r#"revset-aliases."immutable_heads()" = "main""#);
+
+    let mut test_env = test_env;
+    test_env.add_env_var("COMPLETE", "fish");
+    let test_env = test_env;
+
+    // There are _a lot_ of commands and arguments accepting revisions.
+    // Let's not test all of them. Having at least one test per variation of
+    // completion function should be sufficient.
+
+    // complete all revisions
+    let stdout = test_env.jj_cmd_success(&repo_path, &["--", "jj", "diff", "--from", ""]);
+    insta::assert_snapshot!(stdout, @r"
+    k	(no description set)
+    r	mutable
+    q	immutable
+    z	(no description set)
+    ");
+
+    // complete only mutable revisions
+    let stdout = test_env.jj_cmd_success(&repo_path, &["--", "jj", "squash", "--into", ""]);
+    insta::assert_snapshot!(stdout, @r"
+    k	(no description set)
+    r	mutable
+    ");
+}

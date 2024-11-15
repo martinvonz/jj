@@ -14,6 +14,7 @@
 
 use std::io::Write;
 
+use clap_complete::ArgValueCandidates;
 use itertools::Itertools;
 use jj_lib::matchers::EverythingMatcher;
 use jj_lib::object_id::ObjectId;
@@ -23,6 +24,7 @@ use tracing::instrument;
 use crate::cli_util::CommandHelper;
 use crate::cli_util::RevisionArg;
 use crate::command_error::CommandError;
+use crate::complete;
 use crate::ui::Ui;
 
 /// Touch up the content changes in a revision with a diff editor
@@ -48,17 +50,17 @@ pub(crate) struct DiffeditArgs {
     /// The revision to touch up
     ///
     /// Defaults to @ if neither --to nor --from are specified.
-    #[arg(long, short)]
+    #[arg(long, short, add = ArgValueCandidates::new(complete::mutable_revisions))]
     revision: Option<RevisionArg>,
     /// Show changes from this revision
     ///
     /// Defaults to @ if --to is specified.
-    #[arg(long, conflicts_with = "revision")]
+    #[arg(long, conflicts_with = "revision", add = ArgValueCandidates::new(complete::all_revisions))]
     from: Option<RevisionArg>,
     /// Edit changes in this revision
     ///
     /// Defaults to @ if --from is specified.
-    #[arg(long, conflicts_with = "revision")]
+    #[arg(long, conflicts_with = "revision", add = ArgValueCandidates::new(complete::mutable_revisions))]
     to: Option<RevisionArg>,
     /// Specify diff editor to be used
     #[arg(long, value_name = "NAME")]

@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use clap_complete::ArgValueCandidates;
 use jj_lib::backend::CommitId;
 use jj_lib::graph::GraphEdgeType;
 use jj_lib::graph::ReverseGraphIterator;
@@ -31,6 +32,7 @@ use crate::cli_util::LogContentFormat;
 use crate::cli_util::RevisionArg;
 use crate::command_error::CommandError;
 use crate::commit_templater::CommitTemplateLanguage;
+use crate::complete;
 use crate::diff_util::DiffFormatArgs;
 use crate::graphlog::get_graphlog;
 use crate::graphlog::Edge;
@@ -51,7 +53,7 @@ pub(crate) struct LogArgs {
     ///
     /// If no paths nor revisions are specified, this defaults to the
     /// `revsets.log` setting.
-    #[arg(long, short)]
+    #[arg(long, short, add = ArgValueCandidates::new(complete::all_revisions))]
     revisions: Vec<RevisionArg>,
     /// Show revisions modifying the given paths
     #[arg(value_hint = clap::ValueHint::AnyPath)]

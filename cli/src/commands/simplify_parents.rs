@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 
+use clap_complete::ArgValueCandidates;
 use itertools::Itertools;
 use jj_lib::backend::BackendResult;
 use jj_lib::revset::RevsetExpression;
@@ -9,6 +10,7 @@ use jj_lib::settings::UserSettings;
 use crate::cli_util::CommandHelper;
 use crate::cli_util::RevisionArg;
 use crate::command_error::CommandError;
+use crate::complete;
 use crate::ui::Ui;
 
 /// Simplify parent edges for the specified revision(s).
@@ -25,10 +27,18 @@ use crate::ui::Ui;
 pub(crate) struct SimplifyParentsArgs {
     /// Simplify specified revision(s) together with their trees of descendants
     /// (can be repeated)
-    #[arg(long, short, group = "revision-args")]
+    #[arg(
+        long, short,
+        group = "revision-args",
+        add = ArgValueCandidates::new(complete::mutable_revisions),
+    )]
     source: Vec<RevisionArg>,
     /// Simplify specified revision(s) (can be repeated)
-    #[arg(long, short, group = "revision-args")]
+    #[arg(
+        long, short,
+        group = "revision-args",
+        add = ArgValueCandidates::new(complete::mutable_revisions),
+    )]
     revisions: Vec<RevisionArg>,
 }
 

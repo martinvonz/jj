@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use clap::ArgGroup;
+use clap_complete::ArgValueCandidates;
 use jj_lib::object_id::ObjectId;
 use tracing::instrument;
 
@@ -22,6 +23,7 @@ use crate::cli_util::CommandHelper;
 use crate::cli_util::RevisionArg;
 use crate::command_error::user_error;
 use crate::command_error::CommandError;
+use crate::complete;
 use crate::ui::Ui;
 
 /// Move changes from one revision into another (DEPRECATED, use `jj squash`)
@@ -43,10 +45,10 @@ use crate::ui::Ui;
 #[command(group(ArgGroup::new("to_move").args(&["from", "to"]).multiple(true).required(true)))]
 pub(crate) struct MoveArgs {
     /// Move part of this change into the destination
-    #[arg(long, short)]
+    #[arg(long, short, add = ArgValueCandidates::new(complete::mutable_revisions))]
     from: Option<RevisionArg>,
     /// Move part of the source into this change
-    #[arg(long, short)]
+    #[arg(long, short, add = ArgValueCandidates::new(complete::mutable_revisions))]
     to: Option<RevisionArg>,
     /// Interactively choose which parts to move
     #[arg(long, short)]
