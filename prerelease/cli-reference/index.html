@@ -7165,8 +7165,11 @@ will be removed in a future version.</p>
 </li>
 <li>
 <p><code>--remote &lt;REMOTE&gt;</code> — The remote to fetch from (only named remotes are supported, can be repeated)</p>
+<p>This defaults to the <code>git.fetch</code> setting. If that is not configured, and if there are multiple remotes, the remote named "origin" will be used.</p>
 </li>
-<li><code>--all-remotes</code> — Fetch from all remotes</li>
+<li>
+<p><code>--all-remotes</code> — Fetch from all remotes</p>
+</li>
 </ul>
 <h2 id="jj-git-import"><code>jj git import</code><a class="headerlink" href="#jj-git-import" title="Permanent link">&para;</a></h2>
 <p>Update repo with changes made in the underlying Git repo</p>
@@ -7203,7 +7206,10 @@ will be removed in a future version.</p>
 <p><strong>Usage:</strong> <code>jj git push [OPTIONS]</code></p>
 <h6 id="options_27"><strong>Options:</strong><a class="headerlink" href="#options_27" title="Permanent link">&para;</a></h6>
 <ul>
-<li><code>--remote &lt;REMOTE&gt;</code> — The remote to push to (only named remotes are supported)</li>
+<li>
+<p><code>--remote &lt;REMOTE&gt;</code> — The remote to push to (only named remotes are supported)</p>
+<p>This defaults to the <code>git.push</code> setting. If that is not configured, and if there are multiple remotes, the remote named "origin" will be used. Unlike in Git, the default remote is not derived from the tracked remote bookmarks.</p>
+</li>
 <li>
 <p><code>-b</code>, <code>--bookmark &lt;BOOKMARK&gt;</code> — Push only this bookmark, or bookmarks matching a pattern (can be repeated)</p>
 <p>By default, the specified name matches exactly. Use <code>glob:</code> prefix to select bookmarks by wildcard pattern. For details, see https://martinvonz.github.io/jj/latest/revsets#string-patterns.</p>
