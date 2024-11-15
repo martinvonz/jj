@@ -119,9 +119,6 @@ pub enum SignInitError {
     /// If the backend name specified in the config is not known.
     #[error("Unknown signing backend configured: {0}")]
     UnknownBackend(String),
-    /// A generic error from the backend impl.
-    #[error("Failed to initialize signing")]
-    Backend(#[source] Box<dyn std::error::Error + Send + Sync>),
 }
 
 /// A enum that describes if a created/rewritten commit should be signed or not.

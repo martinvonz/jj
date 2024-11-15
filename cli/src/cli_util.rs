@@ -107,7 +107,6 @@ use jj_lib::revset::UserRevsetExpression;
 use jj_lib::rewrite::restore_tree;
 use jj_lib::settings::ConfigResultExt as _;
 use jj_lib::settings::UserSettings;
-use jj_lib::signing::SignInitError;
 use jj_lib::str_util::StringPattern;
 use jj_lib::transaction::Transaction;
 use jj_lib::view::View;
@@ -2371,10 +2370,7 @@ jj git init --colocate",
         WorkspaceLoadError::StoreLoadError(
             err @ (StoreLoadError::ReadError { .. } | StoreLoadError::Backend(_)),
         ) => internal_error_with_message("The repository appears broken or inaccessible", err),
-        WorkspaceLoadError::StoreLoadError(StoreLoadError::Signing(
-            err @ SignInitError::UnknownBackend(_),
-        )) => user_error(err),
-        WorkspaceLoadError::StoreLoadError(err) => internal_error(err),
+        WorkspaceLoadError::StoreLoadError(StoreLoadError::Signing(err)) => user_error(err),
         WorkspaceLoadError::WorkingCopyState(err) => internal_error(err),
         WorkspaceLoadError::NonUnicodePath | WorkspaceLoadError::Path(_) => user_error(err),
     }
