@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use clap_complete::ArgValueCandidates;
 use itertools::Itertools;
 use jj_lib::op_store::WorkspaceId;
 use tracing::instrument;
@@ -19,6 +20,7 @@ use tracing::instrument;
 use crate::cli_util::CommandHelper;
 use crate::command_error::user_error;
 use crate::command_error::CommandError;
+use crate::complete;
 use crate::ui::Ui;
 
 /// Stop tracking a workspace's working-copy commit in the repo
@@ -29,6 +31,7 @@ use crate::ui::Ui;
 pub struct WorkspaceForgetArgs {
     /// Names of the workspaces to forget. By default, forgets only the current
     /// workspace.
+    #[arg(add = ArgValueCandidates::new(complete::workspaces))]
     workspaces: Vec<String>,
 }
 

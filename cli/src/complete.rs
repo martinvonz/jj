@@ -271,6 +271,27 @@ pub fn operations() -> Vec<CompletionCandidate> {
     })
 }
 
+pub fn workspaces() -> Vec<CompletionCandidate> {
+    with_jj(|mut jj, _| {
+        let output = jj
+            .arg("--config-toml")
+            .arg(r#"templates.commit_summary = 'if(description, description.first_line(), "(no description set)")'"#)
+            .arg("workspace")
+            .arg("list")
+            .output()
+            .map_err(user_error)?;
+        let stdout = String::from_utf8_lossy(&output.stdout);
+
+        Ok(stdout
+            .lines()
+            .map(|line| {
+                let (name, desc) = line.split_once(": ").unwrap_or((line, ""));
+                CompletionCandidate::new(name).help(Some(desc.to_string().into()))
+            })
+            .collect())
+    })
+}
+
 /// Shell out to jj during dynamic completion generation
 ///
 /// In case of errors, print them and early return an empty vector.
