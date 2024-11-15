@@ -446,3 +446,29 @@ fn test_operations() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["--", "jj", "op", "undo", "5b"]);
     insta::assert_snapshot!(stdout, @"5bbb4ca536a8	(2001-02-03 08:05:12) describe commit 968261075dddabf4b0e333c1cc9a49ce26a3f710");
 }
+
+#[test]
+fn test_workspaces() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "main"]);
+    let main_path = test_env.env_root().join("main");
+
+    std::fs::write(main_path.join("file"), "contents").unwrap();
+    test_env.jj_cmd_ok(&main_path, &["describe", "-m", "initial"]);
+
+    test_env.jj_cmd_ok(
+        &main_path,
+        // same prefix as "default" workspace
+        &["workspace", "add", "--name", "def-second", "../secondary"],
+    );
+
+    let mut test_env = test_env;
+    test_env.add_env_var("COMPLETE", "fish");
+    let test_env = test_env;
+
+    let stdout = test_env.jj_cmd_success(&main_path, &["--", "jj", "workspace", "forget", "def"]);
+    insta::assert_snapshot!(stdout, @r"
+    def-second	(no description set)
+    default	initial
+    ");
+}
