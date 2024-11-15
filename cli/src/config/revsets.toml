@@ -3,6 +3,7 @@
 
 [revsets]
 fix = "reachable(@, mutable())"
+simplify-parents = "reachable(@, mutable())"
 # log revset is also used as the default short-prefixes. If it failed to
 # evaluate, lengthy warning messages would be printed. Use present(expr) to
 # suppress symbol resolution error.
@@ -13,8 +14,8 @@ log = "present(@) | ancestors(immutable_heads().., 2) | present(trunk())"
 # symbol resolution error should be suppressed.
 'trunk()' = '''
 latest(
-  remote_bookmarks(exact:"main", exact:"origin") | 
-  remote_bookmarks(exact:"master", exact:"origin") | 
+  remote_bookmarks(exact:"main", exact:"origin") |
+  remote_bookmarks(exact:"master", exact:"origin") |
   remote_bookmarks(exact:"trunk", exact:"origin") |
   remote_bookmarks(exact:"main", exact:"upstream") |
   remote_bookmarks(exact:"master", exact:"upstream") |
