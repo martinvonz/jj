@@ -15,6 +15,7 @@
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::io::Write;
+use std::path::Path;
 use std::process::Stdio;
 use std::sync::mpsc::channel;
 
@@ -158,6 +159,11 @@ pub(crate) fn cmd_fix(
         .parse_file_patterns(ui, &args.paths)?
         .to_matcher();
 
+    // See #4866.
+    // Fix commands must run from the repo root, as it may read files such as
+    // .clang-format that depend on the working directory being correct.
+    let working_dir = workspace_command.repo_path().to_path_buf();
+
     let mut tx = workspace_command.start_transaction();
 
     // Collect all of the unique `ToolInput`s we're going to use. Tools should be
@@ -239,6 +245,7 @@ pub(crate) fn cmd_fix(
         tx.repo().store().as_ref(),
         &tools_config,
         &unique_tool_inputs,
+        &working_dir,
     )?;
 
     // Substitute the fixed file IDs into all of the affected commits. Currently,
@@ -326,6 +333,7 @@ fn fix_file_ids<'a>(
     store: &Store,
     tools_config: &ToolsConfig,
     tool_inputs: &'a HashSet<ToolInput>,
+    working_dir: &Path,
 ) -> Result<HashMap<&'a ToolInput, FileId>, CommandError> {
     let (updates_tx, updates_rx) = channel();
     // TODO: Switch to futures, or document the decision not to. We don't need
@@ -347,7 +355,8 @@ fn fix_file_ids<'a>(
                 read.read_to_end(&mut old_content)?;
                 let new_content =
                     matching_tools.fold(old_content.clone(), |prev_content, tool_config| {
-                        match run_tool(&tool_config.command, tool_input, &prev_content) {
+                        match run_tool(&tool_config.command, tool_input, &prev_content, working_dir)
+                        {
                             Ok(next_content) => next_content,
                             // TODO: Because the stderr is passed through, this isn't always failing
                             // silently, but it should do something better will the exit code, tool
@@ -386,6 +395,7 @@ fn run_tool(
     tool_command: &CommandNameAndArgs,
     tool_input: &ToolInput,
     old_content: &[u8],
+    working_dir: &Path,
 ) -> Result<Vec<u8>, ()> {
     // TODO: Pipe stderr so we can tell the user which commit, file, and tool it is
     // associated with.
@@ -393,6 +403,7 @@ fn run_tool(
     vars.insert("path", tool_input.repo_path.as_internal_file_string());
     let mut child = tool_command
         .to_command_with_variables(&vars)
+        .current_dir(working_dir)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .spawn()

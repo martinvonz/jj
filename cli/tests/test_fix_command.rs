@@ -14,12 +14,26 @@
 
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
+use std::path::Path;
 use std::path::PathBuf;
 
 use itertools::Itertools;
 use jj_lib::file_util::try_symlink;
 
 use crate::common::TestEnvironment;
+
+fn redact_path(s: &str, path: &Path, label: &str) -> String {
+    // When the test runs on Windows, backslashes in the path complicate things by
+    // changing the double quotes to single quotes in the serialized TOML.
+    s.replace(
+        &if cfg!(windows) {
+            format!(r#"'{}'"#, path.to_str().unwrap())
+        } else {
+            format!(r#""{}""#, path.to_str().unwrap())
+        },
+        &format!("<redacted {label} path>"),
+    )
+}
 
 /// Set up a repo where the `jj fix` command uses the fake editor with the given
 /// flags. Returns a function that redacts the formatter executable's path from
@@ -42,16 +56,7 @@ fn init_with_fake_formatter(args: &[&str]) -> (TestEnvironment, PathBuf, impl Fn
             .join(r#"', '"#)
     ));
     (test_env, repo_path, move |snapshot: &str| {
-        // When the test runs on Windows, backslashes in the path complicate things by
-        // changing the double quotes to single quotes in the serialized TOML.
-        snapshot.replace(
-            &if cfg!(windows) {
-                format!(r#"'{}'"#, formatter_path.to_str().unwrap())
-            } else {
-                format!(r#""{}""#, formatter_path.to_str().unwrap())
-            },
-            "<redacted formatter path>",
-        )
+        redact_path(snapshot, &formatter_path, "formatter")
     })
 }
 
@@ -734,11 +739,18 @@ fn test_fix_cyclic() {
 
 #[test]
 fn test_deduplication() {
+    let logfile = tempfile::Builder::new()
+        .prefix("jj-fix-log")
+        .tempfile()
+        .unwrap();
     // Append all fixed content to a log file. This assumes we're running the tool
     // in the root directory of the repo, which is worth reconsidering if we
     // establish a contract regarding cwd.
-    let (test_env, repo_path, redact) =
-        init_with_fake_formatter(&["--uppercase", "--tee", "$path-fixlog"]);
+    let (test_env, repo_path, redact) = init_with_fake_formatter(&[
+        "--uppercase",
+        "--tee",
+        logfile.path().as_os_str().to_str().unwrap(),
+    ]);
 
     // There are at least two interesting cases: the content is repeated immediately
     // in the child commit, or later in another descendant.
@@ -756,11 +768,11 @@ fn test_deduplication() {
 
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["fix", "-s", "a"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(redact(&stderr), @r###"
+    insta::assert_snapshot!(redact(&redact_path(&stderr, logfile.path(), "logfile")), @r###"
     Warning: The `fix.tool-command` config option is deprecated and will be removed in a future version.
     Hint: Replace it with the following:
                 [fix.tools.legacy-tool-command]
-                command = [<redacted formatter path>, "--uppercase", "--tee", "$path-fixlog"]
+                command = [<redacted formatter path>, "--uppercase", "--tee", <redacted logfile path>]
                 patterns = ["all()"]
                 
     Fixed 4 commits of 4 checked.
@@ -780,7 +792,7 @@ fn test_deduplication() {
     // Each new content string only appears once in the log, because all the other
     // inputs (like file name) were identical, and so the results were re-used. We
     // sort the log because the order of execution inside `jj fix` is undefined.
-    insta::assert_snapshot!(sorted_lines(repo_path.join("file-fixlog")), @"BAR\nFOO\n");
+    insta::assert_snapshot!(sorted_lines(logfile.path().to_path_buf()), @"BAR\nFOO\n");
 }
 
 fn sorted_lines(path: PathBuf) -> String {
@@ -795,18 +807,24 @@ fn sorted_lines(path: PathBuf) -> String {
 
 #[test]
 fn test_executed_but_nothing_changed() {
+    let logfile = tempfile::Builder::new()
+        .prefix("jj-fix-log")
+        .tempfile()
+        .unwrap();
+
     // Show that the tool ran by causing a side effect with --tee, and test that we
     // do the right thing when the tool's output is exactly equal to its input.
-    let (test_env, repo_path, redact) = init_with_fake_formatter(&["--tee", "$path-copy"]);
+    let (test_env, repo_path, redact) =
+        init_with_fake_formatter(&["--tee", logfile.path().as_os_str().to_str().unwrap()]);
     std::fs::write(repo_path.join("file"), "content\n").unwrap();
 
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["fix", "-s", "@"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(redact(&stderr), @r###"
+    insta::assert_snapshot!(redact(&redact_path(&stderr, logfile.path(), "logfile")), @r###"
     Warning: The `fix.tool-command` config option is deprecated and will be removed in a future version.
     Hint: Replace it with the following:
                 [fix.tools.legacy-tool-command]
-                command = [<redacted formatter path>, "--tee", "$path-copy"]
+                command = [<redacted formatter path>, "--tee", <redacted logfile path>]
                 patterns = ["all()"]
                 
     Fixed 0 commits of 1 checked.
@@ -814,7 +832,7 @@ fn test_executed_but_nothing_changed() {
     "###);
     let content = test_env.jj_cmd_success(&repo_path, &["file", "show", "file", "-r", "@"]);
     insta::assert_snapshot!(content, @"content\n");
-    let copy_content = std::fs::read_to_string(repo_path.join("file-copy").as_os_str()).unwrap();
+    let copy_content = std::fs::read_to_string(logfile.path()).unwrap();
     insta::assert_snapshot!(copy_content, @"content\n");
 }
 
