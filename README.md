@@ -12,7 +12,8 @@
 **[Homepage] &nbsp;&nbsp;&bull;&nbsp;&nbsp;**
 **[Installation] &nbsp;&nbsp;&bull;&nbsp;&nbsp;**
 **[Getting Started] &nbsp;&nbsp;&bull;&nbsp;&nbsp;**
-**[Development Roadmap]**
+**[Development Roadmap] &nbsp;&nbsp;&bull;&nbsp;&nbsp;**
+**[Contributing](#contributing)**
 
 [Homepage]: https://martinvonz.github.io/jj
 [Installation]: https://martinvonz.github.io/jj/latest/install-and-setup
