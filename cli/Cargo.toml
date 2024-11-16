@@ -80,6 +80,7 @@ rpassword = { workspace = true }
 sapling-renderdag = { workspace = true }
 scm-record = { workspace = true }
 serde = { workspace = true }
+serde_json = { workspace = true }
 slab = { workspace = true }
 strsim = { workspace = true }
 tempfile = { workspace = true }

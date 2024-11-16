@@ -12,11 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use clap_complete::ArgValueCandidates;
 use tracing::instrument;
 
 use super::ConfigLevelArgs;
 use crate::cli_util::CommandHelper;
 use crate::command_error::CommandError;
+use crate::complete;
 use crate::config::to_toml_value;
 use crate::config::AnnotatedValue;
 use crate::config::ConfigNamePathBuf;
@@ -31,6 +33,7 @@ use crate::ui::Ui;
 #[command(mut_group("config_level", |g| g.required(false)))]
 pub struct ConfigListArgs {
     /// An optional name of a specific config option to look up.
+    #[arg(add = ArgValueCandidates::new(complete::config_keys))]
     pub name: Option<ConfigNamePathBuf>,
     /// Whether to explicitly include built-in default values in the list.
     #[arg(long, conflicts_with = "config_level")]

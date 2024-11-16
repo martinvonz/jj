@@ -35,6 +35,9 @@ use crate::command_error::user_error;
 use crate::command_error::user_error_with_message;
 use crate::command_error::CommandError;
 
+// TODO(#879): Consider generating entire schema dynamically vs. static file.
+pub const CONFIG_SCHEMA: &str = include_str!("config-schema.json");
+
 /// Parses a TOML value expression. Interprets the given value as string if it
 /// can't be parsed.
 pub fn parse_toml_value_or_bare_string(value_str: &str) -> toml_edit::Value {
