@@ -43,7 +43,10 @@ use crate::ui::Ui;
 ///
 /// Renders a graphical view of the project's history, ordered with children
 /// before parents. By default, the output only includes mutable revisions,
-/// along with some additional revisions for context.
+/// along with some additional revisions for context. Use `jj log -r ::` to see
+/// all revisions. See `jj help -k revsets` (or
+/// https://martinvonz.github.io/jj/latest/revsets/) for information about the
+/// syntax.
 ///
 /// Spans of revisions that are not included in the graph per `--revisions` are
 /// rendered as a synthetic node labeled "(elided revisions)".
