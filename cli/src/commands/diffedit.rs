@@ -55,12 +55,20 @@ pub(crate) struct DiffeditArgs {
     /// Show changes from this revision
     ///
     /// Defaults to @ if --to is specified.
-    #[arg(long, conflicts_with = "revision", add = ArgValueCandidates::new(complete::all_revisions))]
+    #[arg(
+        long, short,
+        conflicts_with = "revision",
+        add = ArgValueCandidates::new(complete::all_revisions),
+    )]
     from: Option<RevisionArg>,
     /// Edit changes in this revision
     ///
     /// Defaults to @ if --from is specified.
-    #[arg(long, conflicts_with = "revision", add = ArgValueCandidates::new(complete::mutable_revisions))]
+    #[arg(
+        long, short,
+        conflicts_with = "revision",
+        add = ArgValueCandidates::new(complete::mutable_revisions),
+    )]
     to: Option<RevisionArg>,
     /// Specify diff editor to be used
     #[arg(long, value_name = "NAME")]

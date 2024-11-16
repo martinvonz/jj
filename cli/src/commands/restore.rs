@@ -48,10 +48,10 @@ pub(crate) struct RestoreArgs {
     #[arg(value_hint = clap::ValueHint::AnyPath)]
     paths: Vec<String>,
     /// Revision to restore from (source)
-    #[arg(long, add = ArgValueCandidates::new(complete::all_revisions))]
+    #[arg(long, short, add = ArgValueCandidates::new(complete::all_revisions))]
     from: Option<RevisionArg>,
     /// Revision to restore into (destination)
-    #[arg(long, add = ArgValueCandidates::new(complete::mutable_revisions))]
+    #[arg(long, short, add = ArgValueCandidates::new(complete::mutable_revisions))]
     to: Option<RevisionArg>,
     /// Undo the changes in a revision as compared to the merge of its parents.
     ///

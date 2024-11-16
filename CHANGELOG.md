@@ -51,6 +51,13 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * The `tags()` revset function now takes an optional `pattern` argument,
   mirroring that of `bookmarks()`.
 
+* Several commands now support `-f/-t` shorthands for `--from/--to`:
+  - `diff`
+  - `diffedit`
+  - `interdiff`
+  - `op diff`
+  - `restore`
+
 ### Fixed bugs
 
 * `jj config unset <TABLE-NAME>` no longer removes a table (such as `[ui]`.)
