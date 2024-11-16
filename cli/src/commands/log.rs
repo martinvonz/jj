@@ -47,6 +47,11 @@ use crate::ui::Ui;
 ///
 /// Spans of revisions that are not included in the graph per `--revisions` are
 /// rendered as a synthetic node labeled "(elided revisions)".
+///
+/// The working-copy commit is indicated by a `@` symbol in the graph. Immutable
+/// revisions (https://martinvonz.github.io/jj/latest/config/#set-of-immutable-commits)
+/// have a `◆` symbol. Other commits have a `○` symbol. To customize these
+/// symbols, see https://martinvonz.github.io/jj/latest/config/#node-style.
 #[derive(clap::Args, Clone, Debug)]
 pub(crate) struct LogArgs {
     /// Which revisions to show
