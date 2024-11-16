@@ -63,6 +63,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   - `op diff`
   - `restore`
 
+* New `ui.conflict-marker-style` config option to change how conflicts are
+  materialized in the working copy. The default option ("diff") renders
+  conflicts as a snapshot with a list of diffs to apply to the snapshot.
+
 ### Fixed bugs
 
 * `jj config unset <TABLE-NAME>` no longer removes a table (such as `[ui]`.)

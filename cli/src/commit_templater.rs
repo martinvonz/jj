@@ -24,6 +24,7 @@ use jj_lib::backend::BackendResult;
 use jj_lib::backend::ChangeId;
 use jj_lib::backend::CommitId;
 use jj_lib::commit::Commit;
+use jj_lib::conflicts::ConflictMarkerStyle;
 use jj_lib::copies::CopiesTreeDiffEntry;
 use jj_lib::copies::CopyRecords;
 use jj_lib::extensions_map::ExtensionsMap;
@@ -95,6 +96,7 @@ pub struct CommitTemplateLanguage<'repo> {
     revset_parse_context: RevsetParseContext<'repo>,
     id_prefix_context: &'repo IdPrefixContext,
     immutable_expression: Rc<UserRevsetExpression>,
+    conflict_marker_style: ConflictMarkerStyle,
     build_fn_table: CommitTemplateBuildFnTable<'repo>,
     keyword_cache: CommitKeywordCache<'repo>,
     cache_extensions: ExtensionsMap,
@@ -103,6 +105,7 @@ pub struct CommitTemplateLanguage<'repo> {
 impl<'repo> CommitTemplateLanguage<'repo> {
     /// Sets up environment where commit template will be transformed to
     /// evaluation tree.
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         repo: &'repo dyn Repo,
         path_converter: &'repo RepoPathUiConverter,
@@ -110,6 +113,7 @@ impl<'repo> CommitTemplateLanguage<'repo> {
         revset_parse_context: RevsetParseContext<'repo>,
         id_prefix_context: &'repo IdPrefixContext,
         immutable_expression: Rc<UserRevsetExpression>,
+        conflict_marker_style: ConflictMarkerStyle,
         extensions: &[impl AsRef<dyn CommitTemplateLanguageExtension>],
     ) -> Self {
         let mut build_fn_table = CommitTemplateBuildFnTable::builtin();
@@ -129,6 +133,7 @@ impl<'repo> CommitTemplateLanguage<'repo> {
             revset_parse_context,
             id_prefix_context,
             immutable_expression,
+            conflict_marker_style,
             build_fn_table,
             keyword_cache: CommitKeywordCache::default(),
             cache_extensions,
@@ -1526,6 +1531,7 @@ fn builtin_tree_diff_methods<'repo>() -> CommitTemplateBuildMethodFnMap<'repo, T
                 })
                 .transpose()?;
             let path_converter = language.path_converter;
+            let conflict_marker_style = language.conflict_marker_style;
             let template = (self_property, context_property)
                 .map(move |(diff, context)| {
                     // TODO: load defaults from UserSettings?
@@ -1543,6 +1549,7 @@ fn builtin_tree_diff_methods<'repo>() -> CommitTemplateBuildMethodFnMap<'repo, T
                             tree_diff,
                             path_converter,
                             &options,
+                            conflict_marker_style,
                         )
                     })
                 })
@@ -1564,8 +1571,9 @@ fn builtin_tree_diff_methods<'repo>() -> CommitTemplateBuildMethodFnMap<'repo, T
                     )
                 })
                 .transpose()?;
+            let conflict_marker_style = language.conflict_marker_style;
             let template = (self_property, context_property)
-                .map(|(diff, context)| {
+                .map(move |(diff, context)| {
                     let options = diff_util::UnifiedDiffOptions {
                         context: context.unwrap_or(diff_util::DEFAULT_CONTEXT_LINES),
                         line_diff: diff_util::LineDiffOptions {
@@ -1573,7 +1581,13 @@ fn builtin_tree_diff_methods<'repo>() -> CommitTemplateBuildMethodFnMap<'repo, T
                         },
                     };
                     diff.into_formatted(move |formatter, store, tree_diff| {
-                        diff_util::show_git_diff(formatter, store, tree_diff, &options)
+                        diff_util::show_git_diff(
+                            formatter,
+                            store,
+                            tree_diff,
+                            &options,
+                            conflict_marker_style,
+                        )
                     })
                 })
                 .into_template();
@@ -1591,6 +1605,7 @@ fn builtin_tree_diff_methods<'repo>() -> CommitTemplateBuildMethodFnMap<'repo, T
                 width_node,
             )?;
             let path_converter = language.path_converter;
+            let conflict_marker_style = language.conflict_marker_style;
             let template = (self_property, width_property)
                 .map(move |(diff, width)| {
                     let options = diff_util::DiffStatOptions {
@@ -1606,6 +1621,7 @@ fn builtin_tree_diff_methods<'repo>() -> CommitTemplateBuildMethodFnMap<'repo, T
                             path_converter,
                             &options,
                             width,
+                            conflict_marker_style,
                         )
                     })
                 })

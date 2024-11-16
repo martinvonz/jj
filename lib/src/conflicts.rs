@@ -233,31 +233,50 @@ async fn materialize_tree_value_no_access_denied(
     }
 }
 
+/// Describes what style should be used when materializing conflicts.
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default, serde::Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum ConflictMarkerStyle {
+    /// Style which shows a snapshot and a series of diffs to apply.
+    #[default]
+    Diff,
+}
+
 pub fn materialize_merge_result<T: AsRef<[u8]>>(
     single_hunk: &Merge<T>,
+    conflict_marker_style: ConflictMarkerStyle,
     output: &mut dyn Write,
 ) -> io::Result<()> {
     let merge_result = files::merge(single_hunk);
     match &merge_result {
         MergeResult::Resolved(content) => output.write_all(content),
-        MergeResult::Conflict(hunks) => materialize_conflict_hunks(hunks, output),
+        MergeResult::Conflict(hunks) => {
+            materialize_conflict_hunks(hunks, conflict_marker_style, output)
+        }
     }
 }
 
-pub fn materialize_merge_result_to_bytes<T: AsRef<[u8]>>(single_hunk: &Merge<T>) -> BString {
+pub fn materialize_merge_result_to_bytes<T: AsRef<[u8]>>(
+    single_hunk: &Merge<T>,
+    conflict_marker_style: ConflictMarkerStyle,
+) -> BString {
     let merge_result = files::merge(single_hunk);
     match merge_result {
         MergeResult::Resolved(content) => content,
         MergeResult::Conflict(hunks) => {
             let mut output = Vec::new();
-            materialize_conflict_hunks(&hunks, &mut output)
+            materialize_conflict_hunks(&hunks, conflict_marker_style, &mut output)
                 .expect("writing to an in-memory buffer should never fail");
             output.into()
         }
     }
 }
 
-fn materialize_conflict_hunks(hunks: &[Merge<BString>], output: &mut dyn Write) -> io::Result<()> {
+fn materialize_conflict_hunks(
+    hunks: &[Merge<BString>],
+    _conflict_marker_style: ConflictMarkerStyle,
+    output: &mut dyn Write,
+) -> io::Result<()> {
     let num_conflicts = hunks
         .iter()
         .filter(|hunk| hunk.as_resolved().is_none())
@@ -514,6 +533,7 @@ pub async fn update_from_content(
     store: &Store,
     path: &RepoPath,
     content: &[u8],
+    conflict_marker_style: ConflictMarkerStyle,
 ) -> BackendResult<Merge<Option<FileId>>> {
     let simplified_file_ids = file_ids.clone().simplify();
     let simplified_file_ids = &simplified_file_ids;
@@ -525,7 +545,7 @@ pub async fn update_from_content(
     // copy.
     let mut old_content = Vec::with_capacity(content.len());
     let merge_hunk = extract_as_single_hunk(simplified_file_ids, store, path).await?;
-    materialize_merge_result(&merge_hunk, &mut old_content).unwrap();
+    materialize_merge_result(&merge_hunk, conflict_marker_style, &mut old_content).unwrap();
     if content == old_content {
         return Ok(file_ids.clone());
     }

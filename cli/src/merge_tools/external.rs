@@ -13,6 +13,7 @@ use jj_lib::backend::MergedTreeId;
 use jj_lib::backend::TreeValue;
 use jj_lib::conflicts;
 use jj_lib::conflicts::materialize_merge_result_to_bytes;
+use jj_lib::conflicts::ConflictMarkerStyle;
 use jj_lib::gitignore::GitIgnoreFile;
 use jj_lib::matchers::Matcher;
 use jj_lib::merge::Merge;
@@ -20,6 +21,7 @@ use jj_lib::merge::MergedTreeValue;
 use jj_lib::merged_tree::MergedTree;
 use jj_lib::merged_tree::MergedTreeBuilder;
 use jj_lib::repo_path::RepoPath;
+use jj_lib::working_copy::CheckoutOptions;
 use pollster::FutureExt;
 use thiserror::Error;
 
@@ -156,9 +158,10 @@ pub fn run_mergetool_external(
     repo_path: &RepoPath,
     conflict: MergedTreeValue,
     tree: &MergedTree,
+    conflict_marker_style: ConflictMarkerStyle,
 ) -> Result<MergedTreeId, ConflictResolveError> {
     let initial_output_content = if editor.merge_tool_edits_conflict_markers {
-        materialize_merge_result_to_bytes(&content)
+        materialize_merge_result_to_bytes(&content, conflict_marker_style)
     } else {
         BString::default()
     };
@@ -226,6 +229,7 @@ pub fn run_mergetool_external(
             tree.store(),
             repo_path,
             output_file_contents.as_slice(),
+            conflict_marker_style,
         )
         .block_on()?
     } else {
@@ -255,6 +259,7 @@ pub fn edit_diff_external(
     matcher: &dyn Matcher,
     instructions: Option<&str>,
     base_ignores: Arc<GitIgnoreFile>,
+    options: &CheckoutOptions,
 ) -> Result<MergedTreeId, DiffEditError> {
     let got_output_field = find_all_variables(&editor.edit_args).contains(&"output");
     let store = left_tree.store();
@@ -265,6 +270,7 @@ pub fn edit_diff_external(
         matcher,
         got_output_field.then_some(DiffSide::Right),
         instructions,
+        options,
     )?;
 
     let patterns = diffedit_wc.working_copies.to_command_variables();
@@ -283,7 +289,7 @@ pub fn edit_diff_external(
         }));
     }
 
-    diffedit_wc.snapshot_results(base_ignores)
+    diffedit_wc.snapshot_results(base_ignores, options.conflict_marker_style)
 }
 
 /// Generates textual diff by the specified `tool` and writes into `writer`.
@@ -294,9 +300,13 @@ pub fn generate_diff(
     right_tree: &MergedTree,
     matcher: &dyn Matcher,
     tool: &ExternalMergeTool,
+    conflict_marker_style: ConflictMarkerStyle,
 ) -> Result<(), DiffGenerateError> {
     let store = left_tree.store();
-    let diff_wc = check_out_trees(store, left_tree, right_tree, matcher, None)?;
+    let options = CheckoutOptions {
+        conflict_marker_style,
+    };
+    let diff_wc = check_out_trees(store, left_tree, right_tree, matcher, None, &options)?;
     set_readonly_recursively(diff_wc.left_working_copy_path())
         .map_err(ExternalToolError::SetUpDir)?;
     set_readonly_recursively(diff_wc.right_working_copy_path())

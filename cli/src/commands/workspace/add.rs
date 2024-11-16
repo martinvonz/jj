@@ -146,10 +146,11 @@ pub fn cmd_workspace_add(
     };
 
     if let Some(sparse_patterns) = sparsity {
+        let checkout_options = new_workspace_command.checkout_options();
         let (mut locked_ws, _wc_commit) = new_workspace_command.start_working_copy_mutation()?;
         locked_ws
             .locked_wc()
-            .set_sparse_patterns(sparse_patterns)
+            .set_sparse_patterns(sparse_patterns, &checkout_options)
             .map_err(|err| internal_error_with_message("Failed to set sparse patterns", err))?;
         let operation_id = locked_ws.locked_wc().old_operation_id().clone();
         locked_ws.finish(operation_id)?;

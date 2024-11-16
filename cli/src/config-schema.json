@@ -158,6 +158,14 @@
                 "merge-editor": {
                     "type": "string",
                     "description": "Tool to use for resolving three-way merges. Behavior for a given tool name can be configured in merge-tools.TOOL tables"
+                },
+                "conflict-marker-style": {
+                    "type": "string",
+                    "description": "Conflict marker style to use when materializing conflicts in the working copy",
+                    "enum": [
+                        "diff"
+                    ],
+                    "default": "diff"
                 }
             }
         },

@@ -63,6 +63,7 @@ use crate::commit::Commit;
 use crate::conflicts;
 use crate::conflicts::materialize_merge_result_to_bytes;
 use crate::conflicts::materialize_tree_value;
+use crate::conflicts::ConflictMarkerStyle;
 use crate::conflicts::MaterializedTreeValue;
 use crate::file_util::check_symlink_support;
 use crate::file_util::try_symlink;
@@ -95,6 +96,7 @@ use crate::settings::HumanByteSize;
 use crate::store::Store;
 use crate::tree::Tree;
 use crate::working_copy::CheckoutError;
+use crate::working_copy::CheckoutOptions;
 use crate::working_copy::CheckoutStats;
 use crate::working_copy::LockedWorkingCopy;
 use crate::working_copy::ResetError;
@@ -906,6 +908,7 @@ impl TreeState {
             progress,
             start_tracking_matcher,
             max_new_file_size,
+            conflict_marker_style,
         } = options;
 
         let sparse_matcher = self.sparse_matcher();
@@ -950,6 +953,7 @@ impl TreeState {
                 directory_to_visit,
                 *progress,
                 *max_new_file_size,
+                *conflict_marker_style,
             )
         })?;
 
@@ -1024,6 +1028,7 @@ impl TreeState {
         directory_to_visit: DirectoryToVisit,
         progress: Option<&SnapshotProgress>,
         max_new_file_size: u64,
+        conflict_marker_style: ConflictMarkerStyle,
     ) -> Result<(), SnapshotError> {
         let DirectoryToVisit {
             dir,
@@ -1109,6 +1114,7 @@ impl TreeState {
                                     Some(&current_file_state),
                                     current_tree,
                                     &new_file_state,
+                                    conflict_marker_style,
                                 )?;
                                 if let Some(tree_value) = update {
                                     tree_entries_tx
@@ -1139,6 +1145,7 @@ impl TreeState {
                             directory_to_visit,
                             progress,
                             max_new_file_size,
+                            conflict_marker_style,
                         )?;
                     }
                 } else if matcher.matches(&path) {
@@ -1177,6 +1184,7 @@ impl TreeState {
                                 maybe_current_file_state.as_ref(),
                                 current_tree,
                                 &new_file_state,
+                                conflict_marker_style,
                             )?;
                             if let Some(tree_value) = update {
                                 tree_entries_tx.send((path.clone(), tree_value)).ok();
@@ -1245,6 +1253,7 @@ impl TreeState {
         maybe_current_file_state: Option<&FileState>,
         current_tree: &MergedTree,
         new_file_state: &FileState,
+        conflict_marker_style: ConflictMarkerStyle,
     ) -> Result<Option<MergedTreeValue>, SnapshotError> {
         let clean = match maybe_current_file_state {
             None => {
@@ -1274,7 +1283,13 @@ impl TreeState {
             };
             let new_tree_values = match new_file_type {
                 FileType::Normal { executable } => self
-                    .write_path_to_store(repo_path, &disk_path, &current_tree_values, executable)
+                    .write_path_to_store(
+                        repo_path,
+                        &disk_path,
+                        &current_tree_values,
+                        executable,
+                        conflict_marker_style,
+                    )
                     .block_on()?,
                 FileType::Symlink => {
                     let id = self
@@ -1298,6 +1313,7 @@ impl TreeState {
         disk_path: &Path,
         current_tree_values: &MergedTreeValue,
         executable: FileExecutableFlag,
+        conflict_marker_style: ConflictMarkerStyle,
     ) -> Result<MergedTreeValue, SnapshotError> {
         // If the file contained a conflict before and is now a normal file on disk, we
         // try to parse any conflict markers in the file into a conflict.
@@ -1326,6 +1342,7 @@ impl TreeState {
                 self.store.as_ref(),
                 repo_path,
                 &content,
+                conflict_marker_style,
             )
             .block_on()?;
             match new_file_ids.into_resolved() {
@@ -1441,7 +1458,11 @@ impl TreeState {
         Ok(())
     }
 
-    pub fn check_out(&mut self, new_tree: &MergedTree) -> Result<CheckoutStats, CheckoutError> {
+    pub fn check_out(
+        &mut self,
+        new_tree: &MergedTree,
+        options: &CheckoutOptions,
+    ) -> Result<CheckoutStats, CheckoutError> {
         let old_tree = self.current_tree().map_err(|err| match err {
             err @ BackendError::ObjectNotFound { .. } => CheckoutError::SourceNotFound {
                 source: Box::new(err),
@@ -1449,7 +1470,12 @@ impl TreeState {
             other => CheckoutError::InternalBackendError(other),
         })?;
         let stats = self
-            .update(&old_tree, new_tree, self.sparse_matcher().as_ref())
+            .update(
+                &old_tree,
+                new_tree,
+                self.sparse_matcher().as_ref(),
+                options.conflict_marker_style,
+            )
             .block_on()?;
         self.tree_id = new_tree.id();
         Ok(stats)
@@ -1458,6 +1484,7 @@ impl TreeState {
     pub fn set_sparse_patterns(
         &mut self,
         sparse_patterns: Vec<RepoPathBuf>,
+        options: &CheckoutOptions,
     ) -> Result<CheckoutStats, CheckoutError> {
         let tree = self.current_tree().map_err(|err| match err {
             err @ BackendError::ObjectNotFound { .. } => CheckoutError::SourceNotFound {
@@ -1470,9 +1497,21 @@ impl TreeState {
         let added_matcher = DifferenceMatcher::new(&new_matcher, &old_matcher);
         let removed_matcher = DifferenceMatcher::new(&old_matcher, &new_matcher);
         let empty_tree = MergedTree::resolved(Tree::empty(self.store.clone(), RepoPathBuf::root()));
-        let added_stats = self.update(&empty_tree, &tree, &added_matcher).block_on()?;
+        let added_stats = self
+            .update(
+                &empty_tree,
+                &tree,
+                &added_matcher,
+                options.conflict_marker_style,
+            )
+            .block_on()?;
         let removed_stats = self
-            .update(&tree, &empty_tree, &removed_matcher)
+            .update(
+                &tree,
+                &empty_tree,
+                &removed_matcher,
+                options.conflict_marker_style,
+            )
             .block_on()?;
         self.sparse_patterns = sparse_patterns;
         assert_eq!(added_stats.updated_files, 0);
@@ -1493,6 +1532,7 @@ impl TreeState {
         old_tree: &MergedTree,
         new_tree: &MergedTree,
         matcher: &dyn Matcher,
+        conflict_marker_style: ConflictMarkerStyle,
     ) -> Result<CheckoutStats, CheckoutError> {
         // TODO: maybe it's better not include the skipped counts in the "intended"
         // counts
@@ -1597,7 +1637,8 @@ impl TreeState {
                     contents,
                     executable,
                 } => {
-                    let data = materialize_merge_result_to_bytes(&contents).into();
+                    let data =
+                        materialize_merge_result_to_bytes(&contents, conflict_marker_style).into();
                     self.write_conflict(&disk_path, data, executable)?
                 }
                 MaterializedTreeValue::OtherConflict { id } => {
@@ -1982,7 +2023,11 @@ impl LockedWorkingCopy for LockedLocalWorkingCopy {
         Ok(tree_state.current_tree_id().clone())
     }
 
-    fn check_out(&mut self, commit: &Commit) -> Result<CheckoutStats, CheckoutError> {
+    fn check_out(
+        &mut self,
+        commit: &Commit,
+        options: &CheckoutOptions,
+    ) -> Result<CheckoutStats, CheckoutError> {
         // TODO: Write a "pending_checkout" file with the new TreeId so we can
         // continue an interrupted update if we find such a file.
         let new_tree = commit.tree()?;
@@ -1993,7 +2038,7 @@ impl LockedWorkingCopy for LockedLocalWorkingCopy {
                 message: "Failed to load the working copy state".to_string(),
                 err: err.into(),
             })?
-            .check_out(&new_tree)?;
+            .check_out(&new_tree, options)?;
         self.tree_state_dirty = true;
         Ok(stats)
     }
@@ -2037,6 +2082,7 @@ impl LockedWorkingCopy for LockedLocalWorkingCopy {
     fn set_sparse_patterns(
         &mut self,
         new_sparse_patterns: Vec<RepoPathBuf>,
+        options: &CheckoutOptions,
     ) -> Result<CheckoutStats, CheckoutError> {
         // TODO: Write a "pending_checkout" file with new sparse patterns so we can
         // continue an interrupted update if we find such a file.
@@ -2047,7 +2093,7 @@ impl LockedWorkingCopy for LockedLocalWorkingCopy {
                 message: "Failed to load the working copy state".to_string(),
                 err: err.into(),
             })?
-            .set_sparse_patterns(new_sparse_patterns)?;
+            .set_sparse_patterns(new_sparse_patterns, options)?;
         self.tree_state_dirty = true;
         Ok(stats)
     }

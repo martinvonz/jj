@@ -44,6 +44,7 @@ use crate::backend::MillisSinceEpoch;
 use crate::commit::Commit;
 use crate::conflicts::materialize_merge_result_to_bytes;
 use crate::conflicts::materialize_tree_value;
+use crate::conflicts::ConflictMarkerStyle;
 use crate::conflicts::MaterializedTreeValue;
 use crate::default_index::AsCompositeIndex;
 use crate::default_index::CompositeIndex;
@@ -1346,7 +1347,7 @@ fn to_file_content(path: &RepoPath, value: MaterializedTreeValue) -> BackendResu
         MaterializedTreeValue::Symlink { id: _, target } => Ok(target.into_bytes()),
         MaterializedTreeValue::GitSubmodule(_) => Ok(vec![]),
         MaterializedTreeValue::FileConflict { contents, .. } => {
-            Ok(materialize_merge_result_to_bytes(&contents).into())
+            Ok(materialize_merge_result_to_bytes(&contents, ConflictMarkerStyle::default()).into())
         }
         MaterializedTreeValue::OtherConflict { .. } => Ok(vec![]),
         MaterializedTreeValue::Tree(id) => {

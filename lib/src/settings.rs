@@ -28,6 +28,7 @@ use crate::backend::Commit;
 use crate::backend::Signature;
 use crate::backend::Timestamp;
 use crate::config::ConfigError;
+use crate::conflicts::ConflictMarkerStyle;
 use crate::fmt_util::binary_prefix;
 use crate::fsmonitor::FsmonitorSettings;
 use crate::signing::SignBehavior;
@@ -253,6 +254,13 @@ impl UserSettings {
 
     pub fn sign_settings(&self) -> SignSettings {
         SignSettings::from_settings(self)
+    }
+
+    pub fn conflict_marker_style(&self) -> Result<ConflictMarkerStyle, ConfigError> {
+        Ok(self
+            .get("ui.conflict-marker-style")
+            .optional()?
+            .unwrap_or_default())
     }
 }
 

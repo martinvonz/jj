@@ -27,6 +27,7 @@ use tracing::instrument;
 use crate::backend::BackendError;
 use crate::backend::MergedTreeId;
 use crate::commit::Commit;
+use crate::conflicts::ConflictMarkerStyle;
 use crate::dag_walk;
 use crate::fsmonitor::FsmonitorSettings;
 use crate::gitignore::GitIgnoreError;
@@ -116,7 +117,11 @@ pub trait LockedWorkingCopy {
     fn snapshot(&mut self, options: &SnapshotOptions) -> Result<MergedTreeId, SnapshotError>;
 
     /// Check out the specified commit in the working copy.
-    fn check_out(&mut self, commit: &Commit) -> Result<CheckoutStats, CheckoutError>;
+    fn check_out(
+        &mut self,
+        commit: &Commit,
+        options: &CheckoutOptions,
+    ) -> Result<CheckoutStats, CheckoutError>;
 
     /// Update the workspace name.
     fn rename_workspace(&mut self, new_workspace_name: WorkspaceId);
@@ -140,6 +145,7 @@ pub trait LockedWorkingCopy {
     fn set_sparse_patterns(
         &mut self,
         new_sparse_patterns: Vec<RepoPathBuf>,
+        options: &CheckoutOptions,
     ) -> Result<CheckoutStats, CheckoutError>;
 
     /// Finish the modifications to the working copy by writing the updated
@@ -222,6 +228,8 @@ pub struct SnapshotOptions<'a> {
     /// (depending on implementation)
     /// return `SnapshotError::NewFileTooLarge`.
     pub max_new_file_size: u64,
+    /// Expected conflict marker style for checking for changed files.
+    pub conflict_marker_style: ConflictMarkerStyle,
 }
 
 impl SnapshotOptions<'_> {
@@ -233,12 +241,29 @@ impl SnapshotOptions<'_> {
             progress: None,
             start_tracking_matcher: &EverythingMatcher,
             max_new_file_size: u64::MAX,
+            conflict_marker_style: ConflictMarkerStyle::default(),
         }
     }
 }
 
 /// A callback for getting progress updates.
 pub type SnapshotProgress<'a> = dyn Fn(&RepoPath) + 'a + Sync;
+
+/// Options used when checking out a tree in the working copy.
+#[derive(Clone)]
+pub struct CheckoutOptions {
+    /// Conflict marker style to use when materializing files
+    pub conflict_marker_style: ConflictMarkerStyle,
+}
+
+impl CheckoutOptions {
+    /// Create an instance for use in tests.
+    pub fn empty_for_test() -> Self {
+        CheckoutOptions {
+            conflict_marker_style: ConflictMarkerStyle::default(),
+        }
+    }
+}
 
 /// Stats about a checkout operation on a working copy. All "files" mentioned
 /// below may also be symlinks or materialized conflicts.
