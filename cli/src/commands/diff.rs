@@ -57,7 +57,10 @@ pub(crate) struct DiffArgs {
     #[arg(long, short, conflicts_with = "revision", add = ArgValueCandidates::new(complete::all_revisions))]
     to: Option<RevisionArg>,
     /// Restrict the diff to these paths
-    #[arg(value_hint = clap::ValueHint::AnyPath)]
+    #[arg(
+        value_hint = clap::ValueHint::AnyPath,
+        add = ArgValueCandidates::new(complete::modified_revision_or_range_files),
+    )]
     paths: Vec<String>,
     #[command(flatten)]
     format: DiffFormatArgs,

@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use clap_complete::ArgValueCandidates;
+use clap_complete::ArgValueCompleter;
 use jj_lib::annotate::get_annotation_for_file;
 use jj_lib::annotate::FileAnnotation;
 use jj_lib::commit::Commit;
@@ -37,7 +38,10 @@ use crate::ui::Ui;
 #[derive(clap::Args, Clone, Debug)]
 pub(crate) struct FileAnnotateArgs {
     /// the file to annotate
-    #[arg(value_hint = clap::ValueHint::AnyPath)]
+    #[arg(
+        value_hint = clap::ValueHint::AnyPath,
+        add = ArgValueCompleter::new(complete::all_revision_files),
+    )]
     path: String,
     /// an optional revision to start at
     #[arg(long, short, add = ArgValueCandidates::new(complete::all_revisions))]

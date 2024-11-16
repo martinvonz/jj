@@ -16,6 +16,7 @@ use std::io;
 use std::io::Write;
 
 use clap_complete::ArgValueCandidates;
+use clap_complete::ArgValueCompleter;
 use jj_lib::backend::BackendResult;
 use jj_lib::conflicts::materialize_merge_result;
 use jj_lib::conflicts::materialize_tree_value;
@@ -51,7 +52,11 @@ pub(crate) struct FileShowArgs {
     )]
     revision: RevisionArg,
     /// Paths to print
-    #[arg(required = true, value_hint = clap::ValueHint::FilePath)]
+    #[arg(
+        required = true,
+        value_hint = clap::ValueHint::FilePath,
+        add = ArgValueCompleter::new(complete::all_revision_files),
+    )]
     paths: Vec<String>,
 }
 

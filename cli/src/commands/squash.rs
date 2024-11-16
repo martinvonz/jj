@@ -90,7 +90,11 @@ pub(crate) struct SquashArgs {
     #[arg(long, value_name = "NAME")]
     tool: Option<String>,
     /// Move only changes to these paths (instead of all paths)
-    #[arg(conflicts_with_all = ["interactive", "tool"], value_hint = clap::ValueHint::AnyPath)]
+    #[arg(
+        conflicts_with_all = ["interactive", "tool"],
+        value_hint = clap::ValueHint::AnyPath,
+        add = ArgValueCandidates::new(complete::squash_revision_files),
+    )]
     paths: Vec<String>,
     /// The source revision will not be abandoned
     #[arg(long, short)]

@@ -62,7 +62,10 @@ pub(crate) struct ResolveArgs {
     /// will attempt to resolve the first conflict we can find. You can use
     /// the `--list` argument to find paths to use here.
     // TODO: Find the conflict we can resolve even if it's not the first one.
-    #[arg(value_hint = clap::ValueHint::AnyPath)]
+    #[arg(
+        value_hint = clap::ValueHint::AnyPath,
+        add = ArgValueCandidates::new(complete::revision_conflicted_files),
+    )]
     paths: Vec<String>,
 }
 

@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::io::BufRead;
+
 use clap::builder::StyledStr;
 use clap::FromArgMatches as _;
 use clap_complete::CompletionCandidate;
@@ -446,6 +448,137 @@ pub fn leaf_config_keys() -> Vec<CompletionCandidate> {
     config_keys_impl(true)
 }
 
+fn all_files_from_rev(rev: String) -> Vec<CompletionCandidate> {
+    with_jj(|jj, _| {
+        let mut child = jj
+            .build()
+            .arg("file")
+            .arg("list")
+            .arg("--revision")
+            .arg(rev)
+            .stdout(std::process::Stdio::piped())
+            .spawn()
+            .map_err(user_error)?;
+        let stdout = child.stdout.take().unwrap();
+
+        Ok(std::io::BufReader::new(stdout)
+            .lines()
+            .take(1_000)
+            .map_while(Result::ok)
+            .map(CompletionCandidate::new)
+            .collect())
+    })
+}
+
+fn modified_files_from_rev_with_jj_cmd(
+    rev: (String, Option<String>),
+    mut cmd: std::process::Command,
+) -> Result<Vec<CompletionCandidate>, CommandError> {
+    cmd.arg("diff").arg("--summary");
+    match rev {
+        (rev, None) => cmd.arg("--revision").arg(rev),
+        (from, Some(to)) => cmd.arg("--from").arg(from).arg("--to").arg(to),
+    };
+    let output = cmd.output().map_err(user_error)?;
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    Ok(stdout
+        .lines()
+        .map(|line| {
+            let (mode, path) = line
+                .split_once(' ')
+                .expect("diff --summary should contain a space between mode and path");
+            let help = match mode {
+                "M" => "Modified".into(),
+                "D" => "Deleted".into(),
+                "A" => "Added".into(),
+                "R" => "Renamed".into(),
+                "C" => "Copied".into(),
+                _ => format!("unknown mode: '{mode}'"),
+            };
+            CompletionCandidate::new(path).help(Some(help.into()))
+        })
+        .collect())
+}
+
+fn modified_files_from_rev(rev: (String, Option<String>)) -> Vec<CompletionCandidate> {
+    with_jj(|jj, _| modified_files_from_rev_with_jj_cmd(rev, jj.build()))
+}
+
+fn conflicted_files_from_rev(rev: &str) -> Vec<CompletionCandidate> {
+    with_jj(|jj, _| {
+        let output = jj
+            .build()
+            .arg("resolve")
+            .arg("--list")
+            .arg("--revision")
+            .arg(rev)
+            .output()
+            .map_err(user_error)?;
+        let stdout = String::from_utf8_lossy(&output.stdout);
+
+        Ok(stdout
+            .lines()
+            .filter_map(|line| line.split_whitespace().next())
+            .map(CompletionCandidate::new)
+            .collect())
+    })
+}
+
+pub fn modified_files() -> Vec<CompletionCandidate> {
+    modified_files_from_rev(("@".into(), None))
+}
+
+pub fn all_revision_files(current: &std::ffi::OsStr) -> Vec<CompletionCandidate> {
+    // TODO: Use `current` once `jj file list` gains the ability to list only
+    // the content of the "current" directory.
+    let _ = current;
+    all_files_from_rev(parse::revision_or_wc())
+}
+
+pub fn modified_revision_files() -> Vec<CompletionCandidate> {
+    modified_files_from_rev((parse::revision_or_wc(), None))
+}
+
+pub fn modified_range_files() -> Vec<CompletionCandidate> {
+    match parse::range() {
+        Some((from, to)) => modified_files_from_rev((from, Some(to))),
+        None => modified_files_from_rev(("@".into(), None)),
+    }
+}
+
+pub fn modified_revision_or_range_files() -> Vec<CompletionCandidate> {
+    if let Some(rev) = parse::revision() {
+        return modified_files_from_rev((rev, None));
+    }
+    modified_range_files()
+}
+
+pub fn revision_conflicted_files() -> Vec<CompletionCandidate> {
+    conflicted_files_from_rev(&parse::revision_or_wc())
+}
+
+/// Specific function for completing file paths for `jj squash`
+pub fn squash_revision_files() -> Vec<CompletionCandidate> {
+    let rev = parse::squash_revision().unwrap_or_else(|| "@".into());
+    modified_files_from_rev((rev, None))
+}
+
+/// Specific function for completing file paths for `jj interdiff`
+pub fn interdiff_files() -> Vec<CompletionCandidate> {
+    let Some((from, to)) = parse::range() else {
+        return Vec::new();
+    };
+    // Complete all modified files in "from" and "to". This will also suggest
+    // files that are the same in both, which is a false positive. This approach
+    // is more lightweight than actually doing a temporary rebase here.
+    with_jj(|jj, _| {
+        let mut res = modified_files_from_rev_with_jj_cmd((from, None), jj.build())?;
+        res.extend(modified_files_from_rev_with_jj_cmd((to, None), jj.build())?);
+        Ok(res)
+    })
+}
+
 /// Shell out to jj during dynamic completion generation
 ///
 /// In case of errors, print them and early return an empty vector.
@@ -577,6 +710,81 @@ impl JjBuilder {
     }
 }
 
+/// Functions for parsing revisions and revision ranges from the command line.
+/// Parsing is done on a best-effort basis and relies on the heuristic that
+/// most command line flags are consistent across different subcommands.
+///
+/// In some cases, this parsing will be incorrect, but it's not worth the effort
+/// to fix that. For example, if the user specifies any of the relevant flags
+/// multiple times, the parsing will pick any of the available ones, while the
+/// actual execution of the command would fail.
+mod parse {
+    fn parse_flag(candidates: &[&str], mut args: impl Iterator<Item = String>) -> Option<String> {
+        for arg in args.by_ref() {
+            // -r REV syntax
+            if candidates.contains(&arg.as_ref()) {
+                match args.next() {
+                    Some(val) if !val.starts_with('-') => return Some(val),
+                    _ => return None,
+                }
+            }
+
+            // -r=REV syntax
+            if let Some(value) = candidates.iter().find_map(|candidate| {
+                let rest = arg.strip_prefix(candidate)?;
+                match rest.strip_prefix('=') {
+                    Some(value) => Some(value),
+
+                    // -rREV syntax
+                    None if candidate.len() == 2 => Some(rest),
+
+                    None => None,
+                }
+            }) {
+                return Some(value.into());
+            };
+        }
+        None
+    }
+
+    pub fn parse_revision_impl(args: impl Iterator<Item = String>) -> Option<String> {
+        parse_flag(&["-r", "--revision"], args)
+    }
+
+    pub fn revision() -> Option<String> {
+        parse_revision_impl(std::env::args())
+    }
+
+    pub fn revision_or_wc() -> String {
+        revision().unwrap_or_else(|| "@".into())
+    }
+
+    pub fn parse_range_impl<T>(args: impl Fn() -> T) -> Option<(String, String)>
+    where
+        T: Iterator<Item = String>,
+    {
+        let from = parse_flag(&["-f", "--from"], args())?;
+        let to = parse_flag(&["-t", "--to"], args()).unwrap_or_else(|| "@".into());
+
+        Some((from, to))
+    }
+
+    pub fn range() -> Option<(String, String)> {
+        parse_range_impl(std::env::args)
+    }
+
+    // Special parse function only for `jj squash`. While squash has --from and
+    // --to arguments, only files within --from should be completed, because
+    // the files changed only in some other revision in the range between
+    // --from and --to cannot be squashed into --to like that.
+    pub fn squash_revision() -> Option<String> {
+        if let Some(rev) = parse_flag(&["-r", "--revision"], std::env::args()) {
+            return Some(rev);
+        }
+        parse_flag(&["-f", "--from"], std::env::args())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -585,5 +793,72 @@ mod tests {
     fn test_config_keys() {
         // Just make sure the schema is parsed without failure.
         let _ = config_keys();
+    }
+
+    #[test]
+    fn test_parse_revision_impl() {
+        let good_cases: &[&[&str]] = &[
+            &["-r", "foo"],
+            &["--revision", "foo"],
+            &["-r=foo"],
+            &["--revision=foo"],
+            &["preceding_arg", "-r", "foo"],
+            &["-r", "foo", "following_arg"],
+        ];
+        for case in good_cases {
+            let args = case.iter().map(|s| s.to_string());
+            assert_eq!(
+                parse::parse_revision_impl(args),
+                Some("foo".into()),
+                "case: {case:?}",
+            );
+        }
+        let bad_cases: &[&[&str]] = &[&[], &["-r"], &["foo"], &["-R", "foo"], &["-R=foo"]];
+        for case in bad_cases {
+            let args = case.iter().map(|s| s.to_string());
+            assert_eq!(parse::parse_revision_impl(args), None, "case: {case:?}");
+        }
+    }
+
+    #[test]
+    fn test_parse_range_impl() {
+        let wc_cases: &[&[&str]] = &[
+            &["-f", "foo"],
+            &["--from", "foo"],
+            &["-f=foo"],
+            &["preceding_arg", "-f", "foo"],
+            &["-f", "foo", "following_arg"],
+        ];
+        for case in wc_cases {
+            let args = case.iter().map(|s| s.to_string());
+            assert_eq!(
+                parse::parse_range_impl(|| args.clone()),
+                Some(("foo".into(), "@".into())),
+                "case: {case:?}",
+            );
+        }
+        let to_cases: &[&[&str]] = &[
+            &["-f", "foo", "-t", "bar"],
+            &["-f", "foo", "--to", "bar"],
+            &["-f=foo", "-t=bar"],
+            &["-t=bar", "-f=foo"],
+        ];
+        for case in to_cases {
+            let args = case.iter().map(|s| s.to_string());
+            assert_eq!(
+                parse::parse_range_impl(|| args.clone()),
+                Some(("foo".into(), "bar".into())),
+                "case: {case:?}",
+            );
+        }
+        let bad_cases: &[&[&str]] = &[&[], &["-f"], &["foo"], &["-R", "foo"], &["-R=foo"]];
+        for case in bad_cases {
+            let args = case.iter().map(|s| s.to_string());
+            assert_eq!(
+                parse::parse_range_impl(|| args.clone()),
+                None,
+                "case: {case:?}"
+            );
+        }
     }
 }
