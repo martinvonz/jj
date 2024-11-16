@@ -12,11 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use clap_complete::ArgValueCompleter;
 use jj_lib::git;
 use jj_lib::repo::Repo;
 
 use crate::cli_util::CommandHelper;
 use crate::command_error::CommandError;
+use crate::complete;
 use crate::git_util::get_git_repo;
 use crate::ui::Ui;
 
@@ -26,6 +28,7 @@ pub struct GitRemoteAddArgs {
     /// The remote's name
     remote: String,
     /// The remote's URL
+    #[arg(add = ArgValueCompleter::new(complete::new_git_remote_url))]
     url: String,
 }
 

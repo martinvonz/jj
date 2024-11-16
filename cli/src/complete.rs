@@ -193,6 +193,62 @@ pub fn git_remotes() -> Vec<CompletionCandidate> {
     })
 }
 
+pub fn new_git_remote_url(current: &std::ffi::OsStr) -> Vec<CompletionCandidate> {
+    let Some(current) = current.to_str() else {
+        return Vec::new();
+    };
+
+    let known_schemas = ["git@", "https://", "http://"];
+
+    let schema_candiates = known_schemas
+        .iter()
+        .filter(|&&schema| schema.starts_with(current) && !current.starts_with(schema))
+        .map(CompletionCandidate::new)
+        .collect_vec();
+    if !schema_candiates.is_empty() {
+        return schema_candiates;
+    }
+
+    let Some(&schema) = known_schemas.iter().find(|&s| current.starts_with(s)) else {
+        // We don't know the schema the user is attempting to use.
+        return Vec::new();
+    };
+    let current = current.strip_prefix(schema).unwrap();
+
+    let domain_terminator = match schema {
+        "git@" => ":",
+        _ => "/", // http, probably
+    };
+
+    if current.contains(domain_terminator) {
+        // Completing the path after the domain as well would be cool, but it's
+        // more difficult. One approach could be to cache the URLs that were
+        // cloned previously. Users probably clone repositories from the same
+        // user / organisations frequently.
+        return Vec::new();
+    }
+
+    let Some(known_hosts) = dirs::home_dir()
+        .and_then(|home| std::fs::read_to_string(home.join(".ssh/known_hosts")).ok())
+    else {
+        return Vec::new(); // cannot determine domain candidates
+    };
+
+    let mut candidates = Vec::new();
+    for line in known_hosts.lines() {
+        let domain = line.split_whitespace().next().unwrap_or(line);
+        if !domain.starts_with(current) {
+            continue;
+        }
+        let display_order = if domain.contains("git") { 0 } else { 1 };
+        candidates.push(
+            CompletionCandidate::new(format!("{schema}{domain}{domain_terminator}"))
+                .display_order(Some(display_order)),
+        );
+    }
+    candidates
+}
+
 pub fn aliases() -> Vec<CompletionCandidate> {
     with_jj(|_, config| {
         Ok(config

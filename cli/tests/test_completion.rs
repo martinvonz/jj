@@ -400,3 +400,80 @@ fn test_operations() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["--", "jj", "op", "undo", "5b"]);
     insta::assert_snapshot!(stdout, @"5bbb4ca536a8	(2001-02-03 08:05:12) describe commit 968261075dddabf4b0e333c1cc9a49ce26a3f710");
 }
+
+#[test]
+fn test_new_git_remote() {
+    let test_env = TestEnvironment::default();
+
+    let ssh_dir = test_env.home_dir().join(".ssh");
+    std::fs::create_dir(&ssh_dir).unwrap();
+    std::fs::write(
+        ssh_dir.join("known_hosts"),
+        "\
+random-server.com long-fingerprint
+self-hosted-git-server.com long-fingerprint
+company-git-server.com long-fingerprint
+",
+    )
+    .unwrap();
+
+    let mut test_env = test_env;
+    test_env.add_env_var("COMPLETE", "fish");
+    let test_env = test_env;
+
+    let stdout = test_env.jj_cmd_success(test_env.env_root(), &["--", "jj", "git", "clone", ""]);
+    insta::assert_snapshot!(stdout, @r"
+    git@
+    https://
+    http://
+    --remote	Name of the newly created remote
+    --colocate	Whether or not to colocate the Jujutsu repo with the git repo
+    --depth	Create a shallow clone of the given depth
+    --help	Print help (see more with '--help')
+    --repository	Path to repository to operate on
+    --ignore-working-copy	Don't snapshot the working copy, and don't update it
+    --ignore-immutable	Allow rewriting immutable commits
+    --at-operation	Operation to load the repo at
+    --debug	Enable debug logging
+    --color	When to colorize output (always, never, debug, auto)
+    --quiet	Silence non-primary command output
+    --no-pager	Disable the pager
+    --config-toml	Additional configuration options (can be repeated)
+    ");
+
+    let stdout = test_env.jj_cmd_success(test_env.env_root(), &["--", "jj", "git", "clone", "gi"]);
+    insta::assert_snapshot!(stdout, @"git@");
+    let stdout = test_env.jj_cmd_success(test_env.env_root(), &["--", "jj", "git", "clone", "ht"]);
+    insta::assert_snapshot!(stdout, @r"
+    https://
+    http://
+    ");
+
+    let stdout =
+        test_env.jj_cmd_success(test_env.env_root(), &["--", "jj", "git", "clone", "git@"]);
+    insta::assert_snapshot!(stdout, @r"
+    git@self-hosted-git-server.com:
+    git@company-git-server.com:
+    git@random-server.com:
+    ");
+    let stdout = test_env.jj_cmd_success(
+        test_env.env_root(),
+        &["--", "jj", "git", "clone", "https://"],
+    );
+    insta::assert_snapshot!(stdout, @r"
+    https://self-hosted-git-server.com/
+    https://company-git-server.com/
+    https://random-server.com/
+    ");
+
+    let stdout = test_env.jj_cmd_success(
+        test_env.env_root(),
+        &["--", "jj", "git", "clone", "git@sel"],
+    );
+    insta::assert_snapshot!(stdout, @"git@self-hosted-git-server.com:");
+    let stdout = test_env.jj_cmd_success(
+        test_env.env_root(),
+        &["--", "jj", "git", "clone", "https://com"],
+    );
+    insta::assert_snapshot!(stdout, @"https://company-git-server.com/");
+}

@@ -19,6 +19,7 @@ use std::num::NonZeroU32;
 use std::path::Path;
 use std::path::PathBuf;
 
+use clap_complete::ArgValueCompleter;
 use jj_lib::git;
 use jj_lib::git::GitFetchError;
 use jj_lib::git::GitFetchStats;
@@ -33,6 +34,7 @@ use crate::command_error::user_error;
 use crate::command_error::user_error_with_message;
 use crate::command_error::CommandError;
 use crate::commands::git::maybe_add_gitignore;
+use crate::complete;
 use crate::config::write_config_value_to_file;
 use crate::config::ConfigNamePathBuf;
 use crate::git_util::get_git_repo;
@@ -47,7 +49,7 @@ use crate::ui::Ui;
 #[derive(clap::Args, Clone, Debug)]
 pub struct GitCloneArgs {
     /// URL or path of the Git repo to clone
-    #[arg(value_hint = clap::ValueHint::DirPath)]
+    #[arg(add = ArgValueCompleter::new(complete::new_git_remote_url))]
     source: String,
     /// Specifies the target directory for the Jujutsu repository clone.
     /// If not provided, defaults to a directory named after the last component
