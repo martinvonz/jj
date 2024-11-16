@@ -34,6 +34,7 @@ use crate::backend::CommitId;
 use crate::commit::Commit;
 use crate::conflicts::materialize_merge_result_to_bytes;
 use crate::conflicts::materialize_tree_value;
+use crate::conflicts::ConflictMarkerStyle;
 use crate::conflicts::MaterializedTreeValue;
 use crate::diff::Diff;
 use crate::diff::DiffHunkKind;
@@ -358,9 +359,9 @@ fn get_file_contents(
                 })?;
             Ok(file_contents.into())
         }
-        MaterializedTreeValue::FileConflict { contents, .. } => {
-            Ok(materialize_merge_result_to_bytes(&contents))
-        }
+        MaterializedTreeValue::FileConflict { contents, .. } => Ok(
+            materialize_merge_result_to_bytes(&contents, ConflictMarkerStyle::default()),
+        ),
         _ => Ok(BString::default()),
     }
 }

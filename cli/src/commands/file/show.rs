@@ -127,7 +127,11 @@ fn write_tree_entries<P: AsRef<RepoPath>>(
                 io::copy(&mut reader, &mut ui.stdout_formatter().as_mut())?;
             }
             MaterializedTreeValue::FileConflict { contents, .. } => {
-                materialize_merge_result(&contents, &mut ui.stdout_formatter())?;
+                materialize_merge_result(
+                    &contents,
+                    workspace_command.env().conflict_marker_style(),
+                    &mut ui.stdout_formatter(),
+                )?;
             }
             MaterializedTreeValue::OtherConflict { id } => {
                 ui.stdout_formatter().write_all(id.describe().as_bytes())?;

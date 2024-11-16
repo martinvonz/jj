@@ -18,6 +18,7 @@ use jj_lib::conflicts::extract_as_single_hunk;
 use jj_lib::conflicts::materialize_merge_result_to_bytes;
 use jj_lib::conflicts::parse_conflict;
 use jj_lib::conflicts::update_from_content;
+use jj_lib::conflicts::ConflictMarkerStyle;
 use jj_lib::merge::Merge;
 use jj_lib::repo::Repo;
 use jj_lib::repo_path::RepoPath;
@@ -74,7 +75,7 @@ fn test_materialize_conflict_basic() {
         vec![Some(left_id.clone()), Some(right_id.clone())],
     );
     insta::assert_snapshot!(
-        &materialize_conflict_string(store, path, &conflict),
+        &materialize_conflict_string(store, path, &conflict, ConflictMarkerStyle::Diff),
         @r###"
     line 1
     line 2
@@ -98,7 +99,7 @@ fn test_materialize_conflict_basic() {
         vec![Some(right_id.clone()), Some(left_id.clone())],
     );
     insta::assert_snapshot!(
-        &materialize_conflict_string(store, path, &conflict),
+        &materialize_conflict_string(store, path, &conflict, ConflictMarkerStyle::Diff),
         @r###"
     line 1
     line 2
@@ -171,7 +172,7 @@ fn test_materialize_conflict_multi_rebase_conflicts() {
         vec![Some(a_id.clone()), Some(b_id.clone()), Some(c_id.clone())],
     );
     insta::assert_snapshot!(
-        &materialize_conflict_string(store, path, &conflict),
+        &materialize_conflict_string(store, path, &conflict, ConflictMarkerStyle::Diff),
         @r###"
     line 1
     <<<<<<< Conflict 1 of 1
@@ -195,7 +196,7 @@ fn test_materialize_conflict_multi_rebase_conflicts() {
         vec![Some(c_id.clone()), Some(b_id.clone()), Some(a_id.clone())],
     );
     insta::assert_snapshot!(
-        &materialize_conflict_string(store, path, &conflict),
+        &materialize_conflict_string(store, path, &conflict, ConflictMarkerStyle::Diff),
         @r###"
     line 1
     <<<<<<< Conflict 1 of 1
@@ -219,7 +220,7 @@ fn test_materialize_conflict_multi_rebase_conflicts() {
         vec![Some(c_id.clone()), Some(a_id.clone()), Some(b_id.clone())],
     );
     insta::assert_snapshot!(
-        &materialize_conflict_string(store, path, &conflict),
+        &materialize_conflict_string(store, path, &conflict, ConflictMarkerStyle::Diff),
         @r###"
     line 1
     <<<<<<< Conflict 1 of 1
@@ -285,7 +286,8 @@ fn test_materialize_parse_roundtrip() {
         vec![Some(base_id.clone())],
         vec![Some(left_id.clone()), Some(right_id.clone())],
     );
-    let materialized = materialize_conflict_string(store, path, &conflict);
+    let materialized =
+        materialize_conflict_string(store, path, &conflict, ConflictMarkerStyle::Diff);
     insta::assert_snapshot!(
         materialized,
         @r###"
@@ -353,7 +355,8 @@ fn test_materialize_conflict_no_newlines_at_eof() {
         vec![Some(base_id.clone())],
         vec![Some(left_empty_id.clone()), Some(right_id.clone())],
     );
-    let materialized = &materialize_conflict_string(store, path, &conflict);
+    let materialized =
+        &materialize_conflict_string(store, path, &conflict, ConflictMarkerStyle::Diff);
     insta::assert_snapshot!(materialized,
         @r###"
     <<<<<<< Conflict 1 of 1
@@ -413,7 +416,7 @@ fn test_materialize_conflict_modify_delete() {
         vec![Some(base_id.clone())],
         vec![Some(modified_id.clone()), Some(deleted_id.clone())],
     );
-    insta::assert_snapshot!(&materialize_conflict_string(store, path, &conflict), @r###"
+    insta::assert_snapshot!(&materialize_conflict_string(store, path, &conflict, ConflictMarkerStyle::Diff), @r###"
     line 1
     line 2
     <<<<<<< Conflict 1 of 1
@@ -432,7 +435,7 @@ fn test_materialize_conflict_modify_delete() {
         vec![Some(base_id.clone())],
         vec![Some(deleted_id.clone()), Some(modified_id.clone())],
     );
-    insta::assert_snapshot!(&materialize_conflict_string(store, path, &conflict), @r###"
+    insta::assert_snapshot!(&materialize_conflict_string(store, path, &conflict, ConflictMarkerStyle::Diff), @r###"
     line 1
     line 2
     <<<<<<< Conflict 1 of 1
@@ -451,7 +454,7 @@ fn test_materialize_conflict_modify_delete() {
         vec![Some(base_id.clone())],
         vec![Some(modified_id.clone()), None],
     );
-    insta::assert_snapshot!(&materialize_conflict_string(store, path, &conflict), @r###"
+    insta::assert_snapshot!(&materialize_conflict_string(store, path, &conflict, ConflictMarkerStyle::Diff), @r###"
     <<<<<<< Conflict 1 of 1
     %%%%%%% Changes from base to side #1
      line 1
@@ -503,7 +506,7 @@ fn test_materialize_conflict_two_forward_diffs() {
         ],
     );
     insta::assert_snapshot!(
-        &materialize_conflict_string(store, path, &conflict),
+        &materialize_conflict_string(store, path, &conflict, ConflictMarkerStyle::Diff),
         @r###"
     <<<<<<< Conflict 1 of 1
     +++++++ Contents of side #1
@@ -919,9 +922,10 @@ fn test_update_conflict_from_content() {
 
     // If the content is unchanged compared to the materialized value, we get the
     // old conflict id back.
-    let materialized = materialize_conflict_string(store, path, &conflict);
+    let materialized =
+        materialize_conflict_string(store, path, &conflict, ConflictMarkerStyle::Diff);
     let parse = |content| {
-        update_from_content(&conflict, store, path, content)
+        update_from_content(&conflict, store, path, content, ConflictMarkerStyle::Diff)
             .block_on()
             .unwrap()
     };
@@ -968,9 +972,10 @@ fn test_update_conflict_from_content_modify_delete() {
 
     // If the content is unchanged compared to the materialized value, we get the
     // old conflict id back.
-    let materialized = materialize_conflict_string(store, path, &conflict);
+    let materialized =
+        materialize_conflict_string(store, path, &conflict, ConflictMarkerStyle::Diff);
     let parse = |content| {
-        update_from_content(&conflict, store, path, content)
+        update_from_content(&conflict, store, path, content, ConflictMarkerStyle::Diff)
             .block_on()
             .unwrap()
     };
@@ -1021,10 +1026,12 @@ fn test_update_conflict_from_content_simplified_conflict() {
     // If the content is unchanged compared to the materialized value, we get the
     // old conflict id back. Both the simplified and unsimplified materialized
     // conflicts should return the old conflict id.
-    let materialized = materialize_conflict_string(store, path, &conflict);
-    let materialized_simplified = materialize_conflict_string(store, path, &simplified_conflict);
+    let materialized =
+        materialize_conflict_string(store, path, &conflict, ConflictMarkerStyle::Diff);
+    let materialized_simplified =
+        materialize_conflict_string(store, path, &simplified_conflict, ConflictMarkerStyle::Diff);
     let parse = |content| {
-        update_from_content(&conflict, store, path, content)
+        update_from_content(&conflict, store, path, content, ConflictMarkerStyle::Diff)
             .block_on()
             .unwrap()
     };
@@ -1148,9 +1155,11 @@ fn materialize_conflict_string(
     store: &Store,
     path: &RepoPath,
     conflict: &Merge<Option<FileId>>,
+    conflict_marker_style: ConflictMarkerStyle,
 ) -> String {
     let contents = extract_as_single_hunk(conflict, store, path)
         .block_on()
         .unwrap();
-    String::from_utf8(materialize_merge_result_to_bytes(&contents).into()).unwrap()
+    String::from_utf8(materialize_merge_result_to_bytes(&contents, conflict_marker_style).into())
+        .unwrap()
 }

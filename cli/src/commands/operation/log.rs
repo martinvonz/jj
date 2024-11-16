@@ -167,8 +167,15 @@ fn do_op_log(
                 )?
             };
             let path_converter = workspace_env.path_converter();
-            let diff_renderer = (!diff_formats.is_empty())
-                .then(|| DiffRenderer::new(repo.as_ref(), path_converter, diff_formats.clone()));
+            let conflict_marker_style = workspace_env.conflict_marker_style();
+            let diff_renderer = (!diff_formats.is_empty()).then(|| {
+                DiffRenderer::new(
+                    repo.as_ref(),
+                    path_converter,
+                    conflict_marker_style,
+                    diff_formats.clone(),
+                )
+            });
 
             show_op_diff(
                 ui,

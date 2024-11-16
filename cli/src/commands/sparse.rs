@@ -211,11 +211,12 @@ fn update_sparse_patterns_with(
     workspace_command: &mut WorkspaceCommandHelper,
     f: impl FnOnce(&mut Ui, &[RepoPathBuf]) -> Result<Vec<RepoPathBuf>, CommandError>,
 ) -> Result<(), CommandError> {
+    let checkout_options = workspace_command.checkout_options();
     let (mut locked_ws, wc_commit) = workspace_command.start_working_copy_mutation()?;
     let new_patterns = f(ui, locked_ws.locked_wc().sparse_patterns()?)?;
     let stats = locked_ws
         .locked_wc()
-        .set_sparse_patterns(new_patterns)
+        .set_sparse_patterns(new_patterns, &checkout_options)
         .map_err(|err| internal_error_with_message("Failed to update working copy paths", err))?;
     let operation_id = locked_ws.locked_wc().old_operation_id().clone();
     locked_ws.finish(operation_id)?;

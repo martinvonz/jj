@@ -44,6 +44,7 @@ pub(crate) fn cmd_file_untrack(
     args: &FileUntrackArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
+    let conflict_marker_style = workspace_command.env().conflict_marker_style();
     let store = workspace_command.repo().store().clone();
     let matcher = workspace_command
         .parse_file_patterns(ui, &args.paths)?
@@ -75,6 +76,7 @@ pub(crate) fn cmd_file_untrack(
         progress: None,
         start_tracking_matcher: &auto_tracking_matcher,
         max_new_file_size: command.settings().max_new_file_size()?,
+        conflict_marker_style,
     })?;
     if wc_tree_id != *new_commit.tree_id() {
         let wc_tree = store.get_root_tree(&wc_tree_id)?;

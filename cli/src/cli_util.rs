@@ -58,6 +58,7 @@ use jj_lib::backend::TreeValue;
 use jj_lib::commit::Commit;
 use jj_lib::config::ConfigError;
 use jj_lib::config::ConfigNamePathBuf;
+use jj_lib::conflicts::ConflictMarkerStyle;
 use jj_lib::file_util;
 use jj_lib::fileset;
 use jj_lib::fileset::FilesetDiagnostics;
@@ -113,6 +114,7 @@ use jj_lib::str_util::StringPattern;
 use jj_lib::transaction::Transaction;
 use jj_lib::view::View;
 use jj_lib::working_copy;
+use jj_lib::working_copy::CheckoutOptions;
 use jj_lib::working_copy::CheckoutStats;
 use jj_lib::working_copy::SnapshotOptions;
 use jj_lib::working_copy::WorkingCopy;
@@ -457,6 +459,7 @@ impl CommandHelper {
                 let stale_wc_commit = repo.store().get_commit(wc_commit_id)?;
 
                 let mut workspace_command = self.workspace_helper_no_snapshot(ui)?;
+                let checkout_options = workspace_command.checkout_options();
 
                 let repo = workspace_command.repo().clone();
                 let (mut locked_ws, desired_wc_commit) =
@@ -479,6 +482,7 @@ impl CommandHelper {
                             repo.op_id().clone(),
                             &stale_wc_commit,
                             &desired_wc_commit,
+                            &checkout_options,
                         )?;
 
                         // TODO: Share this code with new/checkout somehow.
@@ -710,6 +714,7 @@ pub struct WorkspaceCommandEnvironment {
     workspace_id: WorkspaceId,
     immutable_heads_expression: Rc<UserRevsetExpression>,
     short_prefixes_expression: Option<Rc<UserRevsetExpression>>,
+    conflict_marker_style: ConflictMarkerStyle,
 }
 
 impl WorkspaceCommandEnvironment {
@@ -730,6 +735,7 @@ impl WorkspaceCommandEnvironment {
             workspace_id: workspace.workspace_id().to_owned(),
             immutable_heads_expression: RevsetExpression::root(),
             short_prefixes_expression: None,
+            conflict_marker_style: command.settings().conflict_marker_style()?,
         };
         env.immutable_heads_expression = env.load_immutable_heads_expression(ui)?;
         env.short_prefixes_expression = env.load_short_prefixes_expression(ui)?;
@@ -789,6 +795,11 @@ impl WorkspaceCommandEnvironment {
     /// User-configured expression defining the heads of the immutable set.
     pub fn immutable_heads_expression(&self) -> &Rc<UserRevsetExpression> {
         &self.immutable_heads_expression
+    }
+
+    /// User-configured conflict marker style for materializing conflicts
+    pub fn conflict_marker_style(&self) -> ConflictMarkerStyle {
+        self.conflict_marker_style
     }
 
     fn load_immutable_heads_expression(
@@ -896,6 +907,7 @@ impl WorkspaceCommandEnvironment {
             self.revset_parse_context(),
             id_prefix_context,
             self.immutable_expression(),
+            self.conflict_marker_style,
             &self.command.data.commit_template_extensions,
         )
     }
@@ -1138,6 +1150,12 @@ impl WorkspaceCommandHelper {
         &self.env
     }
 
+    pub fn checkout_options(&self) -> CheckoutOptions {
+        CheckoutOptions {
+            conflict_marker_style: self.env.conflict_marker_style(),
+        }
+    }
+
     pub fn unchecked_start_working_copy_mutation(
         &mut self,
     ) -> Result<(LockedWorkspace, Commit), CommandError> {
@@ -1321,7 +1339,12 @@ to the current parents may contain changes from multiple commits.
 
     /// Creates textual diff renderer of the specified `formats`.
     pub fn diff_renderer(&self, formats: Vec<DiffFormat>) -> DiffRenderer<'_> {
-        DiffRenderer::new(self.repo().as_ref(), self.path_converter(), formats)
+        DiffRenderer::new(
+            self.repo().as_ref(),
+            self.path_converter(),
+            self.env.conflict_marker_style(),
+            formats,
+        )
     }
 
     /// Loads textual diff renderer from the settings and command arguments.
@@ -1354,13 +1377,20 @@ to the current parents may contain changes from multiple commits.
         tool_name: Option<&str>,
     ) -> Result<DiffEditor, CommandError> {
         let base_ignores = self.base_ignores()?;
+        let conflict_marker_style = self.env.conflict_marker_style();
         if let Some(name) = tool_name {
-            Ok(DiffEditor::with_name(name, self.settings(), base_ignores)?)
+            Ok(DiffEditor::with_name(
+                name,
+                self.settings(),
+                base_ignores,
+                conflict_marker_style,
+            )?)
         } else {
             Ok(DiffEditor::from_settings(
                 ui,
                 self.settings(),
                 base_ignores,
+                conflict_marker_style,
             )?)
         }
     }
@@ -1389,10 +1419,11 @@ to the current parents may contain changes from multiple commits.
         ui: &Ui,
         tool_name: Option<&str>,
     ) -> Result<MergeEditor, MergeToolConfigError> {
+        let conflict_marker_style = self.env.conflict_marker_style();
         if let Some(name) = tool_name {
-            MergeEditor::with_name(name, self.settings())
+            MergeEditor::with_name(name, self.settings(), conflict_marker_style)
         } else {
-            MergeEditor::from_settings(ui, self.settings())
+            MergeEditor::from_settings(ui, self.settings(), conflict_marker_style)
         }
     }
 
@@ -1720,6 +1751,7 @@ to the current parents may contain changes from multiple commits.
             .settings()
             .max_new_file_size()
             .map_err(snapshot_command_error)?;
+        let conflict_marker_style = self.env.conflict_marker_style();
         let command = self.env.command.clone();
         let mut locked_ws = self
             .workspace
@@ -1787,6 +1819,7 @@ See https://martinvonz.github.io/jj/latest/working-copy/#stale-working-copy \
                 progress: progress.as_ref().map(|x| x as _),
                 start_tracking_matcher: &auto_tracking_matcher,
                 max_new_file_size,
+                conflict_marker_style,
             })
             .map_err(snapshot_command_error)?;
         drop(progress);
@@ -1842,11 +1875,13 @@ See https://martinvonz.github.io/jj/latest/working-copy/#stale-working-copy \
         new_commit: &Commit,
     ) -> Result<(), CommandError> {
         assert!(self.may_update_working_copy);
+        let checkout_options = self.checkout_options();
         let stats = update_working_copy(
             &self.user_repo.repo,
             &mut self.workspace,
             maybe_old_commit,
             new_commit,
+            &checkout_options,
         )?;
         if Some(new_commit) != maybe_old_commit {
             if let Some(mut formatter) = ui.status_formatter() {
@@ -2101,7 +2136,7 @@ See https://martinvonz.github.io/jj/latest/working-copy/#stale-working-copy \
                     .collect(),
             )?;
         }
-        revset_util::warn_unresolvable_trunk(ui, new_repo, &self.env().revset_parse_context())?;
+        revset_util::warn_unresolvable_trunk(ui, new_repo, &self.env.revset_parse_context())?;
 
         Ok(())
     }
@@ -2409,18 +2444,22 @@ fn update_stale_working_copy(
     op_id: OperationId,
     stale_commit: &Commit,
     new_commit: &Commit,
+    options: &CheckoutOptions,
 ) -> Result<CheckoutStats, CommandError> {
     // The same check as start_working_copy_mutation(), but with the stale
     // working-copy commit.
     if stale_commit.tree_id() != locked_ws.locked_wc().old_tree_id() {
         return Err(user_error("Concurrent working copy operation. Try again."));
     }
-    let stats = locked_ws.locked_wc().check_out(new_commit).map_err(|err| {
-        internal_error_with_message(
-            format!("Failed to check out commit {}", new_commit.id().hex()),
-            err,
-        )
-    })?;
+    let stats = locked_ws
+        .locked_wc()
+        .check_out(new_commit, options)
+        .map_err(|err| {
+            internal_error_with_message(
+                format!("Failed to check out commit {}", new_commit.id().hex()),
+                err,
+            )
+        })?;
     locked_ws.finish(op_id)?;
 
     Ok(stats)
@@ -2616,13 +2655,19 @@ pub fn update_working_copy(
     workspace: &mut Workspace,
     old_commit: Option<&Commit>,
     new_commit: &Commit,
+    options: &CheckoutOptions,
 ) -> Result<Option<CheckoutStats>, CommandError> {
     let old_tree_id = old_commit.map(|commit| commit.tree_id().clone());
     let stats = if Some(new_commit.tree_id()) != old_tree_id.as_ref() {
         // TODO: CheckoutError::ConcurrentCheckout should probably just result in a
         // warning for most commands (but be an error for the checkout command)
         let stats = workspace
-            .check_out(repo.op_id().clone(), old_tree_id.as_ref(), new_commit)
+            .check_out(
+                repo.op_id().clone(),
+                old_tree_id.as_ref(),
+                new_commit,
+                options,
+            )
             .map_err(|err| {
                 internal_error_with_message(
                     format!("Failed to check out commit {}", new_commit.id().hex()),
