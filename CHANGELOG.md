@@ -71,6 +71,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   "diff3" conflict style, meaning it is more likely to work with external tools,
   but it doesn't support conflicts with more than 2 sides.
 
+* New `merge-tools.<TOOL>.conflict-marker-style` config option to override the
+  conflict marker style used for a specific merge tool.
+
 * `jj simplify-parents` now supports configuring the default revset when no
    `--source` or `--revisions` arguments are provided with the
    `revsets.simplify-parents` config.

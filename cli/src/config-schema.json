@@ -35,6 +35,18 @@
         "ui": {
             "type": "object",
             "description": "UI settings",
+            "definitions": {
+                "conflict-marker-style": {
+                    "type": "string",
+                    "description": "Conflict marker style to use when materializing conflicts in the working copy",
+                    "enum": [
+                        "diff",
+                        "snapshot",
+                        "git"
+                    ],
+                    "default": "diff"
+                }
+            },
             "properties": {
                 "allow-init-native": {
                     "type": "boolean",
@@ -160,14 +172,7 @@
                     "description": "Tool to use for resolving three-way merges. Behavior for a given tool name can be configured in merge-tools.TOOL tables"
                 },
                 "conflict-marker-style": {
-                    "type": "string",
-                    "description": "Conflict marker style to use when materializing conflicts in the working copy",
-                    "enum": [
-                        "diff",
-                        "snapshot",
-                        "git"
-                    ],
-                    "default": "diff"
+                    "$ref": "#/properties/ui/definitions/conflict-marker-style"
                 }
             }
         },
@@ -399,6 +404,9 @@
                         "type": "boolean",
                         "description": "Whether to populate the output file with conflict markers before starting the merge tool. See https://martinvonz.github.io/jj/latest/config/#editing-conflict-markers-with-a-tool-or-a-text-editor",
                         "default": false
+                    },
+                    "conflict-marker-style": {
+                        "$ref": "#/properties/ui/definitions/conflict-marker-style"
                     }
                 }
             }

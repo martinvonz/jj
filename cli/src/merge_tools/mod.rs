@@ -30,7 +30,6 @@ use jj_lib::repo_path::RepoPath;
 use jj_lib::repo_path::RepoPathBuf;
 use jj_lib::settings::ConfigResultExt as _;
 use jj_lib::settings::UserSettings;
-use jj_lib::working_copy::CheckoutOptions;
 use jj_lib::working_copy::SnapshotError;
 use pollster::FutureExt;
 use thiserror::Error;
@@ -239,9 +238,6 @@ impl DiffEditor {
         matcher: &dyn Matcher,
         format_instructions: impl FnOnce() -> String,
     ) -> Result<MergedTreeId, DiffEditError> {
-        let checkout_options = CheckoutOptions {
-            conflict_marker_style: self.conflict_marker_style,
-        };
         match &self.tool {
             MergeTool::Builtin => {
                 Ok(
@@ -258,7 +254,7 @@ impl DiffEditor {
                     matcher,
                     instructions.as_deref(),
                     self.base_ignores.clone(),
-                    &checkout_options,
+                    self.conflict_marker_style,
                 )
             }
         }
@@ -406,6 +402,7 @@ mod tests {
                 ],
                 merge_args: [],
                 merge_tool_edits_conflict_markers: false,
+                conflict_marker_style: None,
             },
         )
         "###);
@@ -433,6 +430,7 @@ mod tests {
                 ],
                 merge_args: [],
                 merge_tool_edits_conflict_markers: false,
+                conflict_marker_style: None,
             },
         )
         "###);
@@ -472,6 +470,7 @@ mod tests {
                 ],
                 merge_args: [],
                 merge_tool_edits_conflict_markers: false,
+                conflict_marker_style: None,
             },
         )
         "###);
@@ -495,6 +494,7 @@ mod tests {
                 ],
                 merge_args: [],
                 merge_tool_edits_conflict_markers: false,
+                conflict_marker_style: None,
             },
         )
         "###);
@@ -517,6 +517,7 @@ mod tests {
                 ],
                 merge_args: [],
                 merge_tool_edits_conflict_markers: false,
+                conflict_marker_style: None,
             },
         )
         "###);
@@ -545,6 +546,7 @@ mod tests {
                 ],
                 merge_args: [],
                 merge_tool_edits_conflict_markers: false,
+                conflict_marker_style: None,
             },
         )
         "###);
@@ -571,6 +573,7 @@ mod tests {
                 ],
                 merge_args: [],
                 merge_tool_edits_conflict_markers: false,
+                conflict_marker_style: None,
             },
         )
         "###);
@@ -591,6 +594,7 @@ mod tests {
                 ],
                 merge_args: [],
                 merge_tool_edits_conflict_markers: false,
+                conflict_marker_style: None,
             },
         )
         "###);
@@ -643,6 +647,7 @@ mod tests {
                     "$output",
                 ],
                 merge_tool_edits_conflict_markers: false,
+                conflict_marker_style: None,
             },
         )
         "###);
@@ -690,6 +695,7 @@ mod tests {
                     "$output",
                 ],
                 merge_tool_edits_conflict_markers: false,
+                conflict_marker_style: None,
             },
         )
         "###);
@@ -718,6 +724,7 @@ mod tests {
                     "$output",
                 ],
                 merge_tool_edits_conflict_markers: false,
+                conflict_marker_style: None,
             },
         )
         "###);
@@ -749,6 +756,7 @@ mod tests {
                     "$output",
                 ],
                 merge_tool_edits_conflict_markers: false,
+                conflict_marker_style: None,
             },
         )
         "###);

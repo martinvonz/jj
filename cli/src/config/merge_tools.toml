@@ -39,6 +39,7 @@ program = "vim"
 merge-args = ["-f", "-d", "$output", "-M", "$left", "$base", "$right",
               "-c", "wincmd J", "-c", "set modifiable", "-c", "set write"]
 merge-tool-edits-conflict-markers = true
+conflict-marker-style = "snapshot"
 # Using vimdiff as a diff editor is not recommended. For instructions on configuring
 # the DirDiff Vim plugin for a better experience, see
 # https://gist.github.com/ilyagr/5d6339fb7dac5e7ab06fe1561ec62d45
@@ -52,10 +53,13 @@ merge-args = ["--wait", "--merge", "$left", "$right", "$base", "$output"]
 # markers. Unfortunately, it does not seem to be able to output conflict markers when
 # the user only resolves some of the conflicts.
 merge-tool-edits-conflict-markers = true
+# VS Code prefers Git-style conflict markers
+conflict-marker-style = "git"
 
 # free/libre distribution of vscode, functionally more or less the same
 [merge-tools.vscodium]
 program = "codium"
 merge-args = ["--wait", "--merge", "$left", "$right", "$base", "$output"]
 merge-tool-edits-conflict-markers = true
+conflict-marker-style = "git"
 
