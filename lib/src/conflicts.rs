@@ -240,6 +240,8 @@ pub enum ConflictMarkerStyle {
     /// Style which shows a snapshot and a series of diffs to apply.
     #[default]
     Diff,
+    /// Style which shows a snapshot for each base and side.
+    Snapshot,
 }
 
 pub fn materialize_merge_result<T: AsRef<[u8]>>(
@@ -274,7 +276,7 @@ pub fn materialize_merge_result_to_bytes<T: AsRef<[u8]>>(
 
 fn materialize_conflict_hunks(
     hunks: &[Merge<BString>],
-    _conflict_marker_style: ConflictMarkerStyle,
+    conflict_marker_style: ConflictMarkerStyle,
     output: &mut dyn Write,
 ) -> io::Result<()> {
     // Write a positive snapshot (side) of a conflict
@@ -338,6 +340,15 @@ fn materialize_conflict_hunks(
                     write_base(&base_str, left, output)?;
                     continue;
                 };
+
+                // For any style other than "diff", always emit sides and bases separately
+                if conflict_marker_style != ConflictMarkerStyle::Diff {
+                    write_side(add_index, right1, output)?;
+                    write_base(&base_str, left, output)?;
+                    add_index += 1;
+                    continue;
+                }
+
                 let diff1 = Diff::by_line([&left, &right1]).hunks().collect_vec();
                 // Check if the diff against the next positive term is better. Since
                 // we want to preserve the order of the terms, we don't match against

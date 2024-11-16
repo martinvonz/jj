@@ -66,6 +66,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * New `ui.conflict-marker-style` config option to change how conflicts are
   materialized in the working copy. The default option ("diff") renders
   conflicts as a snapshot with a list of diffs to apply to the snapshot.
+  The new "snapshot" option renders conflicts as a series of snapshots, showing
+  each side and base of the conflict.
 
 ### Fixed bugs
 

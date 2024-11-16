@@ -116,6 +116,145 @@ fn test_materialize_conflict_basic() {
     line 5
     "###
     );
+    // Test materializing "snapshot" conflict markers
+    let conflict = Merge::from_removes_adds(
+        vec![Some(base_id.clone())],
+        vec![Some(left_id.clone()), Some(right_id.clone())],
+    );
+    insta::assert_snapshot!(
+        &materialize_conflict_string(store, path, &conflict, ConflictMarkerStyle::Snapshot),
+        @r##"
+    line 1
+    line 2
+    <<<<<<< Conflict 1 of 1
+    +++++++ Contents of side #1
+    left 3.1
+    left 3.2
+    left 3.3
+    ------- Contents of base
+    line 3
+    +++++++ Contents of side #2
+    right 3.1
+    >>>>>>> Conflict 1 of 1 ends
+    line 4
+    line 5
+    "##
+    );
+}
+
+#[test]
+fn test_materialize_conflict_three_sides() {
+    let test_repo = TestRepo::init();
+    let store = test_repo.repo.store();
+
+    let path = RepoPath::from_internal_string("file");
+    let base_1_id = testutils::write_file(
+        store,
+        path,
+        indoc! {"
+            line 1
+            line 2 base
+            line 3 base
+            line 4 base
+            line 5
+        "},
+    );
+    let base_2_id = testutils::write_file(
+        store,
+        path,
+        indoc! {"
+            line 1
+            line 2 base
+            line 5
+        "},
+    );
+    let a_id = testutils::write_file(
+        store,
+        path,
+        indoc! {"
+            line 1
+            line 2 a.1
+            line 3 a.2
+            line 4 base
+            line 5
+        "},
+    );
+    let b_id = testutils::write_file(
+        store,
+        path,
+        indoc! {"
+            line 1
+            line 2 b.1
+            line 3 base
+            line 4 b.2
+            line 5
+        "},
+    );
+    let c_id = testutils::write_file(
+        store,
+        path,
+        indoc! {"
+            line 1
+            line 2 base
+            line 3 c.2
+            line 5
+        "},
+    );
+
+    let conflict = Merge::from_removes_adds(
+        vec![Some(base_1_id.clone()), Some(base_2_id.clone())],
+        vec![Some(a_id.clone()), Some(b_id.clone()), Some(c_id.clone())],
+    );
+    // Test materializing "diff" conflict markers
+    insta::assert_snapshot!(
+        &materialize_conflict_string(store, path, &conflict, ConflictMarkerStyle::Diff),
+        @r##"
+    line 1
+    <<<<<<< Conflict 1 of 1
+    %%%%%%% Changes from base #1 to side #1
+    -line 2 base
+    -line 3 base
+    +line 2 a.1
+    +line 3 a.2
+     line 4 base
+    +++++++ Contents of side #2
+    line 2 b.1
+    line 3 base
+    line 4 b.2
+    %%%%%%% Changes from base #2 to side #3
+     line 2 base
+    +line 3 c.2
+    >>>>>>> Conflict 1 of 1 ends
+    line 5
+    "##
+    );
+    // Test materializing "snapshot" conflict markers
+    insta::assert_snapshot!(
+        &materialize_conflict_string(store, path, &conflict, ConflictMarkerStyle::Snapshot),
+        @r##"
+    line 1
+    <<<<<<< Conflict 1 of 1
+    +++++++ Contents of side #1
+    line 2 a.1
+    line 3 a.2
+    line 4 base
+    ------- Contents of base #1
+    line 2 base
+    line 3 base
+    line 4 base
+    +++++++ Contents of side #2
+    line 2 b.1
+    line 3 base
+    line 4 b.2
+    ------- Contents of base #2
+    line 2 base
+    +++++++ Contents of side #3
+    line 2 base
+    line 3 c.2
+    >>>>>>> Conflict 1 of 1 ends
+    line 5
+    "##
+    );
 }
 
 #[test]
@@ -339,6 +478,72 @@ fn test_materialize_parse_roundtrip() {
         ],
     )
     "###);
+}
+
+#[test]
+fn test_materialize_parse_roundtrip_different_markers() {
+    let test_repo = TestRepo::init();
+    let store = test_repo.repo.store();
+
+    let path = RepoPath::from_internal_string("file");
+    let base_id = testutils::write_file(
+        store,
+        path,
+        indoc! {"
+            line 1
+            line 2 base
+            line 3 base
+            line 4 base
+            line 5
+        "},
+    );
+    let a_id = testutils::write_file(
+        store,
+        path,
+        indoc! {"
+            line 1
+            line 2 a.1
+            line 3 a.2
+            line 4 base
+            line 5
+        "},
+    );
+    let b_id = testutils::write_file(
+        store,
+        path,
+        indoc! {"
+            line 1
+            line 2 b.1
+            line 3 base
+            line 4 b.2
+            line 5
+        "},
+    );
+
+    let conflict = Merge::from_removes_adds(
+        vec![Some(base_id.clone())],
+        vec![Some(a_id.clone()), Some(b_id.clone())],
+    );
+
+    let all_styles = [ConflictMarkerStyle::Diff, ConflictMarkerStyle::Snapshot];
+
+    // For every pair of conflict marker styles, materialize the conflict using the
+    // first style and parse it using the second. It should return the same result
+    // regardless of the conflict markers used for materialization and parsing.
+    for materialize_style in all_styles {
+        let materialized = materialize_conflict_string(store, path, &conflict, materialize_style);
+        for parse_style in all_styles {
+            let parsed =
+                update_from_content(&conflict, store, path, materialized.as_bytes(), parse_style)
+                    .block_on()
+                    .unwrap();
+
+            assert_eq!(
+                parsed, conflict,
+                "parse {materialize_style:?} conflict markers with {parse_style:?}"
+            );
+        }
+    }
 }
 
 #[test]
@@ -615,6 +820,84 @@ fn test_parse_conflict_simple() {
     )
     "###
     );
+    // Test "snapshot" style
+    insta::assert_debug_snapshot!(
+        parse_conflict(indoc! {b"
+            line 1
+            <<<<<<< Random text
+            +++++++ Random text
+            line 3.1
+            line 3.2
+            ------- Random text
+            line 3
+            line 4
+            +++++++ Random text
+            line 3
+            line 4.1
+            >>>>>>> Random text
+            line 5
+            "},
+            2
+        ),
+        @r#"
+    Some(
+        [
+            Resolved(
+                "line 1\n",
+            ),
+            Conflicted(
+                [
+                    "line 3.1\nline 3.2\n",
+                    "line 3\nline 4\n",
+                    "line 3\nline 4.1\n",
+                ],
+            ),
+            Resolved(
+                "line 5\n",
+            ),
+        ],
+    )
+    "#
+    );
+    // Test "snapshot" style with reordered sections
+    insta::assert_debug_snapshot!(
+        parse_conflict(indoc! {b"
+            line 1
+            <<<<<<< Random text
+            ------- Random text
+            line 3
+            line 4
+            +++++++ Random text
+            line 3.1
+            line 3.2
+            +++++++ Random text
+            line 3
+            line 4.1
+            >>>>>>> Random text
+            line 5
+            "},
+            2
+        ),
+        @r#"
+    Some(
+        [
+            Resolved(
+                "line 1\n",
+            ),
+            Conflicted(
+                [
+                    "line 3.1\nline 3.2\n",
+                    "line 3\nline 4\n",
+                    "line 3\nline 4.1\n",
+                ],
+            ),
+            Resolved(
+                "line 5\n",
+            ),
+        ],
+    )
+    "#
+    );
     // The conflict markers are too long and shouldn't parse (though we may
     // decide to change this in the future)
     insta::assert_debug_snapshot!(
@@ -725,6 +1008,52 @@ fn test_parse_conflict_multi_way() {
         ],
     )
     "###
+    );
+    // Test "snapshot" style
+    insta::assert_debug_snapshot!(
+        parse_conflict(indoc! {b"
+            line 1
+            <<<<<<< Random text
+            +++++++ Random text
+            line 3.1
+            line 3.2
+            +++++++ Random text
+            line 3
+            line 4.1
+            ------- Random text
+            line 3
+            line 4
+            ------- Random text
+            line 3
+            +++++++ Random text
+            line 3
+            line 4
+            >>>>>>> Random text
+            line 5
+            "},
+            3
+        ),
+        @r#"
+    Some(
+        [
+            Resolved(
+                "line 1\n",
+            ),
+            Conflicted(
+                [
+                    "line 3.1\nline 3.2\n",
+                    "line 3\nline 4\n",
+                    "line 3\nline 4.1\n",
+                    "line 3\n",
+                    "line 3\nline 4\n",
+                ],
+            ),
+            Resolved(
+                "line 5\n",
+            ),
+        ],
+    )
+    "#
     );
 }
 
@@ -895,6 +1224,28 @@ fn test_parse_conflict_malformed_diff() {
             -line 3
             +left
             line 4
+            +++++++
+            right
+            >>>>>>>
+            line 5
+            "},
+            2
+        ),
+        None
+    );
+}
+
+#[test]
+fn test_parse_conflict_snapshot_missing_header() {
+    // The "+++++++" header is missing
+    assert_eq!(
+        parse_conflict(
+            indoc! {b"
+            line 1
+            <<<<<<<
+            left
+            -------
+            base
             +++++++
             right
             >>>>>>>
