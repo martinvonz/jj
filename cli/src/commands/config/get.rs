@@ -14,11 +14,13 @@
 
 use std::io::Write as _;
 
+use clap_complete::ArgValueCandidates;
 use tracing::instrument;
 
 use crate::cli_util::CommandHelper;
 use crate::command_error::config_error;
 use crate::command_error::CommandError;
+use crate::complete;
 use crate::config::ConfigNamePathBuf;
 use crate::ui::Ui;
 
@@ -34,7 +36,7 @@ use crate::ui::Ui;
 #[derive(clap::Args, Clone, Debug)]
 #[command(verbatim_doc_comment)]
 pub struct ConfigGetArgs {
-    #[arg(required = true)]
+    #[arg(required = true, add = ArgValueCandidates::new(complete::leaf_config_keys))]
     name: ConfigNamePathBuf,
 }
 

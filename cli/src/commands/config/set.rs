@@ -14,6 +14,7 @@
 
 use std::io;
 
+use clap_complete::ArgValueCandidates;
 use jj_lib::commit::Commit;
 use jj_lib::repo::Repo;
 use tracing::instrument;
@@ -24,6 +25,7 @@ use crate::cli_util::CommandHelper;
 use crate::cli_util::WorkspaceCommandHelper;
 use crate::command_error::user_error;
 use crate::command_error::CommandError;
+use crate::complete;
 use crate::config::parse_toml_value_or_bare_string;
 use crate::config::write_config_value_to_file;
 use crate::config::ConfigNamePathBuf;
@@ -32,7 +34,7 @@ use crate::ui::Ui;
 /// Update config file to set the given option to a given value.
 #[derive(clap::Args, Clone, Debug)]
 pub struct ConfigSetArgs {
-    #[arg(required = true)]
+    #[arg(required = true, add = ArgValueCandidates::new(complete::leaf_config_keys))]
     name: ConfigNamePathBuf,
     #[arg(required = true)]
     value: String,

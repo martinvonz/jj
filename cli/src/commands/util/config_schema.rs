@@ -16,6 +16,7 @@ use std::io::Write as _;
 
 use crate::cli_util::CommandHelper;
 use crate::command_error::CommandError;
+use crate::config::CONFIG_SCHEMA;
 use crate::ui::Ui;
 
 /// Print the JSON schema for the jj TOML config format.
@@ -27,8 +28,6 @@ pub fn cmd_util_config_schema(
     _command: &CommandHelper,
     _args: &UtilConfigSchemaArgs,
 ) -> Result<(), CommandError> {
-    // TODO(#879): Consider generating entire schema dynamically vs. static file.
-    let buf = include_bytes!("../../config-schema.json");
-    ui.stdout().write_all(buf)?;
+    ui.stdout().write_all(CONFIG_SCHEMA.as_bytes())?;
     Ok(())
 }

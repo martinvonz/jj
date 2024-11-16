@@ -1845,6 +1845,7 @@ dependencies = [
  "sapling-renderdag",
  "scm-record",
  "serde",
+ "serde_json",
  "slab",
  "strsim",
  "tempfile",

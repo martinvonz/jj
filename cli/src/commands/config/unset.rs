@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use clap_complete::ArgValueCandidates;
 use tracing::instrument;
 
 use super::ConfigLevelArgs;
@@ -19,6 +20,7 @@ use crate::cli_util::get_new_config_file_path;
 use crate::cli_util::CommandHelper;
 use crate::command_error::user_error;
 use crate::command_error::CommandError;
+use crate::complete;
 use crate::config::remove_config_value_from_file;
 use crate::config::ConfigNamePathBuf;
 use crate::ui::Ui;
@@ -26,7 +28,7 @@ use crate::ui::Ui;
 /// Update config file to unset the given option.
 #[derive(clap::Args, Clone, Debug)]
 pub struct ConfigUnsetArgs {
-    #[arg(required = true)]
+    #[arg(required = true, add = ArgValueCandidates::new(complete::leaf_config_keys))]
     name: ConfigNamePathBuf,
     #[command(flatten)]
     level: ConfigLevelArgs,

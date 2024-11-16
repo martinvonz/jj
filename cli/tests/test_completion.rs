@@ -472,3 +472,25 @@ fn test_workspaces() {
     default	initial
     ");
 }
+
+#[test]
+fn test_config() {
+    let mut test_env = TestEnvironment::default();
+    test_env.add_env_var("COMPLETE", "fish");
+    let dir = test_env.env_root();
+
+    let stdout = test_env.jj_cmd_success(dir, &["--", "jj", "config", "get", "c"]);
+    insta::assert_snapshot!(stdout, @r"
+    core.fsmonitor	Whether to use an external filesystem monitor, useful for large repos
+    core.watchman.register_snapshot_trigger	Whether to use triggers to monitor for changes in the background.
+    ");
+
+    let stdout = test_env.jj_cmd_success(dir, &["--", "jj", "config", "list", "c"]);
+    insta::assert_snapshot!(stdout, @r"
+    colors	Mapping from jj formatter labels to colors
+    core
+    core.fsmonitor	Whether to use an external filesystem monitor, useful for large repos
+    core.watchman
+    core.watchman.register_snapshot_trigger	Whether to use triggers to monitor for changes in the background.
+    ");
+}

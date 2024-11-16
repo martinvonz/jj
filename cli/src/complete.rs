@@ -26,7 +26,9 @@ use crate::cli_util::GlobalArgs;
 use crate::command_error::user_error;
 use crate::command_error::CommandError;
 use crate::config::default_config;
+use crate::config::ConfigNamePathBuf;
 use crate::config::LayeredConfigs;
+use crate::config::CONFIG_SCHEMA;
 use crate::ui::Ui;
 
 const BOOKMARK_HELP_TEMPLATE: &str = r#"
@@ -292,6 +294,66 @@ pub fn workspaces() -> Vec<CompletionCandidate> {
     })
 }
 
+fn config_keys_rec(
+    prefix: ConfigNamePathBuf,
+    properties: &serde_json::Map<String, serde_json::Value>,
+    acc: &mut Vec<CompletionCandidate>,
+    only_leaves: bool,
+) {
+    for (key, value) in properties {
+        let mut prefix = prefix.clone();
+        prefix.push(key);
+
+        let value = value.as_object().unwrap();
+        match value.get("type").and_then(|v| v.as_str()) {
+            Some("object") => {
+                if !only_leaves {
+                    let help = value
+                        .get("description")
+                        .map(|desc| desc.as_str().unwrap().to_string().into());
+                    let escaped_key = prefix.to_string();
+                    acc.push(CompletionCandidate::new(escaped_key).help(help));
+                }
+                let Some(properties) = value.get("properties") else {
+                    continue;
+                };
+                let properties = properties.as_object().unwrap();
+                config_keys_rec(prefix, properties, acc, only_leaves);
+            }
+            _ => {
+                let help = value
+                    .get("description")
+                    .map(|desc| desc.as_str().unwrap().to_string().into());
+                let escaped_key = prefix.to_string();
+                acc.push(CompletionCandidate::new(escaped_key).help(help));
+            }
+        }
+    }
+}
+
+fn config_keys_impl(only_leaves: bool) -> Vec<CompletionCandidate> {
+    let schema: serde_json::Value = serde_json::from_str(CONFIG_SCHEMA).unwrap();
+    let schema = schema.as_object().unwrap();
+    let properties = schema["properties"].as_object().unwrap();
+
+    let mut candidates = Vec::new();
+    config_keys_rec(
+        ConfigNamePathBuf::root(),
+        properties,
+        &mut candidates,
+        only_leaves,
+    );
+    candidates
+}
+
+pub fn config_keys() -> Vec<CompletionCandidate> {
+    config_keys_impl(false)
+}
+
+pub fn leaf_config_keys() -> Vec<CompletionCandidate> {
+    config_keys_impl(true)
+}
+
 /// Shell out to jj during dynamic completion generation
 ///
 /// In case of errors, print them and early return an empty vector.
@@ -401,4 +463,15 @@ fn get_jj_command() -> Result<(std::process::Command, Config), CommandError> {
     cmd.args(&cmd_args);
 
     Ok((cmd, config))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_config_keys() {
+        // Just make sure the schema is parsed without failure.
+        let _ = config_keys();
+    }
 }
