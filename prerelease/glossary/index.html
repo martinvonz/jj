@@ -1921,13 +1921,15 @@ might resemble a tree even when it's not mathematically a tree).</p>
 these correspond to <a href="#bookmark">bookmarks</a>. In a co-located repository, each
 local Git branch corresponds to a <code>jj</code> bookmark.</p>
 <h2 id="change">Change<a class="headerlink" href="#change" title="Permanent link">&para;</a></h2>
-<p>A change is a commit as it <a href="#rewrite">evolves over time</a>.</p>
+<p>A change is a commit as it <a href="#rewrite">evolves over time</a>. Changes themselves
+don't exist as an object in the data model; only the change ID does. The change
+ID is a property of a commit.</p>
 <h2 id="change-id">Change ID<a class="headerlink" href="#change-id" title="Permanent link">&para;</a></h2>
 <p>A change ID is a unique identifier for a <a href="#change">change</a>. They are typically
 16 bytes long and are often randomly generated. By default, <code>jj log</code> presents
 them as a sequence of 12 letters in the k-z range, at the beginning of a line.
 These are actually hexadecimal numbers that use "digits" z-k instead of 0-9a-f.</p>
-<p>For the git backend, Change IDs are currently maintained only locally and not
+<p>For the Git backend, Change IDs are currently maintained only locally and not
 exchanged via push/fetch operations.</p>
 <h2 id="commit">Commit<a class="headerlink" href="#commit" title="Permanent link">&para;</a></h2>
 <p>A snapshot of the files in the repository at a given point in time (technically
