@@ -65,14 +65,14 @@ pub struct OperationDiffArgs {
     operation: Option<String>,
     /// Show repository changes from this operation
     #[arg(
-        long,
+        long, short,
         conflicts_with = "operation",
         add = ArgValueCandidates::new(complete::operations),
     )]
     from: Option<String>,
     /// Show repository changes to this operation
     #[arg(
-        long,
+        long, short,
         conflicts_with = "operation",
         add = ArgValueCandidates::new(complete::operations),
     )]

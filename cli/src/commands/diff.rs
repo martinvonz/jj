@@ -51,10 +51,10 @@ pub(crate) struct DiffArgs {
     #[arg(long, short, add = ArgValueCandidates::new(complete::all_revisions))]
     revision: Option<RevisionArg>,
     /// Show changes from this revision
-    #[arg(long, conflicts_with = "revision", add = ArgValueCandidates::new(complete::all_revisions))]
+    #[arg(long, short, conflicts_with = "revision", add = ArgValueCandidates::new(complete::all_revisions))]
     from: Option<RevisionArg>,
     /// Show changes to this revision
-    #[arg(long, conflicts_with = "revision", add = ArgValueCandidates::new(complete::all_revisions))]
+    #[arg(long, short, conflicts_with = "revision", add = ArgValueCandidates::new(complete::all_revisions))]
     to: Option<RevisionArg>,
     /// Restrict the diff to these paths
     #[arg(value_hint = clap::ValueHint::AnyPath)]
