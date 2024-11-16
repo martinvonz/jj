@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use indoc::indoc;
+
 use crate::common::escaped_fake_diff_editor_path;
 use crate::common::TestEnvironment;
 
@@ -233,6 +235,189 @@ fn test_diffedit_new_file() {
     D file1
     A file2
     "###);
+}
+
+#[test]
+fn test_diffedit_external_tool_conflict_marker_style() {
+    let mut test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+    let file_path = repo_path.join("file");
+
+    // Create a conflict
+    std::fs::write(
+        &file_path,
+        indoc! {"
+        line 1
+        line 2
+        line 3
+        line 4
+        line 5
+    "},
+    )
+    .unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "base"]);
+    std::fs::write(
+        &file_path,
+        indoc! {"
+        line 1
+        line 2.1
+        line 2.2
+        line 3
+        line 4.1
+        line 5
+    "},
+    )
+    .unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "side-a"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "description(base)", "-m", "side-b"]);
+    std::fs::write(
+        &file_path,
+        indoc! {"
+        line 1
+        line 2.3
+        line 3
+        line 4.2
+        line 4.3
+        line 5
+    "},
+    )
+    .unwrap();
+
+    // Resolve one of the conflicts in the working copy
+    test_env.jj_cmd_ok(
+        &repo_path,
+        &["new", "description(side-a)", "description(side-b)"],
+    );
+    std::fs::write(
+        &file_path,
+        indoc! {"
+        line 1
+        line 2.1
+        line 2.2
+        line 2.3
+        line 3
+        <<<<<<<
+        %%%%%%%
+        -line 4
+        +line 4.1
+        +++++++
+        line 4.2
+        line 4.3
+        >>>>>>>
+        line 5
+    "},
+    )
+    .unwrap();
+
+    // Set up diff editor to use "snapshot" conflict markers
+    let edit_script = test_env.set_up_fake_diff_editor();
+    test_env.add_config(r#"merge-tools.fake-diff-editor.conflict-marker-style = "snapshot""#);
+
+    // We want to see whether the diff editor is using the correct conflict markers,
+    // and reset it to make sure that it parses the conflict markers as well
+    std::fs::write(
+        &edit_script,
+        [
+            "files-before file",
+            "files-after JJ-INSTRUCTIONS file",
+            "dump file after-file",
+            "reset file",
+            "dump file before-file",
+        ]
+        .join("\0"),
+    )
+    .unwrap();
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["diffedit"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r#"
+    Created mzvwutvl 7b92839f (conflict) (empty) (no description set)
+    Working copy now at: mzvwutvl 7b92839f (conflict) (empty) (no description set)
+    Parent commit      : rlvkpnrz 3765cc27 side-a
+    Parent commit      : zsuskuln 8b3de837 side-b
+    Added 0 files, modified 1 files, removed 0 files
+    There are unresolved conflicts at these paths:
+    file    2-sided conflict
+    Existing conflicts were resolved or abandoned from these commits:
+      mzvwutvl hidden fae32b29 (conflict) (no description set)
+    "#);
+    // Conflicts should render using "snapshot" format in diff editor
+    insta::assert_snapshot!(
+        std::fs::read_to_string(test_env.env_root().join("before-file")).unwrap(), @r##"
+    line 1
+    <<<<<<< Conflict 1 of 2
+    +++++++ Contents of side #1
+    line 2.1
+    line 2.2
+    ------- Contents of base
+    line 2
+    +++++++ Contents of side #2
+    line 2.3
+    >>>>>>> Conflict 1 of 2 ends
+    line 3
+    <<<<<<< Conflict 2 of 2
+    +++++++ Contents of side #1
+    line 4.1
+    ------- Contents of base
+    line 4
+    +++++++ Contents of side #2
+    line 4.2
+    line 4.3
+    >>>>>>> Conflict 2 of 2 ends
+    line 5
+    "##);
+    insta::assert_snapshot!(
+        std::fs::read_to_string(test_env.env_root().join("after-file")).unwrap(), @r##"
+    line 1
+    line 2.1
+    line 2.2
+    line 2.3
+    line 3
+    <<<<<<< Conflict 1 of 1
+    +++++++ Contents of side #1
+    line 4.1
+    ------- Contents of base
+    line 4
+    +++++++ Contents of side #2
+    line 4.2
+    line 4.3
+    >>>>>>> Conflict 1 of 1 ends
+    line 5
+    "##);
+    // Conflicts should be materialized using "diff" format in working copy
+    insta::assert_snapshot!(
+        std::fs::read_to_string(&file_path).unwrap(), @r##"
+    line 1
+    <<<<<<< Conflict 1 of 2
+    +++++++ Contents of side #1
+    line 2.1
+    line 2.2
+    %%%%%%% Changes from base to side #2
+    -line 2
+    +line 2.3
+    >>>>>>> Conflict 1 of 2 ends
+    line 3
+    <<<<<<< Conflict 2 of 2
+    %%%%%%% Changes from base to side #1
+    -line 4
+    +line 4.1
+    +++++++ Contents of side #2
+    line 4.2
+    line 4.3
+    >>>>>>> Conflict 2 of 2 ends
+    line 5
+    "##);
+
+    // File should be conflicted with no changes
+    let stdout = test_env.jj_cmd_success(&repo_path, &["st"]);
+    insta::assert_snapshot!(stdout, @r#"
+    The working copy is clean
+    There are unresolved conflicts at these paths:
+    file    2-sided conflict
+    Working copy : mzvwutvl 7b92839f (conflict) (empty) (no description set)
+    Parent commit: rlvkpnrz 3765cc27 side-a
+    Parent commit: zsuskuln 8b3de837 side-b
+    "#);
 }
 
 #[test]

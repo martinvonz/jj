@@ -2304,6 +2304,113 @@ fn test_diff_external_tool_symlink() {
 }
 
 #[test]
+fn test_diff_external_tool_conflict_marker_style() {
+    let mut test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+    let file_path = repo_path.join("file");
+
+    // Create a conflict
+    std::fs::write(
+        &file_path,
+        indoc! {"
+        line 1
+        line 2
+        line 3
+        line 4
+        line 5
+    "},
+    )
+    .unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "base"]);
+    std::fs::write(
+        &file_path,
+        indoc! {"
+        line 1
+        line 2.1
+        line 2.2
+        line 3
+        line 4.1
+        line 5
+    "},
+    )
+    .unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "side-a"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "description(base)", "-m", "side-b"]);
+    std::fs::write(
+        &file_path,
+        indoc! {"
+        line 1
+        line 2.3
+        line 3
+        line 4.2
+        line 4.3
+        line 5
+    "},
+    )
+    .unwrap();
+
+    // Resolve one of the conflicts in the working copy
+    test_env.jj_cmd_ok(
+        &repo_path,
+        &["new", "description(side-a)", "description(side-b)"],
+    );
+    std::fs::write(
+        &file_path,
+        indoc! {"
+        line 1
+        line 2.1
+        line 2.2
+        line 2.3
+        line 3
+        <<<<<<<
+        %%%%%%%
+        -line 4
+        +line 4.1
+        +++++++
+        line 4.2
+        line 4.3
+        >>>>>>>
+        line 5
+    "},
+    )
+    .unwrap();
+
+    // Set up diff editor to use "snapshot" conflict markers
+    let edit_script = test_env.set_up_fake_diff_editor();
+    test_env.add_config(r#"merge-tools.fake-diff-editor.conflict-marker-style = "snapshot""#);
+
+    // We want to see whether the diff is using the correct conflict markers
+    std::fs::write(
+        &edit_script,
+        ["files-before file", "files-after file", "dump file file"].join("\0"),
+    )
+    .unwrap();
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["diff", "--tool", "fake-diff-editor"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @"");
+    // Conflicts should render using "snapshot" format
+    insta::assert_snapshot!(
+        std::fs::read_to_string(test_env.env_root().join("file")).unwrap(), @r##"
+    line 1
+    line 2.1
+    line 2.2
+    line 2.3
+    line 3
+    <<<<<<< Conflict 1 of 1
+    +++++++ Contents of side #1
+    line 4.1
+    ------- Contents of base
+    line 4
+    +++++++ Contents of side #2
+    line 4.2
+    line 4.3
+    >>>>>>> Conflict 1 of 1 ends
+    line 5
+    "##);
+}
+
+#[test]
 fn test_diff_stat() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);

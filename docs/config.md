@@ -856,6 +856,9 @@ With this option set, if the output file still contains conflict markers after
 the conflict is done, `jj` assumes that the conflict was only partially resolved
 and parses the conflict markers to get the new state of the conflict. The
 conflict is considered fully resolved when there are no conflict markers left.
+The conflict marker style can also be customized per tool using the
+`merge-tools.TOOL.conflict-marker-style` option, which takes the same values as
+[`ui.conflict-marker-style`](#conflict-marker-style).
 
 ## Code formatting and other file content transformations
 

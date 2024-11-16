@@ -61,13 +61,15 @@ pub struct ExternalMergeTool {
     /// If false (default), the `$output` file starts out empty and is accepted
     /// as a full conflict resolution as-is by `jj` after the merge tool is
     /// done with it. If true, the `$output` file starts out with the
-    /// contents of the conflict, with JJ's conflict markers. After the
-    /// merge tool is done, any remaining conflict markers in the
-    /// file parsed and taken to mean that the conflict was only partially
+    /// contents of the conflict, with the configured conflict markers. After
+    /// the merge tool is done, any remaining conflict markers in the
+    /// file are parsed and taken to mean that the conflict was only partially
     /// resolved.
-    // TODO: Instead of a boolean, this could denote the flavor of conflict markers to put in
-    // the file (`jj` or `diff3` for example).
     pub merge_tool_edits_conflict_markers: bool,
+    /// If provided, overrides the normal conflict marker style setting. This is
+    /// useful if a tool parses conflict markers, and so it requires a specific
+    /// format, or if a certain format is more readable than another.
+    pub conflict_marker_style: Option<ConflictMarkerStyle>,
 }
 
 #[derive(serde::Deserialize, Copy, Clone, Debug, Eq, PartialEq)]
@@ -92,6 +94,7 @@ impl Default for ExternalMergeTool {
             edit_args: ["$left", "$right"].map(ToOwned::to_owned).to_vec(),
             merge_args: vec![],
             merge_tool_edits_conflict_markers: false,
+            conflict_marker_style: None,
             diff_invocation_mode: DiffToolMode::Dir,
         }
     }
@@ -158,8 +161,12 @@ pub fn run_mergetool_external(
     repo_path: &RepoPath,
     conflict: MergedTreeValue,
     tree: &MergedTree,
-    conflict_marker_style: ConflictMarkerStyle,
+    default_conflict_marker_style: ConflictMarkerStyle,
 ) -> Result<MergedTreeId, ConflictResolveError> {
+    let conflict_marker_style = editor
+        .conflict_marker_style
+        .unwrap_or(default_conflict_marker_style);
+
     let initial_output_content = if editor.merge_tool_edits_conflict_markers {
         materialize_merge_result_to_bytes(&content, conflict_marker_style)
     } else {
@@ -259,8 +266,15 @@ pub fn edit_diff_external(
     matcher: &dyn Matcher,
     instructions: Option<&str>,
     base_ignores: Arc<GitIgnoreFile>,
-    options: &CheckoutOptions,
+    default_conflict_marker_style: ConflictMarkerStyle,
 ) -> Result<MergedTreeId, DiffEditError> {
+    let conflict_marker_style = editor
+        .conflict_marker_style
+        .unwrap_or(default_conflict_marker_style);
+    let options = CheckoutOptions {
+        conflict_marker_style,
+    };
+
     let got_output_field = find_all_variables(&editor.edit_args).contains(&"output");
     let store = left_tree.store();
     let diffedit_wc = DiffEditWorkingCopies::check_out(
@@ -270,7 +284,7 @@ pub fn edit_diff_external(
         matcher,
         got_output_field.then_some(DiffSide::Right),
         instructions,
-        options,
+        &options,
     )?;
 
     let patterns = diffedit_wc.working_copies.to_command_variables();
@@ -300,12 +314,15 @@ pub fn generate_diff(
     right_tree: &MergedTree,
     matcher: &dyn Matcher,
     tool: &ExternalMergeTool,
-    conflict_marker_style: ConflictMarkerStyle,
+    default_conflict_marker_style: ConflictMarkerStyle,
 ) -> Result<(), DiffGenerateError> {
-    let store = left_tree.store();
+    let conflict_marker_style = tool
+        .conflict_marker_style
+        .unwrap_or(default_conflict_marker_style);
     let options = CheckoutOptions {
         conflict_marker_style,
     };
+    let store = left_tree.store();
     let diff_wc = check_out_trees(store, left_tree, right_tree, matcher, None, &options)?;
     set_readonly_recursively(diff_wc.left_working_copy_path())
         .map_err(ExternalToolError::SetUpDir)?;
