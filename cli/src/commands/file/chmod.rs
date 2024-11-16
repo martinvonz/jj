@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use clap_complete::ArgValueCandidates;
+use clap_complete::ArgValueCompleter;
 use jj_lib::backend::TreeValue;
 use jj_lib::merged_tree::MergedTreeBuilder;
 use jj_lib::object_id::ObjectId;
@@ -52,7 +53,11 @@ pub(crate) struct FileChmodArgs {
     )]
     revision: RevisionArg,
     /// Paths to change the executable bit for
-    #[arg(required = true, value_hint = clap::ValueHint::AnyPath)]
+    #[arg(
+        required = true,
+        value_hint = clap::ValueHint::AnyPath,
+        add = ArgValueCompleter::new(complete::all_revision_files),
+    )]
     paths: Vec<String>,
 }
 

@@ -45,7 +45,10 @@ use crate::ui::Ui;
 #[derive(clap::Args, Clone, Debug)]
 pub(crate) struct RestoreArgs {
     /// Restore only these paths (instead of all paths)
-    #[arg(value_hint = clap::ValueHint::AnyPath)]
+    #[arg(
+        value_hint = clap::ValueHint::AnyPath,
+        add = ArgValueCandidates::new(complete::modified_range_files),
+    )]
     paths: Vec<String>,
     /// Revision to restore from (source)
     #[arg(long, short, add = ArgValueCandidates::new(complete::all_revisions))]

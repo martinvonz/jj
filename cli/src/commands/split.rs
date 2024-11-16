@@ -66,7 +66,10 @@ pub(crate) struct SplitArgs {
     #[arg(long, short, alias = "siblings")]
     parallel: bool,
     /// Put these paths in the first commit
-    #[arg(value_hint = clap::ValueHint::AnyPath)]
+    #[arg(
+        value_hint = clap::ValueHint::AnyPath,
+        add = ArgValueCandidates::new(complete::modified_revision_files),
+    )]
     paths: Vec<String>,
 }
 

@@ -14,6 +14,7 @@
 
 use std::io::Write;
 
+use clap_complete::ArgValueCompleter;
 use itertools::Itertools;
 use jj_lib::merge::Merge;
 use jj_lib::merged_tree::MergedTreeBuilder;
@@ -24,6 +25,7 @@ use tracing::instrument;
 use crate::cli_util::CommandHelper;
 use crate::command_error::user_error_with_hint;
 use crate::command_error::CommandError;
+use crate::complete;
 use crate::ui::Ui;
 
 /// Stop tracking specified paths in the working copy
@@ -33,7 +35,11 @@ pub(crate) struct FileUntrackArgs {
     ///
     /// The paths could be ignored via a .gitignore or .git/info/exclude (in
     /// colocated repos).
-    #[arg(required = true, value_hint = clap::ValueHint::AnyPath)]
+    #[arg(
+        required = true,
+        value_hint = clap::ValueHint::AnyPath,
+        add = ArgValueCompleter::new(complete::all_revision_files),
+    )]
     paths: Vec<String>,
 }
 

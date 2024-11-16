@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use clap_complete::ArgValueCandidates;
 use jj_lib::backend::Signature;
 use jj_lib::object_id::ObjectId;
 use jj_lib::repo::Repo;
@@ -20,6 +21,7 @@ use tracing::instrument;
 use crate::cli_util::CommandHelper;
 use crate::command_error::user_error;
 use crate::command_error::CommandError;
+use crate::complete;
 use crate::description_util::description_template;
 use crate::description_util::edit_description;
 use crate::description_util::join_message_paragraphs;
@@ -40,7 +42,10 @@ pub(crate) struct CommitArgs {
     #[arg(long = "message", short, value_name = "MESSAGE")]
     message_paragraphs: Vec<String>,
     /// Put these paths in the first commit
-    #[arg(value_hint = clap::ValueHint::AnyPath)]
+    #[arg(
+        value_hint = clap::ValueHint::AnyPath,
+        add = ArgValueCandidates::new(complete::modified_files),
+    )]
     paths: Vec<String>,
     /// Reset the author to the configured user
     ///
