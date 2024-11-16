@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use itertools::Itertools as _;
+
+use crate::common::get_stdout_string;
 use crate::common::TestEnvironment;
 
 #[test]
@@ -208,6 +211,39 @@ fn test_completions_are_generated() {
 }
 
 #[test]
+fn test_zsh_completion() {
+    let mut test_env = TestEnvironment::default();
+    test_env.add_env_var("COMPLETE", "zsh");
+
+    // ["--", "jj"]
+    //        ^^^^ index = 0
+    let complete_at = |index: usize, args: &[&str]| {
+        let assert = test_env
+            .jj_cmd(test_env.env_root(), args)
+            .env("_CLAP_COMPLETE_INDEX", index.to_string())
+            .assert()
+            .success();
+        get_stdout_string(&assert)
+    };
+
+    // Command names should be suggested. If the default command were expanded,
+    // only "log" would be listed.
+    let stdout = complete_at(1, &["--", "jj"]);
+    insta::assert_snapshot!(stdout.lines().take(2).join("\n"), @r"
+    abandon:Abandon a revision
+    absorb:Move changes from a revision into the stack of mutable revisions
+    ");
+    let stdout = complete_at(2, &["--", "jj", "--no-pager"]);
+    insta::assert_snapshot!(stdout.lines().take(2).join("\n"), @r"
+    abandon:Abandon a revision
+    absorb:Move changes from a revision into the stack of mutable revisions
+    ");
+
+    let stdout = complete_at(1, &["--", "jj", "b"]);
+    insta::assert_snapshot!(stdout, @"bookmark:Manage bookmarks [default alias: b]");
+}
+
+#[test]
 fn test_remote_names() {
     let mut test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init"]);
@@ -343,6 +379,16 @@ fn test_revisions() {
     insta::assert_snapshot!(stdout, @r"
     k	(no description set)
     r	mutable
+    ");
+
+    // complete args of the default command
+    test_env.add_config("ui.default-command = 'log'");
+    let stdout = test_env.jj_cmd_success(&repo_path, &["--", "jj", "-r", ""]);
+    insta::assert_snapshot!(stdout, @r"
+    k	(no description set)
+    r	mutable
+    q	immutable
+    z	(no description set)
     ");
 }
 
