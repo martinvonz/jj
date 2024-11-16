@@ -51,16 +51,16 @@ use crate::merge::MergedTreeValue;
 use crate::repo_path::RepoPath;
 use crate::store::Store;
 
-const CONFLICT_START_LINE: &[u8] = b"<<<<<<<";
-const CONFLICT_END_LINE: &[u8] = b">>>>>>>";
-const CONFLICT_DIFF_LINE: &[u8] = b"%%%%%%%";
-const CONFLICT_MINUS_LINE: &[u8] = b"-------";
-const CONFLICT_PLUS_LINE: &[u8] = b"+++++++";
-const CONFLICT_START_LINE_CHAR: u8 = CONFLICT_START_LINE[0];
-const CONFLICT_END_LINE_CHAR: u8 = CONFLICT_END_LINE[0];
-const CONFLICT_DIFF_LINE_CHAR: u8 = CONFLICT_DIFF_LINE[0];
-const CONFLICT_MINUS_LINE_CHAR: u8 = CONFLICT_MINUS_LINE[0];
-const CONFLICT_PLUS_LINE_CHAR: u8 = CONFLICT_PLUS_LINE[0];
+const CONFLICT_START_LINE: &str = "<<<<<<<";
+const CONFLICT_END_LINE: &str = ">>>>>>>";
+const CONFLICT_DIFF_LINE: &str = "%%%%%%%";
+const CONFLICT_MINUS_LINE: &str = "-------";
+const CONFLICT_PLUS_LINE: &str = "+++++++";
+const CONFLICT_START_LINE_CHAR: u8 = CONFLICT_START_LINE.as_bytes()[0];
+const CONFLICT_END_LINE_CHAR: u8 = CONFLICT_END_LINE.as_bytes()[0];
+const CONFLICT_DIFF_LINE_CHAR: u8 = CONFLICT_DIFF_LINE.as_bytes()[0];
+const CONFLICT_MINUS_LINE_CHAR: u8 = CONFLICT_MINUS_LINE.as_bytes()[0];
+const CONFLICT_PLUS_LINE_CHAR: u8 = CONFLICT_PLUS_LINE.as_bytes()[0];
 
 /// A conflict marker is one of the separators, optionally followed by a space
 /// and some text.
@@ -74,7 +74,7 @@ static CONFLICT_MARKER_REGEX: once_cell::sync::Lazy<Regex> = once_cell::sync::La
         .unwrap()
 });
 
-fn write_diff_hunks(hunks: &[DiffHunk], file: &mut dyn Write) -> std::io::Result<()> {
+fn write_diff_hunks(hunks: &[DiffHunk], file: &mut dyn Write) -> io::Result<()> {
     for hunk in hunks {
         match hunk.kind {
             DiffHunkKind::Matching => {
@@ -277,6 +277,37 @@ fn materialize_conflict_hunks(
     _conflict_marker_style: ConflictMarkerStyle,
     output: &mut dyn Write,
 ) -> io::Result<()> {
+    // Write a positive snapshot (side) of a conflict
+    fn write_side(add_index: usize, data: &[u8], output: &mut dyn Write) -> io::Result<()> {
+        writeln!(
+            output,
+            "{CONFLICT_PLUS_LINE} Contents of side #{}",
+            add_index + 1
+        )?;
+        output.write_all(data)
+    }
+
+    // Write a negative snapshot (base) of a conflict
+    fn write_base(base_str: &str, data: &[u8], output: &mut dyn Write) -> io::Result<()> {
+        writeln!(output, "{CONFLICT_MINUS_LINE} Contents of {base_str}")?;
+        output.write_all(data)
+    }
+
+    // Write a diff from a negative term to a positive term
+    fn write_diff(
+        base_str: &str,
+        add_index: usize,
+        diff: &[DiffHunk],
+        output: &mut dyn Write,
+    ) -> io::Result<()> {
+        writeln!(
+            output,
+            "{CONFLICT_DIFF_LINE} Changes from {base_str} to side #{}",
+            add_index + 1
+        )?;
+        write_diff_hunks(diff, output)
+    }
+
     let num_conflicts = hunks
         .iter()
         .filter(|hunk| hunk.as_resolved().is_none())
@@ -287,9 +318,10 @@ fn materialize_conflict_hunks(
             output.write_all(content)?;
         } else {
             conflict_index += 1;
-            output.write_all(CONFLICT_START_LINE)?;
-            output
-                .write_all(format!(" Conflict {conflict_index} of {num_conflicts}\n").as_bytes())?;
+            writeln!(
+                output,
+                "{CONFLICT_START_LINE} Conflict {conflict_index} of {num_conflicts}"
+            )?;
             let mut add_index = 0;
             for (base_index, left) in hunk.removes().enumerate() {
                 // The vast majority of conflicts one actually tries to
@@ -303,9 +335,7 @@ fn materialize_conflict_hunks(
                 let Some(right1) = hunk.get_add(add_index) else {
                     // If we have no more positive terms, emit the remaining negative
                     // terms as snapshots.
-                    output.write_all(CONFLICT_MINUS_LINE)?;
-                    output.write_all(format!(" Contents of {base_str}\n").as_bytes())?;
-                    output.write_all(left)?;
+                    write_base(&base_str, left, output)?;
                     continue;
                 };
                 let diff1 = Diff::by_line([&left, &right1]).hunks().collect_vec();
@@ -318,39 +348,24 @@ fn materialize_conflict_hunks(
                         // If the next positive term is a better match, emit
                         // the current positive term as a snapshot and the next
                         // positive term as a diff.
-                        output.write_all(CONFLICT_PLUS_LINE)?;
-                        output.write_all(
-                            format!(" Contents of side #{}\n", add_index + 1).as_bytes(),
-                        )?;
-                        output.write_all(right1)?;
-                        output.write_all(CONFLICT_DIFF_LINE)?;
-                        output.write_all(
-                            format!(" Changes from {base_str} to side #{}\n", add_index + 2)
-                                .as_bytes(),
-                        )?;
-                        write_diff_hunks(&diff2, output)?;
+                        write_side(add_index, right1, output)?;
+                        write_diff(&base_str, add_index + 1, &diff2, output)?;
                         add_index += 2;
                         continue;
                     }
                 }
 
-                output.write_all(CONFLICT_DIFF_LINE)?;
-                output.write_all(
-                    format!(" Changes from {base_str} to side #{}\n", add_index + 1).as_bytes(),
-                )?;
-                write_diff_hunks(&diff1, output)?;
+                write_diff(&base_str, add_index, &diff1, output)?;
                 add_index += 1;
             }
 
-            //  Emit the remaining positive terms as snapshots.
+            // Emit the remaining positive terms as snapshots.
             for (add_index, slice) in hunk.adds().enumerate().skip(add_index) {
-                output.write_all(CONFLICT_PLUS_LINE)?;
-                output.write_all(format!(" Contents of side #{}\n", add_index + 1).as_bytes())?;
-                output.write_all(slice)?;
+                write_side(add_index, slice, output)?;
             }
-            output.write_all(CONFLICT_END_LINE)?;
-            output.write_all(
-                format!(" Conflict {conflict_index} of {num_conflicts} ends\n").as_bytes(),
+            writeln!(
+                output,
+                "{CONFLICT_END_LINE} Conflict {conflict_index} of {num_conflicts} ends"
             )?;
         }
     }
