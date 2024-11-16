@@ -24,6 +24,7 @@ use std::fmt::Debug;
 use std::fs;
 use std::io;
 use std::io::Write as _;
+use std::iter;
 use std::mem;
 use std::path::Path;
 use std::path::PathBuf;
@@ -3248,12 +3249,27 @@ fn handle_shell_completion(
     // without any changes. They are usually "jj --".
     args.extend(env::args_os().take(2));
 
-    if env::args_os().nth(2).is_some() {
-        // Make sure aliases are expanded before passing them to
-        // clap_complete. We skip the first two args ("jj" and "--") for
-        // alias resolution, then we stitch the args back together, like
-        // clap_complete expects them.
-        let resolved_aliases = expand_args(ui, app, env::args_os().skip(2), config)?;
+    // Make sure aliases are expanded before passing them to clap_complete. We
+    // skip the first two args ("jj" and "--") for alias resolution, then we
+    // stitch the args back together, like clap_complete expects them.
+    let orig_args = env::args_os().skip(2);
+    if orig_args.len() > 0 {
+        let arg_index: Option<usize> = env::var("_CLAP_COMPLETE_INDEX")
+            .ok()
+            .and_then(|s| s.parse().ok());
+        let resolved_aliases = if let Some(index) = arg_index {
+            // As of clap_complete 4.5.38, zsh completion script doesn't pad an
+            // empty arg at the complete position. If the args doesn't include a
+            // command name, the default command would be expanded at that
+            // position. Therefore, no other command names would be suggested.
+            // TODO: Maybe we should instead expand args[..index] + [""], adjust
+            // the index accordingly, strip the last "", and append remainder?
+            let pad_len = usize::saturating_sub(index + 1, orig_args.len());
+            let padded_args = orig_args.chain(iter::repeat(OsString::new()).take(pad_len));
+            expand_args(ui, app, padded_args, config)?
+        } else {
+            expand_args(ui, app, orig_args, config)?
+        };
         args.extend(resolved_aliases.into_iter().map(OsString::from));
     }
     let ran_completion = clap_complete::CompleteEnv::with_factory(|| {
