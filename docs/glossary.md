@@ -44,7 +44,9 @@ local Git branch corresponds to a `jj` bookmark.
 
 ## Change
 
-A change is a commit as it [evolves over time](#rewrite).
+A change is a commit as it [evolves over time](#rewrite). Changes themselves
+don't exist as an object in the data model; only the change ID does. The change
+ID is a property of a commit.
 
 ## Change ID
 
@@ -53,7 +55,7 @@ A change ID is a unique identifier for a [change](#change). They are typically
 them as a sequence of 12 letters in the k-z range, at the beginning of a line.
 These are actually hexadecimal numbers that use "digits" z-k instead of 0-9a-f.
 
-For the git backend, Change IDs are currently maintained only locally and not
+For the Git backend, Change IDs are currently maintained only locally and not
 exchanged via push/fetch operations.
 
 ## Commit
