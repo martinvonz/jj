@@ -12,7 +12,8 @@ repository = { workspace = true }
 documentation = { workspace = true }
 readme = { workspace = true }
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lints]
+workspace = true
 
 [dependencies]
 async-trait = { workspace = true }
@@ -25,6 +26,3 @@ jj-lib = { workspace = true, features = ["testing"] }
 pollster = { workspace = true }
 rand = { workspace = true }
 tempfile = { workspace = true }
-
-[lints]
-workspace = true

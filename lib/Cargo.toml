@@ -21,6 +21,8 @@ include = [
     "!*.snap*",
 ]
 
+[lints]
+workspace = true
 
 [[test]]
 name = "runner"
@@ -100,6 +102,3 @@ git = ["dep:git2", "dep:gix"]
 vendored-openssl = ["git2/vendored-openssl"]
 watchman = ["dep:tokio", "dep:watchman_client"]
 testing = ["git"]
-
-[lints]
-workspace = true

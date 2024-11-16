@@ -13,6 +13,9 @@ readme = { workspace = true }
 
 include = ["/LICENSE", "/src/"]
 
+[lints]
+workspace = true
+
 [lib]
 proc-macro = true
 
@@ -20,6 +23,3 @@ proc-macro = true
 proc-macro2 = { workspace = true }
 quote = { workspace = true }
 syn = { workspace = true }
-
-[lints]
-workspace = true
