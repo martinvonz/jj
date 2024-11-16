@@ -300,9 +300,7 @@ fn materialize_conflict_hunks(
                     format!("base #{}", base_index + 1)
                 };
 
-                let right1 = if let Some(right1) = hunk.get_add(add_index) {
-                    right1
-                } else {
+                let Some(right1) = hunk.get_add(add_index) else {
                     // If we have no more positive terms, emit the remaining negative
                     // terms as snapshots.
                     output.write_all(CONFLICT_MINUS_LINE)?;
