@@ -228,8 +228,16 @@ pub fn new_git_remote_url(current: &std::ffi::OsStr) -> Vec<CompletionCandidate>
         return Vec::new();
     }
 
-    let Some(known_hosts) = dirs::home_dir()
-        .and_then(|home| std::fs::read_to_string(home.join(".ssh/known_hosts")).ok())
+    #[allow(unused_labels)]
+    let home = 'home: {
+        #[cfg(test)]
+        if let Ok(home) = std::env::var("HOME") {
+            break 'home Some(home.into());
+        }
+        dirs::home_dir()
+    };
+    let Some(known_hosts) =
+        home.and_then(|home| std::fs::read_to_string(home.join(".ssh/known_hosts")).ok())
     else {
         return Vec::new(); // cannot determine domain candidates
     };
