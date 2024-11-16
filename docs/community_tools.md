@@ -25,12 +25,6 @@ alternative to the default `:builtin` diff-editor.
 
 Find it [here][hunk.nvim].
 
-## LazyJJ
-
-lazyjj is a lazygit inspired TUI for Jujutsu.
-
-Find it [here][lazyjj].
-
 ## JJ TUI
 
 This is TUI for Jujutsu built in Ocaml, it is unopiniated and its creator is
@@ -38,6 +32,11 @@ open to feedback.
 
 Find it [here][jj_tui].
 
+## LazyJJ
+
+lazyjj is a lazygit inspired TUI for Jujutsu.
+
+Find it [here][lazyjj].
 
 ## Visual Jujutsu
 
