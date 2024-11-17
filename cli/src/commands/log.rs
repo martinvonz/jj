@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use clap_complete::ArgValueCandidates;
+use clap_complete::ArgValueCompleter;
 use jj_lib::backend::CommitId;
 use jj_lib::config::ConfigGetError;
 use jj_lib::config::ConfigGetResultExt as _;
@@ -65,7 +66,10 @@ pub(crate) struct LogArgs {
     #[arg(long, short, add = ArgValueCandidates::new(complete::all_revisions))]
     revisions: Vec<RevisionArg>,
     /// Show revisions modifying the given paths
-    #[arg(value_hint = clap::ValueHint::AnyPath)]
+    #[arg(
+        value_hint = clap::ValueHint::AnyPath,
+        add = ArgValueCompleter::new(complete::log_files),
+    )]
     paths: Vec<String>,
     /// Show revisions in the opposite order (older revisions first)
     #[arg(long)]
