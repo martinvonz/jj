@@ -339,6 +339,13 @@ impl<T> Merge<T> {
         self.values.resize(num_sides * 2 - 1, value.clone());
     }
 
+    /// Returns a slice containing the terms. The items will alternate between
+    /// positive and negative terms, starting with positive (since there's one
+    /// more of those).
+    pub fn as_slice(&self) -> &[T] {
+        &self.values
+    }
+
     /// Returns an iterator over references to the terms. The items will
     /// alternate between positive and negative terms, starting with
     /// positive (since there's one more of those).
