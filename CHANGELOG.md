@@ -43,6 +43,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed bugs
 
+* `jj config unset <TABLE-NAME>` no longer removes a table (such as `[ui]`.)
+
 ## [0.23.0] - 2024-11-06
 
 ### Security fixes

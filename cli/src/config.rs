@@ -669,9 +669,17 @@ pub fn remove_config_value_from_file(
     })?;
 
     // Remove config value
-    target_table
-        .remove(last_key)
-        .ok_or_else(|| config::ConfigError::NotFound(key.to_string()))?;
+    match target_table.entry(last_key) {
+        toml_edit::Entry::Occupied(entry) => {
+            if entry.get().is_table() {
+                return Err(user_error(format!("Won't remove table {key}")));
+            }
+            entry.remove();
+        }
+        toml_edit::Entry::Vacant(_) => {
+            return Err(config::ConfigError::NotFound(key.to_string()).into());
+        }
+    }
 
     write_config(path, &doc)
 }
