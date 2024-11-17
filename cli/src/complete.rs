@@ -638,6 +638,17 @@ pub fn interdiff_files(current: &std::ffi::OsStr) -> Vec<CompletionCandidate> {
     })
 }
 
+/// Specific function for completing file paths for `jj log`
+pub fn log_files(current: &std::ffi::OsStr) -> Vec<CompletionCandidate> {
+    let mut rev = parse::log_revisions().join(")|(");
+    if rev.is_empty() {
+        rev = "@".into();
+    } else {
+        rev = format!("latest(heads(({rev})))"); // limit to one
+    };
+    all_files_from_rev(rev, current)
+}
+
 /// Shell out to jj during dynamic completion generation
 ///
 /// In case of errors, print them and early return an empty vector.
@@ -773,36 +784,41 @@ impl JjBuilder {
 /// multiple times, the parsing will pick any of the available ones, while the
 /// actual execution of the command would fail.
 mod parse {
-    fn parse_flag(candidates: &[&str], mut args: impl Iterator<Item = String>) -> Option<String> {
-        for arg in args.by_ref() {
-            // -r REV syntax
-            if candidates.contains(&arg.as_ref()) {
-                match args.next() {
-                    Some(val) if !val.starts_with('-') => return Some(val),
-                    _ => return None,
+    pub(super) fn parse_flag<'a>(
+        candidates: &'a [&str],
+        mut args: impl Iterator<Item = String> + 'a,
+    ) -> impl Iterator<Item = String> + 'a {
+        std::iter::from_fn(move || {
+            for arg in args.by_ref() {
+                // -r REV syntax
+                if candidates.contains(&arg.as_ref()) {
+                    match args.next() {
+                        Some(val) if !val.starts_with('-') => return Some(val),
+                        _ => return None,
+                    }
                 }
+
+                // -r=REV syntax
+                if let Some(value) = candidates.iter().find_map(|candidate| {
+                    let rest = arg.strip_prefix(candidate)?;
+                    match rest.strip_prefix('=') {
+                        Some(value) => Some(value),
+
+                        // -rREV syntax
+                        None if candidate.len() == 2 => Some(rest),
+
+                        None => None,
+                    }
+                }) {
+                    return Some(value.into());
+                };
             }
-
-            // -r=REV syntax
-            if let Some(value) = candidates.iter().find_map(|candidate| {
-                let rest = arg.strip_prefix(candidate)?;
-                match rest.strip_prefix('=') {
-                    Some(value) => Some(value),
-
-                    // -rREV syntax
-                    None if candidate.len() == 2 => Some(rest),
-
-                    None => None,
-                }
-            }) {
-                return Some(value.into());
-            };
-        }
-        None
+            None
+        })
     }
 
     pub fn parse_revision_impl(args: impl Iterator<Item = String>) -> Option<String> {
-        parse_flag(&["-r", "--revision"], args)
+        parse_flag(&["-r", "--revision"], args).next()
     }
 
     pub fn revision() -> Option<String> {
@@ -817,8 +833,10 @@ mod parse {
     where
         T: Iterator<Item = String>,
     {
-        let from = parse_flag(&["-f", "--from"], args())?;
-        let to = parse_flag(&["-t", "--to"], args()).unwrap_or_else(|| "@".into());
+        let from = parse_flag(&["-f", "--from"], args()).next()?;
+        let to = parse_flag(&["-t", "--to"], args())
+            .next()
+            .unwrap_or_else(|| "@".into());
 
         Some((from, to))
     }
@@ -832,10 +850,17 @@ mod parse {
     // the files changed only in some other revision in the range between
     // --from and --to cannot be squashed into --to like that.
     pub fn squash_revision() -> Option<String> {
-        if let Some(rev) = parse_flag(&["-r", "--revision"], std::env::args()) {
+        if let Some(rev) = parse_flag(&["-r", "--revision"], std::env::args()).next() {
             return Some(rev);
         }
-        parse_flag(&["-f", "--from"], std::env::args())
+        parse_flag(&["-f", "--from"], std::env::args()).next()
+    }
+
+    // Special parse function only for `jj log`. It has a --revisions flag,
+    // instead of the usual --revision, and it can be supplied multiple times.
+    pub fn log_revisions() -> Vec<String> {
+        let candidates = &["-r", "--revisions"];
+        parse_flag(candidates, std::env::args()).collect()
     }
 }
 
@@ -914,5 +939,26 @@ mod tests {
                 "case: {case:?}"
             );
         }
+    }
+
+    #[test]
+    fn test_parse_multiple_flags() {
+        let candidates = &["-r", "--revisions"];
+        let args = &[
+            "unrelated_arg_at_the_beginning",
+            "-r",
+            "1",
+            "--revisions",
+            "2",
+            "-r=3",
+            "--revisions=4",
+            "unrelated_arg_in_the_middle",
+            "-r5",
+            "unrelated_arg_at_the_end",
+        ];
+        let flags: Vec<_> =
+            parse::parse_flag(candidates, args.iter().map(|a| a.to_string())).collect();
+        let expected = ["1", "2", "3", "4", "5"];
+        assert_eq!(flags, expected);
     }
 }

@@ -788,4 +788,35 @@ fn test_files() {
     f_dir/
     f_modified
     ");
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["--", "jj", "log", "f_"]);
+    insta::assert_snapshot!(stdout.replace('\\', "/"), @r"
+    f_added
+    f_added_2
+    f_dir/
+    f_modified
+    f_not_yet_renamed
+    f_renamed
+    f_unchanged
+    ");
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &[
+            "--",
+            "jj",
+            "log",
+            "-r=first",
+            "--revisions",
+            "conflicted",
+            "f_",
+        ],
+    );
+    insta::assert_snapshot!(stdout.replace('\\', "/"), @r"
+    f_added_2
+    f_deleted
+    f_dir/
+    f_modified
+    f_not_yet_renamed
+    f_unchanged
+    ");
 }
