@@ -355,10 +355,37 @@ fn test_revisions() {
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
 
+    // create remote to test remote branches
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "origin"]);
+    let origin_path = test_env.env_root().join("origin");
+    let origin_git_repo_path = origin_path
+        .join(".jj")
+        .join("repo")
+        .join("store")
+        .join("git");
+    test_env.jj_cmd_ok(
+        &repo_path,
+        &[
+            "git",
+            "remote",
+            "add",
+            "origin",
+            origin_git_repo_path.to_str().unwrap(),
+        ],
+    );
+    test_env.jj_cmd_ok(&origin_path, &["b", "c", "remote_bookmark"]);
+    test_env.jj_cmd_ok(&origin_path, &["commit", "-m", "remote_commit"]);
+    test_env.jj_cmd_ok(&origin_path, &["git", "export"]);
+    test_env.jj_cmd_ok(&repo_path, &["git", "fetch"]);
+
+    test_env.jj_cmd_ok(&repo_path, &["b", "c", "immutable_bookmark"]);
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "immutable"]);
+    test_env.add_config(r#"revset-aliases."immutable_heads()" = "immutable_bookmark""#);
+
+    test_env.jj_cmd_ok(&repo_path, &["b", "c", "mutable_bookmark"]);
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "mutable"]);
-    test_env.jj_cmd_ok(&repo_path, &["bookmark", "create", "main", "-r", "@--"]);
-    test_env.add_config(r#"revset-aliases."immutable_heads()" = "main""#);
+
+    test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "working_copy"]);
 
     let mut test_env = test_env;
     test_env.add_env_var("COMPLETE", "fish");
@@ -371,27 +398,37 @@ fn test_revisions() {
     // complete all revisions
     let stdout = test_env.jj_cmd_success(&repo_path, &["--", "jj", "diff", "--from", ""]);
     insta::assert_snapshot!(stdout, @r"
-    k	(no description set)
-    r	mutable
+    immutable_bookmark	immutable
+    mutable_bookmark	mutable
+    k	working_copy
+    y	mutable
     q	immutable
-    z	(no description set)
+    zq	remote_commit
+    zz	(no description set)
+    remote_bookmark@origin	remote_commit
     ");
 
     // complete only mutable revisions
     let stdout = test_env.jj_cmd_success(&repo_path, &["--", "jj", "squash", "--into", ""]);
     insta::assert_snapshot!(stdout, @r"
-    k	(no description set)
-    r	mutable
+    mutable_bookmark	mutable
+    k	working_copy
+    y	mutable
+    zq	remote_commit
     ");
 
     // complete args of the default command
     test_env.add_config("ui.default-command = 'log'");
     let stdout = test_env.jj_cmd_success(&repo_path, &["--", "jj", "-r", ""]);
     insta::assert_snapshot!(stdout, @r"
-    k	(no description set)
-    r	mutable
+    immutable_bookmark	immutable
+    mutable_bookmark	mutable
+    k	working_copy
+    y	mutable
     q	immutable
-    z	(no description set)
+    zq	remote_commit
+    zz	(no description set)
+    remote_bookmark@origin	remote_commit
     ");
 }
 

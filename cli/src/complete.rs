@@ -216,8 +216,90 @@ pub fn aliases() -> Vec<CompletionCandidate> {
     })
 }
 
-fn revisions(revisions: &str) -> Vec<CompletionCandidate> {
-    with_jj(|jj, _| {
+fn revisions(revisions: Option<&str>) -> Vec<CompletionCandidate> {
+    with_jj(|jj, config| {
+        // display order
+        const LOCAL_BOOKMARK_MINE: usize = 0;
+        const LOCAL_BOOKMARK: usize = 1;
+        const TAG: usize = 2;
+        const CHANGE_ID: usize = 3;
+        const REMOTE_BOOKMARK_MINE: usize = 4;
+        const REMOTE_BOOKMARK: usize = 5;
+
+        let mut candidates = Vec::new();
+
+        // bookmarks
+
+        let prefix = config.get::<String>("git.push-bookmark-prefix").ok();
+
+        let mut cmd = jj.build();
+        cmd.arg("bookmark")
+            .arg("list")
+            .arg("--all-remotes")
+            .arg("--config-toml")
+            .arg(BOOKMARK_HELP_TEMPLATE)
+            .arg("--template")
+            .arg(
+                r#"if(remote != "git", name ++ if(remote, "@" ++ remote) ++ bookmark_help() ++ "\n")"#,
+            );
+        if let Some(revs) = revisions {
+            cmd.arg("--revisions").arg(revs);
+        }
+        let output = cmd.output().map_err(user_error)?;
+        let stdout = String::from_utf8_lossy(&output.stdout);
+
+        candidates.extend(stdout.lines().map(|line| {
+            let (bookmark, help) = split_help_text(line);
+
+            let local = !bookmark.contains('@');
+            let mine = prefix.as_ref().is_some_and(|p| bookmark.starts_with(p));
+
+            let display_order = match (local, mine) {
+                (true, true) => LOCAL_BOOKMARK_MINE,
+                (true, false) => LOCAL_BOOKMARK,
+                (false, true) => REMOTE_BOOKMARK_MINE,
+                (false, false) => REMOTE_BOOKMARK,
+            };
+            CompletionCandidate::new(bookmark)
+                .help(help)
+                .display_order(Some(display_order))
+        }));
+
+        // tags
+
+        // Tags cannot be filtered by revisions. In order to avoid suggesting
+        // immutable tags for mutable revision args, we skip tags entirely if
+        // revisions is set. This is not a big loss, since tags usually point
+        // to immutable revisions anyway.
+        if revisions.is_none() {
+            let output = jj
+                .build()
+                .arg("tag")
+                .arg("list")
+                .arg("--config-toml")
+                .arg(BOOKMARK_HELP_TEMPLATE)
+                .arg("--template")
+                .arg(r#"name ++ bookmark_help() ++ "\n""#)
+                .output()
+                .map_err(user_error)?;
+            let stdout = String::from_utf8_lossy(&output.stdout);
+
+            candidates.extend(stdout.lines().map(|line| {
+                let (name, desc) = split_help_text(line);
+                CompletionCandidate::new(name)
+                    .help(desc)
+                    .display_order(Some(TAG))
+            }));
+        }
+
+        // change IDs
+
+        let revisions = revisions
+            .map(String::from)
+            .or_else(|| config.get_string("revsets.short-prefixes").ok())
+            .or_else(|| config.get_string("revsets.log").ok())
+            .unwrap_or_default();
+
         let output = jj
             .build()
             .arg("log")
@@ -232,22 +314,23 @@ fn revisions(revisions: &str) -> Vec<CompletionCandidate> {
             .map_err(user_error)?;
         let stdout = String::from_utf8_lossy(&output.stdout);
 
-        Ok(stdout
-            .lines()
-            .map(|line| {
-                let (id, desc) = split_help_text(line);
-                CompletionCandidate::new(id).help(desc)
-            })
-            .collect())
+        candidates.extend(stdout.lines().map(|line| {
+            let (id, desc) = split_help_text(line);
+            CompletionCandidate::new(id)
+                .help(desc)
+                .display_order(Some(CHANGE_ID))
+        }));
+
+        Ok(candidates)
     })
 }
 
 pub fn mutable_revisions() -> Vec<CompletionCandidate> {
-    revisions("mutable()")
+    revisions(Some("mutable()"))
 }
 
 pub fn all_revisions() -> Vec<CompletionCandidate> {
-    revisions("all()")
+    revisions(None)
 }
 
 pub fn operations() -> Vec<CompletionCandidate> {
