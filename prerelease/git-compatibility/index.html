@@ -1555,7 +1555,10 @@ a comparison with Git, including how workflows are different, see the
 <li><strong>Configuration: Partial.</strong> The only configuration from Git (e.g. in
   <code>~/.gitconfig</code>) that's respected is the following. Feel free to file a bug if
   you miss any particular configuration options.<ul>
-<li>The configuration of remotes (<code>[remote "&lt;name&gt;"]</code>).</li>
+<li>The configuration of remotes (<code>[remote "&lt;name&gt;"]</code>). Only the names and URLs
+  are respected (refspecs are not respected, and
+  <a href="https://github.com/martinvonz/jj/issues/4889">only the last pushurl</a> is
+  respected).</li>
 <li><code>core.excludesFile</code></li>
 </ul>
 </li>
