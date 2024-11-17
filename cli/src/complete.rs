@@ -448,7 +448,23 @@ pub fn leaf_config_keys() -> Vec<CompletionCandidate> {
     config_keys_impl(true)
 }
 
-fn all_files_from_rev(rev: String) -> Vec<CompletionCandidate> {
+fn dir_prefix_from<'a>(path: &'a str, current: &str) -> Option<&'a str> {
+    path[current.len()..]
+        .split_once(std::path::MAIN_SEPARATOR)
+        .map(|(next, _)| path.split_at(current.len() + next.len() + 1).0)
+}
+
+fn current_prefix_to_fileset(current: &str) -> String {
+    let cur_esc = glob::Pattern::escape(current);
+    let dir_pat = format!("{cur_esc}*/**");
+    let path_pat = format!("{cur_esc}*");
+    format!("glob:{dir_pat:?} | glob:{path_pat:?}")
+}
+
+fn all_files_from_rev(rev: String, current: &std::ffi::OsStr) -> Vec<CompletionCandidate> {
+    let Some(current) = current.to_str() else {
+        return Vec::new();
+    };
     with_jj(|jj, _| {
         let mut child = jj
             .build()
@@ -456,6 +472,9 @@ fn all_files_from_rev(rev: String) -> Vec<CompletionCandidate> {
             .arg("list")
             .arg("--revision")
             .arg(rev)
+            .arg("--config-toml")
+            .arg("ui.allow-filesets = true")
+            .arg(current_prefix_to_fileset(current))
             .stdout(std::process::Stdio::piped())
             .spawn()
             .map_err(user_error)?;
@@ -465,7 +484,13 @@ fn all_files_from_rev(rev: String) -> Vec<CompletionCandidate> {
             .lines()
             .take(1_000)
             .map_while(Result::ok)
-            .map(CompletionCandidate::new)
+            .map(|path| {
+                if let Some(dir_path) = dir_prefix_from(&path, current) {
+                    return CompletionCandidate::new(dir_path);
+                }
+                CompletionCandidate::new(path)
+            })
+            .dedup() // directories may occur multiple times
             .collect())
     })
 }
@@ -473,8 +498,16 @@ fn all_files_from_rev(rev: String) -> Vec<CompletionCandidate> {
 fn modified_files_from_rev_with_jj_cmd(
     rev: (String, Option<String>),
     mut cmd: std::process::Command,
+    current: &std::ffi::OsStr,
 ) -> Result<Vec<CompletionCandidate>, CommandError> {
-    cmd.arg("diff").arg("--summary");
+    let Some(current) = current.to_str() else {
+        return Ok(Vec::new());
+    };
+    cmd.arg("diff")
+        .arg("--summary")
+        .arg("--config-toml")
+        .arg("ui.allow-filesets = true")
+        .arg(current_prefix_to_fileset(current));
     match rev {
         (rev, None) => cmd.arg("--revision").arg(rev),
         (from, Some(to)) => cmd.arg("--from").arg(from).arg("--to").arg(to),
@@ -488,6 +521,11 @@ fn modified_files_from_rev_with_jj_cmd(
             let (mode, path) = line
                 .split_once(' ')
                 .expect("diff --summary should contain a space between mode and path");
+
+            if let Some(dir_path) = dir_prefix_from(path, current) {
+                return CompletionCandidate::new(dir_path);
+            }
+
             let help = match mode {
                 "M" => "Modified".into(),
                 "D" => "Deleted".into(),
@@ -498,14 +536,21 @@ fn modified_files_from_rev_with_jj_cmd(
             };
             CompletionCandidate::new(path).help(Some(help.into()))
         })
+        .dedup() // directories may occur multiple times
         .collect())
 }
 
-fn modified_files_from_rev(rev: (String, Option<String>)) -> Vec<CompletionCandidate> {
-    with_jj(|jj, _| modified_files_from_rev_with_jj_cmd(rev, jj.build()))
+fn modified_files_from_rev(
+    rev: (String, Option<String>),
+    current: &std::ffi::OsStr,
+) -> Vec<CompletionCandidate> {
+    with_jj(|jj, _| modified_files_from_rev_with_jj_cmd(rev, jj.build(), current))
 }
 
-fn conflicted_files_from_rev(rev: &str) -> Vec<CompletionCandidate> {
+fn conflicted_files_from_rev(rev: &str, current: &std::ffi::OsStr) -> Vec<CompletionCandidate> {
+    let Some(current) = current.to_str() else {
+        return Vec::new();
+    };
     with_jj(|jj, _| {
         let output = jj
             .build()
@@ -513,59 +558,69 @@ fn conflicted_files_from_rev(rev: &str) -> Vec<CompletionCandidate> {
             .arg("--list")
             .arg("--revision")
             .arg(rev)
+            .arg("--config-toml")
+            .arg("ui.allow-filesets = true")
+            .arg(current_prefix_to_fileset(current))
             .output()
             .map_err(user_error)?;
         let stdout = String::from_utf8_lossy(&output.stdout);
 
         Ok(stdout
             .lines()
-            .filter_map(|line| line.split_whitespace().next())
-            .map(CompletionCandidate::new)
+            .map(|line| {
+                let path = line
+                    .split_whitespace()
+                    .next()
+                    .expect("resolve --list should contain whitespace after path");
+
+                if let Some(dir_path) = dir_prefix_from(path, current) {
+                    return CompletionCandidate::new(dir_path);
+                }
+                CompletionCandidate::new(path)
+            })
+            .dedup() // directories may occur multiple times
             .collect())
     })
 }
 
-pub fn modified_files() -> Vec<CompletionCandidate> {
-    modified_files_from_rev(("@".into(), None))
+pub fn modified_files(current: &std::ffi::OsStr) -> Vec<CompletionCandidate> {
+    modified_files_from_rev(("@".into(), None), current)
 }
 
 pub fn all_revision_files(current: &std::ffi::OsStr) -> Vec<CompletionCandidate> {
-    // TODO: Use `current` once `jj file list` gains the ability to list only
-    // the content of the "current" directory.
-    let _ = current;
-    all_files_from_rev(parse::revision_or_wc())
+    all_files_from_rev(parse::revision_or_wc(), current)
 }
 
-pub fn modified_revision_files() -> Vec<CompletionCandidate> {
-    modified_files_from_rev((parse::revision_or_wc(), None))
+pub fn modified_revision_files(current: &std::ffi::OsStr) -> Vec<CompletionCandidate> {
+    modified_files_from_rev((parse::revision_or_wc(), None), current)
 }
 
-pub fn modified_range_files() -> Vec<CompletionCandidate> {
+pub fn modified_range_files(current: &std::ffi::OsStr) -> Vec<CompletionCandidate> {
     match parse::range() {
-        Some((from, to)) => modified_files_from_rev((from, Some(to))),
-        None => modified_files_from_rev(("@".into(), None)),
+        Some((from, to)) => modified_files_from_rev((from, Some(to)), current),
+        None => modified_files_from_rev(("@".into(), None), current),
     }
 }
 
-pub fn modified_revision_or_range_files() -> Vec<CompletionCandidate> {
+pub fn modified_revision_or_range_files(current: &std::ffi::OsStr) -> Vec<CompletionCandidate> {
     if let Some(rev) = parse::revision() {
-        return modified_files_from_rev((rev, None));
+        return modified_files_from_rev((rev, None), current);
     }
-    modified_range_files()
+    modified_range_files(current)
 }
 
-pub fn revision_conflicted_files() -> Vec<CompletionCandidate> {
-    conflicted_files_from_rev(&parse::revision_or_wc())
+pub fn revision_conflicted_files(current: &std::ffi::OsStr) -> Vec<CompletionCandidate> {
+    conflicted_files_from_rev(&parse::revision_or_wc(), current)
 }
 
 /// Specific function for completing file paths for `jj squash`
-pub fn squash_revision_files() -> Vec<CompletionCandidate> {
+pub fn squash_revision_files(current: &std::ffi::OsStr) -> Vec<CompletionCandidate> {
     let rev = parse::squash_revision().unwrap_or_else(|| "@".into());
-    modified_files_from_rev((rev, None))
+    modified_files_from_rev((rev, None), current)
 }
 
 /// Specific function for completing file paths for `jj interdiff`
-pub fn interdiff_files() -> Vec<CompletionCandidate> {
+pub fn interdiff_files(current: &std::ffi::OsStr) -> Vec<CompletionCandidate> {
     let Some((from, to)) = parse::range() else {
         return Vec::new();
     };
@@ -573,8 +628,12 @@ pub fn interdiff_files() -> Vec<CompletionCandidate> {
     // files that are the same in both, which is a false positive. This approach
     // is more lightweight than actually doing a temporary rebase here.
     with_jj(|jj, _| {
-        let mut res = modified_files_from_rev_with_jj_cmd((from, None), jj.build())?;
-        res.extend(modified_files_from_rev_with_jj_cmd((to, None), jj.build())?);
+        let mut res = modified_files_from_rev_with_jj_cmd((from, None), jj.build(), current)?;
+        res.extend(modified_files_from_rev_with_jj_cmd(
+            (to, None),
+            jj.build(),
+            current,
+        )?);
         Ok(res)
     })
 }

@@ -15,6 +15,7 @@
 use std::io::Write;
 
 use clap_complete::ArgValueCandidates;
+use clap_complete::ArgValueCompleter;
 use itertools::Itertools;
 use jj_lib::object_id::ObjectId;
 use tracing::instrument;
@@ -64,7 +65,7 @@ pub(crate) struct ResolveArgs {
     // TODO: Find the conflict we can resolve even if it's not the first one.
     #[arg(
         value_hint = clap::ValueHint::AnyPath,
-        add = ArgValueCandidates::new(complete::revision_conflicted_files),
+        add = ArgValueCompleter::new(complete::revision_conflicted_files),
     )]
     paths: Vec<String>,
 }

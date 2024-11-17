@@ -64,6 +64,7 @@ dunce = { workspace = true }
 futures = { workspace = true }
 git2 = { workspace = true }
 gix = { workspace = true }
+glob = { workspace = true }
 indexmap = { workspace = true }
 indoc = { workspace = true }
 itertools = { workspace = true }

@@ -550,6 +550,9 @@ fn create_commit(
         test_env.jj_cmd_ok(repo_path, &args);
     }
     for (name, content) in files {
+        if let Some((dir, _)) = name.rsplit_once('/') {
+            std::fs::create_dir_all(repo_path.join(dir)).unwrap();
+        }
         match content {
             Some(content) => std::fs::write(repo_path.join(name), content).unwrap(),
             None => std::fs::remove_file(repo_path.join(name)).unwrap(),
@@ -563,6 +566,10 @@ fn test_files() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
+
+    // Completions for files use filesets internally.
+    // Ensure they still work if the user has them disabled.
+    test_env.add_config("ui.allow-filesets = false");
 
     create_commit(
         &test_env,
@@ -588,6 +595,9 @@ fn test_files() {
             ("f_renamed", Some("renamed\n")),
             ("f_deleted", None),
             ("f_added", Some("added\n")),
+            ("f_dir/dir_file_1", Some("foo\n")),
+            ("f_dir/dir_file_2", Some("foo\n")),
+            ("f_dir/dir_file_3", Some("foo\n")),
         ],
     );
 
@@ -600,6 +610,9 @@ fn test_files() {
         &[
             ("f_modified", Some("modified_again\n")),
             ("f_added_2", Some("added_2\n")),
+            ("f_dir/dir_file_1", Some("bar\n")),
+            ("f_dir/dir_file_2", Some("bar\n")),
+            ("f_dir/dir_file_3", Some("bar\n")),
         ],
     );
     test_env.jj_cmd_ok(&repo_path, &["rebase", "-r=@", "-d=first"]);
@@ -639,20 +652,26 @@ fn test_files() {
     );
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-r", "all()", "--summary"]);
-    insta::assert_snapshot!(stdout, @r"
-    @  wqnwkozp test.user@example.com 2001-02-03 08:05:20 working_copy 89d772f3
+    insta::assert_snapshot!(stdout.replace('\\', "/"), @r"
+    @  wqnwkozp test.user@example.com 2001-02-03 08:05:20 working_copy 45c3a621
     │  working_copy
     │  A f_added_2
     │  M f_modified
-    ○  zsuskuln test.user@example.com 2001-02-03 08:05:11 second 12ffc2f7
+    ○  zsuskuln test.user@example.com 2001-02-03 08:05:11 second 77a99380
     │  second
     │  A f_added
     │  D f_deleted
+    │  A f_dir/dir_file_1
+    │  A f_dir/dir_file_2
+    │  A f_dir/dir_file_3
     │  M f_modified
     │  A f_renamed
-    │ ×  royxmykx test.user@example.com 2001-02-03 08:05:14 conflicted 14453858 conflict
+    │ ×  royxmykx test.user@example.com 2001-02-03 08:05:14 conflicted 23eb154d conflict
     ├─╯  conflicted
     │    A f_added_2
+    │    A f_dir/dir_file_1
+    │    A f_dir/dir_file_2
+    │    A f_dir/dir_file_3
     │    M f_modified
     ○  rlvkpnrz test.user@example.com 2001-02-03 08:05:09 first 2a2f433c
     │  first
@@ -676,9 +695,10 @@ fn test_files() {
     let test_env = test_env;
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["--", "jj", "file", "show", "f_"]);
-    insta::assert_snapshot!(stdout, @r"
+    insta::assert_snapshot!(stdout.replace('\\', "/"), @r"
     f_added
     f_added_2
+    f_dir/
     f_modified
     f_not_yet_renamed
     f_renamed
@@ -687,27 +707,47 @@ fn test_files() {
 
     let stdout =
         test_env.jj_cmd_success(&repo_path, &["--", "jj", "file", "annotate", "-r@-", "f_"]);
-    insta::assert_snapshot!(stdout, @r"
+    insta::assert_snapshot!(stdout.replace('\\', "/"), @r"
     f_added
+    f_dir/
     f_modified
     f_not_yet_renamed
     f_renamed
     f_unchanged
     ");
-
     let stdout = test_env.jj_cmd_success(&repo_path, &["--", "jj", "diff", "-r", "@-", "f_"]);
-    insta::assert_snapshot!(stdout, @r"
+    insta::assert_snapshot!(stdout.replace('\\', "/"), @r"
     f_added	Added
     f_deleted	Deleted
+    f_dir/
     f_modified	Modified
     f_renamed	Added
     ");
+
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &[
+            "--",
+            "jj",
+            "diff",
+            "-r",
+            "@-",
+            &format!("f_dir{}", std::path::MAIN_SEPARATOR),
+        ],
+    );
+    insta::assert_snapshot!(stdout.replace('\\', "/"), @r"
+    f_dir/dir_file_1	Added
+    f_dir/dir_file_2	Added
+    f_dir/dir_file_3	Added
+    ");
+
     let stdout = test_env.jj_cmd_success(
         &repo_path,
         &["--", "jj", "diff", "--from", "root()", "--to", "@-", "f_"],
     );
-    insta::assert_snapshot!(stdout, @r"
+    insta::assert_snapshot!(stdout.replace('\\', "/"), @r"
     f_added	Added
+    f_dir/
     f_modified	Added
     f_not_yet_renamed	Added
     f_renamed	Added
@@ -726,7 +766,7 @@ fn test_files() {
             "f_",
         ],
     );
-    insta::assert_snapshot!(stdout, @r"
+    insta::assert_snapshot!(stdout.replace('\\', "/"), @r"
     f_interdiff_only_from	Added
     f_interdiff_same	Added
     f_interdiff_only_to	Added
@@ -735,7 +775,7 @@ fn test_files() {
 
     // squash has a different behavior with --from and --to flags
     let stdout = test_env.jj_cmd_success(&repo_path, &["--", "jj", "squash", "-f=first", "f_"]);
-    insta::assert_snapshot!(stdout, @r"
+    insta::assert_snapshot!(stdout.replace('\\', "/"), @r"
     f_deleted	Added
     f_modified	Added
     f_not_yet_renamed	Added
@@ -744,5 +784,8 @@ fn test_files() {
 
     let stdout =
         test_env.jj_cmd_success(&repo_path, &["--", "jj", "resolve", "-r=conflicted", "f_"]);
-    insta::assert_snapshot!(stdout, @"f_modified");
+    insta::assert_snapshot!(stdout.replace('\\', "/"), @r"
+    f_dir/
+    f_modified
+    ");
 }
