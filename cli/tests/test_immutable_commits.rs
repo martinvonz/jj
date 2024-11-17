@@ -247,24 +247,6 @@ fn test_rewrite_immutable_commands() {
     Hint: Could not modify commit: mzvwutvl 1d5af877 main | (conflict) merge
     Hint: Pass `--ignore-immutable` or configure the set of immutable commits via `revset-aliases.immutable_heads()`.
     "#);
-    // move --from
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["move", "--from=main"]);
-    insta::assert_snapshot!(stderr, @r#"
-    Warning: `jj move` is deprecated; use `jj squash` instead, which is equivalent
-    Warning: `jj move` will be removed in a future version, and this will be a hard error
-    Error: Commit 1d5af877b8bb is immutable
-    Hint: Could not modify commit: mzvwutvl 1d5af877 main | (conflict) merge
-    Hint: Pass `--ignore-immutable` or configure the set of immutable commits via `revset-aliases.immutable_heads()`.
-    "#);
-    // move --to
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["move", "--to=main"]);
-    insta::assert_snapshot!(stderr, @r#"
-    Warning: `jj move` is deprecated; use `jj squash` instead, which is equivalent
-    Warning: `jj move` will be removed in a future version, and this will be a hard error
-    Error: Commit 1d5af877b8bb is immutable
-    Hint: Could not modify commit: mzvwutvl 1d5af877 main | (conflict) merge
-    Hint: Pass `--ignore-immutable` or configure the set of immutable commits via `revset-aliases.immutable_heads()`.
-    "#);
     // new --insert-before
     let stderr = test_env.jj_cmd_failure(&repo_path, &["new", "--insert-before", "main"]);
     insta::assert_snapshot!(stderr, @r#"

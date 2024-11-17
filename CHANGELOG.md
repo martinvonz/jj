@@ -10,6 +10,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Breaking changes
 
+* `jj move` has been removed. It was deprecated in 0.16.0.
+
 ### Deprecations
 
 ### New features

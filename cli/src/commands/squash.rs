@@ -162,8 +162,7 @@ pub(crate) fn cmd_squash(
     Ok(())
 }
 
-// TODO(#2882): Remove public visibility once `jj move` is deleted.
-pub(crate) enum SquashedDescription {
+enum SquashedDescription {
     // Use this exact description.
     Exact(String),
     // Use the destination's description and discard the descriptions of the
@@ -173,9 +172,8 @@ pub(crate) enum SquashedDescription {
     Combine,
 }
 
-// TODO(#2882): Remove public visibility once `jj move` is deleted.
 impl SquashedDescription {
-    pub(crate) fn from_args(args: &SquashArgs) -> Self {
+    fn from_args(args: &SquashArgs) -> Self {
         // These options are incompatible and Clap is configured to prevent this.
         assert!(args.message_paragraphs.is_empty() || !args.use_destination_message);
 
@@ -191,7 +189,7 @@ impl SquashedDescription {
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn move_diff(
+fn move_diff(
     ui: &mut Ui,
     tx: &mut WorkspaceCommandTransaction,
     settings: &UserSettings,

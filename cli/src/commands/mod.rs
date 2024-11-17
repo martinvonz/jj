@@ -36,7 +36,6 @@ mod init;
 mod interdiff;
 mod log;
 mod merge;
-mod r#move;
 mod new;
 mod next;
 mod operation;
@@ -133,8 +132,6 @@ enum Command {
     /// arguments.
     #[command(hide = true)]
     Merge(new::NewArgs),
-    #[command(hide = true)]
-    Move(r#move::MoveArgs),
     New(new::NewArgs),
     Next(next::NextArgs),
     #[command(subcommand)]
@@ -232,7 +229,6 @@ pub fn run_command(ui: &mut Ui, command_helper: &CommandHelper) -> Result<(), Co
         Command::Interdiff(args) => interdiff::cmd_interdiff(ui, command_helper, args),
         Command::Log(args) => log::cmd_log(ui, command_helper, args),
         Command::Merge(args) => merge::cmd_merge(ui, command_helper, args),
-        Command::Move(args) => r#move::cmd_move(ui, command_helper, args),
         Command::New(args) => new::cmd_new(ui, command_helper, args),
         Command::Next(args) => next::cmd_next(ui, command_helper, args),
         Command::Evolog(args) => evolog::cmd_evolog(ui, command_helper, args),
