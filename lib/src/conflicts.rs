@@ -279,6 +279,30 @@ fn materialize_conflict_hunks(
     conflict_marker_style: ConflictMarkerStyle,
     output: &mut dyn Write,
 ) -> io::Result<()> {
+    let num_conflicts = hunks
+        .iter()
+        .filter(|hunk| hunk.as_resolved().is_none())
+        .count();
+    let mut conflict_index = 0;
+    for hunk in hunks {
+        if let Some(content) = hunk.as_resolved() {
+            output.write_all(content)?;
+        } else {
+            conflict_index += 1;
+            let conflict_info = format!("Conflict {conflict_index} of {num_conflicts}");
+
+            materialize_jj_style_conflict(hunk, &conflict_info, conflict_marker_style, output)?;
+        }
+    }
+    Ok(())
+}
+
+fn materialize_jj_style_conflict(
+    hunk: &Merge<BString>,
+    conflict_info: &str,
+    conflict_marker_style: ConflictMarkerStyle,
+    output: &mut dyn Write,
+) -> io::Result<()> {
     // Write a positive snapshot (side) of a conflict
     fn write_side(add_index: usize, data: &[u8], output: &mut dyn Write) -> io::Result<()> {
         writeln!(
@@ -310,76 +334,57 @@ fn materialize_conflict_hunks(
         write_diff_hunks(diff, output)
     }
 
-    let num_conflicts = hunks
-        .iter()
-        .filter(|hunk| hunk.as_resolved().is_none())
-        .count();
-    let mut conflict_index = 0;
-    for hunk in hunks {
-        if let Some(content) = hunk.as_resolved() {
-            output.write_all(content)?;
+    writeln!(output, "{CONFLICT_START_LINE} {conflict_info}")?;
+    let mut add_index = 0;
+    for (base_index, left) in hunk.removes().enumerate() {
+        // The vast majority of conflicts one actually tries to resolve manually have 1
+        // base.
+        let base_str = if hunk.removes().len() == 1 {
+            "base".to_string()
         } else {
-            conflict_index += 1;
-            writeln!(
-                output,
-                "{CONFLICT_START_LINE} Conflict {conflict_index} of {num_conflicts}"
-            )?;
-            let mut add_index = 0;
-            for (base_index, left) in hunk.removes().enumerate() {
-                // The vast majority of conflicts one actually tries to
-                // resolve manually have 1 base.
-                let base_str = if hunk.removes().len() == 1 {
-                    "base".to_string()
-                } else {
-                    format!("base #{}", base_index + 1)
-                };
+            format!("base #{}", base_index + 1)
+        };
 
-                let Some(right1) = hunk.get_add(add_index) else {
-                    // If we have no more positive terms, emit the remaining negative
-                    // terms as snapshots.
-                    write_base(&base_str, left, output)?;
-                    continue;
-                };
+        let Some(right1) = hunk.get_add(add_index) else {
+            // If we have no more positive terms, emit the remaining negative terms as
+            // snapshots.
+            write_base(&base_str, left, output)?;
+            continue;
+        };
 
-                // For any style other than "diff", always emit sides and bases separately
-                if conflict_marker_style != ConflictMarkerStyle::Diff {
-                    write_side(add_index, right1, output)?;
-                    write_base(&base_str, left, output)?;
-                    add_index += 1;
-                    continue;
-                }
-
-                let diff1 = Diff::by_line([&left, &right1]).hunks().collect_vec();
-                // Check if the diff against the next positive term is better. Since
-                // we want to preserve the order of the terms, we don't match against
-                // any later positive terms.
-                if let Some(right2) = hunk.get_add(add_index + 1) {
-                    let diff2 = Diff::by_line([&left, &right2]).hunks().collect_vec();
-                    if diff_size(&diff2) < diff_size(&diff1) {
-                        // If the next positive term is a better match, emit
-                        // the current positive term as a snapshot and the next
-                        // positive term as a diff.
-                        write_side(add_index, right1, output)?;
-                        write_diff(&base_str, add_index + 1, &diff2, output)?;
-                        add_index += 2;
-                        continue;
-                    }
-                }
-
-                write_diff(&base_str, add_index, &diff1, output)?;
-                add_index += 1;
-            }
-
-            // Emit the remaining positive terms as snapshots.
-            for (add_index, slice) in hunk.adds().enumerate().skip(add_index) {
-                write_side(add_index, slice, output)?;
-            }
-            writeln!(
-                output,
-                "{CONFLICT_END_LINE} Conflict {conflict_index} of {num_conflicts} ends"
-            )?;
+        // For any style other than "diff", always emit sides and bases separately
+        if conflict_marker_style != ConflictMarkerStyle::Diff {
+            write_side(add_index, right1, output)?;
+            write_base(&base_str, left, output)?;
+            add_index += 1;
+            continue;
         }
+
+        let diff1 = Diff::by_line([&left, &right1]).hunks().collect_vec();
+        // Check if the diff against the next positive term is better. Since we want to
+        // preserve the order of the terms, we don't match against any later positive
+        // terms.
+        if let Some(right2) = hunk.get_add(add_index + 1) {
+            let diff2 = Diff::by_line([&left, &right2]).hunks().collect_vec();
+            if diff_size(&diff2) < diff_size(&diff1) {
+                // If the next positive term is a better match, emit the current positive term
+                // as a snapshot and the next positive term as a diff.
+                write_side(add_index, right1, output)?;
+                write_diff(&base_str, add_index + 1, &diff2, output)?;
+                add_index += 2;
+                continue;
+            }
+        }
+
+        write_diff(&base_str, add_index, &diff1, output)?;
+        add_index += 1;
     }
+
+    // Emit the remaining positive terms as snapshots.
+    for (add_index, slice) in hunk.adds().enumerate().skip(add_index) {
+        write_side(add_index, slice, output)?;
+    }
+    writeln!(output, "{CONFLICT_END_LINE} {conflict_info} ends")?;
     Ok(())
 }
 
