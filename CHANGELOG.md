@@ -67,7 +67,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   materialized in the working copy. The default option ("diff") renders
   conflicts as a snapshot with a list of diffs to apply to the snapshot.
   The new "snapshot" option renders conflicts as a series of snapshots, showing
-  each side and base of the conflict.
+  each side and base of the conflict. The new "git" option replicates Git's
+  "diff3" conflict style, meaning it is more likely to work with external tools,
+  but it doesn't support conflicts with more than 2 sides.
 
 ### Fixed bugs
 

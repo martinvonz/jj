@@ -164,7 +164,8 @@
                     "description": "Conflict marker style to use when materializing conflicts in the working copy",
                     "enum": [
                         "diff",
-                        "snapshot"
+                        "snapshot",
+                        "git"
                     ],
                     "default": "diff"
                 }

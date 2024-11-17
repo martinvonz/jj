@@ -56,11 +56,15 @@ const CONFLICT_END_LINE: &str = ">>>>>>>";
 const CONFLICT_DIFF_LINE: &str = "%%%%%%%";
 const CONFLICT_MINUS_LINE: &str = "-------";
 const CONFLICT_PLUS_LINE: &str = "+++++++";
+const CONFLICT_GIT_ANCESTOR_LINE: &str = "|||||||";
+const CONFLICT_GIT_SEPARATOR_LINE: &str = "=======";
 const CONFLICT_START_LINE_CHAR: u8 = CONFLICT_START_LINE.as_bytes()[0];
 const CONFLICT_END_LINE_CHAR: u8 = CONFLICT_END_LINE.as_bytes()[0];
 const CONFLICT_DIFF_LINE_CHAR: u8 = CONFLICT_DIFF_LINE.as_bytes()[0];
 const CONFLICT_MINUS_LINE_CHAR: u8 = CONFLICT_MINUS_LINE.as_bytes()[0];
 const CONFLICT_PLUS_LINE_CHAR: u8 = CONFLICT_PLUS_LINE.as_bytes()[0];
+const CONFLICT_GIT_ANCESTOR_LINE_CHAR: u8 = CONFLICT_GIT_ANCESTOR_LINE.as_bytes()[0];
+const CONFLICT_GIT_SEPARATOR_LINE_CHAR: u8 = CONFLICT_GIT_SEPARATOR_LINE.as_bytes()[0];
 
 /// A conflict marker is one of the separators, optionally followed by a space
 /// and some text.
@@ -68,7 +72,7 @@ const CONFLICT_PLUS_LINE_CHAR: u8 = CONFLICT_PLUS_LINE.as_bytes()[0];
 // separators. This could be useful to make it possible to allow conflict
 // markers inside the text of the conflicts.
 static CONFLICT_MARKER_REGEX: once_cell::sync::Lazy<Regex> = once_cell::sync::Lazy::new(|| {
-    RegexBuilder::new(r"^(<{7}|>{7}|%{7}|\-{7}|\+{7})( .*)?$")
+    RegexBuilder::new(r"^(<{7}|>{7}|%{7}|\-{7}|\+{7}|\|{7}|={7})( .*)?$")
         .multi_line(true)
         .build()
         .unwrap()
@@ -242,6 +246,8 @@ pub enum ConflictMarkerStyle {
     Diff,
     /// Style which shows a snapshot for each base and side.
     Snapshot,
+    /// Style which replicates Git's "diff3" style to support external tools.
+    Git,
 }
 
 pub fn materialize_merge_result<T: AsRef<[u8]>>(
@@ -291,9 +297,41 @@ fn materialize_conflict_hunks(
             conflict_index += 1;
             let conflict_info = format!("Conflict {conflict_index} of {num_conflicts}");
 
-            materialize_jj_style_conflict(hunk, &conflict_info, conflict_marker_style, output)?;
+            match (conflict_marker_style, hunk.as_slice()) {
+                // 2-sided conflicts can use Git-style conflict markers
+                (ConflictMarkerStyle::Git, [left, base, right]) => {
+                    materialize_git_style_conflict(left, base, right, &conflict_info, output)?;
+                }
+                _ => {
+                    materialize_jj_style_conflict(
+                        hunk,
+                        &conflict_info,
+                        conflict_marker_style,
+                        output,
+                    )?;
+                }
+            }
         }
     }
+    Ok(())
+}
+
+fn materialize_git_style_conflict(
+    left: &[u8],
+    base: &[u8],
+    right: &[u8],
+    conflict_info: &str,
+    output: &mut dyn Write,
+) -> io::Result<()> {
+    writeln!(output, "{CONFLICT_START_LINE} Side #1 ({conflict_info})")?;
+    output.write_all(left)?;
+    writeln!(output, "{CONFLICT_GIT_ANCESTOR_LINE} Base")?;
+    output.write_all(base)?;
+    // VS Code doesn't seem to support any trailing text on the separator line
+    writeln!(output, "{CONFLICT_GIT_SEPARATOR_LINE}")?;
+    output.write_all(right)?;
+    writeln!(output, "{CONFLICT_END_LINE} Side #2 ({conflict_info} ends)")?;
+
     Ok(())
 }
 
@@ -474,7 +512,33 @@ pub fn parse_conflict(input: &[u8], num_sides: usize) -> Option<Vec<Merge<BStrin
     }
 }
 
+/// This method handles parsing both JJ-style and Git-style conflict markers,
+/// meaning that switching conflict marker styles won't prevent existing files
+/// with other conflict marker styles from being parsed successfully. The
+/// conflict marker style to use for parsing is determined based on the first
+/// line of the hunk.
 fn parse_conflict_hunk(input: &[u8]) -> Merge<BString> {
+    // If the hunk starts with a conflict marker, find its first character
+    let initial_conflict_marker_char = input
+        .lines_with_terminator()
+        .next()
+        .filter(|line| is_conflict_marker_line(line))
+        .map(|line| line[0]);
+
+    match initial_conflict_marker_char {
+        // JJ-style conflicts must start with one of these 3 conflict marker lines
+        Some(CONFLICT_DIFF_LINE_CHAR | CONFLICT_MINUS_LINE_CHAR | CONFLICT_PLUS_LINE_CHAR) => {
+            parse_jj_style_conflict_hunk(input)
+        }
+        // Git-style conflicts either must not start with a conflict marker line, or must start with
+        // the "|||||||" conflict marker line (if the first side was empty)
+        None | Some(CONFLICT_GIT_ANCESTOR_LINE_CHAR) => parse_git_style_conflict_hunk(input),
+        // No other conflict markers are allowed at the start of a hunk
+        Some(_) => Merge::resolved(BString::new(vec![])),
+    }
+}
+
+fn parse_jj_style_conflict_hunk(input: &[u8]) -> Merge<BString> {
     enum State {
         Diff,
         Minus,
@@ -484,7 +548,7 @@ fn parse_conflict_hunk(input: &[u8]) -> Merge<BString> {
     let mut state = State::Unknown;
     let mut removes = vec![];
     let mut adds = vec![];
-    for line in input.split_inclusive(|b| *b == b'\n') {
+    for line in input.lines_with_terminator() {
         if is_conflict_marker_line(line) {
             match line[0] {
                 CONFLICT_DIFF_LINE_CHAR => {
@@ -505,7 +569,7 @@ fn parse_conflict_hunk(input: &[u8]) -> Merge<BString> {
                 }
                 _ => {}
             }
-        };
+        }
         match state {
             State::Diff => {
                 if let Some(rest) = line.strip_prefix(b"-") {
@@ -541,6 +605,56 @@ fn parse_conflict_hunk(input: &[u8]) -> Merge<BString> {
 
     if adds.len() == removes.len() + 1 {
         Merge::from_removes_adds(removes, adds)
+    } else {
+        // Doesn't look like a valid conflict
+        Merge::resolved(BString::new(vec![]))
+    }
+}
+
+fn parse_git_style_conflict_hunk(input: &[u8]) -> Merge<BString> {
+    #[derive(PartialEq, Eq)]
+    enum State {
+        Left,
+        Base,
+        Right,
+    }
+    let mut state = State::Left;
+    let mut left = BString::new(vec![]);
+    let mut base = BString::new(vec![]);
+    let mut right = BString::new(vec![]);
+    for line in input.lines_with_terminator() {
+        if is_conflict_marker_line(line) {
+            match line[0] {
+                CONFLICT_GIT_ANCESTOR_LINE_CHAR => {
+                    if state == State::Left {
+                        state = State::Base;
+                        continue;
+                    } else {
+                        // Base must come after left
+                        return Merge::resolved(BString::new(vec![]));
+                    }
+                }
+                CONFLICT_GIT_SEPARATOR_LINE_CHAR => {
+                    if state == State::Base {
+                        state = State::Right;
+                        continue;
+                    } else {
+                        // Right must come after base
+                        return Merge::resolved(BString::new(vec![]));
+                    }
+                }
+                _ => {}
+            }
+        }
+        match state {
+            State::Left => left.extend_from_slice(line),
+            State::Base => base.extend_from_slice(line),
+            State::Right => right.extend_from_slice(line),
+        }
+    }
+
+    if state == State::Right {
+        Merge::from_vec(vec![left, base, right])
     } else {
         // Doesn't look like a valid conflict
         Merge::resolved(BString::new(vec![]))

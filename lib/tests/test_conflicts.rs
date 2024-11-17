@@ -140,6 +140,29 @@ fn test_materialize_conflict_basic() {
     line 5
     "##
     );
+    // Test materializing "git" conflict markers
+    let conflict = Merge::from_removes_adds(
+        vec![Some(base_id.clone())],
+        vec![Some(left_id.clone()), Some(right_id.clone())],
+    );
+    insta::assert_snapshot!(
+        &materialize_conflict_string(store, path, &conflict, ConflictMarkerStyle::Git),
+        @r##"
+    line 1
+    line 2
+    <<<<<<< Side #1 (Conflict 1 of 1)
+    left 3.1
+    left 3.2
+    left 3.3
+    ||||||| Base
+    line 3
+    =======
+    right 3.1
+    >>>>>>> Side #2 (Conflict 1 of 1 ends)
+    line 4
+    line 5
+    "##
+    );
 }
 
 #[test]
@@ -231,6 +254,34 @@ fn test_materialize_conflict_three_sides() {
     // Test materializing "snapshot" conflict markers
     insta::assert_snapshot!(
         &materialize_conflict_string(store, path, &conflict, ConflictMarkerStyle::Snapshot),
+        @r##"
+    line 1
+    <<<<<<< Conflict 1 of 1
+    +++++++ Contents of side #1
+    line 2 a.1
+    line 3 a.2
+    line 4 base
+    ------- Contents of base #1
+    line 2 base
+    line 3 base
+    line 4 base
+    +++++++ Contents of side #2
+    line 2 b.1
+    line 3 base
+    line 4 b.2
+    ------- Contents of base #2
+    line 2 base
+    +++++++ Contents of side #3
+    line 2 base
+    line 3 c.2
+    >>>>>>> Conflict 1 of 1 ends
+    line 5
+    "##
+    );
+    // Test materializing "git" conflict markers (falls back to "snapshot" since
+    // "git" conflict markers don't support more than 2 sides)
+    insta::assert_snapshot!(
+        &materialize_conflict_string(store, path, &conflict, ConflictMarkerStyle::Git),
         @r##"
     line 1
     <<<<<<< Conflict 1 of 1
@@ -525,7 +576,11 @@ fn test_materialize_parse_roundtrip_different_markers() {
         vec![Some(a_id.clone()), Some(b_id.clone())],
     );
 
-    let all_styles = [ConflictMarkerStyle::Diff, ConflictMarkerStyle::Snapshot];
+    let all_styles = [
+        ConflictMarkerStyle::Diff,
+        ConflictMarkerStyle::Snapshot,
+        ConflictMarkerStyle::Git,
+    ];
 
     // For every pair of conflict marker styles, materialize the conflict using the
     // first style and parse it using the second. It should return the same result
@@ -898,6 +953,80 @@ fn test_parse_conflict_simple() {
     )
     "#
     );
+    // Test "git" style
+    insta::assert_debug_snapshot!(
+        parse_conflict(indoc! {b"
+            line 1
+            <<<<<<< Side #1
+            line 3.1
+            line 3.2
+            ||||||| Base
+            line 3
+            line 4
+            ======= Side #2
+            line 3
+            line 4.1
+            >>>>>>> End
+            line 5
+            "},
+            2
+        ),
+        @r#"
+    Some(
+        [
+            Resolved(
+                "line 1\n",
+            ),
+            Conflicted(
+                [
+                    "line 3.1\nline 3.2\n",
+                    "line 3\nline 4\n",
+                    "line 3\nline 4.1\n",
+                ],
+            ),
+            Resolved(
+                "line 5\n",
+            ),
+        ],
+    )
+    "#
+    );
+    // Test "git" style with empty side 1
+    insta::assert_debug_snapshot!(
+        parse_conflict(indoc! {b"
+            line 1
+            <<<<<<< Side #1
+            ||||||| Base
+            line 3
+            line 4
+            ======= Side #2
+            line 3.1
+            line 4.1
+            >>>>>>> End
+            line 5
+            "},
+            2
+        ),
+        @r#"
+    Some(
+        [
+            Resolved(
+                "line 1\n",
+            ),
+            Conflicted(
+                [
+                    "",
+                    "line 3\nline 4\n",
+                    "line 3.1\nline 4.1\n",
+                ],
+            ),
+            Resolved(
+                "line 5\n",
+            ),
+        ],
+    )
+    "#
+    );
     // The conflict markers are too long and shouldn't parse (though we may
     // decide to change this in the future)
     insta::assert_debug_snapshot!(
@@ -1254,6 +1383,185 @@ fn test_parse_conflict_snapshot_missing_header() {
             2
         ),
         None
+    );
+}
+
+#[test]
+fn test_parse_conflict_wrong_git_style() {
+    // The "|||||||" section is missing
+    assert_eq!(
+        parse_conflict(
+            indoc! {b"
+            line 1
+            <<<<<<<
+            left
+            =======
+            right
+            >>>>>>>
+            line 5
+            "},
+            2
+        ),
+        None
+    );
+}
+
+#[test]
+fn test_parse_conflict_git_reordered_headers() {
+    // The "=======" header must come after the "|||||||" header
+    assert_eq!(
+        parse_conflict(
+            indoc! {b"
+            line 1
+            <<<<<<<
+            left
+            =======
+            right
+            |||||||
+            base
+            >>>>>>>
+            line 5
+            "},
+            2
+        ),
+        None
+    );
+}
+
+#[test]
+fn test_parse_conflict_git_too_many_sides() {
+    // Git-style conflicts only allow 2 sides
+    assert_eq!(
+        parse_conflict(
+            indoc! {b"
+            line 1
+            <<<<<<<
+            a
+            |||||||
+            b
+            =======
+            c
+            |||||||
+            d
+            =======
+            e
+            >>>>>>>
+            line 5
+            "},
+            3
+        ),
+        None
+    );
+}
+
+#[test]
+fn test_parse_conflict_mixed_header_styles() {
+    // "|||||||" can't be used in place of "-------"
+    assert_eq!(
+        parse_conflict(
+            indoc! {b"
+            line 1
+            <<<<<<<
+            +++++++
+            left
+            |||||||
+            base
+            +++++++
+            right
+            >>>>>>>
+            line 5
+            "},
+            2
+        ),
+        None
+    );
+    // "+++++++" can't be used in place of "======="
+    assert_eq!(
+        parse_conflict(
+            indoc! {b"
+            line 1
+            <<<<<<<
+            left
+            |||||||
+            base
+            +++++++
+            right
+            >>>>>>>
+            line 5
+            "},
+            2
+        ),
+        None
+    );
+    // Test Git-style markers are ignored inside of JJ-style conflict
+    insta::assert_debug_snapshot!(
+        parse_conflict(indoc! {b"
+            line 1
+            <<<<<<< Conflict 1 of 1
+            +++++++ Contents of side #1
+            ======= ignored
+            ------- Contents of base
+            ||||||| ignored
+            +++++++ Contents of side #2
+            >>>>>>> Conflict 1 of 1 ends
+            line 5
+            "},
+            2
+        ),
+        @r#"
+    Some(
+        [
+            Resolved(
+                "line 1\n",
+            ),
+            Conflicted(
+                [
+                    "======= ignored\n",
+                    "||||||| ignored\n",
+                    "",
+                ],
+            ),
+            Resolved(
+                "line 5\n",
+            ),
+        ],
+    )
+    "#
+    );
+    // Test JJ-style markers are ignored inside of Git-style conflict
+    insta::assert_debug_snapshot!(
+        parse_conflict(indoc! {b"
+            line 1
+            <<<<<<< Side #1 (Conflict 1 of 1)
+            ||||||| Base
+            ------- ignored
+            %%%%%%% ignored
+            =======
+            +++++++ ignored
+            >>>>>>> Side #2 (Conflict 1 of 1 ends)
+            line 5
+            "},
+            2
+        ),
+        @r#"
+    Some(
+        [
+            Resolved(
+                "line 1\n",
+            ),
+            Conflicted(
+                [
+                    "",
+                    "------- ignored\n%%%%%%% ignored\n",
+                    "+++++++ ignored\n",
+                ],
+            ),
+            Resolved(
+                "line 5\n",
+            ),
+        ],
+    )
+    "#
     );
 }
 
