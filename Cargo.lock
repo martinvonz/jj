@@ -1826,6 +1826,7 @@ dependencies = [
  "futures 0.3.31",
  "git2",
  "gix",
+ "glob",
  "indexmap",
  "indoc",
  "insta",

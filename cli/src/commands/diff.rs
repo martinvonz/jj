@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use clap_complete::ArgValueCandidates;
+use clap_complete::ArgValueCompleter;
 use itertools::Itertools;
 use jj_lib::copies::CopyRecords;
 use jj_lib::repo::Repo;
@@ -59,7 +60,7 @@ pub(crate) struct DiffArgs {
     /// Restrict the diff to these paths
     #[arg(
         value_hint = clap::ValueHint::AnyPath,
-        add = ArgValueCandidates::new(complete::modified_revision_or_range_files),
+        add = ArgValueCompleter::new(complete::modified_revision_or_range_files),
     )]
     paths: Vec<String>,
     #[command(flatten)]
