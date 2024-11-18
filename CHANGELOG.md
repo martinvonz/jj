@@ -41,6 +41,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * New `fork_point()` revset function can be used to obtain the fork point
   of multiple commits.
 
+* The `tags()` revset function now takes an optional `pattern` argument,
+  mirroring that of `bookmarks()`.
+
 ### Fixed bugs
 
 * `jj config unset <TABLE-NAME>` no longer removes a table (such as `[ui]`.)
