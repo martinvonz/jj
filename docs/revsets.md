@@ -228,8 +228,11 @@ revsets (expressions) as arguments.
   All targets of untracked remote bookmarks. Supports the same optional arguments
   as `remote_bookmarks()`.
 
-* `tags()`: All tag targets. If a tag is in a conflicted state, all its
-  possible targets are included.
+* `tags([pattern])`: All tag targets. If `pattern` is specified,
+  this selects the tags whose name match the given [string
+  pattern](#string-patterns). For example, `tags(v1)` would match the
+  tags `v123` and `rev1` but not the tag `v2`. If a tag is
+  in a conflicted state, all its possible targets are included.
 
 * `git_refs()`:  All Git ref targets as of the last import. If a Git ref
   is in a conflicted state, all its possible targets are included.

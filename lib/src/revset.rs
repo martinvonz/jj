@@ -137,7 +137,7 @@ pub enum RevsetCommitRef {
         remote_pattern: StringPattern,
         remote_ref_state: Option<RemoteRefState>,
     },
-    Tags,
+    Tags(StringPattern),
     GitRefs,
     GitHead,
 }
@@ -348,8 +348,8 @@ impl<St: ExpressionState<CommitRef = RevsetCommitRef>> RevsetExpression<St> {
         }))
     }
 
-    pub fn tags() -> Rc<Self> {
-        Rc::new(Self::CommitRef(RevsetCommitRef::Tags))
+    pub fn tags(pattern: StringPattern) -> Rc<Self> {
+        Rc::new(Self::CommitRef(RevsetCommitRef::Tags(pattern)))
     }
 
     pub fn git_refs() -> Rc<Self> {
@@ -785,9 +785,14 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
         map["untracked_remote_bookmarks"],
     );
 
-    map.insert("tags", |_diagnostics, function, _context| {
-        function.expect_no_arguments()?;
-        Ok(RevsetExpression::tags())
+    map.insert("tags", |diagnostics, function, _context| {
+        let ([], [opt_arg]) = function.expect_arguments()?;
+        let pattern = if let Some(arg) = opt_arg {
+            expect_string_pattern(diagnostics, arg)?
+        } else {
+            StringPattern::everything()
+        };
+        Ok(RevsetExpression::tags(pattern))
     });
     map.insert("git_refs", |_diagnostics, function, _context| {
         function.expect_no_arguments()?;
@@ -2172,11 +2177,13 @@ fn resolve_commit_ref(
                 .collect();
             Ok(commit_ids)
         }
-        RevsetCommitRef::Tags => {
-            let mut commit_ids = vec![];
-            for ref_target in repo.view().tags().values() {
-                commit_ids.extend(ref_target.added_ids().cloned());
-            }
+        RevsetCommitRef::Tags(pattern) => {
+            let commit_ids = repo
+                .view()
+                .tags_matching(pattern)
+                .flat_map(|(_, target)| target.added_ids())
+                .cloned()
+                .collect();
             Ok(commit_ids)
         }
         RevsetCommitRef::GitRefs => {
@@ -2984,6 +2991,10 @@ mod tests {
         insta::assert_debug_snapshot!(
             parse("bookmarks()").unwrap(),
             @r###"CommitRef(Bookmarks(Substring("")))"###);
+        // Default argument for tags() is ""
+        insta::assert_debug_snapshot!(
+            parse("tags()").unwrap(),
+            @r###"CommitRef(Tags(Substring("")))"###);
         insta::assert_debug_snapshot!(parse("remote_bookmarks()").unwrap(), @r###"
         CommitRef(
             RemoteBookmarks {
@@ -3150,6 +3161,25 @@ mod tests {
             @r###"Expression("Expected expression of string pattern")"###);
         insta::assert_debug_snapshot!(
             parse(r#"bookmarks(exact:"foo"+)"#).unwrap_err().kind(),
+            @r###"Expression("Expected expression of string pattern")"###);
+
+        insta::assert_debug_snapshot!(
+            parse(r#"tags("foo")"#).unwrap(),
+            @r###"CommitRef(Tags(Substring("foo")))"###);
+        insta::assert_debug_snapshot!(
+            parse(r#"tags(exact:"foo")"#).unwrap(),
+            @r###"CommitRef(Tags(Exact("foo")))"###);
+        insta::assert_debug_snapshot!(
+            parse(r#"tags(substring:"foo")"#).unwrap(),
+            @r###"CommitRef(Tags(Substring("foo")))"###);
+        insta::assert_debug_snapshot!(
+            parse(r#"tags(bad:"foo")"#).unwrap_err().kind(),
+            @r###"Expression("Invalid string pattern")"###);
+        insta::assert_debug_snapshot!(
+            parse(r#"tags(exact::"foo")"#).unwrap_err().kind(),
+            @r###"Expression("Expected expression of string pattern")"###);
+        insta::assert_debug_snapshot!(
+            parse(r#"tags(exact:"foo"+)"#).unwrap_err().kind(),
             @r###"Expression("Expected expression of string pattern")"###);
 
         // String pattern isn't allowed at top level.
@@ -3434,7 +3464,7 @@ mod tests {
             optimize(parse("(bookmarks() & all())..(all() & tags())").unwrap()), @r###"
         Range {
             roots: CommitRef(Bookmarks(Substring(""))),
-            heads: CommitRef(Tags),
+            heads: CommitRef(Tags(Substring(""))),
             generation: 0..18446744073709551615,
         }
         "###);
@@ -3442,7 +3472,7 @@ mod tests {
             optimize(parse("(bookmarks() & all())::(all() & tags())").unwrap()), @r###"
         DagRange {
             roots: CommitRef(Bookmarks(Substring(""))),
-            heads: CommitRef(Tags),
+            heads: CommitRef(Tags(Substring(""))),
         }
         "###);
 
@@ -3501,21 +3531,21 @@ mod tests {
             optimize(parse("(bookmarks() & all()) | (all() & tags())").unwrap()), @r###"
         Union(
             CommitRef(Bookmarks(Substring(""))),
-            CommitRef(Tags),
+            CommitRef(Tags(Substring(""))),
         )
         "###);
         insta::assert_debug_snapshot!(
             optimize(parse("(bookmarks() & all()) & (all() & tags())").unwrap()), @r###"
         Intersection(
             CommitRef(Bookmarks(Substring(""))),
-            CommitRef(Tags),
+            CommitRef(Tags(Substring(""))),
         )
         "###);
         insta::assert_debug_snapshot!(
             optimize(parse("(bookmarks() & all()) ~ (all() & tags())").unwrap()), @r###"
         Difference(
             CommitRef(Bookmarks(Substring(""))),
-            CommitRef(Tags),
+            CommitRef(Tags(Substring(""))),
         )
         "###);
     }
@@ -3565,7 +3595,7 @@ mod tests {
         ));
         assert_matches!(
             unwrap_union(&optimized).1.as_ref(),
-            RevsetExpression::CommitRef(RevsetCommitRef::Tags)
+            RevsetExpression::CommitRef(RevsetCommitRef::Tags(_))
         );
     }
 

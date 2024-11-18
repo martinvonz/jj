@@ -2306,6 +2306,91 @@ fn test_evaluate_expression_remote_bookmarks() {
 }
 
 #[test]
+fn test_evaluate_expression_tags() {
+    let settings = testutils::user_settings();
+    let test_repo = TestRepo::init();
+    let repo = &test_repo.repo;
+
+    let mut tx = repo.start_transaction(&settings);
+    let mut_repo = tx.repo_mut();
+
+    let commit1 = write_random_commit(mut_repo, &settings);
+    let commit2 = write_random_commit(mut_repo, &settings);
+    let commit3 = write_random_commit(mut_repo, &settings);
+    let commit4 = write_random_commit(mut_repo, &settings);
+
+    // Can get tags when there are none
+    assert_eq!(resolve_commit_ids(mut_repo, "tags()"), vec![]);
+    // Can get a few tags
+    mut_repo.set_tag_target("tag1", RefTarget::normal(commit1.id().clone()));
+    mut_repo.set_tag_target("tag2", RefTarget::normal(commit2.id().clone()));
+    assert_eq!(
+        resolve_commit_ids(mut_repo, "tags()"),
+        vec![commit2.id().clone(), commit1.id().clone()]
+    );
+    // Can get tags with matching names
+    assert_eq!(
+        resolve_commit_ids(mut_repo, "tags(tag1)"),
+        vec![commit1.id().clone()]
+    );
+    assert_eq!(
+        resolve_commit_ids(mut_repo, "tags(tag)"),
+        vec![commit2.id().clone(), commit1.id().clone()]
+    );
+    assert_eq!(
+        resolve_commit_ids(mut_repo, "tags(exact:tag1)"),
+        vec![commit1.id().clone()]
+    );
+    assert_eq!(resolve_commit_ids(mut_repo, r#"tags(glob:"Tag?")"#), vec![]);
+    assert_eq!(
+        resolve_commit_ids(mut_repo, r#"tags(glob-i:"Tag?")"#),
+        vec![commit2.id().clone(), commit1.id().clone()]
+    );
+    assert_eq!(
+        resolve_commit_ids(mut_repo, "tags(regex:'ag')"),
+        vec![commit2.id().clone(), commit1.id().clone()]
+    );
+    assert_eq!(
+        resolve_commit_ids(mut_repo, "tags(regex:'^[Tt]ag1$')"),
+        vec![commit1.id().clone()]
+    );
+    // Can silently resolve to an empty set if there's no matches
+    assert_eq!(resolve_commit_ids(mut_repo, "tags(tag3)"), vec![]);
+    assert_eq!(resolve_commit_ids(mut_repo, "tags(exact:ag1)"), vec![]);
+    // Two tags pointing to the same commit does not result in a duplicate in
+    // the revset
+    mut_repo.set_tag_target("tag3", RefTarget::normal(commit2.id().clone()));
+    assert_eq!(
+        resolve_commit_ids(mut_repo, "tags()"),
+        vec![commit2.id().clone(), commit1.id().clone()]
+    );
+    // Can get tags when there are conflicted refs
+    mut_repo.set_tag_target(
+        "tag1",
+        RefTarget::from_legacy_form(
+            [commit1.id().clone()],
+            [commit2.id().clone(), commit3.id().clone()],
+        ),
+    );
+    mut_repo.set_tag_target(
+        "tag2",
+        RefTarget::from_legacy_form(
+            [commit2.id().clone()],
+            [commit3.id().clone(), commit4.id().clone()],
+        ),
+    );
+    mut_repo.set_tag_target("tag3", RefTarget::absent());
+    assert_eq!(
+        resolve_commit_ids(mut_repo, "tags()"),
+        vec![
+            commit4.id().clone(),
+            commit3.id().clone(),
+            commit2.id().clone()
+        ]
+    );
+}
+
+#[test]
 fn test_evaluate_expression_latest() {
     let settings = testutils::user_settings();
     let test_repo = TestRepo::init();
