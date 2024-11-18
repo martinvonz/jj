@@ -137,7 +137,7 @@ pub enum RevsetCommitRef {
         remote_pattern: StringPattern,
         remote_ref_state: Option<RemoteRefState>,
     },
-    Tags,
+    Tags(StringPattern),
     GitRefs,
     GitHead,
 }
@@ -348,8 +348,8 @@ impl<St: ExpressionState<CommitRef = RevsetCommitRef>> RevsetExpression<St> {
         }))
     }
 
-    pub fn tags() -> Rc<Self> {
-        Rc::new(Self::CommitRef(RevsetCommitRef::Tags))
+    pub fn tags(pattern: StringPattern) -> Rc<Self> {
+        Rc::new(Self::CommitRef(RevsetCommitRef::Tags(pattern)))
     }
 
     pub fn git_refs() -> Rc<Self> {
@@ -785,9 +785,14 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
         map["untracked_remote_bookmarks"],
     );
 
-    map.insert("tags", |_diagnostics, function, _context| {
-        function.expect_no_arguments()?;
-        Ok(RevsetExpression::tags())
+    map.insert("tags", |diagnostics, function, _context| {
+        let ([], [opt_arg]) = function.expect_arguments()?;
+        let pattern = if let Some(arg) = opt_arg {
+            expect_string_pattern(diagnostics, arg)?
+        } else {
+            StringPattern::everything()
+        };
+        Ok(RevsetExpression::tags(pattern))
     });
     map.insert("git_refs", |_diagnostics, function, _context| {
         function.expect_no_arguments()?;
@@ -2172,11 +2177,13 @@ fn resolve_commit_ref(
                 .collect();
             Ok(commit_ids)
         }
-        RevsetCommitRef::Tags => {
-            let mut commit_ids = vec![];
-            for ref_target in repo.view().tags().values() {
-                commit_ids.extend(ref_target.added_ids().cloned());
-            }
+        RevsetCommitRef::Tags(pattern) => {
+            let commit_ids = repo
+                .view()
+                .local_tags_matching(pattern)
+                .flat_map(|(_, target)| target.added_ids())
+                .cloned()
+                .collect();
             Ok(commit_ids)
         }
         RevsetCommitRef::GitRefs => {
@@ -3565,7 +3572,7 @@ mod tests {
         ));
         assert_matches!(
             unwrap_union(&optimized).1.as_ref(),
-            RevsetExpression::CommitRef(RevsetCommitRef::Tags)
+            RevsetExpression::CommitRef(RevsetCommitRef::Tags(_))
         );
     }
 

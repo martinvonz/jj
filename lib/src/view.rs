@@ -309,6 +309,17 @@ impl View {
         self.data.tags.get(name).flatten()
     }
 
+    /// Iterates local tag `(name, target)`s matching the given pattern. Entries
+    /// are sorted by `name`.
+    pub fn local_tags_matching<'a: 'b, 'b>(
+        &'a self,
+        pattern: &'b StringPattern,
+    ) -> impl Iterator<Item = (&'a str, &'a RefTarget)> + 'b {
+        pattern
+            .filter_btree_map(&self.data.tags)
+            .map(|(name, target)| (name.as_ref(), target))
+    }
+
     /// Sets tag to point to the given target. If the target is absent, the tag
     /// will be removed.
     pub fn set_tag_target(&mut self, name: &str, target: RefTarget) {
