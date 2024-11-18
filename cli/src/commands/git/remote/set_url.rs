@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use clap_complete::ArgValueCandidates;
+use clap_complete::ArgValueCompleter;
 use jj_lib::git;
 use jj_lib::repo::Repo;
 
@@ -29,6 +30,7 @@ pub struct GitRemoteSetUrlArgs {
     #[arg(add = ArgValueCandidates::new(complete::git_remotes))]
     remote: String,
     /// The desired url for `remote`
+    #[arg(add = ArgValueCompleter::new(complete::new_git_remote_url))]
     url: String,
 }
 
