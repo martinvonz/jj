@@ -976,7 +976,7 @@ fn test_git_push_missing_author() {
             .assert()
             .success();
     };
-    run_without_var("JJ_USER", &["checkout", "root()", "-m=initial"]);
+    run_without_var("JJ_USER", &["new", "root()", "-m=initial"]);
     run_without_var("JJ_USER", &["bookmark", "create", "missing-name"]);
     let stderr = test_env.jj_cmd_failure(
         &workspace_root,
@@ -985,7 +985,7 @@ fn test_git_push_missing_author() {
     insta::assert_snapshot!(stderr, @r###"
     Error: Won't push commit 944313939bbd since it has no author and/or committer set
     "###);
-    run_without_var("JJ_EMAIL", &["checkout", "root()", "-m=initial"]);
+    run_without_var("JJ_EMAIL", &["new", "root()", "-m=initial"]);
     run_without_var("JJ_EMAIL", &["bookmark", "create", "missing-email"]);
     let stderr = test_env.jj_cmd_failure(
         &workspace_root,
@@ -1065,7 +1065,7 @@ fn test_git_push_missing_committer() {
     insta::assert_snapshot!(stderr, @r###"
     Error: Won't push commit 4fd190283d1a since it has no author and/or committer set
     "###);
-    test_env.jj_cmd_ok(&workspace_root, &["checkout", "root()"]);
+    test_env.jj_cmd_ok(&workspace_root, &["new", "root()"]);
     test_env.jj_cmd_ok(&workspace_root, &["bookmark", "create", "missing-email"]);
     run_without_var("JJ_EMAIL", &["describe", "-m=no committer email"]);
     let stderr = test_env.jj_cmd_failure(

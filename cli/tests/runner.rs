@@ -16,7 +16,6 @@ mod test_alias;
 mod test_backout_command;
 mod test_bookmark_command;
 mod test_builtin_aliases;
-mod test_checkout;
 mod test_commit_command;
 mod test_commit_template;
 mod test_completion;
