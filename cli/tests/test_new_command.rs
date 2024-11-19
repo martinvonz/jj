@@ -106,9 +106,9 @@ fn test_new_merge() {
     ◆  0000000000000000000000000000000000000000
     "###);
 
-    // Same test with `jj merge`
+    // Same test with `jj new`
     test_env.jj_cmd_ok(&repo_path, &["undo"]);
-    test_env.jj_cmd_ok(&repo_path, &["merge", "main", "@"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "main", "@"]);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    114023233c454e2eca22b8b209f9e42f755eb28c
     ├─╮
@@ -116,20 +116,6 @@ fn test_new_merge() {
     ○ │  8d996e001c23e298d0d353ab455665c81bf2080c add file1
     ├─╯
     ◆  0000000000000000000000000000000000000000
-    "###);
-
-    // `jj merge` with less than two arguments is an error
-    let stderr = test_env.jj_cmd_cli_error(&repo_path, &["merge"]);
-    insta::assert_snapshot!(stderr, @r###"
-    Warning: `jj merge` is deprecated; use `jj new` instead, which is equivalent
-    Warning: `jj merge` will be removed in a future version, and this will be a hard error
-    Error: Merge requires at least two revisions
-    "###);
-    let stderr = test_env.jj_cmd_cli_error(&repo_path, &["merge", "main"]);
-    insta::assert_snapshot!(stderr, @r###"
-    Warning: `jj merge` is deprecated; use `jj new` instead, which is equivalent
-    Warning: `jj merge` will be removed in a future version, and this will be a hard error
-    Error: Merge requires at least two revisions
     "###);
 
     // merge with non-unique revisions
@@ -140,10 +126,10 @@ fn test_new_merge() {
     // if prefixed with all:, duplicates are allowed
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["new", "@", "all:visible_heads()"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
-    Working copy now at: xznxytkn 6286a0ff (empty) (no description set)
+    insta::assert_snapshot!(stderr, @r#"
+    Working copy now at: nkmrtpmo ed2dc1d9 (empty) (no description set)
     Parent commit      : wqnwkozp 11402323 (empty) (no description set)
-    "###);
+    "#);
 
     // merge with root
     let stderr = test_env.jj_cmd_failure(&repo_path, &["new", "@", "root()"]);
