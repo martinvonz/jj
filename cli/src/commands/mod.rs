@@ -18,7 +18,6 @@ mod backout;
 #[cfg(feature = "bench")]
 mod bench;
 mod bookmark;
-mod checkout;
 mod commit;
 mod config;
 mod debug;
@@ -91,8 +90,6 @@ enum Command {
     Branch(bookmark::BookmarkCommand),
     #[command(alias = "print", hide = true)]
     Cat(file::show::FileShowArgs),
-    #[command(hide = true)]
-    Checkout(checkout::CheckoutArgs),
     // TODO: Delete `chmod` in jj 0.25+
     #[command(hide = true)]
     Chmod(file::chmod::FileChmodArgs),
@@ -204,7 +201,6 @@ pub fn run_command(ui: &mut Ui, command_helper: &CommandHelper) -> Result<(), Co
             let cmd = renamed_cmd("cat", "file show", file::show::cmd_file_show);
             cmd(ui, command_helper, args)
         }
-        Command::Checkout(args) => checkout::cmd_checkout(ui, command_helper, args),
         Command::Chmod(args) => {
             let cmd = renamed_cmd("chmod", "file chmod", file::chmod::cmd_file_chmod);
             cmd(ui, command_helper, args)

@@ -25,7 +25,7 @@ fn test_interdiff_basic() {
     std::fs::write(repo_path.join("file2"), "foo\n").unwrap();
     test_env.jj_cmd_ok(&repo_path, &["bookmark", "create", "left"]);
 
-    test_env.jj_cmd_ok(&repo_path, &["checkout", "root()"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "root()"]);
     std::fs::write(repo_path.join("file3"), "foo\n").unwrap();
     test_env.jj_cmd_ok(&repo_path, &["new"]);
     std::fs::write(repo_path.join("file2"), "foo\nbar\n").unwrap();
@@ -40,7 +40,7 @@ fn test_interdiff_basic() {
     "###);
 
     // explicit --to
-    test_env.jj_cmd_ok(&repo_path, &["checkout", "@-"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "@-"]);
     let stdout = test_env.jj_cmd_success(
         &repo_path,
         &["interdiff", "--from", "left", "--to", "right"],
@@ -89,7 +89,7 @@ fn test_interdiff_paths() {
     std::fs::write(repo_path.join("file2"), "bar\n").unwrap();
     test_env.jj_cmd_ok(&repo_path, &["bookmark", "create", "left"]);
 
-    test_env.jj_cmd_ok(&repo_path, &["checkout", "root()"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "root()"]);
     std::fs::write(repo_path.join("file1"), "foo\n").unwrap();
     std::fs::write(repo_path.join("file2"), "foo\n").unwrap();
     test_env.jj_cmd_ok(&repo_path, &["new"]);
@@ -137,7 +137,7 @@ fn test_interdiff_conflicting() {
     std::fs::write(repo_path.join("file"), "bar\n").unwrap();
     test_env.jj_cmd_ok(&repo_path, &["bookmark", "create", "left"]);
 
-    test_env.jj_cmd_ok(&repo_path, &["checkout", "root()"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "root()"]);
     std::fs::write(repo_path.join("file"), "abc\n").unwrap();
     test_env.jj_cmd_ok(&repo_path, &["new"]);
     std::fs::write(repo_path.join("file"), "def\n").unwrap();

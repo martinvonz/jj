@@ -3,7 +3,6 @@
 [aliases]
 amend = ["squash"]
 b = ["bookmark"]
-co = ["checkout"]
 unamend = ["unsquash"]
 
 [diff.color-words]
