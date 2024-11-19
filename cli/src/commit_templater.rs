@@ -1028,7 +1028,7 @@ impl RefName {
     fn is_tracking_present(&self) -> bool {
         self.tracking_ref
             .as_ref()
-            .map_or(false, |tracking| tracking.target.is_present())
+            .is_some_and(|tracking| tracking.target.is_present())
     }
 
     /// Number of commits ahead of the tracking local ref.

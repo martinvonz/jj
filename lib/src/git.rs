@@ -174,7 +174,7 @@ fn resolve_git_ref_to_commit_id(
     let peeled_id = peeling_ref.into_owned().into_fully_peeled_id().ok()?;
     let is_commit = peeled_id
         .object()
-        .map_or(false, |object| object.kind.is_commit());
+        .is_ok_and(|object| object.kind.is_commit());
     is_commit.then(|| CommitId::from_bytes(peeled_id.as_bytes()))
 }
 

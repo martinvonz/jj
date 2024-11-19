@@ -142,7 +142,7 @@ impl Matcher for FilesMatcher {
     fn matches(&self, file: &RepoPath) -> bool {
         self.tree
             .get(file)
-            .map_or(false, |sub| sub.value == FilesNodeKind::File)
+            .is_some_and(|sub| sub.value == FilesNodeKind::File)
     }
 
     fn visit(&self, dir: &RepoPath) -> Visit {
