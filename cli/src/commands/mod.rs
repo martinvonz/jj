@@ -34,7 +34,6 @@ mod help;
 mod init;
 mod interdiff;
 mod log;
-mod merge;
 mod new;
 mod next;
 mod operation;
@@ -118,17 +117,6 @@ enum Command {
     Init(init::InitArgs),
     Interdiff(interdiff::InterdiffArgs),
     Log(log::LogArgs),
-    /// Merge work from multiple bookmarks (DEPRECATED, use `jj new`)
-    ///
-    /// Unlike most other VCSs, `jj merge` does not implicitly include the
-    /// working copy revision's parent as one of the parents of the merge;
-    /// you need to explicitly list all revisions that should become parents
-    /// of the merge.
-    ///
-    /// This is the same as `jj new`, except that it requires at least two
-    /// arguments.
-    #[command(hide = true)]
-    Merge(new::NewArgs),
     New(new::NewArgs),
     Next(next::NextArgs),
     #[command(subcommand)]
@@ -224,7 +212,6 @@ pub fn run_command(ui: &mut Ui, command_helper: &CommandHelper) -> Result<(), Co
         Command::Init(args) => init::cmd_init(ui, command_helper, args),
         Command::Interdiff(args) => interdiff::cmd_interdiff(ui, command_helper, args),
         Command::Log(args) => log::cmd_log(ui, command_helper, args),
-        Command::Merge(args) => merge::cmd_merge(ui, command_helper, args),
         Command::New(args) => new::cmd_new(ui, command_helper, args),
         Command::Next(args) => next::cmd_next(ui, command_helper, args),
         Command::Evolog(args) => evolog::cmd_evolog(ui, command_helper, args),
