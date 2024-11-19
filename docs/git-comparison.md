@@ -376,5 +376,11 @@ parent.
       </td>
       <td><code>git revert &lt;revision&gt;</code></td>
     </tr>
+    <tr>
+      <td>Show what revision and author last modified each line of a file</td>
+      <td><code>jj file annotate &lt;path&gt;</code>
+      </td>
+      <td><code>git blame &lt;file&gt;</code></td>
+    </tr>
   </tbody>
 </table>
