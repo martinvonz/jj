@@ -878,10 +878,9 @@ pub fn duplicate_commits(
                 })
                 .collect()
         };
-        let new_commit = mut_repo
-            .rewrite_commit(settings, &original_commit)
+        let new_commit = CommitRewriter::new(mut_repo, original_commit, new_parent_ids)
+            .rebase(settings)?
             .generate_new_change_id()
-            .set_parents(new_parent_ids)
             .write()?;
         duplicated_old_to_new.insert(original_commit_id.clone(), new_commit);
     }

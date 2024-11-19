@@ -283,12 +283,10 @@ fn test_duplicate_destination() {
     // Duplicate a single commit onto a single destination.
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["duplicate", "a1", "-d", "c"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r#"
-    Duplicated 9e85a474f005 as nkmrtpmo 4587e554 a1
-    "#);
+    insta::assert_snapshot!(stderr, @"Duplicated 9e85a474f005 as nkmrtpmo 2944a632 a1");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r"
     @  f7550bb42c6f   d
-    │ ○  4587e554fef9   a1
+    │ ○  2944a6324f14   a1
     │ ○  b75b7aa4b90e   c
     ├─╯
     │ ○  9a27d5939bef   b
@@ -305,11 +303,9 @@ fn test_duplicate_destination() {
     let (stdout, stderr) =
         test_env.jj_cmd_ok(&repo_path, &["duplicate", "a1", "-d", "c", "-d", "d"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r#"
-    Duplicated 9e85a474f005 as xtnwkqum b82e6252 a1
-    "#);
-    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r#"
-    ○    b82e62526e11   a1
+    insta::assert_snapshot!(stderr, @"Duplicated 9e85a474f005 as xtnwkqum 155f6a01 a1");
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r"
+    ○    155f6a012334   a1
     ├─╮
     │ @  f7550bb42c6f   d
     ○ │  b75b7aa4b90e   c
@@ -321,23 +317,23 @@ fn test_duplicate_destination() {
     │ ○  9e85a474f005   a1
     ├─╯
     ◆  000000000000
-    "#);
+    ");
     test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
 
     // Duplicate a single commit onto its descendant.
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["duplicate", "a1", "-d", "a3"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r#"
+    insta::assert_snapshot!(stderr, @r"
     Warning: Duplicating commit 9e85a474f005 as a descendant of itself
-    Duplicated 9e85a474f005 as wvuyspvk 5b3cf5a5 a1
-    "#);
+    Duplicated 9e85a474f005 as wvuyspvk 95585bb2 (empty) a1
+    ");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r"
     @  f7550bb42c6f   d
     │ ○  b75b7aa4b90e   c
     ├─╯
     │ ○  9a27d5939bef   b
     ├─╯
-    │ ○  5b3cf5a5cbc2   a1
+    │ ○  95585bb2fe05   a1
     │ ○  17072aa2b823   a3
     │ ○  47df67757a64   a2
     │ ○  9e85a474f005   a1
@@ -350,14 +346,14 @@ fn test_duplicate_destination() {
     // single destination.
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["duplicate", "a1", "b", "-d", "c"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r#"
-    Duplicated 9e85a474f005 as xlzxqlsl 30bff9b1 a1
-    Duplicated 9a27d5939bef as vnkwvqxw c7016240 b
-    "#);
+    insta::assert_snapshot!(stderr, @r"
+    Duplicated 9e85a474f005 as xlzxqlsl da0996fd a1
+    Duplicated 9a27d5939bef as vnkwvqxw 0af91ca8 b
+    ");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r"
     @  f7550bb42c6f   d
-    │ ○  c7016240cc66   b
-    │ │ ○  30bff9b13575   a1
+    │ ○  0af91ca82d9c   b
+    │ │ ○  da0996fda8ce   a1
     │ ├─╯
     │ ○  b75b7aa4b90e   c
     ├─╯
@@ -376,14 +372,14 @@ fn test_duplicate_destination() {
     let (stdout, stderr) =
         test_env.jj_cmd_ok(&repo_path, &["duplicate", "a1", "b", "-d", "c", "-d", "d"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r#"
-    Duplicated 9e85a474f005 as oupztwtk 8fd646d0 a1
-    Duplicated 9a27d5939bef as yxsqzptr 7d7269ca b
-    "#);
-    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r#"
-    ○    7d7269ca124a   b
+    insta::assert_snapshot!(stderr, @r"
+    Duplicated 9e85a474f005 as oupztwtk 2f519daa a1
+    Duplicated 9a27d5939bef as yxsqzptr c219a744 b
+    ");
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r"
+    ○    c219a744e19c   b
     ├─╮
-    │ │ ○  8fd646d085a9   a1
+    │ │ ○  2f519daab24d   a1
     ╭─┬─╯
     │ @  f7550bb42c6f   d
     ○ │  b75b7aa4b90e   c
@@ -395,21 +391,21 @@ fn test_duplicate_destination() {
     │ ○  9e85a474f005   a1
     ├─╯
     ◆  000000000000
-    "#);
+    ");
     test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
 
     // Duplicate multiple commits with an ancestry relationship onto a
     // single destination.
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["duplicate", "a1", "a3", "-d", "c"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r#"
-    Duplicated 9e85a474f005 as wtszoswq 58411bed a1
-    Duplicated 17072aa2b823 as qmykwtmu 86842c96 a3
-    "#);
+    insta::assert_snapshot!(stderr, @r"
+    Duplicated 9e85a474f005 as wtszoswq 806f2b56 a1
+    Duplicated 17072aa2b823 as qmykwtmu 161ce874 a3
+    ");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r"
     @  f7550bb42c6f   d
-    │ ○  86842c96d8c8   a3
-    │ ○  58411bed3598   a1
+    │ ○  161ce87408d5   a3
+    │ ○  806f2b56207d   a1
     │ ○  b75b7aa4b90e   c
     ├─╯
     │ ○  9a27d5939bef   b
@@ -427,13 +423,13 @@ fn test_duplicate_destination() {
     let (stdout, stderr) =
         test_env.jj_cmd_ok(&repo_path, &["duplicate", "a1", "a3", "-d", "c", "-d", "d"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r#"
-    Duplicated 9e85a474f005 as rkoyqlrv 57d65d68 a1
-    Duplicated 17072aa2b823 as zxvrqtmq 144cd2f3 a3
-    "#);
-    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r#"
-    ○  144cd2f3a5ab   a3
-    ○    57d65d688a47   a1
+    insta::assert_snapshot!(stderr, @r"
+    Duplicated 9e85a474f005 as rkoyqlrv 02cbff23 a1
+    Duplicated 17072aa2b823 as zxvrqtmq ddcfb95f a3
+    ");
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r"
+    ○  ddcfb95ff7d8   a3
+    ○    02cbff23a61d   a1
     ├─╮
     │ @  f7550bb42c6f   d
     ○ │  b75b7aa4b90e   c
@@ -445,7 +441,7 @@ fn test_duplicate_destination() {
     │ ○  9e85a474f005   a1
     ├─╯
     ◆  000000000000
-    "#);
+    ");
 }
 
 #[test]
@@ -487,18 +483,18 @@ fn test_duplicate_insert_after() {
     // Duplicate a single commit after a single commit with no direct relationship.
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["duplicate", "a1", "--after", "b1"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r#"
-    Duplicated 9e85a474f005 as pzsxstzt b34eead0 a1
+    insta::assert_snapshot!(stderr, @r"
+    Duplicated 9e85a474f005 as pzsxstzt b71e23da a1
     Rebased 1 commits onto duplicated commits
-    "#);
+    ");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r"
     @  0cdd923e993a   d2
     ○  0f21c5e185c5   d1
     │ ○  09560d60cac4   c2
     │ ○  b27346e9a9bd   c1
     ├─╯
-    │ ○  a384ab7ad1f6   b2
-    │ ○  b34eead0fdf5   a1
+    │ ○  af12531fa2dc   b2
+    │ ○  b71e23da3559   a1
     │ ○  dcc98bc8bbea   b1
     ├─╯
     │ ○  196bc1f0efc1   a4
@@ -513,11 +509,11 @@ fn test_duplicate_insert_after() {
     // Duplicate a single commit after a single ancestor commit.
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["duplicate", "a3", "--after", "a1"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r#"
+    insta::assert_snapshot!(stderr, @r"
     Warning: Duplicating commit 17072aa2b823 as an ancestor of itself
-    Duplicated 17072aa2b823 as qmkrwlvp c167d08f a3
+    Duplicated 17072aa2b823 as qmkrwlvp fd3c891b a3
     Rebased 3 commits onto duplicated commits
-    "#);
+    ");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r"
     @  0cdd923e993a   d2
     ○  0f21c5e185c5   d1
@@ -527,10 +523,10 @@ fn test_duplicate_insert_after() {
     │ ○  7b44470918f4   b2
     │ ○  dcc98bc8bbea   b1
     ├─╯
-    │ ○  8746d17a44cb   a4
-    │ ○  15a695f5bf13   a3
-    │ ○  73e26c9e22e7   a2
-    │ ○  c167d08f8d9f   a3
+    │ ○  027d38df36fa   a4
+    │ ○  6cb0f5884a35   a3
+    │ ○  80e3e40b66f0   a2
+    │ ○  fd3c891b8b97   a3
     │ ○  9e85a474f005   a1
     ├─╯
     ◆  000000000000
@@ -540,11 +536,11 @@ fn test_duplicate_insert_after() {
     // Duplicate a single commit after a single descendant commit.
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["duplicate", "a1", "--after", "a3"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r#"
+    insta::assert_snapshot!(stderr, @r"
     Warning: Duplicating commit 9e85a474f005 as a descendant of itself
-    Duplicated 9e85a474f005 as qwyusntz 074debdf a1
+    Duplicated 9e85a474f005 as qwyusntz a4d0b771 (empty) a1
     Rebased 1 commits onto duplicated commits
-    "#);
+    ");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r"
     @  0cdd923e993a   d2
     ○  0f21c5e185c5   d1
@@ -554,8 +550,8 @@ fn test_duplicate_insert_after() {
     │ ○  7b44470918f4   b2
     │ ○  dcc98bc8bbea   b1
     ├─╯
-    │ ○  3fcf9fdec8f3   a4
-    │ ○  074debdf330b   a1
+    │ ○  9fe3808a9067   a4
+    │ ○  a4d0b7715767   a1
     │ ○  17072aa2b823   a3
     │ ○  47df67757a64   a2
     │ ○  9e85a474f005   a1
@@ -571,17 +567,17 @@ fn test_duplicate_insert_after() {
         &["duplicate", "a1", "--after", "b1", "--after", "c1"],
     );
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r#"
-    Duplicated 9e85a474f005 as soqnvnyz 671da6dc a1
+    insta::assert_snapshot!(stderr, @r"
+    Duplicated 9e85a474f005 as soqnvnyz 3449bde2 a1
     Rebased 2 commits onto duplicated commits
-    "#);
+    ");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r"
     @  0cdd923e993a   d2
     ○  0f21c5e185c5   d1
-    │ ○  35ccc31b58bd   c2
-    │ │ ○  7951d1641b4b   b2
+    │ ○  c997a412ac93   c2
+    │ │ ○  e570747744ed   b2
     │ ├─╯
-    │ ○    671da6dc2d2e   a1
+    │ ○    3449bde20037   a1
     │ ├─╮
     │ │ ○  b27346e9a9bd   c1
     ├───╯
@@ -602,20 +598,20 @@ fn test_duplicate_insert_after() {
         &["duplicate", "a3", "--after", "a2", "--after", "b2"],
     );
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r#"
+    insta::assert_snapshot!(stderr, @r"
     Warning: Duplicating commit 17072aa2b823 as an ancestor of itself
-    Duplicated 17072aa2b823 as nsrwusvy 727c43ec a3
+    Duplicated 17072aa2b823 as nsrwusvy 48764702 a3
     Rebased 2 commits onto duplicated commits
-    "#);
+    ");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r"
     @  0cdd923e993a   d2
     ○  0f21c5e185c5   d1
     │ ○  09560d60cac4   c2
     │ ○  b27346e9a9bd   c1
     ├─╯
-    │ ○  5ae709b39efb   a4
-    │ ○  ecb0aa61feab   a3
-    │ ○    727c43ec8eaa   a3
+    │ ○  aead471d6dc8   a4
+    │ ○  07fb2a10b5de   a3
+    │ ○    48764702c97c   a3
     │ ├─╮
     │ │ ○  7b44470918f4   b2
     │ │ ○  dcc98bc8bbea   b1
@@ -633,19 +629,19 @@ fn test_duplicate_insert_after() {
         &["duplicate", "a1", "--after", "a3", "--after", "b2"],
     );
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r#"
+    insta::assert_snapshot!(stderr, @r"
     Warning: Duplicating commit 9e85a474f005 as a descendant of itself
-    Duplicated 9e85a474f005 as xpnwykqz 6944eeac a1
+    Duplicated 9e85a474f005 as xpnwykqz 43bcb4dc (empty) a1
     Rebased 1 commits onto duplicated commits
-    "#);
+    ");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r"
     @  0cdd923e993a   d2
     ○  0f21c5e185c5   d1
     │ ○  09560d60cac4   c2
     │ ○  b27346e9a9bd   c1
     ├─╯
-    │ ○  4fa1dfb1735f   a4
-    │ ○    6944eeac206a   a1
+    │ ○  92782f7d24fe   a4
+    │ ○    43bcb4dc97f4   a1
     │ ├─╮
     │ │ ○  7b44470918f4   b2
     │ │ ○  dcc98bc8bbea   b1
@@ -663,18 +659,18 @@ fn test_duplicate_insert_after() {
     let (stdout, stderr) =
         test_env.jj_cmd_ok(&repo_path, &["duplicate", "a1", "b1", "--after", "c1"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r#"
-    Duplicated 9e85a474f005 as sryyqqkq d3dda93b a1
-    Duplicated dcc98bc8bbea as pxnqtknr 21b26c06 b1
+    insta::assert_snapshot!(stderr, @r"
+    Duplicated 9e85a474f005 as sryyqqkq 44f57f24 a1
+    Duplicated dcc98bc8bbea as pxnqtknr bcee4b60 b1
     Rebased 1 commits onto duplicated commits
-    "#);
+    ");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r"
     @  0cdd923e993a   d2
     ○  0f21c5e185c5   d1
-    │ ○    e9f2b664654b   c2
+    │ ○    215600d39fed   c2
     │ ├─╮
-    │ │ ○  21b26c06639f   b1
-    │ ○ │  d3dda93b8e6f   a1
+    │ │ ○  bcee4b6058e4   b1
+    │ ○ │  44f57f247bf2   a1
     │ ├─╯
     │ ○  b27346e9a9bd   c1
     ├─╯
@@ -695,12 +691,12 @@ fn test_duplicate_insert_after() {
     let (stdout, stderr) =
         test_env.jj_cmd_ok(&repo_path, &["duplicate", "a3", "b1", "--after", "a2"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r#"
+    insta::assert_snapshot!(stderr, @r"
     Warning: Duplicating commit 17072aa2b823 as an ancestor of itself
     Duplicated 17072aa2b823 as pyoswmwk 0d11d466 a3
-    Duplicated dcc98bc8bbea as yqnpwwmq f18498f2 b1
+    Duplicated dcc98bc8bbea as yqnpwwmq c32d1ccc b1
     Rebased 2 commits onto duplicated commits
-    "#);
+    ");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r"
     @  0cdd923e993a   d2
     ○  0f21c5e185c5   d1
@@ -710,10 +706,10 @@ fn test_duplicate_insert_after() {
     │ ○  7b44470918f4   b2
     │ ○  dcc98bc8bbea   b1
     ├─╯
-    │ ○  5b30b2d24181   a4
-    │ ○    2725567328bd   a3
+    │ ○  955959f7bb42   a4
+    │ ○    7b2b1ab433f0   a3
     │ ├─╮
-    │ │ ○  f18498f24737   b1
+    │ │ ○  c32d1ccc8d5b   b1
     │ ○ │  0d11d4667aa9   a3
     │ ├─╯
     │ ○  47df67757a64   a2
@@ -728,12 +724,12 @@ fn test_duplicate_insert_after() {
     let (stdout, stderr) =
         test_env.jj_cmd_ok(&repo_path, &["duplicate", "a1", "b1", "--after", "a3"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r#"
+    insta::assert_snapshot!(stderr, @r"
     Warning: Duplicating commit 9e85a474f005 as a descendant of itself
-    Duplicated 9e85a474f005 as tpmlxquz b7458ffe a1
-    Duplicated dcc98bc8bbea as uukzylyy 7366036f b1
+    Duplicated 9e85a474f005 as tpmlxquz 213aff50 (empty) a1
+    Duplicated dcc98bc8bbea as uukzylyy 67b82bab b1
     Rebased 1 commits onto duplicated commits
-    "#);
+    ");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r"
     @  0cdd923e993a   d2
     ○  0f21c5e185c5   d1
@@ -743,10 +739,10 @@ fn test_duplicate_insert_after() {
     │ ○  7b44470918f4   b2
     │ ○  dcc98bc8bbea   b1
     ├─╯
-    │ ○    b19d9559f21a   a4
+    │ ○    9457bd90ac07   a4
     │ ├─╮
-    │ │ ○  7366036f148d   b1
-    │ ○ │  b7458ffedb08   a1
+    │ │ ○  67b82babd5f6   b1
+    │ ○ │  213aff50a82b   a1
     │ ├─╯
     │ ○  17072aa2b823   a3
     │ ○  47df67757a64   a2
@@ -763,23 +759,23 @@ fn test_duplicate_insert_after() {
         &["duplicate", "a1", "b1", "--after", "c1", "--after", "d1"],
     );
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r#"
-    Duplicated 9e85a474f005 as knltnxnu a276dada a1
-    Duplicated dcc98bc8bbea as krtqozmx aa76b8a7 b1
+    insta::assert_snapshot!(stderr, @r"
+    Duplicated 9e85a474f005 as knltnxnu ad0a80e9 a1
+    Duplicated dcc98bc8bbea as krtqozmx 840bbbe5 b1
     Rebased 2 commits onto duplicated commits
-    Working copy now at: nmzmmopx 0ad9462c d2 | d2
-    Parent commit      : knltnxnu a276dada a1
-    Parent commit      : krtqozmx aa76b8a7 b1
-    Added 2 files, modified 0 files, removed 1 files
-    "#);
-    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r#"
-    @    0ad9462c535b   d2
+    Working copy now at: nmzmmopx 9eeade97 d2 | d2
+    Parent commit      : knltnxnu ad0a80e9 a1
+    Parent commit      : krtqozmx 840bbbe5 b1
+    Added 3 files, modified 0 files, removed 0 files
+    ");
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r"
+    @    9eeade97a2f7   d2
     ├─╮
-    │ │ ○  16341f32c83b   c2
+    │ │ ○  cd045e3862be   c2
     ╭─┬─╯
-    │ ○    aa76b8a78db1   b1
+    │ ○    840bbbe57acb   b1
     │ ├─╮
-    ○ │ │  a276dadabfc1   a1
+    ○ │ │  ad0a80e9b011   a1
     ╰─┬─╮
       │ ○  0f21c5e185c5   d1
       ○ │  b27346e9a9bd   c1
@@ -793,7 +789,7 @@ fn test_duplicate_insert_after() {
     │ ○  9e85a474f005   a1
     ├─╯
     ◆  000000000000
-    "#);
+    ");
     test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
 
     // Duplicate multiple commits without a direct ancestry relationship after
@@ -803,24 +799,24 @@ fn test_duplicate_insert_after() {
         &["duplicate", "a3", "b1", "--after", "a1", "--after", "c1"],
     );
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r#"
+    insta::assert_snapshot!(stderr, @r"
     Warning: Duplicating commit 17072aa2b823 as an ancestor of itself
-    Duplicated 17072aa2b823 as wxzmtyol ccda812e a3
-    Duplicated dcc98bc8bbea as musouqkq 560e532e b1
+    Duplicated 17072aa2b823 as wxzmtyol ade2ae32 a3
+    Duplicated dcc98bc8bbea as musouqkq e1eed3f1 b1
     Rebased 4 commits onto duplicated commits
-    "#);
+    ");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r"
     @  0cdd923e993a   d2
     ○  0f21c5e185c5   d1
-    │ ○    c1d222b0e288   c2
+    │ ○    12a208423aa9   c2
     │ ├─╮
-    │ │ │ ○  0a31f366f5a2   a4
-    │ │ │ ○  06750de0d803   a3
-    │ │ │ ○  031778a0e9f3   a2
+    │ │ │ ○  c804d94310fd   a4
+    │ │ │ ○  e22e44ff5f22   a3
+    │ │ │ ○  6ee77bdfc821   a2
     │ ╭─┬─╯
-    │ │ ○    560e532ebd75   b1
+    │ │ ○    e1eed3f1c77c   b1
     │ │ ├─╮
-    │ ○ │ │  ccda812e23c4   a3
+    │ ○ │ │  ade2ae32950a   a3
     │ ╰─┬─╮
     │   │ ○  b27346e9a9bd   c1
     ├─────╯
@@ -840,20 +836,20 @@ fn test_duplicate_insert_after() {
         &["duplicate", "a1", "b1", "--after", "a3", "--after", "c2"],
     );
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r#"
+    insta::assert_snapshot!(stderr, @r"
     Warning: Duplicating commit 9e85a474f005 as a descendant of itself
-    Duplicated 9e85a474f005 as quyylypw b6a5e31d a1
-    Duplicated dcc98bc8bbea as prukwozq dfe5dcad b1
+    Duplicated 9e85a474f005 as quyylypw c4820edd (empty) a1
+    Duplicated dcc98bc8bbea as prukwozq 20cfd11e b1
     Rebased 1 commits onto duplicated commits
-    "#);
+    ");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r"
     @  0cdd923e993a   d2
     ○  0f21c5e185c5   d1
-    │ ○    2db9fa035611   a4
+    │ ○    2d04909f04b5   a4
     │ ├─╮
-    │ │ ○    dfe5dcad355b   b1
+    │ │ ○    20cfd11ee3c3   b1
     │ │ ├─╮
-    │ ○ │ │  b6a5e31daed5   a1
+    │ ○ │ │  c4820eddcd3c   a1
     │ ╰─┬─╮
     │   │ ○  09560d60cac4   c2
     │   │ ○  b27346e9a9bd   c1
@@ -874,15 +870,15 @@ fn test_duplicate_insert_after() {
     let (stdout, stderr) =
         test_env.jj_cmd_ok(&repo_path, &["duplicate", "a1", "a3", "--after", "c2"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r#"
-    Duplicated 9e85a474f005 as vvvtksvt 940b5139 a1
-    Duplicated 17072aa2b823 as yvrnrpnw 9d985606 a3
-    "#);
+    insta::assert_snapshot!(stderr, @r"
+    Duplicated 9e85a474f005 as vvvtksvt b44d23b4 a1
+    Duplicated 17072aa2b823 as yvrnrpnw ca8f08f6 a3
+    ");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r"
     @  0cdd923e993a   d2
     ○  0f21c5e185c5   d1
-    │ ○  9d9856065046   a3
-    │ ○  940b51398e5d   a1
+    │ ○  ca8f08f66c5c   a3
+    │ ○  b44d23b4c98e   a1
     │ ○  09560d60cac4   c2
     │ ○  b27346e9a9bd   c1
     ├─╯
@@ -935,13 +931,13 @@ fn test_duplicate_insert_after() {
     let (stdout, stderr) =
         test_env.jj_cmd_ok(&repo_path, &["duplicate", "a1", "a2", "--after", "a3"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r#"
+    insta::assert_snapshot!(stderr, @r"
     Warning: Duplicating commit 47df67757a64 as a descendant of itself
     Warning: Duplicating commit 9e85a474f005 as a descendant of itself
-    Duplicated 9e85a474f005 as rwkyzntp 08e917fe a1
-    Duplicated 47df67757a64 as nqtyztop a80a88f5 a2
+    Duplicated 9e85a474f005 as rwkyzntp b68b9a00 (empty) a1
+    Duplicated 47df67757a64 as nqtyztop 0dd00ded (empty) a2
     Rebased 1 commits onto duplicated commits
-    "#);
+    ");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r"
     @  0cdd923e993a   d2
     ○  0f21c5e185c5   d1
@@ -951,9 +947,9 @@ fn test_duplicate_insert_after() {
     │ ○  7b44470918f4   b2
     │ ○  dcc98bc8bbea   b1
     ├─╯
-    │ ○  d1f47b881c72   a4
-    │ ○  a80a88f5c6d6   a2
-    │ ○  08e917fe904c   a1
+    │ ○  4f02390e56aa   a4
+    │ ○  0dd00dedd0c5   a2
+    │ ○  b68b9a0073cb   a1
     │ ○  17072aa2b823   a3
     │ ○  47df67757a64   a2
     │ ○  9e85a474f005   a1
@@ -969,13 +965,13 @@ fn test_duplicate_insert_after() {
         &["duplicate", "a1", "a3", "--after", "c2", "--after", "d2"],
     );
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r#"
-    Duplicated 9e85a474f005 as nwmqwkzz 3d3385e3 a1
-    Duplicated 17072aa2b823 as uwrrnrtx 3404101d a3
-    "#);
-    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r#"
-    ○  3404101d5854   a3
-    ○    3d3385e379be   a1
+    insta::assert_snapshot!(stderr, @r"
+    Duplicated 9e85a474f005 as nwmqwkzz eb455287 a1
+    Duplicated 17072aa2b823 as uwrrnrtx 94a1bd80 a3
+    ");
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r"
+    ○  94a1bd8080c6   a3
+    ○    eb455287f1eb   a1
     ├─╮
     │ @  0cdd923e993a   d2
     │ ○  0f21c5e185c5   d1
@@ -991,7 +987,7 @@ fn test_duplicate_insert_after() {
     │ ○  9e85a474f005   a1
     ├─╯
     ◆  000000000000
-    "#);
+    ");
     test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
 
     // Duplicate multiple commits with an ancestry relationship after multiple
@@ -1001,20 +997,20 @@ fn test_duplicate_insert_after() {
         &["duplicate", "a3", "a4", "--after", "a2", "--after", "c2"],
     );
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r#"
+    insta::assert_snapshot!(stderr, @r"
     Warning: Duplicating commit 196bc1f0efc1 as an ancestor of itself
     Warning: Duplicating commit 17072aa2b823 as an ancestor of itself
-    Duplicated 17072aa2b823 as wunttkrp 9d8de4c3 a3
-    Duplicated 196bc1f0efc1 as puxpuzrm 71d9b4a4 a4
+    Duplicated 17072aa2b823 as wunttkrp 1ce432e1 a3
+    Duplicated 196bc1f0efc1 as puxpuzrm 14728ee8 a4
     Rebased 2 commits onto duplicated commits
-    "#);
+    ");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r"
     @  0cdd923e993a   d2
     ○  0f21c5e185c5   d1
-    │ ○  fc18e2f00060   a4
-    │ ○  bc2303a7d63e   a3
-    │ ○  71d9b4a48273   a4
-    │ ○    9d8de4c3ad3e   a3
+    │ ○  5fa41821880b   a4
+    │ ○  52554e3e9729   a3
+    │ ○  14728ee84976   a4
+    │ ○    1ce432e1b0ea   a3
     │ ├─╮
     │ │ ○  09560d60cac4   c2
     │ │ ○  b27346e9a9bd   c1
@@ -1036,19 +1032,19 @@ fn test_duplicate_insert_after() {
         &["duplicate", "a1", "a2", "--after", "a3", "--after", "c2"],
     );
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r#"
+    insta::assert_snapshot!(stderr, @r"
     Warning: Duplicating commit 47df67757a64 as a descendant of itself
     Warning: Duplicating commit 9e85a474f005 as a descendant of itself
-    Duplicated 9e85a474f005 as zwvplpop cc0bfcbe a1
-    Duplicated 47df67757a64 as znsksvls 0b619bbb a2
+    Duplicated 9e85a474f005 as zwvplpop 67dd65d3 (empty) a1
+    Duplicated 47df67757a64 as znsksvls 7536fd44 (empty) a2
     Rebased 1 commits onto duplicated commits
-    "#);
+    ");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r"
     @  0cdd923e993a   d2
     ○  0f21c5e185c5   d1
-    │ ○  5006826a3086   a4
-    │ ○  0b619bbbe823   a2
-    │ ○    cc0bfcbe97fe   a1
+    │ ○  83aa2cfb2448   a4
+    │ ○  7536fd4475cd   a2
+    │ ○    67dd65d3d47a   a1
     │ ├─╮
     │ │ ○  09560d60cac4   c2
     │ │ ○  b27346e9a9bd   c1
@@ -1113,18 +1109,18 @@ fn test_duplicate_insert_before() {
     // Duplicate a single commit before a single commit with no direct relationship.
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["duplicate", "a1", "--before", "b2"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r#"
-    Duplicated 9e85a474f005 as pzsxstzt b34eead0 a1
+    insta::assert_snapshot!(stderr, @r"
+    Duplicated 9e85a474f005 as pzsxstzt b71e23da a1
     Rebased 1 commits onto duplicated commits
-    "#);
+    ");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r"
     @  0cdd923e993a   d2
     ○  0f21c5e185c5   d1
     │ ○  09560d60cac4   c2
     │ ○  b27346e9a9bd   c1
     ├─╯
-    │ ○  a384ab7ad1f6   b2
-    │ ○  b34eead0fdf5   a1
+    │ ○  af12531fa2dc   b2
+    │ ○  b71e23da3559   a1
     │ ○  dcc98bc8bbea   b1
     ├─╯
     │ ○  196bc1f0efc1   a4
@@ -1139,19 +1135,19 @@ fn test_duplicate_insert_before() {
     // Duplicate a single commit before a single ancestor commit.
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["duplicate", "a3", "--before", "a1"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r#"
+    insta::assert_snapshot!(stderr, @r"
     Warning: Duplicating commit 17072aa2b823 as an ancestor of itself
-    Duplicated 17072aa2b823 as qmkrwlvp a982be78 a3
+    Duplicated 17072aa2b823 as qmkrwlvp 2108707c a3
     Rebased 4 commits onto duplicated commits
-    "#);
+    ");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r"
     @  0cdd923e993a   d2
     ○  0f21c5e185c5   d1
-    │ ○  09981b821640   a4
-    │ ○  7f96a38d7b7b   a3
-    │ ○  d37b384f7ce9   a2
-    │ ○  4a0df1f03819   a1
-    │ ○  a982be787d28   a3
+    │ ○  ef93a98b9dba   a4
+    │ ○  5952e93b6237   a3
+    │ ○  f9baa38681ce   a2
+    │ ○  3096149ab785   a1
+    │ ○  2108707c8d39   a3
     ├─╯
     │ ○  09560d60cac4   c2
     │ ○  b27346e9a9bd   c1
@@ -1166,11 +1162,11 @@ fn test_duplicate_insert_before() {
     // Duplicate a single commit before a single descendant commit.
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["duplicate", "a1", "--before", "a3"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r#"
+    insta::assert_snapshot!(stderr, @r"
     Warning: Duplicating commit 9e85a474f005 as a descendant of itself
-    Duplicated 9e85a474f005 as qwyusntz 2b066074 a1
+    Duplicated 9e85a474f005 as qwyusntz 2fe2d212 (empty) a1
     Rebased 2 commits onto duplicated commits
-    "#);
+    ");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r"
     @  0cdd923e993a   d2
     ○  0f21c5e185c5   d1
@@ -1180,9 +1176,9 @@ fn test_duplicate_insert_before() {
     │ ○  7b44470918f4   b2
     │ ○  dcc98bc8bbea   b1
     ├─╯
-    │ ○  34812a9db795   a4
-    │ ○  b42fc445deeb   a3
-    │ ○  2b0660740e57   a1
+    │ ○  664fce416f57   a4
+    │ ○  547efe815e18   a3
+    │ ○  2fe2d21257c9   a1
     │ ○  47df67757a64   a2
     │ ○  9e85a474f005   a1
     ├─╯
@@ -1197,17 +1193,17 @@ fn test_duplicate_insert_before() {
         &["duplicate", "a1", "--before", "b2", "--before", "c2"],
     );
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r#"
-    Duplicated 9e85a474f005 as soqnvnyz 671da6dc a1
+    insta::assert_snapshot!(stderr, @r"
+    Duplicated 9e85a474f005 as soqnvnyz 3449bde2 a1
     Rebased 2 commits onto duplicated commits
-    "#);
+    ");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r"
     @  0cdd923e993a   d2
     ○  0f21c5e185c5   d1
-    │ ○  35ccc31b58bd   c2
-    │ │ ○  7951d1641b4b   b2
+    │ ○  c997a412ac93   c2
+    │ │ ○  e570747744ed   b2
     │ ├─╯
-    │ ○    671da6dc2d2e   a1
+    │ ○    3449bde20037   a1
     │ ├─╮
     │ │ ○  b27346e9a9bd   c1
     ├───╯
@@ -1228,23 +1224,23 @@ fn test_duplicate_insert_before() {
         &["duplicate", "a3", "--before", "a2", "--before", "b2"],
     );
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r#"
+    insta::assert_snapshot!(stderr, @r"
     Warning: Duplicating commit 17072aa2b823 as an ancestor of itself
-    Duplicated 17072aa2b823 as nsrwusvy 851a34a3 a3
+    Duplicated 17072aa2b823 as nsrwusvy 8648c1c8 a3
     Rebased 4 commits onto duplicated commits
-    "#);
+    ");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r"
     @  0cdd923e993a   d2
     ○  0f21c5e185c5   d1
     │ ○  09560d60cac4   c2
     │ ○  b27346e9a9bd   c1
     ├─╯
-    │ ○  3a9373464406   b2
-    │ │ ○  8774e5674831   a4
-    │ │ ○  f3d3a1617059   a3
-    │ │ ○  f207ecb81650   a2
+    │ ○  1722fb59dee6   b2
+    │ │ ○  cdeff7751fb6   a4
+    │ │ ○  28f70dc150b8   a3
+    │ │ ○  f38e6d30913d   a2
     │ ├─╯
-    │ ○    851a34a36354   a3
+    │ ○    8648c1c894f0   a3
     │ ├─╮
     │ │ ○  dcc98bc8bbea   b1
     ├───╯
@@ -1260,22 +1256,22 @@ fn test_duplicate_insert_before() {
         &["duplicate", "a1", "--before", "a3", "--before", "b2"],
     );
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r#"
+    insta::assert_snapshot!(stderr, @r"
     Warning: Duplicating commit 9e85a474f005 as a descendant of itself
-    Duplicated 9e85a474f005 as xpnwykqz af64c5e4 a1
+    Duplicated 9e85a474f005 as xpnwykqz 72cf8983 (empty) a1
     Rebased 3 commits onto duplicated commits
-    "#);
+    ");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r"
     @  0cdd923e993a   d2
     ○  0f21c5e185c5   d1
     │ ○  09560d60cac4   c2
     │ ○  b27346e9a9bd   c1
     ├─╯
-    │ ○  f9f4cbe12efc   b2
-    │ │ ○  e8057839c645   a4
-    │ │ ○  aa3ce5a43997   a3
+    │ ○  d78b124079a4   b2
+    │ │ ○  490d6138ef36   a4
+    │ │ ○  e349d271ef64   a3
     │ ├─╯
-    │ ○    af64c5e44fc7   a1
+    │ ○    72cf89838d1a   a1
     │ ├─╮
     │ │ ○  dcc98bc8bbea   b1
     ├───╯
@@ -1323,12 +1319,12 @@ fn test_duplicate_insert_before() {
     let (stdout, stderr) =
         test_env.jj_cmd_ok(&repo_path, &["duplicate", "a3", "b1", "--before", "a2"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r#"
+    insta::assert_snapshot!(stderr, @r"
     Warning: Duplicating commit 17072aa2b823 as an ancestor of itself
-    Duplicated 17072aa2b823 as pyoswmwk 0a102776 a3
-    Duplicated dcc98bc8bbea as yqnpwwmq 529ab44a b1
+    Duplicated 17072aa2b823 as pyoswmwk cad067c7 a3
+    Duplicated dcc98bc8bbea as yqnpwwmq 6675be66 b1
     Rebased 3 commits onto duplicated commits
-    "#);
+    ");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r"
     @  0cdd923e993a   d2
     ○  0f21c5e185c5   d1
@@ -1338,12 +1334,12 @@ fn test_duplicate_insert_before() {
     │ ○  7b44470918f4   b2
     │ ○  dcc98bc8bbea   b1
     ├─╯
-    │ ○  eb4ddce3bfef   a4
-    │ ○  b0b76f7bedf8   a3
-    │ ○    b5fdef30de16   a2
+    │ ○  17391b843937   a4
+    │ ○  23f979220309   a3
+    │ ○    15a3207cfa72   a2
     │ ├─╮
-    │ │ ○  529ab44a81ed   b1
-    │ ○ │  0a1027765fdd   a3
+    │ │ ○  6675be66b280   b1
+    │ ○ │  cad067c7d304   a3
     │ ├─╯
     │ ○  9e85a474f005   a1
     ├─╯
@@ -1356,12 +1352,12 @@ fn test_duplicate_insert_before() {
     let (stdout, stderr) =
         test_env.jj_cmd_ok(&repo_path, &["duplicate", "a1", "b1", "--before", "a3"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r#"
+    insta::assert_snapshot!(stderr, @r"
     Warning: Duplicating commit 9e85a474f005 as a descendant of itself
-    Duplicated 9e85a474f005 as tpmlxquz 7502d241 a1
-    Duplicated dcc98bc8bbea as uukzylyy 63ba24cf b1
+    Duplicated 9e85a474f005 as tpmlxquz 4d4dc78c (empty) a1
+    Duplicated dcc98bc8bbea as uukzylyy a065abc9 b1
     Rebased 2 commits onto duplicated commits
-    "#);
+    ");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r"
     @  0cdd923e993a   d2
     ○  0f21c5e185c5   d1
@@ -1371,11 +1367,11 @@ fn test_duplicate_insert_before() {
     │ ○  7b44470918f4   b2
     │ ○  dcc98bc8bbea   b1
     ├─╯
-    │ ○  84d66cf1a667   a4
-    │ ○    733e5aa5ee67   a3
+    │ ○  adb92c147726   a4
+    │ ○    fb156cb07e68   a3
     │ ├─╮
-    │ │ ○  63ba24cf71df   b1
-    │ ○ │  7502d2419a00   a1
+    │ │ ○  a065abc9c61f   b1
+    │ ○ │  4d4dc78c70a7   a1
     │ ├─╯
     │ ○  47df67757a64   a2
     │ ○  9e85a474f005   a1
@@ -1428,26 +1424,26 @@ fn test_duplicate_insert_before() {
         &["duplicate", "a3", "b1", "--before", "a1", "--before", "c1"],
     );
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r#"
+    insta::assert_snapshot!(stderr, @r"
     Warning: Duplicating commit 17072aa2b823 as an ancestor of itself
-    Duplicated 17072aa2b823 as wxzmtyol 4aef0293 a3
+    Duplicated 17072aa2b823 as wxzmtyol 31ca96b8 a3
     Duplicated dcc98bc8bbea as musouqkq 4748cf83 b1
     Rebased 6 commits onto duplicated commits
-    "#);
+    ");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r"
     @  0cdd923e993a   d2
     ○  0f21c5e185c5   d1
-    │ ○  a86830bda155   c2
-    │ ○    dfa992eb0c5b   c1
+    │ ○  aa431fa5a467   c2
+    │ ○    f99bc6bf1b1c   c1
     │ ├─╮
-    │ │ │ ○  2a975bb6fb8d   a4
-    │ │ │ ○  bd65348afea2   a3
-    │ │ │ ○  5aaf2e32fe6e   a2
-    │ │ │ ○  c1841f6cb78b   a1
+    │ │ │ ○  a38ca6dc28f3   a4
+    │ │ │ ○  16e3d6c1562a   a3
+    │ │ │ ○  84b5c2b584d1   a2
+    │ │ │ ○  cc4ae3a9a31d   a1
     │ ╭─┬─╯
     │ │ ○  4748cf83e26e   b1
     ├───╯
-    │ ○  4aef02939dcb   a3
+    │ ○  31ca96b88527   a3
     ├─╯
     │ ○  7b44470918f4   b2
     │ ○  dcc98bc8bbea   b1
@@ -1463,23 +1459,23 @@ fn test_duplicate_insert_before() {
         &["duplicate", "a1", "b1", "--before", "a3", "--before", "c2"],
     );
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r#"
+    insta::assert_snapshot!(stderr, @r"
     Warning: Duplicating commit 9e85a474f005 as a descendant of itself
-    Duplicated 9e85a474f005 as quyylypw 024440c4 a1
-    Duplicated dcc98bc8bbea as prukwozq 8175fcec b1
+    Duplicated 9e85a474f005 as quyylypw 3eefd57d (empty) a1
+    Duplicated dcc98bc8bbea as prukwozq ed86e70f b1
     Rebased 3 commits onto duplicated commits
-    "#);
+    ");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r"
     @  0cdd923e993a   d2
     ○  0f21c5e185c5   d1
-    │ ○    7a485e3977a8   c2
+    │ ○    1c0d40fa21ea   c2
     │ ├─╮
-    │ │ │ ○  e5464cd6273d   a4
-    │ │ │ ○  e7bb732c469e   a3
+    │ │ │ ○  c31979bb15d4   a4
+    │ │ │ ○  8daf2e842412   a3
     │ ╭─┬─╯
-    │ │ ○    8175fcec2ded   b1
+    │ │ ○    ed86e70f497f   b1
     │ │ ├─╮
-    │ ○ │ │  024440c4a5da   a1
+    │ ○ │ │  3eefd57d676b   a1
     │ ╰─┬─╮
     │   │ ○  b27346e9a9bd   c1
     ├─────╯
@@ -1498,17 +1494,17 @@ fn test_duplicate_insert_before() {
     let (stdout, stderr) =
         test_env.jj_cmd_ok(&repo_path, &["duplicate", "a1", "a3", "--before", "c2"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r#"
-    Duplicated 9e85a474f005 as vvvtksvt ad5a3d82 a1
-    Duplicated 17072aa2b823 as yvrnrpnw 441a2568 a3
+    insta::assert_snapshot!(stderr, @r"
+    Duplicated 9e85a474f005 as vvvtksvt baee09af a1
+    Duplicated 17072aa2b823 as yvrnrpnw c17818c1 a3
     Rebased 1 commits onto duplicated commits
-    "#);
+    ");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r"
     @  0cdd923e993a   d2
     ○  0f21c5e185c5   d1
-    │ ○  756972984dac   c2
-    │ ○  441a25683840   a3
-    │ ○  ad5a3d824060   a1
+    │ ○  4a25ce233a30   c2
+    │ ○  c17818c175df   a3
+    │ ○  baee09af0f75   a1
     │ ○  b27346e9a9bd   c1
     ├─╯
     │ ○  7b44470918f4   b2
@@ -1528,21 +1524,21 @@ fn test_duplicate_insert_before() {
     let (stdout, stderr) =
         test_env.jj_cmd_ok(&repo_path, &["duplicate", "a1", "a3", "--before", "a1"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r#"
+    insta::assert_snapshot!(stderr, @r"
     Warning: Duplicating commit 17072aa2b823 as an ancestor of itself
     Warning: Duplicating commit 9e85a474f005 as an ancestor of itself
     Duplicated 9e85a474f005 as sukptuzs ad0234a3 a1
-    Duplicated 17072aa2b823 as rxnrppxl b72e2eaa a3
+    Duplicated 17072aa2b823 as rxnrppxl e64dcdd1 a3
     Rebased 4 commits onto duplicated commits
-    "#);
+    ");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r"
     @  0cdd923e993a   d2
     ○  0f21c5e185c5   d1
-    │ ○  de1a87f140d9   a4
-    │ ○  3b405d96fbfb   a3
-    │ ○  41677a1f0572   a2
-    │ ○  00c6a7cebcdb   a1
-    │ ○  b72e2eaa3f7f   a3
+    │ ○  76cbe9641be2   a4
+    │ ○  140c783a30c6   a3
+    │ ○  940c74f17140   a2
+    │ ○  d359f7d9dfe7   a1
+    │ ○  e64dcdd1d1d1   a3
     │ ○  ad0234a34661   a1
     ├─╯
     │ ○  09560d60cac4   c2
@@ -1560,13 +1556,13 @@ fn test_duplicate_insert_before() {
     let (stdout, stderr) =
         test_env.jj_cmd_ok(&repo_path, &["duplicate", "a1", "a2", "--before", "a3"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r#"
+    insta::assert_snapshot!(stderr, @r"
     Warning: Duplicating commit 47df67757a64 as a descendant of itself
     Warning: Duplicating commit 9e85a474f005 as a descendant of itself
-    Duplicated 9e85a474f005 as rwkyzntp 2fdd3c3d a1
-    Duplicated 47df67757a64 as nqtyztop bddcdcd1 a2
+    Duplicated 9e85a474f005 as rwkyzntp e614bda1 (empty) a1
+    Duplicated 47df67757a64 as nqtyztop 5de52186 (empty) a2
     Rebased 2 commits onto duplicated commits
-    "#);
+    ");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r"
     @  0cdd923e993a   d2
     ○  0f21c5e185c5   d1
@@ -1576,10 +1572,10 @@ fn test_duplicate_insert_before() {
     │ ○  7b44470918f4   b2
     │ ○  dcc98bc8bbea   b1
     ├─╯
-    │ ○  13038f9969fa   a4
-    │ ○  327c3bc13b75   a3
-    │ ○  bddcdcd1ef61   a2
-    │ ○  2fdd3c3dabfc   a1
+    │ ○  585cb65f6d57   a4
+    │ ○  b75dd23ffef0   a3
+    │ ○  5de52186bdf3   a2
+    │ ○  e614bda1f2dc   a1
     │ ○  47df67757a64   a2
     │ ○  9e85a474f005   a1
     ├─╯
@@ -1594,20 +1590,20 @@ fn test_duplicate_insert_before() {
         &["duplicate", "a1", "a3", "--before", "c2", "--before", "d2"],
     );
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r#"
-    Duplicated 9e85a474f005 as nwmqwkzz aa5bda17 a1
-    Duplicated 17072aa2b823 as uwrrnrtx 7a739397 a3
+    insta::assert_snapshot!(stderr, @r"
+    Duplicated 9e85a474f005 as nwmqwkzz 9963be9b a1
+    Duplicated 17072aa2b823 as uwrrnrtx a5eee87f a3
     Rebased 2 commits onto duplicated commits
-    Working copy now at: nmzmmopx ba3800be d2 | d2
-    Parent commit      : uwrrnrtx 7a739397 a3
-    Added 3 files, modified 0 files, removed 1 files
-    "#);
-    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r#"
-    @  ba3800bec255   d2
-    │ ○  6052b049d679   c2
+    Working copy now at: nmzmmopx 8161bbbc d2 | d2
+    Parent commit      : uwrrnrtx a5eee87f a3
+    Added 3 files, modified 0 files, removed 0 files
+    ");
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r"
+    @  8161bbbc1341   d2
+    │ ○  62eea4c098aa   c2
     ├─╯
-    ○  7a73939747a8   a3
-    ○    aa5bda171182   a1
+    ○  a5eee87f5120   a3
+    ○    9963be9be4cd   a1
     ├─╮
     │ ○  0f21c5e185c5   d1
     ○ │  b27346e9a9bd   c1
@@ -1621,7 +1617,7 @@ fn test_duplicate_insert_before() {
     │ ○  9e85a474f005   a1
     ├─╯
     ◆  000000000000
-    "#);
+    ");
     test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
 
     // Duplicate multiple commits with an ancestry relationship before multiple
@@ -1631,23 +1627,23 @@ fn test_duplicate_insert_before() {
         &["duplicate", "a3", "a4", "--before", "a2", "--before", "c2"],
     );
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r#"
+    insta::assert_snapshot!(stderr, @r"
     Warning: Duplicating commit 196bc1f0efc1 as an ancestor of itself
     Warning: Duplicating commit 17072aa2b823 as an ancestor of itself
-    Duplicated 17072aa2b823 as wunttkrp c7b7f78f a3
-    Duplicated 196bc1f0efc1 as puxpuzrm 196c76cf a4
+    Duplicated 17072aa2b823 as wunttkrp 11fcc721 a3
+    Duplicated 196bc1f0efc1 as puxpuzrm 3a0d76b0 a4
     Rebased 4 commits onto duplicated commits
-    "#);
+    ");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r"
     @  0cdd923e993a   d2
     ○  0f21c5e185c5   d1
-    │ ○  d7ea487131da   c2
-    │ │ ○  f8d49609e8d8   a4
-    │ │ ○  e3d75d821d33   a3
-    │ │ ○  23d8d39dd2d1   a2
+    │ ○  c7a0da69006c   c2
+    │ │ ○  8f35827d9ec9   a4
+    │ │ ○  1ac63ccfda31   a3
+    │ │ ○  96b02cd292f9   a2
     │ ├─╯
-    │ ○  196c76cf739f   a4
-    │ ○    c7b7f78f8924   a3
+    │ ○  3a0d76b0e8c2   a4
+    │ ○    11fcc72145cc   a3
     │ ├─╮
     │ │ ○  b27346e9a9bd   c1
     ├───╯
@@ -1667,22 +1663,22 @@ fn test_duplicate_insert_before() {
         &["duplicate", "a1", "a2", "--before", "a3", "--before", "c2"],
     );
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r#"
+    insta::assert_snapshot!(stderr, @r"
     Warning: Duplicating commit 47df67757a64 as a descendant of itself
     Warning: Duplicating commit 9e85a474f005 as a descendant of itself
-    Duplicated 9e85a474f005 as zwvplpop 26d71f93 a1
-    Duplicated 47df67757a64 as znsksvls 37c5c955 a2
+    Duplicated 9e85a474f005 as zwvplpop 311e39e4 (empty) a1
+    Duplicated 47df67757a64 as znsksvls fdaa673d (empty) a2
     Rebased 3 commits onto duplicated commits
-    "#);
+    ");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r"
     @  0cdd923e993a   d2
     ○  0f21c5e185c5   d1
-    │ ○  d269d405ab74   c2
-    │ │ ○  175de6d6b816   a4
-    │ │ ○  cdd9df354b86   a3
+    │ ○  f1f4e0efe9fb   c2
+    │ │ ○  a5af2ec2ff05   a4
+    │ │ ○  5d98ceaab6a5   a3
     │ ├─╯
-    │ ○  37c5c955a90a   a2
-    │ ○    26d71f93323b   a1
+    │ ○  fdaa673dff14   a2
+    │ ○    311e39e4de28   a1
     │ ├─╮
     │ │ ○  b27346e9a9bd   c1
     ├───╯
@@ -1748,16 +1744,16 @@ fn test_duplicate_insert_after_before() {
         &["duplicate", "a1", "--before", "b2", "--after", "c2"],
     );
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r#"
-    Duplicated 9e85a474f005 as pzsxstzt d5ebd2c8 a1
+    insta::assert_snapshot!(stderr, @r"
+    Duplicated 9e85a474f005 as pzsxstzt afc97ea4 a1
     Rebased 1 commits onto duplicated commits
-    "#);
+    ");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r"
     @  0cdd923e993a   d2
     ○  0f21c5e185c5   d1
-    │ ○    20cc68b3be82   b2
+    │ ○    41f0321a79b8   b2
     │ ├─╮
-    │ │ ○  d5ebd2c814fb   a1
+    │ │ ○  afc97ea480c1   a1
     │ │ ○  09560d60cac4   c2
     │ │ ○  b27346e9a9bd   c1
     ├───╯
@@ -1778,11 +1774,11 @@ fn test_duplicate_insert_after_before() {
         &["duplicate", "a3", "--before", "a2", "--after", "a1"],
     );
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r#"
+    insta::assert_snapshot!(stderr, @r"
     Warning: Duplicating commit 17072aa2b823 as an ancestor of itself
-    Duplicated 17072aa2b823 as qmkrwlvp c167d08f a3
+    Duplicated 17072aa2b823 as qmkrwlvp fd3c891b a3
     Rebased 3 commits onto duplicated commits
-    "#);
+    ");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r"
     @  0cdd923e993a   d2
     ○  0f21c5e185c5   d1
@@ -1792,10 +1788,10 @@ fn test_duplicate_insert_after_before() {
     │ ○  7b44470918f4   b2
     │ ○  dcc98bc8bbea   b1
     ├─╯
-    │ ○  8746d17a44cb   a4
-    │ ○  15a695f5bf13   a3
-    │ ○  73e26c9e22e7   a2
-    │ ○  c167d08f8d9f   a3
+    │ ○  027d38df36fa   a4
+    │ ○  6cb0f5884a35   a3
+    │ ○  80e3e40b66f0   a2
+    │ ○  fd3c891b8b97   a3
     │ ○  9e85a474f005   a1
     ├─╯
     ◆  000000000000
@@ -1809,22 +1805,22 @@ fn test_duplicate_insert_after_before() {
         &["duplicate", "a3", "--before", "a2", "--after", "b2"],
     );
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r#"
+    insta::assert_snapshot!(stderr, @r"
     Warning: Duplicating commit 17072aa2b823 as an ancestor of itself
-    Duplicated 17072aa2b823 as qwyusntz 0481e43c a3
+    Duplicated 17072aa2b823 as qwyusntz 4d69f69c a3
     Rebased 3 commits onto duplicated commits
-    "#);
+    ");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r"
     @  0cdd923e993a   d2
     ○  0f21c5e185c5   d1
     │ ○  09560d60cac4   c2
     │ ○  b27346e9a9bd   c1
     ├─╯
-    │ ○  68632a4645b3   a4
-    │ ○  61736eaab064   a3
-    │ ○    b8822ec79abf   a2
+    │ ○  1e4a9c0c8247   a4
+    │ ○  416da6f255ef   a3
+    │ ○    335701a7e2f7   a2
     │ ├─╮
-    │ │ ○  0481e43c0ba7   a3
+    │ │ ○  4d69f69ca987   a3
     │ │ ○  7b44470918f4   b2
     │ │ ○  dcc98bc8bbea   b1
     ├───╯
@@ -1840,11 +1836,11 @@ fn test_duplicate_insert_after_before() {
         &["duplicate", "a1", "--after", "a3", "--before", "a4"],
     );
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r#"
+    insta::assert_snapshot!(stderr, @r"
     Warning: Duplicating commit 9e85a474f005 as a descendant of itself
-    Duplicated 9e85a474f005 as soqnvnyz 981c26cf a1
+    Duplicated 9e85a474f005 as soqnvnyz 00811f7c (empty) a1
     Rebased 1 commits onto duplicated commits
-    "#);
+    ");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r"
     @  0cdd923e993a   d2
     ○  0f21c5e185c5   d1
@@ -1854,8 +1850,8 @@ fn test_duplicate_insert_after_before() {
     │ ○  7b44470918f4   b2
     │ ○  dcc98bc8bbea   b1
     ├─╯
-    │ ○  53de53f5df1d   a4
-    │ ○  981c26cf1d8c   a1
+    │ ○  d6d9a67a7882   a4
+    │ ○  00811f7ccdb5   a1
     │ ○  17072aa2b823   a3
     │ ○  47df67757a64   a2
     │ ○  9e85a474f005   a1
@@ -1871,20 +1867,20 @@ fn test_duplicate_insert_after_before() {
         &["duplicate", "a1", "--after", "a3", "--before", "b2"],
     );
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r#"
+    insta::assert_snapshot!(stderr, @r"
     Warning: Duplicating commit 9e85a474f005 as a descendant of itself
-    Duplicated 9e85a474f005 as nsrwusvy e4ec1bed a1
+    Duplicated 9e85a474f005 as nsrwusvy 0b89e8a3 (empty) a1
     Rebased 1 commits onto duplicated commits
-    "#);
+    ");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r"
     @  0cdd923e993a   d2
     ○  0f21c5e185c5   d1
     │ ○  09560d60cac4   c2
     │ ○  b27346e9a9bd   c1
     ├─╯
-    │ ○    0ec3be87fae7   b2
+    │ ○    71f4a83f7122   b2
     │ ├─╮
-    │ │ ○  e4ec1bed0e7c   a1
+    │ │ ○  0b89e8a32915   a1
     │ ○ │  dcc98bc8bbea   b1
     ├─╯ │
     │ ○ │  196bc1f0efc1   a4
@@ -1936,21 +1932,21 @@ fn test_duplicate_insert_after_before() {
         &["duplicate", "a1", "b1", "--after", "c1", "--before", "d2"],
     );
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r#"
-    Duplicated 9e85a474f005 as sryyqqkq d3dda93b a1
-    Duplicated dcc98bc8bbea as pxnqtknr 21b26c06 b1
+    insta::assert_snapshot!(stderr, @r"
+    Duplicated 9e85a474f005 as sryyqqkq 44f57f24 a1
+    Duplicated dcc98bc8bbea as pxnqtknr bcee4b60 b1
     Rebased 1 commits onto duplicated commits
-    Working copy now at: nmzmmopx 16aa6cc4 d2 | d2
+    Working copy now at: nmzmmopx 6a5a099f d2 | d2
     Parent commit      : xznxytkn 0f21c5e1 d1 | d1
-    Parent commit      : sryyqqkq d3dda93b a1
-    Parent commit      : pxnqtknr 21b26c06 b1
-    Added 2 files, modified 0 files, removed 0 files
-    "#);
-    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r#"
-    @      16aa6cc4b9ff   d2
+    Parent commit      : sryyqqkq 44f57f24 a1
+    Parent commit      : pxnqtknr bcee4b60 b1
+    Added 3 files, modified 0 files, removed 0 files
+    ");
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r"
+    @      6a5a099f8a03   d2
     ├─┬─╮
-    │ │ ○  21b26c06639f   b1
-    │ ○ │  d3dda93b8e6f   a1
+    │ │ ○  bcee4b6058e4   b1
+    │ ○ │  44f57f247bf2   a1
     │ ├─╯
     ○ │  0f21c5e185c5   d1
     │ │ ○  09560d60cac4   c2
@@ -1966,7 +1962,7 @@ fn test_duplicate_insert_after_before() {
     │ ○  9e85a474f005   a1
     ├─╯
     ◆  000000000000
-    "#);
+    ");
     test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
 
     // Duplicate multiple commits without a direct ancestry relationship between a
@@ -1977,17 +1973,17 @@ fn test_duplicate_insert_after_before() {
         &["duplicate", "a3", "b1", "--after", "a2", "--before", "c2"],
     );
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r#"
+    insta::assert_snapshot!(stderr, @r"
     Duplicated 17072aa2b823 as pyoswmwk 0d11d466 a3
-    Duplicated dcc98bc8bbea as yqnpwwmq f18498f2 b1
+    Duplicated dcc98bc8bbea as yqnpwwmq c32d1ccc b1
     Rebased 1 commits onto duplicated commits
-    "#);
+    ");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r"
     @  0cdd923e993a   d2
     ○  0f21c5e185c5   d1
-    │ ○      da87b56a17e4   c2
+    │ ○      9feaad4c40f3   c2
     │ ├─┬─╮
-    │ │ │ ○  f18498f24737   b1
+    │ │ │ ○  c32d1ccc8d5b   b1
     │ │ ○ │  0d11d4667aa9   a3
     │ │ ├─╯
     │ ○ │  b27346e9a9bd   c1
@@ -2013,19 +2009,19 @@ fn test_duplicate_insert_after_before() {
         &["duplicate", "a1", "b1", "--after", "a3", "--before", "c2"],
     );
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r#"
+    insta::assert_snapshot!(stderr, @r"
     Warning: Duplicating commit 9e85a474f005 as a descendant of itself
-    Duplicated 9e85a474f005 as tpmlxquz b7458ffe a1
-    Duplicated dcc98bc8bbea as uukzylyy 7366036f b1
+    Duplicated 9e85a474f005 as tpmlxquz 213aff50 (empty) a1
+    Duplicated dcc98bc8bbea as uukzylyy 67b82bab b1
     Rebased 1 commits onto duplicated commits
-    "#);
+    ");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r"
     @  0cdd923e993a   d2
     ○  0f21c5e185c5   d1
-    │ ○      61237f8ed16f   c2
+    │ ○      7c6622beae40   c2
     │ ├─┬─╮
-    │ │ │ ○  7366036f148d   b1
-    │ │ ○ │  b7458ffedb08   a1
+    │ │ │ ○  67b82babd5f6   b1
+    │ │ ○ │  213aff50a82b   a1
     │ │ ├─╯
     │ ○ │  b27346e9a9bd   c1
     ├─╯ │
@@ -2049,21 +2045,21 @@ fn test_duplicate_insert_after_before() {
         &["duplicate", "a1", "b1", "--after", "c1", "--before", "d2"],
     );
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r#"
-    Duplicated 9e85a474f005 as knltnxnu 8d6944d2 a1
-    Duplicated dcc98bc8bbea as krtqozmx b75e34da b1
+    insta::assert_snapshot!(stderr, @r"
+    Duplicated 9e85a474f005 as knltnxnu a2d38733 a1
+    Duplicated dcc98bc8bbea as krtqozmx 2512c935 b1
     Rebased 1 commits onto duplicated commits
-    Working copy now at: nmzmmopx 559d8248 d2 | d2
+    Working copy now at: nmzmmopx 4678ad48 d2 | d2
     Parent commit      : xznxytkn 0f21c5e1 d1 | d1
-    Parent commit      : knltnxnu 8d6944d2 a1
-    Parent commit      : krtqozmx b75e34da b1
-    Added 2 files, modified 0 files, removed 0 files
-    "#);
-    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r#"
-    @      559d82485798   d2
+    Parent commit      : knltnxnu a2d38733 a1
+    Parent commit      : krtqozmx 2512c935 b1
+    Added 3 files, modified 0 files, removed 0 files
+    ");
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r"
+    @      4678ad489eeb   d2
     ├─┬─╮
-    │ │ ○  b75e34daf1e8   b1
-    │ ○ │  8d6944d2344d   a1
+    │ │ ○  2512c9358cb7   b1
+    │ ○ │  a2d387331978   a1
     │ ├─╯
     ○ │  0f21c5e185c5   d1
     │ │ ○  09560d60cac4   c2
@@ -2079,7 +2075,7 @@ fn test_duplicate_insert_after_before() {
     │ ○  9e85a474f005   a1
     ├─╯
     ◆  000000000000
-    "#);
+    ");
     test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
 
     // Duplicate multiple commits with an ancestry relationship between
@@ -2089,20 +2085,20 @@ fn test_duplicate_insert_after_before() {
         &["duplicate", "a1", "a3", "--after", "c1", "--before", "d2"],
     );
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r#"
-    Duplicated 9e85a474f005 as wxzmtyol db340447 a1
-    Duplicated 17072aa2b823 as musouqkq 73e5fec0 a3
+    insta::assert_snapshot!(stderr, @r"
+    Duplicated 9e85a474f005 as wxzmtyol 893a647a a1
+    Duplicated 17072aa2b823 as musouqkq fb14bc1e a3
     Rebased 1 commits onto duplicated commits
-    Working copy now at: nmzmmopx dfbf0b36 d2 | d2
+    Working copy now at: nmzmmopx 21321795 d2 | d2
     Parent commit      : xznxytkn 0f21c5e1 d1 | d1
-    Parent commit      : musouqkq 73e5fec0 a3
+    Parent commit      : musouqkq fb14bc1e a3
     Added 3 files, modified 0 files, removed 0 files
-    "#);
-    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r#"
-    @    dfbf0b367dee   d2
+    ");
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r"
+    @    21321795f72f   d2
     ├─╮
-    │ ○  73e5fec0d840   a3
-    │ ○  db340447c78a   a1
+    │ ○  fb14bc1e2c3c   a3
+    │ ○  893a647a7f64   a1
     ○ │  0f21c5e185c5   d1
     │ │ ○  09560d60cac4   c2
     │ ├─╯
@@ -2117,7 +2113,7 @@ fn test_duplicate_insert_after_before() {
     │ ○  9e85a474f005   a1
     ├─╯
     ◆  000000000000
-    "#);
+    ");
     test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
 
     // Duplicate multiple commits with an ancestry relationship between a commit
@@ -2163,19 +2159,19 @@ fn test_duplicate_insert_after_before() {
         &["duplicate", "a1", "a2", "--before", "a3", "--after", "c2"],
     );
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r#"
-    Duplicated 9e85a474f005 as vvvtksvt 940b5139 a1
-    Duplicated 47df67757a64 as yvrnrpnw 72eb571c a2
+    insta::assert_snapshot!(stderr, @r"
+    Duplicated 9e85a474f005 as vvvtksvt b44d23b4 a1
+    Duplicated 47df67757a64 as yvrnrpnw 4d0d41e2 a2
     Rebased 2 commits onto duplicated commits
-    "#);
+    ");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r"
     @  0cdd923e993a   d2
     ○  0f21c5e185c5   d1
-    │ ○  b5ab4b26d9a2   a4
-    │ ○    64f9306ab0d0   a3
+    │ ○  1ed8f9907f23   a4
+    │ ○    c48cf7ac619c   a3
     │ ├─╮
-    │ │ ○  72eb571caee0   a2
-    │ │ ○  940b51398e5d   a1
+    │ │ ○  4d0d41e2b74e   a2
+    │ │ ○  b44d23b4c98e   a1
     │ │ ○  09560d60cac4   c2
     │ │ ○  b27346e9a9bd   c1
     ├───╯
@@ -2196,13 +2192,13 @@ fn test_duplicate_insert_after_before() {
         &["duplicate", "a3", "a4", "--after", "a1", "--before", "a2"],
     );
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r#"
+    insta::assert_snapshot!(stderr, @r"
     Warning: Duplicating commit 196bc1f0efc1 as an ancestor of itself
     Warning: Duplicating commit 17072aa2b823 as an ancestor of itself
-    Duplicated 17072aa2b823 as sukptuzs 54dec05c a3
-    Duplicated 196bc1f0efc1 as rxnrppxl 53c4e5dd a4
+    Duplicated 17072aa2b823 as sukptuzs 8678104c a3
+    Duplicated 196bc1f0efc1 as rxnrppxl b6580274 a4
     Rebased 3 commits onto duplicated commits
-    "#);
+    ");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r"
     @  0cdd923e993a   d2
     ○  0f21c5e185c5   d1
@@ -2212,11 +2208,11 @@ fn test_duplicate_insert_after_before() {
     │ ○  7b44470918f4   b2
     │ ○  dcc98bc8bbea   b1
     ├─╯
-    │ ○  7668841ec9b9   a4
-    │ ○  223fd997dec0   a3
-    │ ○  9750bf965aff   a2
-    │ ○  53c4e5ddca56   a4
-    │ ○  54dec05c42f1   a3
+    │ ○  795c1625854d   a4
+    │ ○  c3fbe644a16b   a3
+    │ ○  af75098c676a   a2
+    │ ○  b6580274470b   a4
+    │ ○  8678104c14af   a3
     │ ○  9e85a474f005   a1
     ├─╯
     ◆  000000000000
@@ -2230,13 +2226,13 @@ fn test_duplicate_insert_after_before() {
         &["duplicate", "a1", "a2", "--after", "a3", "--before", "a4"],
     );
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r#"
+    insta::assert_snapshot!(stderr, @r"
     Warning: Duplicating commit 47df67757a64 as a descendant of itself
     Warning: Duplicating commit 9e85a474f005 as a descendant of itself
-    Duplicated 9e85a474f005 as rwkyzntp 08e917fe a1
-    Duplicated 47df67757a64 as nqtyztop a80a88f5 a2
+    Duplicated 9e85a474f005 as rwkyzntp b68b9a00 (empty) a1
+    Duplicated 47df67757a64 as nqtyztop 0dd00ded (empty) a2
     Rebased 1 commits onto duplicated commits
-    "#);
+    ");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r"
     @  0cdd923e993a   d2
     ○  0f21c5e185c5   d1
@@ -2246,9 +2242,9 @@ fn test_duplicate_insert_after_before() {
     │ ○  7b44470918f4   b2
     │ ○  dcc98bc8bbea   b1
     ├─╯
-    │ ○  d1f47b881c72   a4
-    │ ○  a80a88f5c6d6   a2
-    │ ○  08e917fe904c   a1
+    │ ○  4f02390e56aa   a4
+    │ ○  0dd00dedd0c5   a2
+    │ ○  b68b9a0073cb   a1
     │ ○  17072aa2b823   a3
     │ ○  47df67757a64   a2
     │ ○  9e85a474f005   a1
