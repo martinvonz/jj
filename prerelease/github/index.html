@@ -1715,7 +1715,7 @@ $<span class="w"> </span>jj<span class="w"> </span>commit<span class="w"> </span
 <span class="c1"># on the working-copy commit&#39;s *parent* because the working copy itself is empty.</span>
 $<span class="w"> </span>jj<span class="w"> </span>bookmark<span class="w"> </span>create<span class="w"> </span>bar<span class="w"> </span>-r<span class="w"> </span>@-<span class="w"> </span><span class="c1"># `bar` now contains the previous two commits.</span>
 <span class="c1"># Push the bookmark to GitHub (pushes only `bar`)</span>
-$<span class="w"> </span>jj<span class="w"> </span>git<span class="w"> </span>push
+$<span class="w"> </span>jj<span class="w"> </span>git<span class="w"> </span>push<span class="w"> </span>--allow-new
 </code></pre></div>
 <p>While it's possible to create a bookmark in advance and commit on top of it in a
 Git-like manner, you will then need to move the bookmark manually when you create
@@ -1736,7 +1736,7 @@ $<span class="w"> </span><span class="c1"># Do some more work.</span>
 $<span class="w"> </span>jj<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;Update tutorial&quot;</span>
 <span class="c1"># Create a bookmark on the working-copy commit&#39;s parent</span>
 $<span class="w"> </span>jj<span class="w"> </span>bookmark<span class="w"> </span>create<span class="w"> </span>doc-update<span class="w"> </span>-r<span class="w"> </span>@-
-$<span class="w"> </span>jj<span class="w"> </span>git<span class="w"> </span>push
+$<span class="w"> </span>jj<span class="w"> </span>git<span class="w"> </span>push<span class="w"> </span>--allow-new
 </code></pre></div>
 <h2 id="working-in-a-jujutsu-repository">Working in a Jujutsu repository<a class="headerlink" href="#working-in-a-jujutsu-repository" title="Permanent link">&para;</a></h2>
 <p>In a Jujutsu repository, the workflow is simplified. If there's no need for
