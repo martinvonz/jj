@@ -465,38 +465,36 @@ pub fn git_fetch(
 ) -> Result<(), CommandError> {
     let git_settings = tx.settings().git_settings();
 
-    for remote in remotes {
-        let stats = with_remote_git_callbacks(ui, None, |cb| {
-            git::fetch(
-                tx.repo_mut(),
-                git_repo,
-                remote,
-                branch,
-                cb,
-                &git_settings,
-                None,
-            )
-        })
-        .map_err(|err| match err {
-            GitFetchError::InvalidBranchPattern => {
-                if branch
-                    .iter()
-                    .any(|pattern| pattern.as_exact().is_some_and(|s| s.contains('*')))
-                {
-                    user_error_with_hint(
-                        err,
-                        "Prefix the pattern with `glob:` to expand `*` as a glob",
-                    )
-                } else {
-                    user_error(err)
-                }
+    let stats = with_remote_git_callbacks(ui, None, |cb| {
+        git::fetch(
+            tx.repo_mut(),
+            git_repo,
+            &remotes.iter().map(String::as_str).collect::<Vec<_>>(),
+            branch,
+            cb,
+            &git_settings,
+            None,
+        )
+    })
+    .map_err(|err| match err {
+        GitFetchError::InvalidBranchPattern => {
+            if branch
+                .iter()
+                .any(|pattern| pattern.as_exact().is_some_and(|s| s.contains('*')))
+            {
+                user_error_with_hint(
+                    err,
+                    "Prefix the pattern with `glob:` to expand `*` as a glob",
+                )
+            } else {
+                user_error(err)
             }
-            GitFetchError::GitImportError(err) => err.into(),
-            GitFetchError::InternalGitError(err) => map_git_error(err),
-            _ => user_error(err),
-        })?;
-        print_git_import_stats(ui, tx.repo(), &stats.import_stats, true)?;
-    }
+        }
+        GitFetchError::GitImportError(err) => err.into(),
+        GitFetchError::InternalGitError(err) => map_git_error(err),
+        _ => user_error(err),
+    })?;
+    print_git_import_stats(ui, tx.repo(), &stats.import_stats, true)?;
     warn_if_branches_not_found(
         ui,
         tx,
