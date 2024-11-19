@@ -481,7 +481,7 @@ pub fn git_fetch(
             GitFetchError::InvalidBranchPattern => {
                 if branch
                     .iter()
-                    .any(|pattern| pattern.as_exact().map_or(false, |s| s.contains('*')))
+                    .any(|pattern| pattern.as_exact().is_some_and(|s| s.contains('*')))
                 {
                     user_error_with_hint(
                         err,

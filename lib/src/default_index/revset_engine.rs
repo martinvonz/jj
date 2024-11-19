@@ -270,7 +270,7 @@ impl PositionsAccumulatorInner<'_> {
         desired_position: IndexPosition,
     ) -> Result<(), RevsetEvaluationError> {
         let last_position = self.consumed_positions.last();
-        if last_position.map_or(false, |&pos| pos <= desired_position) {
+        if last_position.is_some_and(|&pos| pos <= desired_position) {
             return Ok(());
         }
         while let Some(position) = self.walk.next(index).transpose()? {
@@ -1324,7 +1324,7 @@ fn match_lines<'a: 'b, 'b>(
     text.split_inclusive(|b| *b == b'\n').filter(|line| {
         let line = line.strip_suffix(b"\n").unwrap_or(line);
         // TODO: add .matches_bytes() or .to_bytes_matcher()
-        str::from_utf8(line).map_or(false, |line| pattern.matches(line))
+        str::from_utf8(line).is_ok_and(|line| pattern.matches(line))
     })
 }
 

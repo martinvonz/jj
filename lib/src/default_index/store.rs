@@ -244,7 +244,7 @@ impl DefaultIndexStore {
         let parent_file_has_id = |id: &CommitId| {
             maybe_parent_file
                 .as_ref()
-                .map_or(false, |segment| segment.as_composite().has_id(id))
+                .is_some_and(|segment| segment.as_composite().has_id(id))
         };
         let get_commit_with_op = |commit_id: &CommitId, op_id: &OperationId| {
             let op_id = op_id.clone();
