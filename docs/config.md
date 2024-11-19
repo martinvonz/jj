@@ -285,6 +285,24 @@ diff.tool = "vimdiff"
 diff-invocation-mode = "file-by-file"
 ```
 
+### Conflict marker style
+
+You can configure which style of conflict markers to use when materializing
+conflicts:
+
+```toml
+[ui]
+# Shows a single snapshot and one or more diffs to apply to it
+conflict-marker-style = "diff"
+# Shows a snapshot for each side and base of the conflict
+conflict-marker-style = "snapshot"
+# Uses Git's "diff3" conflict markers to support tools that depend on it
+conflict-marker-style = "git"
+```
+
+For more details about these conflict marker styles, see the [conflicts
+page](conflicts.md#conflict-markers).
+
 ### Set of immutable commits
 
 You can configure the set of immutable commits via

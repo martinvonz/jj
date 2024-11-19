@@ -3,6 +3,12 @@
 
 ## Introduction
 
+Conflicts happen when Jujutsu can't figure out how to merge different changes
+made to the same file. For instance, this can happen if two people are working
+on the same file and make different changes to the same part of the file, and
+then their commits are merged together with `jj new` (or one is rebased onto the
+other with `jj rebase`).
+
 Unlike most other VCSs, Jujutsu can record conflicted states in commits. For
 example, if you rebase a commit and it results in a conflict, the conflict will
 be recorded in the rebased commit and the rebase operation will succeed. You can
@@ -51,60 +57,110 @@ For information about how conflicts are handled in the working copy, see
 ## Conflict markers
 
 Conflicts are "materialized" using *conflict markers* in various contexts. For
-example, when you run `jj edit` on a commit with a conflict, it will be
-materialized in the working copy. Conflicts are also materialized when they are
-part of diff output (e.g. `jj show` on a commit that introduces or resolves a
-conflict). Here's an example of how Git can render a conflict using [its "diff3"
-style](https://git-scm.com/docs/git-merge#_how_conflicts_are_presented):
+example, when you run `jj new` or `jj edit` on a commit with a conflict, it will
+be materialized in the working copy. Conflicts are also materialized when they
+are part of diff output (e.g. `jj show` on a commit that introduces or resolves
+a conflict).
+
+As an example, imagine that you have a file which contains the following text,
+all in lowercase:
 
 ```
-  <<<<<<< left
-  apple
-  grapefruit
-  orange
-  ||||||| base
-  apple
-  grape
-  orange
-  =======
-  APPLE
-  GRAPE
-  ORANGE
-  >>>>>>> right
+apple
+grape
+orange
 ```
 
-In this example, the left side changed "grape" to "grapefruit", and the right
-side made all lines uppercase. To resolve the conflict, we would presumably keep
-the right side (the third section) and replace "GRAPE" by "GRAPEFRUIT". This way
-of visually finding the changes between the base and one side and then applying
-them to the other side is a common way of resolving conflicts when using Git's
-"diff3" style.
-
-Jujutsu helps you by combining the base and one side into a unified diff for
-you, making it easier to spot the differences to apply to the other side. Here's
-how that would look for the same example as above:
+One person replaces the word "grape" with "grapefruit" in commit A, while
+another person changes every line to uppercase in commit B. If you merge the
+changes together with `jj new A B`, the resulting commit will have a conflict
+since Jujutsu can't figure out how to combine these changes. Therefore, Jujutsu
+will materialize the conflict in the working copy using conflict markers, which
+would look like this:
 
 ```
-  <<<<<<<
-  %%%%%%%
-   apple
-  -grape
-  +grapefruit
-   orange
-  +++++++
-  APPLE
-  GRAPE
-  ORANGE
-  >>>>>>>
+<<<<<<< Conflict 1 of 1
+%%%%%%% Changes from base to side #1
+ apple
+-grape
++grapefruit
+ orange
++++++++ Contents of side #2
+APPLE
+GRAPE
+ORANGE
+>>>>>>> Conflict 1 of 1 ends
 ```
 
-As in Git, the `<<<<<<<` and `>>>>>>>` lines mark the start and end of the
-conflict. The `%%%%%%%` line indicates the start of a diff. The `+++++++`
-line indicates the start of a snapshot (not a diff).
+The markers `<<<<<<<` and `>>>>>>>` indicate the start and end of a conflict
+respectively. The marker `+++++++` indicates the start of a snapshot, while the
+marker `%%%%%%%` indicates the start of a diff to apply to the snapshot.
+Therefore, to resolve this conflict, you would apply the diff (changing "grape"
+to "grapefruit") to the snapshot (the side with every line in uppercase),
+editing the file to look like this:
 
-There is another reason for this format (in addition to helping you spot the
-differences): The format supports more complex conflicts involving more than 3
-inputs. Such conflicts can arise when you merge more than 2 commits. They would
-typically be rendered as a single snapshot (as above) but with more than one
-unified diffs. The process for resolving them is similar: Manually apply each
-diff onto the snapshot.
+```
+APPLE
+GRAPEFRUIT
+ORANGE
+```
+
+In practice, conflicts are usually 2-sided, meaning that there's only 2
+conflicting changes being merged together at a time, but Jujutsu supports
+conflicts with arbitrarily many sides, which can happen when merging 3 or more
+commits at once. In that case, you would see a single snapshot section and
+multiple diff sections.
+
+Compared to just showing the content of each side of the conflict, the main
+benefit of Jujutsu's style of conflict markers is that you don't need to spend
+time manually comparing the sides to spot the differences between them. This is
+especially beneficial for many-sided conflicts, since resolving them just
+requires applying each diff to the snapshot one-by-one.
+
+## Alternative conflict marker styles
+
+If you prefer to just see the contents of each side of the conflict without the
+diff, Jujutsu also supports a "snapshot" style, which can be enabled by setting
+the `ui.conflict-marker-style` config option to "snapshot":
+
+```
+<<<<<<< Conflict 1 of 1
++++++++ Contents of side #1
+apple
+grapefruit
+orange
+------- Contents of base
+apple
+grape
+orange
++++++++ Contents of side #2
+APPLE
+GRAPE
+ORANGE
+>>>>>>> Conflict 1 of 1 ends
+```
+
+Some tools expect Git-style conflict markers, so Jujutsu also supports [Git's
+"diff3" style](https://git-scm.com/docs/git-merge#_how_conflicts_are_presented)
+conflict markers by setting the `ui.conflict-marker-style` config option to
+"git":
+
+```
+<<<<<<< Side #1 (Conflict 1 of 1)
+apple
+grapefruit
+orange
+||||||| Base
+apple
+grape
+orange
+=======
+APPLE
+GRAPE
+ORANGE
+>>>>>>> Side #2 (Conflict 1 of 1 ends)
+```
+
+This conflict marker style only supports 2-sided conflicts though, so it falls
+back to the similar "snapshot" conflict markers if there are more than 2 sides
+to the conflict.
