@@ -484,7 +484,7 @@ pub fn git_fetch(
                     .any(|pattern| pattern.as_exact().is_some_and(|s| s.contains('*')))
                 {
                     user_error_with_hint(
-                        err,
+                        "Branch names may not include `*`.",
                         "Prefix the pattern with `glob:` to expand `*` as a glob",
                     )
                 } else {

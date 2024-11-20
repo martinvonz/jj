@@ -612,14 +612,12 @@ fn test_git_fetch_some_of_many_bookmarks() {
         &target_jj_repo_path,
         &["git", "fetch", "--branch", "glob:^:a*"],
     );
-    insta::assert_snapshot!(stderr, @r###"
-    Error: Invalid branch pattern provided. Patterns may not contain the characters `:`, `^`, `?`, `[`, `]`
-    "###);
+    insta::assert_snapshot!(stderr, @"Error: Invalid branch pattern provided. When fetching, branch names and globs may not contain the characters `:`, `^`, `?`, `[`, `]`");
     let stderr = test_env.jj_cmd_failure(&target_jj_repo_path, &["git", "fetch", "--branch", "a*"]);
-    insta::assert_snapshot!(stderr, @r###"
-    Error: Invalid branch pattern provided. Patterns may not contain the characters `:`, `^`, `?`, `[`, `]`
+    insta::assert_snapshot!(stderr, @r"
+    Error: Branch names may not include `*`.
     Hint: Prefix the pattern with `glob:` to expand `*` as a glob
-    "###);
+    ");
 
     // Nothing in our repo before the fetch
     insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"
