@@ -6828,9 +6828,9 @@ Martin von Zweigbergk</p>
 <p>If the revision is a merge commit, this shows changes <em>from</em> the automatic merge of the contents of all of its parents <em>to</em> the contents of the revision itself.</p>
 </li>
 <li>
-<p><code>--from &lt;FROM&gt;</code> — Show changes from this revision</p>
+<p><code>-f</code>, <code>--from &lt;FROM&gt;</code> — Show changes from this revision</p>
 </li>
-<li><code>--to &lt;TO&gt;</code> — Show changes to this revision</li>
+<li><code>-t</code>, <code>--to &lt;TO&gt;</code> — Show changes to this revision</li>
 <li><code>-s</code>, <code>--summary</code> — For each path, show only whether it was modified, added, or deleted</li>
 <li><code>--stat</code> — Show a histogram of the changes</li>
 <li>
@@ -6864,11 +6864,11 @@ Martin von Zweigbergk</p>
 <p>Defaults to @ if neither --to nor --from are specified.</p>
 </li>
 <li>
-<p><code>--from &lt;FROM&gt;</code> — Show changes from this revision</p>
+<p><code>-f</code>, <code>--from &lt;FROM&gt;</code> — Show changes from this revision</p>
 <p>Defaults to @ if --to is specified.</p>
 </li>
 <li>
-<p><code>--to &lt;TO&gt;</code> — Edit changes in this revision</p>
+<p><code>-t</code>, <code>--to &lt;TO&gt;</code> — Edit changes in this revision</p>
 <p>Defaults to @ if --from is specified.</p>
 </li>
 <li>
@@ -7328,8 +7328,8 @@ will be removed in a future version.</p>
 </ul>
 <h6 id="options_29"><strong>Options:</strong><a class="headerlink" href="#options_29" title="Permanent link">&para;</a></h6>
 <ul>
-<li><code>--from &lt;FROM&gt;</code> — Show changes from this revision</li>
-<li><code>--to &lt;TO&gt;</code> — Show changes to this revision</li>
+<li><code>-f</code>, <code>--from &lt;FROM&gt;</code> — Show changes from this revision</li>
+<li><code>-t</code>, <code>--to &lt;TO&gt;</code> — Show changes to this revision</li>
 <li><code>-s</code>, <code>--summary</code> — For each path, show only whether it was modified, added, or deleted</li>
 <li><code>--stat</code> — Show a histogram of the changes</li>
 <li>
@@ -7496,8 +7496,8 @@ B   =&gt;   @
 <h6 id="options_33"><strong>Options:</strong><a class="headerlink" href="#options_33" title="Permanent link">&para;</a></h6>
 <ul>
 <li><code>--operation &lt;OPERATION&gt;</code> — Show repository changes in this operation, compared to its parent</li>
-<li><code>--from &lt;FROM&gt;</code> — Show repository changes from this operation</li>
-<li><code>--to &lt;TO&gt;</code> — Show repository changes to this operation</li>
+<li><code>-f</code>, <code>--from &lt;FROM&gt;</code> — Show repository changes from this operation</li>
+<li><code>-t</code>, <code>--to &lt;TO&gt;</code> — Show repository changes to this operation</li>
 <li><code>--no-graph</code> — Don't show the graph, show a flat list of modified changes</li>
 <li>
 <p><code>-p</code>, <code>--patch</code> — Show patch of modifications to changes</p>
@@ -7856,8 +7856,8 @@ commit. This is true in general; it is not specific to this command.</p>
 </ul>
 <h6 id="options_41"><strong>Options:</strong><a class="headerlink" href="#options_41" title="Permanent link">&para;</a></h6>
 <ul>
-<li><code>--from &lt;FROM&gt;</code> — Revision to restore from (source)</li>
-<li><code>--to &lt;TO&gt;</code> — Revision to restore into (destination)</li>
+<li><code>-f</code>, <code>--from &lt;FROM&gt;</code> — Revision to restore from (source)</li>
+<li><code>-t</code>, <code>--to &lt;TO&gt;</code> — Revision to restore into (destination)</li>
 <li>
 <p><code>-c</code>, <code>--changes-in &lt;REVISION&gt;</code> — Undo the changes in a revision as compared to the merge of its parents.</p>
 <p>This undoes the changes that can be seen with <code>jj diff -r REVISION</code>. If <code>REVISION</code> only has a single parent, this option is equivalent to <code>jj restore --to REVISION --from REVISION-</code>.</p>
