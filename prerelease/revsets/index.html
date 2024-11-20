@@ -1811,8 +1811,11 @@ aren't included in <code>remote_bookmarks()</code>.</p>
   as <code>remote_bookmarks()</code>.</p>
 </li>
 <li>
-<p><code>tags()</code>: All tag targets. If a tag is in a conflicted state, all its
-  possible targets are included.</p>
+<p><code>tags([pattern])</code>: All tag targets. If <code>pattern</code> is specified,
+  this selects the tags whose name match the given <a href="#string-patterns">string
+  pattern</a>. For example, <code>tags(v1)</code> would match the
+  tags <code>v123</code> and <code>rev1</code> but not the tag <code>v2</code>. If a tag is
+  in a conflicted state, all its possible targets are included.</p>
 </li>
 <li>
 <p><code>git_refs()</code>:  All Git ref targets as of the last import. If a Git ref
