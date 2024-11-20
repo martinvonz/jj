@@ -36,7 +36,8 @@ pub struct GitFetchArgs {
     /// Fetch only some of the branches
     ///
     /// By default, the specified name matches exactly. Use `glob:` prefix to
-    /// expand `*` as a glob. The other wildcard characters aren't supported.
+    /// expand `*` as a glob, e.g. `--branch 'glob:push-*'`. Other wildcard
+    /// characters such as `?` are *not* supported.
     #[arg(
         long, short,
         alias = "bookmark",
