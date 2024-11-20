@@ -284,40 +284,40 @@ version and the dependencies needed to build the docs. Install it like so:
 
 [uv]: https://docs.astral.sh/uv/
 
-=== "macOS/Linux"
+#### macOS/Linux
 
-    ``` { .shell .copy }
-    curl -LsSf https://astral.sh/uv/install.sh | sh
-    ```
+``` { .shell .copy }
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
 
-    !!! note
-        If you don't have `~/.local/bin` in your `PATH`, the installer will
-        modify your shell profile. To avoid it:
+> [!TIP]
+> If you don't have `~/.local/bin` in your `PATH`, the installer will
+> modify your shell profile. To avoid it:
+>
+> ``` { .shell .copy }
+> curl -LsSf https://astral.sh/uv/install.sh | env INSTALLER_NO_MODIFY_PATH=1 sh
+> ```
 
-        ``` { .shell .copy }
-        curl -LsSf https://astral.sh/uv/install.sh | env INSTALLER_NO_MODIFY_PATH=1 sh
-        ```
-
-=== "Windows"
+#### Windows
 
     ``` { .shell .copy }
     powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
     ```
 
-=== "Homebrew"
+#### Homebrew
 
     ``` { .shell .copy }
     brew install uv
     ```
 
-=== "Cargo"
+#### Cargo
 
     ``` { .shell .copy }
     # This might take a while
     cargo install --git https://github.com/astral-sh/uv uv
     ```
 
-=== "Other options"
+#### Other options
 
     * Directly download the binaries from GitHub: [uv releases](https://github.com/astral-sh/uv/releases).
     * Even more options: [Installing uv](https://docs.astral.sh/uv/getting-started/installation/).
