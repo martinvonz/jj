@@ -56,8 +56,9 @@ fn split_help_text(line: &str) -> (&str, Option<StyledStr>) {
 }
 
 pub fn local_bookmarks() -> Vec<CompletionCandidate> {
-    with_jj(|mut jj, _| {
+    with_jj(|jj, _| {
         let output = jj
+            .build()
             .arg("bookmark")
             .arg("list")
             .arg("--config-toml")
@@ -76,8 +77,9 @@ pub fn local_bookmarks() -> Vec<CompletionCandidate> {
 }
 
 pub fn tracked_bookmarks() -> Vec<CompletionCandidate> {
-    with_jj(|mut jj, _| {
+    with_jj(|jj, _| {
         let output = jj
+            .build()
             .arg("bookmark")
             .arg("list")
             .arg("--tracked")
@@ -97,8 +99,9 @@ pub fn tracked_bookmarks() -> Vec<CompletionCandidate> {
 }
 
 pub fn untracked_bookmarks() -> Vec<CompletionCandidate> {
-    with_jj(|mut jj, config| {
+    with_jj(|jj, config| {
         let output = jj
+            .build()
             .arg("bookmark")
             .arg("list")
             .arg("--all-remotes")
@@ -134,8 +137,9 @@ pub fn untracked_bookmarks() -> Vec<CompletionCandidate> {
 }
 
 pub fn bookmarks() -> Vec<CompletionCandidate> {
-    with_jj(|mut jj, config| {
+    with_jj(|jj, config| {
         let output = jj
+            .build()
             .arg("bookmark")
             .arg("list")
             .arg("--all-remotes")
@@ -178,8 +182,9 @@ pub fn bookmarks() -> Vec<CompletionCandidate> {
 }
 
 pub fn git_remotes() -> Vec<CompletionCandidate> {
-    with_jj(|mut jj, _| {
+    with_jj(|jj, _| {
         let output = jj
+            .build()
             .arg("git")
             .arg("remote")
             .arg("list")
@@ -212,8 +217,9 @@ pub fn aliases() -> Vec<CompletionCandidate> {
 }
 
 fn revisions(revisions: &str) -> Vec<CompletionCandidate> {
-    with_jj(|mut jj, _| {
+    with_jj(|jj, _| {
         let output = jj
+            .build()
             .arg("log")
             .arg("--no-graph")
             .arg("--limit")
@@ -245,8 +251,9 @@ pub fn all_revisions() -> Vec<CompletionCandidate> {
 }
 
 pub fn operations() -> Vec<CompletionCandidate> {
-    with_jj(|mut jj, _| {
+    with_jj(|jj, _| {
         let output = jj
+            .build()
             .arg("operation")
             .arg("log")
             .arg("--no-graph")
@@ -275,8 +282,9 @@ pub fn operations() -> Vec<CompletionCandidate> {
 }
 
 pub fn workspaces() -> Vec<CompletionCandidate> {
-    with_jj(|mut jj, _| {
+    with_jj(|jj, _| {
         let output = jj
+            .build()
             .arg("--config-toml")
             .arg(r#"templates.commit_summary = 'if(description, description.first_line(), "(no description set)")'"#)
             .arg("workspace")
@@ -360,7 +368,7 @@ pub fn leaf_config_keys() -> Vec<CompletionCandidate> {
 /// In case of errors, print them and early return an empty vector.
 fn with_jj<F>(completion_fn: F) -> Vec<CompletionCandidate>
 where
-    F: FnOnce(std::process::Command, &Config) -> Result<Vec<CompletionCandidate>, CommandError>,
+    F: FnOnce(JjBuilder, &Config) -> Result<Vec<CompletionCandidate>, CommandError>,
 {
     get_jj_command()
         .and_then(|(jj, config)| completion_fn(jj, &config))
@@ -379,7 +387,7 @@ where
 /// give completion code access to custom backends. Shelling out was chosen as
 /// the preferred method, because it's more maintainable and the performance
 /// requirements of completions aren't very high.
-fn get_jj_command() -> Result<(std::process::Command, Config), CommandError> {
+fn get_jj_command() -> Result<(JjBuilder, Config), CommandError> {
     let current_exe = std::env::current_exe().map_err(user_error)?;
     let mut cmd_args = Vec::<String>::new();
 
@@ -461,10 +469,27 @@ fn get_jj_command() -> Result<(std::process::Command, Config), CommandError> {
         cmd_args.push(config_toml);
     }
 
-    let mut cmd = std::process::Command::new(current_exe);
-    cmd.args(&cmd_args);
+    let builder = JjBuilder {
+        cmd: current_exe,
+        args: cmd_args,
+    };
 
-    Ok((cmd, config))
+    Ok((builder, config))
+}
+
+/// A helper struct to allow completion functions to call jj multiple times with
+/// different arguments.
+struct JjBuilder {
+    cmd: std::path::PathBuf,
+    args: Vec<String>,
+}
+
+impl JjBuilder {
+    fn build(&self) -> std::process::Command {
+        let mut cmd = std::process::Command::new(&self.cmd);
+        cmd.args(&self.args);
+        cmd
+    }
 }
 
 #[cfg(test)]
