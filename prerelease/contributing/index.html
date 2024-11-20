@@ -1210,31 +1210,36 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#setting-up-the-prerequisites" class="md-nav__link">
+  <a href="#install-uv" class="md-nav__link">
     <span class="md-ellipsis">
-      Setting up the prerequisites
+      Install uv
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#building-the-html-docs-locally-with-live-reload" class="md-nav__link">
+  <a href="#build-the-docs" class="md-nav__link">
     <span class="md-ellipsis">
-      Building the HTML docs locally (with live reload)
+      Build the docs
     </span>
   </a>
   
 </li>
         
-          <li class="md-nav__item">
-  <a href="#how-to-build-the-entire-website-not-usually-necessary" class="md-nav__link">
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#building-the-entire-website" class="md-nav__link">
     <span class="md-ellipsis">
-      How to build the entire website (not usually necessary)
+      Building the entire website
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="How to build the entire website (not usually necessary)">
+    <nav class="md-nav" aria-label="Building the entire website">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -1243,11 +1248,6 @@
       Explanation of the docs-build-deploy script
     </span>
   </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
         
@@ -1743,31 +1743,36 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#setting-up-the-prerequisites" class="md-nav__link">
+  <a href="#install-uv" class="md-nav__link">
     <span class="md-ellipsis">
-      Setting up the prerequisites
+      Install uv
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#building-the-html-docs-locally-with-live-reload" class="md-nav__link">
+  <a href="#build-the-docs" class="md-nav__link">
     <span class="md-ellipsis">
-      Building the HTML docs locally (with live reload)
+      Build the docs
     </span>
   </a>
   
 </li>
         
-          <li class="md-nav__item">
-  <a href="#how-to-build-the-entire-website-not-usually-necessary" class="md-nav__link">
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#building-the-entire-website" class="md-nav__link">
     <span class="md-ellipsis">
-      How to build the entire website (not usually necessary)
+      Building the entire website
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="How to build the entire website (not usually necessary)">
+    <nav class="md-nav" aria-label="Building the entire website">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -1776,11 +1781,6 @@
       Explanation of the docs-build-deploy script
     </span>
   </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
         
@@ -2048,44 +2048,69 @@ multi-threaded. It should use all the CPU cores without any configuration.</p>
 <span class="p">}</span>
 </code></pre></div>
 <h2 id="previewing-the-html-documentation">Previewing the HTML documentation<a class="headerlink" href="#previewing-the-html-documentation" title="Permanent link">&para;</a></h2>
-<p>The documentation for <code>jj</code> is automatically published to the website at
+<p>The documentation for <code>jj</code> is automatically published online at
 <a href="https://martinvonz.github.io/jj/">https://martinvonz.github.io/jj/</a>.</p>
-<p>When editing documentation, we'd appreciate it if you checked that the
-result will look as expected when published to the website.</p>
-<h3 id="setting-up-the-prerequisites">Setting up the prerequisites<a class="headerlink" href="#setting-up-the-prerequisites" title="Permanent link">&para;</a></h3>
-<p>To build the website, you must have Python and <code>poetry 1.8+</code> installed (the
-latest version is recommended). It is easiest to install <code>poetry</code> via <code>pipx</code>, as
-explained in the <a href="https://python-poetry.org/docs/#installation">Poetry installation instructions</a>. A few helpful points from
-the instructions: <code>pipx</code> can often be installed from your distribution, e.g.
-<code>sudo apt install pipx</code>; this will usually also install Python for you if
-necessary. Any version of <code>pipx</code> will do. If you are installing <code>pipx</code> manually,
-you may first need to follow the <a href="https://docs.python.org/3/using/index.html">Python installation instructions</a>.</p>
-<p>Once you have <code>poetry</code> installed, you should ask it to install the rest
-of the required tools into a virtual environment as follows:</p>
-<div class="highlight"><pre><span></span><code>poetry<span class="w"> </span>install
+<p>When editing documentation, you should check your changes locally — especially
+if you are adding a new page, or doing a major rewrite.</p>
+<h3 id="install-uv">Install <code>uv</code><a class="headerlink" href="#install-uv" title="Permanent link">&para;</a></h3>
+<p>The only thing you need is <a href="https://docs.astral.sh/uv/"><code>uv</code></a> (version 0.5.1 or newer).</p>
+<p><code>uv</code> is a Python project manager written in Rust. It will fetch the right Python
+version and the dependencies needed to build the docs. Install it like so:</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="1:5"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><input id="__tabbed_1_3" name="__tabbed_1" type="radio" /><input id="__tabbed_1_4" name="__tabbed_1" type="radio" /><input id="__tabbed_1_5" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">macOS/Linux</label><label for="__tabbed_1_2">Windows</label><label for="__tabbed_1_3">Homebrew</label><label for="__tabbed_1_4">Cargo</label><label for="__tabbed_1_5">Other options</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<div class="copy highlight"><pre><span></span><code>curl<span class="w"> </span>-LsSf<span class="w"> </span>https://astral.sh/uv/install.sh<span class="w"> </span><span class="p">|</span><span class="w"> </span>sh
 </code></pre></div>
-<p>You may get requests to "unlock a keyring", <a href="https://github.com/python-poetry/poetry/issues/1917">an error messages about failing to
-do so</a>, or Poetry may
-<a href="https://github.com/python-poetry/poetry/issues/8623">simply hang indefinitely</a>.
-The workaround is to either to unlock the keyring or to run the following, and
-then to try <code>poetry install</code> again:</p>
-<div class="highlight"><pre><span></span><code><span class="c1"># For sh-compatible shells or recent versions of `fish`</span>
-<span class="nb">export</span><span class="w"> </span><span class="nv">PYTHON_KEYRING_BACKEND</span><span class="o">=</span>keyring.backends.fail.Keyring
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>If you don't have <code>~/.local/bin</code> in your <code>PATH</code>, the installer will
+modify your shell profile. To avoid it:</p>
+<div class="copy highlight"><pre><span></span><code>curl<span class="w"> </span>-LsSf<span class="w"> </span>https://astral.sh/uv/install.sh<span class="w"> </span><span class="p">|</span><span class="w"> </span>env<span class="w"> </span><span class="nv">INSTALLER_NO_MODIFY_PATH</span><span class="o">=</span><span class="m">1</span><span class="w"> </span>sh
 </code></pre></div>
-<h3 id="building-the-html-docs-locally-with-live-reload">Building the HTML docs locally (with live reload)<a class="headerlink" href="#building-the-html-docs-locally-with-live-reload" title="Permanent link">&para;</a></h3>
-<p>The HTML docs are built with <a href="https://github.com/mkdocs/mkdocs">MkDocs</a>. After
-following the above steps, you should be able to view the docs by running</p>
-<div class="highlight"><pre><span></span><code><span class="c1"># Note: this and all the commands below should be run from the root of</span>
-<span class="c1"># the `jj` source tree.</span>
-poetry<span class="w"> </span>run<span class="w"> </span>--<span class="w"> </span>mkdocs<span class="w"> </span>serve
+</div>
+</div>
+<div class="tabbed-block">
+<div class="copy highlight"><pre><span></span><code>powershell<span class="w"> </span>-ExecutionPolicy<span class="w"> </span>ByPass<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;irm https://astral.sh/uv/install.ps1 | iex&quot;</span>
 </code></pre></div>
-<p>and opening <a href="http://127.0.0.1:8000">http://127.0.0.1:8000</a> in your browser.</p>
-<p>As you edit the <code>md</code> files, the website should be rebuilt and reloaded in your
-browser automatically, unless build errors occur.</p>
-<p>You should occasionally check the terminal from which you ran <code>mkdocs serve</code> for
-any build errors or warnings. Warnings about <code>"GET /versions.json HTTP/1.1" code
-404</code> are expected and harmless.</p>
-<h3 id="how-to-build-the-entire-website-not-usually-necessary">How to build the entire website (not usually necessary)<a class="headerlink" href="#how-to-build-the-entire-website-not-usually-necessary" title="Permanent link">&para;</a></h3>
+</div>
+<div class="tabbed-block">
+<div class="copy highlight"><pre><span></span><code>brew<span class="w"> </span>install<span class="w"> </span>uv
+</code></pre></div>
+</div>
+<div class="tabbed-block">
+<div class="copy highlight"><pre><span></span><code><span class="c1"># This might take a while</span>
+cargo<span class="w"> </span>install<span class="w"> </span>--git<span class="w"> </span>https://github.com/astral-sh/uv<span class="w"> </span>uv
+</code></pre></div>
+</div>
+<div class="tabbed-block">
+<ul>
+<li>Directly download the binaries from GitHub: <a href="https://github.com/astral-sh/uv/releases">uv releases</a>.</li>
+<li>Even more options: <a href="https://docs.astral.sh/uv/getting-started/installation/">Installing uv</a>.</li>
+</ul>
+</div>
+</div>
+</div>
+<h3 id="build-the-docs">Build the docs<a class="headerlink" href="#build-the-docs" title="Permanent link">&para;</a></h3>
+<p>To build the docs, run from the root of the <code>jj</code> repository:</p>
+<div class="copy highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>mkdocs<span class="w"> </span>serve
+</code></pre></div>
+<p>Open <a href="http://127.0.0.1:8000">http://127.0.0.1:8000</a> in your browser to see the docs.</p>
+<p>As you edit the <code>.md</code> files in <code>docs/</code>, the website should be rebuilt and
+reloaded in your browser automatically.</p>
+<div class="admonition note">
+<p class="admonition-title">If the docs are not updating</p>
+<p>Check the terminal from which you ran <code>uv run mkdocs serve</code> for any build
+errors or warnings. Warnings about <code>"GET /versions.json HTTP/1.1" code 404</code>
+are expected and harmless.</p>
+</div>
+<h2 id="building-the-entire-website">Building the entire website<a class="headerlink" href="#building-the-entire-website" title="Permanent link">&para;</a></h2>
+<div class="admonition tip">
+<p class="admonition-title">Tip</p>
+<p>Building the entire website is not usually necessary. If you are editing
+documentation, the previous section is enough.</p>
+<p>These instructions are relevant if you are working on the versioning of the
+documentation that we currently do with <code>mike</code>.</p>
+</div>
 <p>The full <code>jj</code> website includes the documentation for several <code>jj</code> versions
 (<code>prerelease</code>, latest release, and the older releases). The top-level
 URL <a href="https://martinvonz.github.io/jj">https://martinvonz.github.io/jj</a> redirects to
@@ -2093,17 +2118,17 @@ URL <a href="https://martinvonz.github.io/jj">https://martinvonz.github.io/jj</a
 the docs for the last stable version.</p>
 <p>The different versions of documentation are managed and deployed with
 <a href="https://github.com/jimporter/mike"><code>mike</code></a>, which can be run with
-<code>poetry run -- mike</code>.</p>
+<code>uv run mike</code>.</p>
 <p>On a POSIX system or WSL, one way to build the entire website is as follows (on
 Windows, you'll need to understand and adapt the shell script):</p>
 <ol>
 <li>
 <p>Check out <code>jj</code> as a co-located <code>jj + git</code> repository (<code>jj clone --colocate</code>),
-cloned from your fork of <code>jj</code> (e.g. <code>jjfan.github.com/jj</code>). You can also use a
+cloned from your fork of <code>jj</code> (e.g. <code>github.com/jjfan/jj</code>). You can also use a
 pure Git repo if you prefer.</p>
 </li>
 <li>
-<p>Make sure <code>jjfan.github.com/jj</code> includes the <code>gh-pages</code> bookmark of the jj repo
+<p>Make sure <code>github.com/jjfan/jj</code> includes the <code>gh-pages</code> bookmark of the jj repo
 and run <code>git fetch origin gh-pages</code>.</p>
 </li>
 <li>
@@ -2111,7 +2136,9 @@ and run <code>git fetch origin gh-pages</code>.</p>
 to use the <code>gh-pages</code> bookmark (this is usually the default).</p>
 </li>
 <li>
-<p>Run the same <code>sh</code> script that is used in GitHub CI (details below):</p>
+<p>Install <code>uv</code> as explained in <a href="#previewing-the-html-documentation">Previewing the HTML
+documentation</a>, and run the same <code>sh</code> script
+that is used in GitHub CI (details below):</p>
 <div class="highlight"><pre><span></span><code>.github/scripts/docs-build-deploy<span class="w"> </span><span class="s1">&#39;https://jjfan.github.io/jj/&#39;</span><span class="se">\</span>
 <span class="w">    </span>prerelease<span class="w"> </span>main<span class="w"> </span>--push
 </code></pre></div>
@@ -2146,15 +2173,15 @@ jj<span class="w"> </span>git<span class="w"> </span>push<span class="w"> </span
   set my-changes -r gh-pages</code> BEFORE running the above commands.</p>
 </li>
 </ol>
-<h4 id="explanation-of-the-docs-build-deploy-script">Explanation of the <code>docs-build-deploy</code> script<a class="headerlink" href="#explanation-of-the-docs-build-deploy-script" title="Permanent link">&para;</a></h4>
+<h3 id="explanation-of-the-docs-build-deploy-script">Explanation of the <code>docs-build-deploy</code> script<a class="headerlink" href="#explanation-of-the-docs-build-deploy-script" title="Permanent link">&para;</a></h3>
 <p>The script sets up the <code>site_url</code> mkdocs config to
 <code>'https://jjfan.github.io/jj/'</code>. If this config does not match the URL
 where you loaded the website, some minor website features (like the
 version switching widget) will have reduced functionality.</p>
-<p>Then, the script passes the rest of its arguments to <code>potery run -- mike
-deploy</code>, which does the rest of the job. Run <code>poetry run -- mike help deploy</code> to
+<p>Then, the script passes the rest of its arguments to <code>uv run mike
+deploy</code>, which does the rest of the job. Run <code>uv run mike help deploy</code> to
 find out what the arguments do.</p>
-<p>If you need to do something more complicated, you can use <code>poetry run -- mike
+<p>If you need to do something more complicated, you can use <code>uv run mike
 ...</code> commands. You can also edit the <code>gh-pages</code> bookmark directly, but take care
 to avoid files that will be overwritten by future invocations of <code>mike</code>. Then,
 you can submit a PR based on the <code>gh-pages</code> bookmark of
