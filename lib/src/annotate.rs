@@ -133,7 +133,7 @@ impl Source {
     fn load(commit: &Commit, file_path: &RepoPath) -> Result<Self, BackendError> {
         let tree = commit.tree()?;
         let text = get_file_contents(commit.store(), file_path, &tree)?;
-        Ok(Self::new(text.into()))
+        Ok(Self::new(text))
     }
 
     fn fill_line_map(&mut self) {
@@ -343,7 +343,7 @@ fn get_file_contents(
     store: &Store,
     path: &RepoPath,
     tree: &MergedTree,
-) -> Result<Vec<u8>, BackendError> {
+) -> Result<BString, BackendError> {
     let file_value = tree.path_value(path)?;
     let effective_file_value = materialize_tree_value(store, path, file_value).block_on()?;
     match effective_file_value {
@@ -356,12 +356,12 @@ fn get_file_contents(
                     id,
                     source: Box::new(e),
                 })?;
-            Ok(file_contents)
+            Ok(file_contents.into())
         }
         MaterializedTreeValue::FileConflict { contents, .. } => {
-            Ok(materialize_merge_result_to_bytes(&contents).into())
+            Ok(materialize_merge_result_to_bytes(&contents))
         }
-        _ => Ok(Vec::new()),
+        _ => Ok(BString::default()),
     }
 }
 
