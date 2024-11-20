@@ -100,8 +100,12 @@
             makeWrapper
             pkg-config
 
+            # for libz-ng-sys (zlib-ng)
+            # TODO: switch to the packaged zlib-ng and drop this dependency
+            cmake
+
             # for signing tests
-            gnupg 
+            gnupg
             openssh
           ] ++ linuxNativeDeps;
           buildInputs = with pkgs; [
@@ -184,6 +188,10 @@
 
           # In case you need to run `cargo run --bin gen-protos`
           protobuf
+
+          # for libz-ng-sys (zlib-ng)
+          # TODO: switch to the packaged zlib-ng and drop this dependency
+          cmake
 
           # To run the signing tests
           gnupg
