@@ -727,8 +727,8 @@ fn test_parse_conflict_multi_way() {
 
 #[test]
 fn test_parse_conflict_crlf_markers() {
-    // Conflict markers aren't recognized due to CRLF
-    assert_eq!(
+    // Conflict markers should be recognized even with CRLF
+    insta::assert_debug_snapshot!(
         parse_conflict(
             indoc! {b"
             line 1\r
@@ -744,7 +744,25 @@ fn test_parse_conflict_crlf_markers() {
             "},
             2
         ),
-        None
+        @r#"
+    Some(
+        [
+            Resolved(
+                "line 1\r\n",
+            ),
+            Conflicted(
+                [
+                    "left\r\n",
+                    "base\r\n",
+                    "right\r\n",
+                ],
+            ),
+            Resolved(
+                "line 5\r\n",
+            ),
+        ],
+    )
+    "#
     );
 }
 
