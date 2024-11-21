@@ -20,6 +20,7 @@ use std::io::Write;
 use std::iter::zip;
 
 use bstr::BString;
+use bstr::ByteSlice;
 use futures::stream::BoxStream;
 use futures::try_join;
 use futures::Stream;
@@ -394,7 +395,7 @@ pub fn parse_conflict(input: &[u8], num_sides: usize) -> Option<Vec<Merge<BStrin
     let mut conflict_start = None;
     let mut conflict_start_len = 0;
     for line in input.split_inclusive(|b| *b == b'\n') {
-        if CONFLICT_MARKER_REGEX.is_match_at(line, 0) {
+        if is_conflict_marker_line(line) {
             if line[0] == CONFLICT_START_LINE_CHAR {
                 conflict_start = Some(pos);
                 conflict_start_len = line.len();
@@ -436,7 +437,7 @@ fn parse_conflict_hunk(input: &[u8]) -> Merge<BString> {
     let mut removes = vec![];
     let mut adds = vec![];
     for line in input.split_inclusive(|b| *b == b'\n') {
-        if CONFLICT_MARKER_REGEX.is_match_at(line, 0) {
+        if is_conflict_marker_line(line) {
             match line[0] {
                 CONFLICT_DIFF_LINE_CHAR => {
                     state = State::Diff;
@@ -490,6 +491,13 @@ fn parse_conflict_hunk(input: &[u8]) -> Merge<BString> {
         // Doesn't look like a valid conflict
         Merge::resolved(BString::new(vec![]))
     }
+}
+
+/// Check whether a line is a conflict marker. Removes trailing whitespace
+/// before checking against regex to ensure it parses CRLF endings correctly.
+fn is_conflict_marker_line(line: &[u8]) -> bool {
+    let line = line.trim_end_with(|ch| ch.is_ascii_whitespace());
+    CONFLICT_MARKER_REGEX.is_match_at(line, 0)
 }
 
 /// Parses conflict markers in `content` and returns an updated version of
