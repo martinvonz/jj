@@ -32,6 +32,7 @@ use std::thread::JoinHandle;
 
 use indoc::indoc;
 use itertools::Itertools as _;
+use jj_lib::config::ConfigError;
 use minus::MinusError;
 use minus::Pager as MinusPager;
 use tracing::instrument;
@@ -311,7 +312,7 @@ fn color_setting(config: &config::Config) -> ColorChoice {
 fn prepare_formatter_factory(
     config: &config::Config,
     stdout: &Stdout,
-) -> Result<FormatterFactory, config::ConfigError> {
+) -> Result<FormatterFactory, ConfigError> {
     let terminal = stdout.is_terminal();
     let (color, debug) = match color_setting(config) {
         ColorChoice::Always => (true, false),

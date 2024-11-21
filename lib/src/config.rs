@@ -22,6 +22,10 @@ use std::str::FromStr;
 use config::Source as _;
 use itertools::Itertools as _;
 
+/// Error that can occur when accessing configuration.
+// TODO: will be replaced with our custom error type
+pub type ConfigError = config::ConfigError;
+
 /// Dotted config name path.
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct ConfigNamePathBuf(Vec<toml_edit::Key>);
@@ -54,10 +58,7 @@ impl ConfigNamePathBuf {
     /// This is a workaround for the `config.get()` API, which doesn't support
     /// literal path expression. If we implement our own config abstraction,
     /// this method should be moved there.
-    pub fn lookup_value(
-        &self,
-        config: &config::Config,
-    ) -> Result<config::Value, config::ConfigError> {
+    pub fn lookup_value(&self, config: &config::Config) -> Result<config::Value, ConfigError> {
         // Use config.get() if the TOML keys can be converted to config path
         // syntax. This should be cheaper than cloning the whole config map.
         let (key_prefix, components) = self.split_safe_prefix();
@@ -71,7 +72,7 @@ impl ConfigNamePathBuf {
                 let mut table = value.into_table().ok()?;
                 table.remove(key.get())
             })
-            .ok_or_else(|| config::ConfigError::NotFound(self.to_string()))
+            .ok_or_else(|| ConfigError::NotFound(self.to_string()))
     }
 
     /// Splits path to dotted literal expression and remainder.

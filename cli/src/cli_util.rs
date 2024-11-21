@@ -56,6 +56,7 @@ use jj_lib::backend::CommitId;
 use jj_lib::backend::MergedTreeId;
 use jj_lib::backend::TreeValue;
 use jj_lib::commit::Commit;
+use jj_lib::config::ConfigError;
 use jj_lib::config::ConfigNamePathBuf;
 use jj_lib::file_util;
 use jj_lib::fileset;
@@ -2685,7 +2686,7 @@ pub struct LogContentFormat {
 
 impl LogContentFormat {
     /// Creates new formatting helper for the terminal.
-    pub fn new(ui: &Ui, settings: &UserSettings) -> Result<Self, config::ConfigError> {
+    pub fn new(ui: &Ui, settings: &UserSettings) -> Result<Self, ConfigError> {
         Ok(LogContentFormat {
             width: ui.term_width(),
             word_wrap: settings.config().get_bool("ui.log-word-wrap")?,
@@ -3065,10 +3066,7 @@ impl ValueParserFactory for RevisionArg {
     }
 }
 
-fn get_string_or_array(
-    config: &config::Config,
-    key: &str,
-) -> Result<Vec<String>, config::ConfigError> {
+fn get_string_or_array(config: &config::Config, key: &str) -> Result<Vec<String>, ConfigError> {
     config
         .get(key)
         .map(|string| vec![string])
