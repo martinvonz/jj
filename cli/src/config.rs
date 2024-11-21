@@ -586,7 +586,7 @@ fn read_config_path(config_path: &Path) -> Result<config::Config, config::Config
         .build()
 }
 
-fn read_config(path: &Path) -> Result<toml_edit::Document, CommandError> {
+fn read_config(path: &Path) -> Result<toml_edit::ImDocument<String>, CommandError> {
     let config_toml = std::fs::read_to_string(path).or_else(|err| {
         match err.kind() {
             // If config doesn't exist yet, read as empty and we'll write one.
@@ -605,7 +605,7 @@ fn read_config(path: &Path) -> Result<toml_edit::Document, CommandError> {
     })
 }
 
-fn write_config(path: &Path, doc: &toml_edit::Document) -> Result<(), CommandError> {
+fn write_config(path: &Path, doc: &toml_edit::DocumentMut) -> Result<(), CommandError> {
     std::fs::write(path, doc.to_string()).map_err(|err| {
         user_error_with_message(
             format!("Failed to write file {path}", path = path.display()),
@@ -619,7 +619,7 @@ pub fn write_config_value_to_file(
     value: toml_edit::Value,
     path: &Path,
 ) -> Result<(), CommandError> {
-    let mut doc = read_config(path)?;
+    let mut doc = read_config(path)?.into_mut();
 
     // Apply config value
     let mut target_table = doc.as_table_mut();
@@ -655,7 +655,7 @@ pub fn remove_config_value_from_file(
     key: &ConfigNamePathBuf,
     path: &Path,
 ) -> Result<(), CommandError> {
-    let mut doc = read_config(path)?;
+    let mut doc = read_config(path)?.into_mut();
 
     // Find target table
     let mut key_iter = key.components();
@@ -975,7 +975,7 @@ mod tests {
         // Note: "email" is alphabetized, before "name" from same layer.
         insta::assert_debug_snapshot!(
             layered_configs.resolved_config_values(&ConfigNamePathBuf::root()).unwrap(),
-            @r###"
+            @r#"
         [
             AnnotatedValue {
                 path: ConfigNamePathBuf(
@@ -983,7 +983,11 @@ mod tests {
                         Key {
                             key: "user",
                             repr: None,
-                            decor: Decor {
+                            leaf_decor: Decor {
+                                prefix: "default",
+                                suffix: "default",
+                            },
+                            dotted_decor: Decor {
                                 prefix: "default",
                                 suffix: "default",
                             },
@@ -991,7 +995,11 @@ mod tests {
                         Key {
                             key: "email",
                             repr: None,
-                            decor: Decor {
+                            leaf_decor: Decor {
+                                prefix: "default",
+                                suffix: "default",
+                            },
+                            dotted_decor: Decor {
                                 prefix: "default",
                                 suffix: "default",
                             },
@@ -1013,7 +1021,11 @@ mod tests {
                         Key {
                             key: "user",
                             repr: None,
-                            decor: Decor {
+                            leaf_decor: Decor {
+                                prefix: "default",
+                                suffix: "default",
+                            },
+                            dotted_decor: Decor {
                                 prefix: "default",
                                 suffix: "default",
                             },
@@ -1021,7 +1033,11 @@ mod tests {
                         Key {
                             key: "name",
                             repr: None,
-                            decor: Decor {
+                            leaf_decor: Decor {
+                                prefix: "default",
+                                suffix: "default",
+                            },
+                            dotted_decor: Decor {
                                 prefix: "default",
                                 suffix: "default",
                             },
@@ -1043,7 +1059,11 @@ mod tests {
                         Key {
                             key: "user",
                             repr: None,
-                            decor: Decor {
+                            leaf_decor: Decor {
+                                prefix: "default",
+                                suffix: "default",
+                            },
+                            dotted_decor: Decor {
                                 prefix: "default",
                                 suffix: "default",
                             },
@@ -1051,7 +1071,11 @@ mod tests {
                         Key {
                             key: "email",
                             repr: None,
-                            decor: Decor {
+                            leaf_decor: Decor {
+                                prefix: "default",
+                                suffix: "default",
+                            },
+                            dotted_decor: Decor {
                                 prefix: "default",
                                 suffix: "default",
                             },
@@ -1068,7 +1092,7 @@ mod tests {
                 is_overridden: false,
             },
         ]
-        "###
+        "#
         );
     }
 
@@ -1099,7 +1123,7 @@ mod tests {
             layered_configs
                 .resolved_config_values(&ConfigNamePathBuf::from_iter(["test-table1"]))
                 .unwrap(),
-            @r###"
+            @r#"
         [
             AnnotatedValue {
                 path: ConfigNamePathBuf(
@@ -1107,7 +1131,11 @@ mod tests {
                         Key {
                             key: "test-table1",
                             repr: None,
-                            decor: Decor {
+                            leaf_decor: Decor {
+                                prefix: "default",
+                                suffix: "default",
+                            },
+                            dotted_decor: Decor {
                                 prefix: "default",
                                 suffix: "default",
                             },
@@ -1115,7 +1143,11 @@ mod tests {
                         Key {
                             key: "foo",
                             repr: None,
-                            decor: Decor {
+                            leaf_decor: Decor {
+                                prefix: "default",
+                                suffix: "default",
+                            },
+                            dotted_decor: Decor {
                                 prefix: "default",
                                 suffix: "default",
                             },
@@ -1137,7 +1169,11 @@ mod tests {
                         Key {
                             key: "test-table1",
                             repr: None,
-                            decor: Decor {
+                            leaf_decor: Decor {
+                                prefix: "default",
+                                suffix: "default",
+                            },
+                            dotted_decor: Decor {
                                 prefix: "default",
                                 suffix: "default",
                             },
@@ -1145,7 +1181,11 @@ mod tests {
                         Key {
                             key: "bar",
                             repr: None,
-                            decor: Decor {
+                            leaf_decor: Decor {
+                                prefix: "default",
+                                suffix: "default",
+                            },
+                            dotted_decor: Decor {
                                 prefix: "default",
                                 suffix: "default",
                             },
@@ -1162,7 +1202,7 @@ mod tests {
                 is_overridden: false,
             },
         ]
-        "###
+        "#
         );
     }
 
