@@ -21,6 +21,7 @@ use std::sync::Mutex;
 use chrono::DateTime;
 use rand::prelude::*;
 use rand_chacha::ChaCha20Rng;
+use serde::Deserialize;
 
 use crate::backend::ChangeId;
 use crate::backend::Commit;
@@ -52,12 +53,10 @@ pub struct GitSettings {
 impl GitSettings {
     pub fn from_settings(settings: &UserSettings) -> Self {
         let auto_local_bookmark = settings
-            .config()
             .get_bool("git.auto-local-bookmark")
-            .or_else(|_| settings.config().get_bool("git.auto-local-branch"))
+            .or_else(|_| settings.get_bool("git.auto-local-branch"))
             .unwrap_or(false);
         let abandon_unreachable_commits = settings
-            .config()
             .get_bool("git.abandon-unreachable-commits")
             .unwrap_or(true);
         GitSettings {
@@ -91,10 +90,7 @@ pub struct SignSettings {
 impl SignSettings {
     /// Load the signing settings from the config.
     pub fn from_settings(settings: &UserSettings) -> Self {
-        let sign_all = settings
-            .config()
-            .get_bool("signing.sign-all")
-            .unwrap_or(false);
+        let sign_all = settings.get_bool("signing.sign-all").unwrap_or(false);
         Self {
             behavior: if sign_all {
                 SignBehavior::Own
@@ -102,7 +98,7 @@ impl SignSettings {
                 SignBehavior::Keep
             },
             user_email: settings.user_email(),
-            key: settings.config().get_string("signing.key").ok(),
+            key: settings.get_string("signing.key").ok(),
         }
     }
 
@@ -160,14 +156,14 @@ impl UserSettings {
     }
 
     pub fn user_name(&self) -> String {
-        self.config.get_string("user.name").unwrap_or_default()
+        self.get_string("user.name").unwrap_or_default()
     }
 
     // Must not be changed to avoid git pushing older commits with no set name
     pub const USER_NAME_PLACEHOLDER: &'static str = "(no name configured)";
 
     pub fn user_email(&self) -> String {
-        self.config.get_string("user.email").unwrap_or_default()
+        self.get_string("user.email").unwrap_or_default()
     }
 
     pub fn fsmonitor_settings(&self) -> Result<FsmonitorSettings, ConfigError> {
@@ -187,35 +183,31 @@ impl UserSettings {
     }
 
     pub fn operation_hostname(&self) -> String {
-        self.config
-            .get_string("operation.hostname")
+        self.get_string("operation.hostname")
             .unwrap_or_else(|_| whoami::fallible::hostname().expect("valid hostname"))
     }
 
     pub fn operation_username(&self) -> String {
-        self.config
-            .get_string("operation.username")
+        self.get_string("operation.username")
             .unwrap_or_else(|_| whoami::username())
     }
 
     pub fn push_bookmark_prefix(&self) -> String {
-        self.config
-            .get_string("git.push-bookmark-prefix")
+        self.get_string("git.push-bookmark-prefix")
             .unwrap_or_else(|_| "push-".to_string())
     }
 
     pub fn push_branch_prefix(&self) -> Option<String> {
-        self.config.get_string("git.push-branch-prefix").ok()
+        self.get_string("git.push-branch-prefix").ok()
     }
 
     pub fn default_description(&self) -> String {
-        self.config()
-            .get_string("ui.default-description")
+        self.get_string("ui.default-description")
             .unwrap_or_default()
     }
 
     pub fn default_revset(&self) -> String {
-        self.config.get_string("revsets.log").unwrap_or_default()
+        self.get_string("revsets.log").unwrap_or_default()
     }
 
     pub fn signature(&self) -> Signature {
@@ -228,12 +220,11 @@ impl UserSettings {
     }
 
     pub fn allow_native_backend(&self) -> bool {
-        self.config
-            .get_bool("ui.allow-init-native")
-            .unwrap_or(false)
+        self.get_bool("ui.allow-init-native").unwrap_or(false)
     }
 
-    pub fn config(&self) -> &config::Config {
+    // TODO: remove
+    pub fn raw_config(&self) -> &config::Config {
         &self.config
     }
 
@@ -243,7 +234,6 @@ impl UserSettings {
 
     pub fn max_new_file_size(&self) -> Result<u64, ConfigError> {
         let cfg = self
-            .config
             .get::<HumanByteSize>("snapshot.max-new-file-size")
             .map(|x| x.0);
         match cfg {
@@ -257,12 +247,35 @@ impl UserSettings {
     // separate from sign_settings as those two are needed in pretty different
     // places
     pub fn signing_backend(&self) -> Option<String> {
-        let backend = self.config.get_string("signing.backend").ok()?;
+        let backend = self.get_string("signing.backend").ok()?;
         (backend.as_str() != "none").then_some(backend)
     }
 
     pub fn sign_settings(&self) -> SignSettings {
         SignSettings::from_settings(self)
+    }
+}
+
+/// General-purpose accessors.
+impl UserSettings {
+    /// Looks up value of the specified type `T` by `key`.
+    pub fn get<'de, T: Deserialize<'de>>(&self, key: &str) -> Result<T, ConfigError> {
+        self.config.get(key)
+    }
+
+    /// Looks up string value by `key`.
+    pub fn get_string(&self, key: &str) -> Result<String, ConfigError> {
+        self.get(key).and_then(config::Value::into_string)
+    }
+
+    /// Looks up integer value by `key`.
+    pub fn get_int(&self, key: &str) -> Result<i64, ConfigError> {
+        self.get(key).and_then(config::Value::into_int)
+    }
+
+    /// Looks up boolean value by `key`.
+    pub fn get_bool(&self, key: &str) -> Result<bool, ConfigError> {
+        self.get(key).and_then(config::Value::into_bool)
     }
 }
 

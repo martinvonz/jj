@@ -209,8 +209,7 @@ fn default_diff_format(
     settings: &UserSettings,
     args: &DiffFormatArgs,
 ) -> Result<DiffFormat, ConfigError> {
-    let config = settings.config();
-    if let Some(args) = config.get("ui.diff.tool").optional()? {
+    if let Some(args) = settings.get("ui.diff.tool").optional()? {
         // External "tool" overrides the internal "format" option.
         let tool = if let CommandNameAndArgs::String(name) = &args {
             merge_tools::get_external_tool_config(settings, name)?
@@ -220,9 +219,9 @@ fn default_diff_format(
         .unwrap_or_else(|| ExternalMergeTool::with_diff_args(&args));
         return Ok(DiffFormat::Tool(Box::new(tool)));
     }
-    let name = if let Some(name) = config.get_string("ui.diff.format").optional()? {
+    let name = if let Some(name) = settings.get_string("ui.diff.format").optional()? {
         name
-    } else if let Some(name) = config.get_string("diff.format").optional()? {
+    } else if let Some(name) = settings.get_string("diff.format").optional()? {
         name // old config name
     } else {
         "color-words".to_owned()
@@ -512,10 +511,9 @@ impl ColorWordsDiffOptions {
         settings: &UserSettings,
         args: &DiffFormatArgs,
     ) -> Result<Self, ConfigError> {
-        let config = settings.config();
         let max_inline_alternation = {
             let key = "diff.color-words.max-inline-alternation";
-            match config.get_int(key)? {
+            match settings.get_int(key)? {
                 -1 => None, // unlimited
                 n => Some(
                     usize::try_from(n)
@@ -525,7 +523,7 @@ impl ColorWordsDiffOptions {
         };
         let context = args
             .context
-            .map_or_else(|| config.get("diff.color-words.context"), Ok)?;
+            .map_or_else(|| settings.get("diff.color-words.context"), Ok)?;
         Ok(ColorWordsDiffOptions {
             context,
             line_diff: LineDiffOptions::from_args(args),
@@ -1216,7 +1214,7 @@ impl UnifiedDiffOptions {
     ) -> Result<Self, ConfigError> {
         let context = args
             .context
-            .map_or_else(|| settings.config().get("diff.git.context"), Ok)?;
+            .map_or_else(|| settings.get("diff.git.context"), Ok)?;
         Ok(UnifiedDiffOptions {
             context,
             line_diff: LineDiffOptions::from_args(args),

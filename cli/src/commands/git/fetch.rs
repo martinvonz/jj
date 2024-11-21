@@ -93,9 +93,9 @@ fn get_default_fetch_remotes(
     git_repo: &git2::Repository,
 ) -> Result<Vec<String>, CommandError> {
     const KEY: &str = "git.fetch";
-    if let Ok(remotes) = settings.config().get(KEY) {
+    if let Ok(remotes) = settings.get(KEY) {
         Ok(remotes)
-    } else if let Some(remote) = settings.config().get_string(KEY).optional()? {
+    } else if let Some(remote) = settings.get_string(KEY).optional()? {
         Ok(vec![remote])
     } else if let Some(remote) = get_single_remote(git_repo)? {
         // if nothing was explicitly configured, try to guess

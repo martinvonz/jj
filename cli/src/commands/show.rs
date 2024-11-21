@@ -51,7 +51,7 @@ pub(crate) fn cmd_show(
     let commit = workspace_command.resolve_single_rev(ui, &args.revision)?;
     let template_string = match &args.template {
         Some(value) => value.to_string(),
-        None => command.settings().config().get_string("templates.show")?,
+        None => command.settings().get_string("templates.show")?,
     };
     let template = workspace_command.parse_commit_template(ui, &template_string)?;
     let diff_renderer = workspace_command.diff_renderer_for(&args.format)?;

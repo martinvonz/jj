@@ -59,11 +59,10 @@ pub enum FsmonitorSettings {
 impl FsmonitorSettings {
     /// Creates an `FsmonitorSettings` from a `config`.
     pub fn from_settings(settings: &UserSettings) -> Result<FsmonitorSettings, ConfigError> {
-        match settings.config().get_string("core.fsmonitor") {
+        match settings.get_string("core.fsmonitor") {
             Ok(s) => match s.as_str() {
                 "watchman" => Ok(Self::Watchman(WatchmanConfig {
                     register_trigger: settings
-                        .config()
                         .get_bool("core.watchman.register_snapshot_trigger")
                         .optional()?
                         .unwrap_or_default(),

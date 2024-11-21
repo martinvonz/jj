@@ -239,7 +239,7 @@ pub fn description_template(
 
     // Named as "draft" because the output can contain "JJ: " comment lines.
     let template_key = "templates.draft_commit_description";
-    let template_text = tx.settings().config().get_string(template_key)?;
+    let template_text = tx.settings().get_string(template_key)?;
     let template = tx.parse_commit_template(ui, &template_text)?;
 
     let mut output = Vec::new();

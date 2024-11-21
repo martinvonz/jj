@@ -64,10 +64,7 @@ pub fn cmd_op_show(
     let id_prefix_context = workspace_env.new_id_prefix_context();
     let commit_summary_template = {
         let language = workspace_env.commit_template_language(repo.as_ref(), &id_prefix_context);
-        let text = command
-            .settings()
-            .config()
-            .get_string("templates.commit_summary")?;
+        let text = command.settings().get_string("templates.commit_summary")?;
         workspace_env.parse_template(ui, &language, &text, CommitTemplateLanguage::wrap_commit)?
     };
 
@@ -81,7 +78,7 @@ pub fn cmd_op_show(
 
     // TODO: Should we make this customizable via clap arg?
     let template = {
-        let text = command.settings().config().get_string("templates.op_log")?;
+        let text = command.settings().get_string("templates.op_log")?;
         workspace_command
             .parse_operation_template(ui, &text)?
             .labeled("operation")

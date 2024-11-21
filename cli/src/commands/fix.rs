@@ -147,7 +147,7 @@ pub(crate) fn cmd_fix(
     let mut workspace_command = command.workspace_helper(ui)?;
     let tools_config = get_tools_config(ui, command.settings())?;
     let root_commits: Vec<CommitId> = if args.source.is_empty() {
-        let revs = command.settings().config().get_string("revsets.fix")?;
+        let revs = command.settings().get_string("revsets.fix")?;
         workspace_command.parse_revset(ui, &RevisionArg::from(revs))?
     } else {
         workspace_command.parse_union_revsets(ui, &args.source)?
@@ -447,11 +447,10 @@ struct RawToolConfig {
 /// not check for issues that might still occur later like missing executables.
 /// This is a place where we could fail earlier in some cases, though.
 fn get_tools_config(ui: &mut Ui, settings: &UserSettings) -> Result<ToolsConfig, CommandError> {
-    let config = settings.config();
     let mut tools_config = ToolsConfig { tools: Vec::new() };
     // TODO: Remove this block of code and associated documentation after at least
     // one release where the feature is marked deprecated.
-    if let Ok(tool_command) = config.get::<CommandNameAndArgs>("fix.tool-command") {
+    if let Ok(tool_command) = settings.get::<CommandNameAndArgs>("fix.tool-command") {
         // This doesn't change the displayed indices of the `fix.tools` definitions, and
         // doesn't have a `name` that could conflict with them. That would matter more
         // if we already had better error handling that made use of the `name`.
@@ -471,10 +470,10 @@ fn get_tools_config(ui: &mut Ui, settings: &UserSettings) -> Result<ToolsConfig,
             command = {}
             patterns = ["all()"]
             "###,
-            to_toml_value(&config.get::<config::Value>("fix.tool-command").unwrap()).unwrap()
+            to_toml_value(&settings.get::<config::Value>("fix.tool-command").unwrap()).unwrap()
         )?;
     }
-    if let Ok(tools_table) = config.get_table("fix.tools") {
+    if let Ok(tools_table) = settings.raw_config().get_table("fix.tools") {
         // Convert the map into a sorted vector early so errors are deterministic.
         let mut tools: Vec<ToolConfig> = tools_table
             .into_iter()
@@ -509,7 +508,7 @@ fn get_tools_config(ui: &mut Ui, settings: &UserSettings) -> Result<ToolsConfig,
     if tools_config.tools.is_empty() {
         // TODO: This is not a useful message when one or both fields are present but
         // have the wrong type. After removing `fix.tool-command`, it will be simpler to
-        // propagate any errors from `config.get_array("fix.tools")`.
+        // propagate any errors from `settings.get_array("fix.tools")`.
         Err(config_error(
             "At least one entry of `fix.tools` or `fix.tool-command` is required.".to_string(),
         ))

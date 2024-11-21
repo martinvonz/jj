@@ -49,7 +49,7 @@ pub fn cmd_config_get(
 ) -> Result<(), CommandError> {
     let value = args
         .name
-        .lookup_value(command.settings().config())
+        .lookup_value(command.settings().raw_config())
         .and_then(|value| value.into_string())
         .map_err(|err| match err {
             ConfigError::Type {
