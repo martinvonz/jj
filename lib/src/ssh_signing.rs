@@ -27,6 +27,7 @@ use either::Either;
 use thiserror::Error;
 
 use crate::settings::ConfigResultExt as _;
+use crate::settings::UserSettings;
 use crate::signing::SigStatus;
 use crate::signing::SignError;
 use crate::signing::SigningBackend;
@@ -117,12 +118,14 @@ impl SshBackend {
         }
     }
 
-    pub fn from_config(config: &config::Config) -> Result<Self, config::ConfigError> {
-        let program = config
+    pub fn from_settings(settings: &UserSettings) -> Result<Self, config::ConfigError> {
+        let program = settings
+            .config()
             .get_string("signing.backends.ssh.program")
             .optional()?
             .unwrap_or_else(|| "ssh-keygen".into());
-        let allowed_signers = config
+        let allowed_signers = settings
+            .config()
             .get_string("signing.backends.ssh.allowed-signers")
             .optional()?;
         Ok(Self::new(program.into(), allowed_signers.map(|v| v.into())))

@@ -162,12 +162,8 @@ impl Signer {
     /// chooses one of them to be used for signing depending on the config.
     pub fn from_settings(settings: &UserSettings) -> Result<Self, SignInitError> {
         let mut backends: Vec<Box<dyn SigningBackend>> = vec![
-            Box::new(
-                GpgBackend::from_config(settings.config()).map_err(SignInitError::BackendConfig)?,
-            ),
-            Box::new(
-                SshBackend::from_config(settings.config()).map_err(SignInitError::BackendConfig)?,
-            ),
+            Box::new(GpgBackend::from_settings(settings).map_err(SignInitError::BackendConfig)?),
+            Box::new(SshBackend::from_settings(settings).map_err(SignInitError::BackendConfig)?),
             // Box::new(X509Backend::from_settings(settings).map_err(..)?),
         ];
 
