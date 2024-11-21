@@ -18,8 +18,8 @@ mod external;
 
 use std::sync::Arc;
 
-use config::ConfigError;
 use jj_lib::backend::MergedTreeId;
+use jj_lib::config::ConfigError;
 use jj_lib::conflicts::extract_as_single_hunk;
 use jj_lib::gitignore::GitIgnoreFile;
 use jj_lib::matchers::Matcher;
@@ -60,7 +60,7 @@ pub enum DiffEditError {
     #[error("Failed to snapshot changes")]
     Snapshot(#[from] SnapshotError),
     #[error(transparent)]
-    Config(#[from] config::ConfigError),
+    Config(#[from] ConfigError),
 }
 
 #[derive(Debug, Error)]

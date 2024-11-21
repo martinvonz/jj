@@ -29,6 +29,7 @@ use crossterm::style::SetAttribute;
 use crossterm::style::SetBackgroundColor;
 use crossterm::style::SetForegroundColor;
 use itertools::Itertools;
+use jj_lib::config::ConfigError;
 
 // Lets the caller label strings and translates the labels to colors
 pub trait Formatter: Write {
@@ -158,7 +159,7 @@ impl FormatterFactory {
         FormatterFactory { kind }
     }
 
-    pub fn color(config: &config::Config, debug: bool) -> Result<Self, config::ConfigError> {
+    pub fn color(config: &config::Config, debug: bool) -> Result<Self, ConfigError> {
         let rules = Arc::new(rules_from_config(config)?);
         let kind = FormatterFactoryKind::Color { rules, debug };
         Ok(FormatterFactory { kind })
@@ -299,7 +300,7 @@ impl<W: Write> ColorFormatter<W> {
         output: W,
         config: &config::Config,
         debug: bool,
-    ) -> Result<Self, config::ConfigError> {
+    ) -> Result<Self, ConfigError> {
         let rules = rules_from_config(config)?;
         Ok(Self::new(output, Arc::new(rules), debug))
     }
@@ -403,7 +404,7 @@ impl<W: Write> ColorFormatter<W> {
     }
 }
 
-fn rules_from_config(config: &config::Config) -> Result<Rules, config::ConfigError> {
+fn rules_from_config(config: &config::Config) -> Result<Rules, ConfigError> {
     let mut result = vec![];
     let table = config.get_table("colors")?;
     for (key, value) in table {
@@ -451,7 +452,7 @@ fn rules_from_config(config: &config::Config) -> Result<Rules, config::ConfigErr
     Ok(result)
 }
 
-fn color_for_name_or_hex(name_or_hex: &str) -> Result<Color, config::ConfigError> {
+fn color_for_name_or_hex(name_or_hex: &str) -> Result<Color, ConfigError> {
     match name_or_hex {
         "default" => Ok(Color::Reset),
         "black" => Ok(Color::Black),
@@ -471,7 +472,7 @@ fn color_for_name_or_hex(name_or_hex: &str) -> Result<Color, config::ConfigError
         "bright cyan" => Ok(Color::Cyan),
         "bright white" => Ok(Color::White),
         _ => color_for_hex(name_or_hex)
-            .ok_or_else(|| config::ConfigError::Message(format!("invalid color: {name_or_hex}"))),
+            .ok_or_else(|| ConfigError::Message(format!("invalid color: {name_or_hex}"))),
     }
 }
 

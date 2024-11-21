@@ -26,6 +26,7 @@ use crate::backend::ChangeId;
 use crate::backend::Commit;
 use crate::backend::Signature;
 use crate::backend::Timestamp;
+use crate::config::ConfigError;
 use crate::fmt_util::binary_prefix;
 use crate::fsmonitor::FsmonitorSettings;
 use crate::signing::SignBehavior;
@@ -147,7 +148,7 @@ impl UserSettings {
 
     // TODO: Reconsider UserSettings/RepoSettings abstraction. See
     // https://github.com/martinvonz/jj/issues/616#issuecomment-1345170699
-    pub fn with_repo(&self, _repo_path: &Path) -> Result<RepoSettings, config::ConfigError> {
+    pub fn with_repo(&self, _repo_path: &Path) -> Result<RepoSettings, ConfigError> {
         let config = self.config.clone();
         Ok(RepoSettings { _config: config })
     }
@@ -167,7 +168,7 @@ impl UserSettings {
         self.config.get_string("user.email").unwrap_or_default()
     }
 
-    pub fn fsmonitor_settings(&self) -> Result<FsmonitorSettings, config::ConfigError> {
+    pub fn fsmonitor_settings(&self) -> Result<FsmonitorSettings, ConfigError> {
         FsmonitorSettings::from_config(&self.config)
     }
 
@@ -238,7 +239,7 @@ impl UserSettings {
         GitSettings::from_config(&self.config)
     }
 
-    pub fn max_new_file_size(&self) -> Result<u64, config::ConfigError> {
+    pub fn max_new_file_size(&self) -> Result<u64, ConfigError> {
         let cfg = self
             .config
             .get::<HumanByteSize>("snapshot.max-new-file-size")
@@ -246,7 +247,7 @@ impl UserSettings {
         match cfg {
             Ok(0) => Ok(u64::MAX),
             x @ Ok(_) => x,
-            Err(config::ConfigError::NotFound(_)) => Ok(1024 * 1024),
+            Err(ConfigError::NotFound(_)) => Ok(1024 * 1024),
             e @ Err(_) => e,
         }
     }
@@ -290,14 +291,14 @@ impl JJRng {
 }
 
 pub trait ConfigResultExt<T> {
-    fn optional(self) -> Result<Option<T>, config::ConfigError>;
+    fn optional(self) -> Result<Option<T>, ConfigError>;
 }
 
-impl<T> ConfigResultExt<T> for Result<T, config::ConfigError> {
-    fn optional(self) -> Result<Option<T>, config::ConfigError> {
+impl<T> ConfigResultExt<T> for Result<T, ConfigError> {
+    fn optional(self) -> Result<Option<T>, ConfigError> {
         match self {
             Ok(value) => Ok(Some(value)),
-            Err(config::ConfigError::NotFound(_)) => Ok(None),
+            Err(ConfigError::NotFound(_)) => Ok(None),
             Err(err) => Err(err),
         }
     }

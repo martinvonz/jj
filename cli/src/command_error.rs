@@ -22,6 +22,7 @@ use std::sync::Arc;
 
 use itertools::Itertools as _;
 use jj_lib::backend::BackendError;
+use jj_lib::config::ConfigError;
 use jj_lib::dsl_util::Diagnostics;
 use jj_lib::fileset::FilePatternParseError;
 use jj_lib::fileset::FilesetParseError;
@@ -238,8 +239,8 @@ impl From<jj_lib::file_util::PathError> for CommandError {
     }
 }
 
-impl From<config::ConfigError> for CommandError {
-    fn from(err: config::ConfigError) -> Self {
+impl From<ConfigError> for CommandError {
+    fn from(err: ConfigError) -> Self {
         config_error(err)
     }
 }

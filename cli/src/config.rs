@@ -22,6 +22,7 @@ use std::path::PathBuf;
 use std::process::Command;
 
 use itertools::Itertools;
+use jj_lib::config::ConfigError;
 use jj_lib::config::ConfigNamePathBuf;
 use jj_lib::settings::ConfigResultExt as _;
 use regex::Captures;
@@ -47,9 +48,9 @@ pub fn parse_toml_value_or_bare_string(value_str: &str) -> toml_edit::Value {
     }
 }
 
-pub fn to_toml_value(value: &config::Value) -> Result<toml_edit::Value, config::ConfigError> {
-    fn type_error<T: fmt::Display>(message: T) -> config::ConfigError {
-        config::ConfigError::Message(message.to_string())
+pub fn to_toml_value(value: &config::Value) -> Result<toml_edit::Value, ConfigError> {
+    fn type_error<T: fmt::Display>(message: T) -> ConfigError {
+        ConfigError::Message(message.to_string())
     }
     // It's unlikely that the config object contained unsupported values, but
     // there's no guarantee. For example, values coming from environment
@@ -76,7 +77,7 @@ pub fn to_toml_value(value: &config::Value) -> Result<toml_edit::Value, config::
 #[derive(Error, Debug)]
 pub enum ConfigEnvError {
     #[error(transparent)]
-    ConfigReadError(#[from] config::ConfigError),
+    ConfigReadError(#[from] ConfigError),
     #[error("Both {0} and {1} exist. Please consolidate your configs in one of them.")]
     AmbiguousSource(PathBuf, PathBuf),
     #[error(transparent)]
@@ -439,7 +440,7 @@ fn env_overrides() -> config::Config {
     builder.build().unwrap()
 }
 
-fn read_config_file(path: &Path) -> Result<config::Config, config::ConfigError> {
+fn read_config_file(path: &Path) -> Result<config::Config, ConfigError> {
     config::Config::builder()
         .add_source(
             config::File::from(path)
@@ -449,7 +450,7 @@ fn read_config_file(path: &Path) -> Result<config::Config, config::ConfigError> 
         .build()
 }
 
-fn read_config_path(config_path: &Path) -> Result<config::Config, config::ConfigError> {
+fn read_config_path(config_path: &Path) -> Result<config::Config, ConfigError> {
     let mut files = vec![];
     if config_path.is_dir() {
         if let Ok(read_dir) = config_path.read_dir() {
@@ -556,11 +557,11 @@ pub fn remove_config_value_from_file(
     let target_table = key_iter.try_fold(doc.as_table_mut(), |table, key| {
         table
             .get_mut(key)
-            .ok_or_else(|| config::ConfigError::NotFound(key.to_string()))
+            .ok_or_else(|| ConfigError::NotFound(key.to_string()))
             .and_then(|table| {
-                table.as_table_mut().ok_or_else(|| {
-                    config::ConfigError::Message(format!(r#""{key}" is not a table"#))
-                })
+                table
+                    .as_table_mut()
+                    .ok_or_else(|| ConfigError::Message(format!(r#""{key}" is not a table"#)))
             })
     })?;
 
@@ -573,7 +574,7 @@ pub fn remove_config_value_from_file(
             entry.remove();
         }
         toml_edit::Entry::Vacant(_) => {
-            return Err(config::ConfigError::NotFound(key.to_string()).into());
+            return Err(ConfigError::NotFound(key.to_string()).into());
         }
     }
 

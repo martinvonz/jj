@@ -25,8 +25,8 @@
 use std::path::PathBuf;
 
 use config::Config;
-use config::ConfigError;
 
+use crate::config::ConfigError;
 use crate::settings::ConfigResultExt;
 
 /// Config for Watchman filesystem monitor (<https://facebook.github.io/watchman/>).

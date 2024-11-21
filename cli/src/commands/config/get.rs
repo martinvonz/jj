@@ -15,6 +15,7 @@
 use std::io::Write as _;
 
 use clap_complete::ArgValueCandidates;
+use jj_lib::config::ConfigError;
 use jj_lib::config::ConfigNamePathBuf;
 use tracing::instrument;
 
@@ -51,7 +52,7 @@ pub fn cmd_config_get(
         .lookup_value(command.settings().config())
         .and_then(|value| value.into_string())
         .map_err(|err| match err {
-            config::ConfigError::Type {
+            ConfigError::Type {
                 origin,
                 unexpected,
                 expected,

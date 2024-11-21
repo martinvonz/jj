@@ -32,6 +32,7 @@ use jj_lib::backend::CommitId;
 use jj_lib::backend::CopyRecord;
 use jj_lib::backend::TreeValue;
 use jj_lib::commit::Commit;
+use jj_lib::config::ConfigError;
 use jj_lib::conflicts::materialize_merge_result_to_bytes;
 use jj_lib::conflicts::materialized_diff_stream;
 use jj_lib::conflicts::MaterializedTreeDiffEntry;
@@ -145,7 +146,7 @@ pub enum DiffFormat {
 pub fn diff_formats_for(
     settings: &UserSettings,
     args: &DiffFormatArgs,
-) -> Result<Vec<DiffFormat>, config::ConfigError> {
+) -> Result<Vec<DiffFormat>, ConfigError> {
     let formats = diff_formats_from_args(settings, args)?;
     if formats.is_empty() {
         Ok(vec![default_diff_format(settings, args)?])
@@ -160,7 +161,7 @@ pub fn diff_formats_for_log(
     settings: &UserSettings,
     args: &DiffFormatArgs,
     patch: bool,
-) -> Result<Vec<DiffFormat>, config::ConfigError> {
+) -> Result<Vec<DiffFormat>, ConfigError> {
     let mut formats = diff_formats_from_args(settings, args)?;
     // --patch implies default if no format other than --summary is specified
     if patch && matches!(formats.as_slice(), [] | [DiffFormat::Summary]) {
@@ -173,7 +174,7 @@ pub fn diff_formats_for_log(
 fn diff_formats_from_args(
     settings: &UserSettings,
     args: &DiffFormatArgs,
-) -> Result<Vec<DiffFormat>, config::ConfigError> {
+) -> Result<Vec<DiffFormat>, ConfigError> {
     let mut formats = Vec::new();
     if args.summary {
         formats.push(DiffFormat::Summary);
@@ -207,7 +208,7 @@ fn diff_formats_from_args(
 fn default_diff_format(
     settings: &UserSettings,
     args: &DiffFormatArgs,
-) -> Result<DiffFormat, config::ConfigError> {
+) -> Result<DiffFormat, ConfigError> {
     let config = settings.config();
     if let Some(args) = config.get("ui.diff.tool").optional()? {
         // External "tool" overrides the internal "format" option.
@@ -242,9 +243,7 @@ fn default_diff_format(
             let options = DiffStatOptions::from_args(args);
             Ok(DiffFormat::Stat(Box::new(options)))
         }
-        _ => Err(config::ConfigError::Message(format!(
-            "invalid diff format: {name}"
-        ))),
+        _ => Err(ConfigError::Message(format!("invalid diff format: {name}"))),
     }
 }
 
@@ -512,15 +511,16 @@ impl ColorWordsDiffOptions {
     fn from_settings_and_args(
         settings: &UserSettings,
         args: &DiffFormatArgs,
-    ) -> Result<Self, config::ConfigError> {
+    ) -> Result<Self, ConfigError> {
         let config = settings.config();
         let max_inline_alternation = {
             let key = "diff.color-words.max-inline-alternation";
             match config.get_int(key)? {
                 -1 => None, // unlimited
-                n => Some(usize::try_from(n).map_err(|err| {
-                    config::ConfigError::Message(format!("invalid {key}: {err}"))
-                })?),
+                n => Some(
+                    usize::try_from(n)
+                        .map_err(|err| ConfigError::Message(format!("invalid {key}: {err}")))?,
+                ),
             }
         };
         let context = args
@@ -1213,7 +1213,7 @@ impl UnifiedDiffOptions {
     fn from_settings_and_args(
         settings: &UserSettings,
         args: &DiffFormatArgs,
-    ) -> Result<Self, config::ConfigError> {
+    ) -> Result<Self, ConfigError> {
         let context = args
             .context
             .map_or_else(|| settings.config().get("diff.git.context"), Ok)?;
