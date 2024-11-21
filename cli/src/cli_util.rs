@@ -658,10 +658,10 @@ struct AdvanceBookmarksSettings {
 }
 
 impl AdvanceBookmarksSettings {
-    fn from_config(config: &config::Config) -> Result<Self, CommandError> {
+    fn from_settings(settings: &UserSettings) -> Result<Self, CommandError> {
         let get_setting = |setting_key| {
             let setting = format!("experimental-advance-branches.{setting_key}");
-            match config.get::<Vec<String>>(&setting).optional()? {
+            match settings.config().get::<Vec<String>>(&setting).optional()? {
                 Some(patterns) => patterns
                     .into_iter()
                     .map(|s| {
@@ -2180,7 +2180,7 @@ Then run `jj squash` to move the resolution into the conflicted commit."#,
         &self,
         from: impl IntoIterator<Item = &'a CommitId>,
     ) -> Result<Vec<AdvanceableBookmark>, CommandError> {
-        let ab_settings = AdvanceBookmarksSettings::from_config(self.settings().config())?;
+        let ab_settings = AdvanceBookmarksSettings::from_settings(self.settings())?;
         if !ab_settings.feature_enabled() {
             // Return early if we know that there's no work to do.
             return Ok(Vec::new());
