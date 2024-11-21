@@ -24,10 +24,9 @@
 
 use std::path::PathBuf;
 
-use config::Config;
-
 use crate::config::ConfigError;
 use crate::settings::ConfigResultExt;
+use crate::settings::UserSettings;
 
 /// Config for Watchman filesystem monitor (<https://facebook.github.io/watchman/>).
 #[derive(Default, Eq, PartialEq, Clone, Debug)]
@@ -59,11 +58,12 @@ pub enum FsmonitorSettings {
 
 impl FsmonitorSettings {
     /// Creates an `FsmonitorSettings` from a `config`.
-    pub fn from_config(config: &Config) -> Result<FsmonitorSettings, ConfigError> {
-        match config.get_string("core.fsmonitor") {
+    pub fn from_settings(settings: &UserSettings) -> Result<FsmonitorSettings, ConfigError> {
+        match settings.config().get_string("core.fsmonitor") {
             Ok(s) => match s.as_str() {
                 "watchman" => Ok(Self::Watchman(WatchmanConfig {
-                    register_trigger: config
+                    register_trigger: settings
+                        .config()
                         .get_bool("core.watchman.register_snapshot_trigger")
                         .optional()?
                         .unwrap_or_default(),

@@ -38,6 +38,7 @@ use jj_lib::repo_path::RepoPathBuf;
 use jj_lib::repo_path::RepoPathUiConverter;
 use jj_lib::revset::RevsetExpression;
 use jj_lib::revset::RevsetIteratorExt;
+use jj_lib::settings::UserSettings;
 use jj_lib::store::Store;
 use jj_lib::tree::Tree;
 use pollster::FutureExt;
@@ -144,7 +145,7 @@ pub(crate) fn cmd_fix(
     args: &FixArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let tools_config = get_tools_config(ui, command.settings().config())?;
+    let tools_config = get_tools_config(ui, command.settings())?;
     let root_commits: Vec<CommitId> = if args.source.is_empty() {
         let revs = command.settings().config().get_string("revsets.fix")?;
         workspace_command.parse_revset(ui, &RevisionArg::from(revs))?
@@ -445,7 +446,8 @@ struct RawToolConfig {
 /// Fails if any of the commands or patterns are obviously unusable, but does
 /// not check for issues that might still occur later like missing executables.
 /// This is a place where we could fail earlier in some cases, though.
-fn get_tools_config(ui: &mut Ui, config: &config::Config) -> Result<ToolsConfig, CommandError> {
+fn get_tools_config(ui: &mut Ui, settings: &UserSettings) -> Result<ToolsConfig, CommandError> {
+    let config = settings.config();
     let mut tools_config = ToolsConfig { tools: Vec::new() };
     // TODO: Remove this block of code and associated documentation after at least
     // one release where the feature is marked deprecated.

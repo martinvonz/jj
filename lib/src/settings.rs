@@ -50,12 +50,14 @@ pub struct GitSettings {
 }
 
 impl GitSettings {
-    pub fn from_config(config: &config::Config) -> Self {
-        let auto_local_bookmark = config
+    pub fn from_settings(settings: &UserSettings) -> Self {
+        let auto_local_bookmark = settings
+            .config()
             .get_bool("git.auto-local-bookmark")
-            .or_else(|_| config.get_bool("git.auto-local-branch"))
+            .or_else(|_| settings.config().get_bool("git.auto-local-branch"))
             .unwrap_or(false);
-        let abandon_unreachable_commits = config
+        let abandon_unreachable_commits = settings
+            .config()
             .get_bool("git.abandon-unreachable-commits")
             .unwrap_or(true);
         GitSettings {
@@ -169,7 +171,7 @@ impl UserSettings {
     }
 
     pub fn fsmonitor_settings(&self) -> Result<FsmonitorSettings, ConfigError> {
-        FsmonitorSettings::from_config(&self.config)
+        FsmonitorSettings::from_settings(self)
     }
 
     // Must not be changed to avoid git pushing older commits with no set email
@@ -236,7 +238,7 @@ impl UserSettings {
     }
 
     pub fn git_settings(&self) -> GitSettings {
-        GitSettings::from_config(&self.config)
+        GitSettings::from_settings(self)
     }
 
     pub fn max_new_file_size(&self) -> Result<u64, ConfigError> {
