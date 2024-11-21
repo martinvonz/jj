@@ -80,7 +80,7 @@ pest = "2.7.14"
 pest_derive = "2.7.14"
 pollster = "0.3.0"
 pretty_assertions = "1.4.1"
-proc-macro2 = "1.0.89"
+proc-macro2 = "1.0.91"
 prost = "0.12.6"
 prost-build = "0.12.6"
 quote = "1.0.36"
@@ -103,7 +103,7 @@ smallvec = { version = "1.13.2", features = [
     "union",
 ] }
 strsim = "0.11.1"
-syn = "2.0.87"
+syn = "2.0.89"
 tempfile = "3.14.0"
 test-case = "3.3.1"
 textwrap = "0.16.1"
