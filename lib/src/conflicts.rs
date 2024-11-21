@@ -467,6 +467,12 @@ fn parse_conflict_hunk(input: &[u8]) -> Merge<BString> {
                 } else if let Some(rest) = line.strip_prefix(b" ") {
                     removes.last_mut().unwrap().extend_from_slice(rest);
                     adds.last_mut().unwrap().extend_from_slice(rest);
+                } else if line == b"\n" || line == b"\r\n" {
+                    // Some editors strip trailing whitespace, so " \n" might become "\n". It would
+                    // be unfortunate if this prevented the conflict from being parsed, so we add
+                    // the empty line to the "remove" and "add" as if there was a space in front
+                    removes.last_mut().unwrap().extend_from_slice(line);
+                    adds.last_mut().unwrap().extend_from_slice(line);
                 } else {
                     // Doesn't look like a valid conflict
                     return Merge::resolved(BString::new(vec![]));

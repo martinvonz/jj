@@ -768,8 +768,9 @@ fn test_parse_conflict_crlf_markers() {
 
 #[test]
 fn test_parse_conflict_diff_stripped_whitespace() {
-    // Conflict parsing fails since diff contains empty line without leading space
-    assert_eq!(
+    // Should be able to parse conflict even if diff contains empty line (without
+    // even a leading space, which is sometimes stripped by text editors)
+    insta::assert_debug_snapshot!(
         parse_conflict(
             indoc! {b"
             line 1
@@ -788,7 +789,25 @@ fn test_parse_conflict_diff_stripped_whitespace() {
             "},
             2
         ),
-        None
+        @r#"
+    Some(
+        [
+            Resolved(
+                "line 1\n",
+            ),
+            Conflicted(
+                [
+                    "line 2\n\nleft\n\r\nline 4\n",
+                    "line 2\n\nline 3\n\r\nline 4\n",
+                    "right\n",
+                ],
+            ),
+            Resolved(
+                "line 5\n",
+            ),
+        ],
+    )
+    "#
     );
 }
 
