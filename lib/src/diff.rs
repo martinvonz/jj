@@ -307,7 +307,9 @@ struct Histogram<'input> {
     word_to_positions: HashTable<HistogramEntry<'input>>,
 }
 
-type HistogramEntry<'input> = (HashedWord<'input>, Vec<LocalWordPosition>);
+// Many of the words are unique. We can inline up to 2 word positions (16 bytes
+// on 64-bit platform) in SmallVec for free.
+type HistogramEntry<'input> = (HashedWord<'input>, SmallVec<[LocalWordPosition; 2]>);
 
 impl<'input> Histogram<'input> {
     fn calculate<C: CompareBytes, S: BuildHasher>(
@@ -317,19 +319,21 @@ impl<'input> Histogram<'input> {
     ) -> Self {
         let mut word_to_positions: HashTable<HistogramEntry> = HashTable::new();
         for (i, word) in source.hashed_words().enumerate() {
-            let (_, positions) = word_to_positions
+            let pos = LocalWordPosition(i);
+            word_to_positions
                 .entry(
                     word.hash,
                     |(w, _)| comp.eq(w.text, word.text),
                     |(w, _)| w.hash,
                 )
-                .or_insert_with(|| (word, vec![]))
-                .into_mut();
-            // Allow one more than max_occurrences, so we can later skip those with more
-            // than max_occurrences
-            if positions.len() <= max_occurrences {
-                positions.push(LocalWordPosition(i));
-            }
+                .and_modify(|(_, positions)| {
+                    // Allow one more than max_occurrences, so we can later skip
+                    // those with more than max_occurrences
+                    if positions.len() <= max_occurrences {
+                        positions.push(pos);
+                    }
+                })
+                .or_insert_with(|| (word, smallvec![pos]));
         }
         Histogram { word_to_positions }
     }
