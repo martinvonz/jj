@@ -68,7 +68,6 @@ pub(crate) fn cmd_file_annotate(
 
     let annotate_commit_summary_text = command
         .settings()
-        .config()
         .get_string("templates.annotate_commit_summary")?;
     let template = workspace_command.parse_commit_template(ui, &annotate_commit_summary_text)?;
 

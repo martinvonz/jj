@@ -114,7 +114,7 @@ pub enum GraphStyle {
 
 impl GraphStyle {
     pub fn from_settings(settings: &UserSettings) -> Result<Self, ConfigError> {
-        settings.config().get("ui.graph.style")
+        settings.get("ui.graph.style")
     }
 
     pub fn is_ascii(self) -> bool {

@@ -128,7 +128,7 @@ fn editor_args_from_settings(
 ) -> Result<CommandNameAndArgs, ConfigError> {
     // TODO: Make this configuration have a table of possible editors and detect the
     // best one here.
-    if let Some(args) = settings.config().get(key).optional()? {
+    if let Some(args) = settings.get(key).optional()? {
         Ok(args)
     } else {
         let default_editor = BUILTIN_EDITOR_NAME;
@@ -158,7 +158,7 @@ pub fn get_external_tool_config(
     name: &str,
 ) -> Result<Option<ExternalMergeTool>, ConfigError> {
     const TABLE_KEY: &str = "merge-tools";
-    let tools_table = settings.config().get_table(TABLE_KEY)?;
+    let tools_table = settings.raw_config().get_table(TABLE_KEY)?;
     if let Some(v) = tools_table.get(name) {
         let mut result: ExternalMergeTool = v
             .clone()
@@ -220,7 +220,7 @@ impl DiffEditor {
         Ok(DiffEditor {
             tool,
             base_ignores,
-            use_instructions: settings.config().get_bool("ui.diff-instructions")?,
+            use_instructions: settings.get_bool("ui.diff-instructions")?,
         })
     }
 

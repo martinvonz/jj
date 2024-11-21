@@ -376,10 +376,7 @@ impl CommandHelper {
             Ok(()) => workspace_command,
             Err(SnapshotWorkingCopyError::Command(err)) => return Err(err),
             Err(SnapshotWorkingCopyError::StaleWorkingCopy(err)) => {
-                let auto_update_stale = self
-                    .settings()
-                    .config()
-                    .get_bool("snapshot.auto-update-stale")?;
+                let auto_update_stale = self.settings().get_bool("snapshot.auto-update-stale")?;
                 if !auto_update_stale {
                     return Err(err);
                 }
@@ -661,7 +658,7 @@ impl AdvanceBookmarksSettings {
     fn from_settings(settings: &UserSettings) -> Result<Self, CommandError> {
         let get_setting = |setting_key| {
             let setting = format!("experimental-advance-branches.{setting_key}");
-            match settings.config().get::<Vec<String>>(&setting).optional()? {
+            match settings.get::<Vec<String>>(&setting).optional()? {
                 Some(patterns) => patterns
                     .into_iter()
                     .map(|s| {
@@ -814,7 +811,6 @@ impl WorkspaceCommandEnvironment {
     ) -> Result<Option<Rc<UserRevsetExpression>>, CommandError> {
         let revset_string = self
             .settings()
-            .config()
             .get_string("revsets.short-prefixes")
             .unwrap_or_else(|_| self.settings().default_revset());
         if revset_string.is_empty() {
@@ -953,9 +949,8 @@ impl WorkspaceCommandHelper {
         loaded_at_head: bool,
     ) -> Result<Self, CommandError> {
         let settings = env.settings();
-        let commit_summary_template_text =
-            settings.config().get_string("templates.commit_summary")?;
-        let op_summary_template_text = settings.config().get_string("templates.op_summary")?;
+        let commit_summary_template_text = settings.get_string("templates.commit_summary")?;
+        let op_summary_template_text = settings.get_string("templates.op_summary")?;
         let may_update_working_copy =
             loaded_at_head && !env.command.global_args().ignore_working_copy;
         let working_copy_shared_with_git = is_colocated_git_workspace(&workspace, &repo);
@@ -1236,7 +1231,7 @@ to the current parents may contain changes from multiple commits.
         // empty arguments.
         if values.is_empty() {
             Ok(FilesetExpression::all())
-        } else if self.settings().config().get_bool("ui.allow-filesets")? {
+        } else if self.settings().get_bool("ui.allow-filesets")? {
             self.parse_union_filesets(ui, values)
         } else {
             let expressions = values
@@ -1265,7 +1260,7 @@ to the current parents may contain changes from multiple commits.
 
     pub fn auto_tracking_matcher(&self, ui: &Ui) -> Result<Box<dyn Matcher>, CommandError> {
         let mut diagnostics = FilesetDiagnostics::new();
-        let pattern = self.settings().config().get_string("snapshot.auto-track")?;
+        let pattern = self.settings().get_string("snapshot.auto-track")?;
         let expression = fileset::parse(
             &mut diagnostics,
             &pattern,
@@ -1437,10 +1432,7 @@ to the current parents may contain changes from multiple commits.
             let (expression, modifier) = self.parse_revset_with_modifier(ui, revision_arg)?;
             let all = match modifier {
                 Some(RevsetModifier::All) => true,
-                None => self
-                    .settings()
-                    .config()
-                    .get_bool("ui.always-allow-large-revsets")?,
+                None => self.settings().get_bool("ui.always-allow-large-revsets")?,
             };
             if all {
                 for commit in expression.evaluate_to_commits()? {
@@ -2689,7 +2681,7 @@ impl LogContentFormat {
     pub fn new(ui: &Ui, settings: &UserSettings) -> Result<Self, ConfigError> {
         Ok(LogContentFormat {
             width: ui.term_width(),
-            word_wrap: settings.config().get_bool("ui.log-word-wrap")?,
+            word_wrap: settings.get_bool("ui.log-word-wrap")?,
         })
     }
 
@@ -2748,7 +2740,6 @@ pub fn run_ui_editor(settings: &UserSettings, edit_path: &Path) -> Result<(), Co
     // non-Windows): https://github.com/martinvonz/jj/issues/3986
     let edit_path = dunce::simplified(edit_path);
     let editor: CommandNameAndArgs = settings
-        .config()
         .get("ui.editor")
         .map_err(|err| config_error_with_message("Invalid `ui.editor`", err))?;
     let mut cmd = editor.to_command();

@@ -238,7 +238,7 @@ pub(crate) fn move_to_commit(
         .get_wc_commit_id()
         .ok_or_else(|| user_error("This command requires a working copy"))?;
 
-    let config_edit_flag = command.settings().config().get_bool("ui.movement.edit")?;
+    let config_edit_flag = command.settings().get_bool("ui.movement.edit")?;
     let args = MovementArgsInternal {
         should_edit: args.edit || (!args.no_edit && config_edit_flag),
         offset: args.offset,

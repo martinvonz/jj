@@ -142,7 +142,6 @@ pub(crate) fn cmd_log(
 
     let use_elided_nodes = command
         .settings()
-        .config()
         .get_bool("ui.log-synthetic-elided-nodes")?;
     let with_content_format = LogContentFormat::new(ui, command.settings())?;
 
@@ -152,7 +151,7 @@ pub(crate) fn cmd_log(
         let language = workspace_command.commit_template_language();
         let template_string = match &args.template {
             Some(value) => value.to_string(),
-            None => command.settings().config().get_string("templates.log")?,
+            None => command.settings().get_string("templates.log")?,
         };
         template = workspace_command
             .parse_template(
@@ -333,10 +332,7 @@ pub fn get_node_template(
     style: GraphStyle,
     settings: &UserSettings,
 ) -> Result<String, ConfigError> {
-    let symbol = settings
-        .config()
-        .get_string("templates.log_node")
-        .optional()?;
+    let symbol = settings.get_string("templates.log_node").optional()?;
     let default = if style.is_ascii() {
         "builtin_log_node_ascii"
     } else {

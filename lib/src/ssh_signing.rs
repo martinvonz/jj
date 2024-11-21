@@ -121,12 +121,10 @@ impl SshBackend {
 
     pub fn from_settings(settings: &UserSettings) -> Result<Self, ConfigError> {
         let program = settings
-            .config()
             .get_string("signing.backends.ssh.program")
             .optional()?
             .unwrap_or_else(|| "ssh-keygen".into());
         let allowed_signers = settings
-            .config()
             .get_string("signing.backends.ssh.allowed-signers")
             .optional()?;
         Ok(Self::new(program.into(), allowed_signers.map(|v| v.into())))

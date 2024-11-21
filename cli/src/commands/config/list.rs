@@ -67,10 +67,7 @@ pub fn cmd_config_list(
         let language = config_template_language();
         let text = match &args.template {
             Some(value) => value.to_owned(),
-            None => command
-                .settings()
-                .config()
-                .get_string("templates.config_list")?,
+            None => command.settings().get_string("templates.config_list")?,
         };
         command
             .parse_template(ui, &language, &text, GenericTemplateLanguage::wrap_self)?

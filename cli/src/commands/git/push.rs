@@ -369,8 +369,8 @@ fn validate_commits_ready_to_push(
         .union(workspace_helper.env().immutable_heads_expression())
         .range(&RevsetExpression::commits(new_heads));
 
-    let config = command.settings().config();
-    let is_private = if let Ok(revset) = config.get_string("git.private-commits") {
+    let settings = command.settings();
+    let is_private = if let Ok(revset) = settings.get_string("git.private-commits") {
         workspace_helper
             .parse_revset(ui, &RevisionArg::from(revset))?
             .evaluate()?
@@ -483,7 +483,7 @@ fn get_default_push_remote(
     settings: &UserSettings,
     git_repo: &git2::Repository,
 ) -> Result<String, CommandError> {
-    if let Some(remote) = settings.config().get_string("git.push").optional()? {
+    if let Some(remote) = settings.get_string("git.push").optional()? {
         Ok(remote)
     } else if let Some(remote) = get_single_remote(git_repo)? {
         // similar to get_default_fetch_remotes

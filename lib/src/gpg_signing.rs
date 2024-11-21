@@ -148,12 +148,10 @@ impl GpgBackend {
 
     pub fn from_settings(settings: &UserSettings) -> Result<Self, ConfigError> {
         let program = settings
-            .config()
             .get_string("signing.backends.gpg.program")
             .optional()?
             .unwrap_or_else(|| "gpg".into());
         let allow_expired_keys = settings
-            .config()
             .get_bool("signing.backends.gpg.allow-expired-keys")
             .optional()?
             .unwrap_or(false);
