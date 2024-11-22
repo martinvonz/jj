@@ -141,7 +141,11 @@ fn warn_user_redefined_builtin(
 ) -> Result<(), CommandError> {
     match source {
         ConfigSource::Default => (),
-        ConfigSource::Env | ConfigSource::User | ConfigSource::Repo | ConfigSource::CommandArg => {
+        ConfigSource::EnvBase
+        | ConfigSource::User
+        | ConfigSource::Repo
+        | ConfigSource::EnvOverrides
+        | ConfigSource::CommandArg => {
             let checked_mutability_builtins =
                 ["mutable()", "immutable()", "builtin_immutable_heads()"];
 

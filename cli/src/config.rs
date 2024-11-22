@@ -87,10 +87,11 @@ pub enum ConfigEnvError {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ConfigSource {
     Default,
-    Env,
+    EnvBase,
     // TODO: Track explicit file paths, especially for when user config is a dir.
     User,
     Repo,
+    EnvOverrides,
     CommandArg,
 }
 
@@ -183,10 +184,10 @@ impl LayeredConfigs {
     pub fn sources(&self) -> Vec<(ConfigSource, &config::Config)> {
         let config_sources = [
             (ConfigSource::Default, Some(&self.default)),
-            (ConfigSource::Env, Some(&self.env_base)),
+            (ConfigSource::EnvBase, Some(&self.env_base)),
             (ConfigSource::User, self.user.as_ref()),
             (ConfigSource::Repo, self.repo.as_ref()),
-            (ConfigSource::Env, Some(&self.env_overrides)),
+            (ConfigSource::EnvOverrides, Some(&self.env_overrides)),
             (ConfigSource::CommandArg, self.arg_overrides.as_ref()),
         ];
         config_sources
@@ -869,7 +870,7 @@ mod tests {
                         "base@user.email",
                     ),
                 },
-                source: Env,
+                source: EnvBase,
                 is_overridden: true,
             },
             AnnotatedValue {
@@ -907,7 +908,7 @@ mod tests {
                         "base-user-name",
                     ),
                 },
-                source: Env,
+                source: EnvBase,
                 is_overridden: false,
             },
             AnnotatedValue {
