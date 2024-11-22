@@ -74,7 +74,7 @@ pub fn to_toml_value(value: &config::Value) -> Result<toml_edit::Value, config::
 }
 
 #[derive(Error, Debug)]
-pub enum ConfigError {
+pub enum ConfigEnvError {
     #[error(transparent)]
     ConfigReadError(#[from] config::ConfigError),
     #[error("Both {0} and {1} exist. Please consolidate your configs in one of them.")]
@@ -135,19 +135,19 @@ impl LayeredConfigs {
     }
 
     #[instrument]
-    pub fn read_user_config(&mut self) -> Result<(), ConfigError> {
+    pub fn read_user_config(&mut self) -> Result<(), ConfigEnvError> {
         self.user = existing_config_path()?
             .map(|path| read_config_path(&path))
             .transpose()?;
         Ok(())
     }
 
-    pub fn user_config_path(&self) -> Result<Option<PathBuf>, ConfigError> {
+    pub fn user_config_path(&self) -> Result<Option<PathBuf>, ConfigEnvError> {
         existing_config_path()
     }
 
     #[instrument]
-    pub fn read_repo_config(&mut self, repo_path: &Path) -> Result<(), ConfigError> {
+    pub fn read_repo_config(&mut self, repo_path: &Path) -> Result<(), ConfigEnvError> {
         self.repo = Some(read_config_file(&self.repo_config_path(repo_path))?);
         Ok(())
     }
@@ -156,7 +156,7 @@ impl LayeredConfigs {
         repo_path.join("config.toml")
     }
 
-    pub fn parse_config_args(&mut self, toml_strs: &[String]) -> Result<(), ConfigError> {
+    pub fn parse_config_args(&mut self, toml_strs: &[String]) -> Result<(), ConfigEnvError> {
         let config = toml_strs
             .iter()
             .fold(config::Config::builder(), |builder, s| {
@@ -197,7 +197,7 @@ impl LayeredConfigs {
     pub fn resolved_config_values(
         &self,
         filter_prefix: &ConfigNamePathBuf,
-    ) -> Result<Vec<AnnotatedValue>, ConfigError> {
+    ) -> Result<Vec<AnnotatedValue>, ConfigEnvError> {
         // Collect annotated values from each config.
         let mut config_vals = vec![];
         for (source, config) in self.sources() {
@@ -301,7 +301,7 @@ impl ConfigEnv {
         }
     }
 
-    fn config_path(self) -> Result<ConfigPath, ConfigError> {
+    fn config_path(self) -> Result<ConfigPath, ConfigEnvError> {
         if let Some(path) = self.jj_config {
             // TODO: We should probably support colon-separated (std::env::split_paths)
             return Ok(ConfigPath::new(Some(PathBuf::from(path))));
@@ -320,7 +320,7 @@ impl ConfigEnv {
         use ConfigPath::*;
         match (platform_config_path, home_config_path) {
             (Existing(platform_config_path), Existing(home_config_path)) => Err(
-                ConfigError::AmbiguousSource(platform_config_path, home_config_path),
+                ConfigEnvError::AmbiguousSource(platform_config_path, home_config_path),
             ),
             (Existing(path), _) | (_, Existing(path)) => Ok(Existing(path)),
             (New(path), _) | (_, New(path)) => Ok(New(path)),
@@ -328,14 +328,14 @@ impl ConfigEnv {
         }
     }
 
-    fn existing_config_path(self) -> Result<Option<PathBuf>, ConfigError> {
+    fn existing_config_path(self) -> Result<Option<PathBuf>, ConfigEnvError> {
         match self.config_path()? {
             ConfigPath::Existing(path) => Ok(Some(path)),
             _ => Ok(None),
         }
     }
 
-    fn new_config_path(self) -> Result<Option<PathBuf>, ConfigError> {
+    fn new_config_path(self) -> Result<Option<PathBuf>, ConfigEnvError> {
         match self.config_path()? {
             ConfigPath::Existing(path) => Ok(Some(path)),
             ConfigPath::New(path) => {
@@ -347,7 +347,7 @@ impl ConfigEnv {
     }
 }
 
-pub fn existing_config_path() -> Result<Option<PathBuf>, ConfigError> {
+pub fn existing_config_path() -> Result<Option<PathBuf>, ConfigEnvError> {
     ConfigEnv::new().existing_config_path()
 }
 
@@ -356,7 +356,7 @@ pub fn existing_config_path() -> Result<Option<PathBuf>, ConfigError> {
 /// If no config file is found, tries to guess a reasonable new
 /// location for it. If a path to a new config file is returned, the
 /// parent directory may be created as a result of this call.
-pub fn new_config_path() -> Result<Option<PathBuf>, ConfigError> {
+pub fn new_config_path() -> Result<Option<PathBuf>, ConfigEnvError> {
     ConfigEnv::new().new_config_path()
 }
 
@@ -1203,11 +1203,11 @@ mod tests {
         use assert_matches::assert_matches;
         assert_matches!(
             cfg.clone().existing_config_path(),
-            Err(ConfigError::AmbiguousSource(_, _))
+            Err(ConfigEnvError::AmbiguousSource(_, _))
         );
         assert_matches!(
             cfg.clone().new_config_path(),
-            Err(ConfigError::AmbiguousSource(_, _))
+            Err(ConfigEnvError::AmbiguousSource(_, _))
         );
         Ok(())
     }
