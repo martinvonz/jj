@@ -23,8 +23,10 @@ use std::process::Command;
 
 use itertools::Itertools;
 use jj_lib::config::ConfigError;
+use jj_lib::config::ConfigLayer;
 use jj_lib::config::ConfigNamePathBuf;
 use jj_lib::config::ConfigSource;
+use jj_lib::config::StackedConfig;
 use jj_lib::settings::ConfigResultExt as _;
 use regex::Captures;
 use regex::Regex;
@@ -105,33 +107,32 @@ pub struct AnnotatedValue {
 /// 7. Command-line arguments `--config-toml`
 #[derive(Clone, Debug)]
 pub struct LayeredConfigs {
-    default: config::Config,
-    env_base: config::Config,
-    // TODO: Track explicit file paths, especially for when user config is a dir.
-    user: Option<config::Config>,
-    repo: Option<config::Config>,
-    env_overrides: config::Config,
-    arg_overrides: Option<config::Config>,
+    inner: StackedConfig,
 }
 
 impl LayeredConfigs {
     /// Initializes configs with infallible sources.
     pub fn from_environment(default: config::Config) -> Self {
-        LayeredConfigs {
-            default,
-            env_base: env_base(),
-            user: None,
-            repo: None,
-            env_overrides: env_overrides(),
-            arg_overrides: None,
-        }
+        let mut inner = StackedConfig::empty();
+        inner.add_layer(ConfigLayer::with_data(ConfigSource::Default, default));
+        inner.add_layer(ConfigLayer::with_data(ConfigSource::EnvBase, env_base()));
+        inner.add_layer(ConfigLayer::with_data(
+            ConfigSource::EnvOverrides,
+            env_overrides(),
+        ));
+        LayeredConfigs { inner }
     }
 
     #[instrument]
     pub fn read_user_config(&mut self) -> Result<(), ConfigEnvError> {
-        self.user = existing_config_path()?
-            .map(|path| read_config_path(&path))
-            .transpose()?;
+        self.inner.remove_layers(ConfigSource::User);
+        if let Some(path) = existing_config_path()? {
+            if path.is_dir() {
+                self.inner.load_dir(ConfigSource::User, path)?;
+            } else {
+                self.inner.load_file(ConfigSource::User, path)?;
+            }
+        }
         Ok(())
     }
 
@@ -141,7 +142,11 @@ impl LayeredConfigs {
 
     #[instrument]
     pub fn read_repo_config(&mut self, repo_path: &Path) -> Result<(), ConfigEnvError> {
-        self.repo = Some(read_config_file(&self.repo_config_path(repo_path))?);
+        self.inner.remove_layers(ConfigSource::Repo);
+        let path = self.repo_config_path(repo_path);
+        if path.exists() {
+            self.inner.load_file(ConfigSource::Repo, path)?;
+        }
         Ok(())
     }
 
@@ -150,41 +155,28 @@ impl LayeredConfigs {
     }
 
     pub fn parse_config_args(&mut self, toml_strs: &[String]) -> Result<(), ConfigEnvError> {
+        self.inner.remove_layers(ConfigSource::CommandArg);
         let config = toml_strs
             .iter()
             .fold(config::Config::builder(), |builder, s| {
                 builder.add_source(config::File::from_str(s, config::FileFormat::Toml))
             })
             .build()?;
-        self.arg_overrides = Some(config);
+        self.inner
+            .add_layer(ConfigLayer::with_data(ConfigSource::CommandArg, config));
         Ok(())
     }
 
     /// Creates new merged config.
     pub fn merge(&self) -> config::Config {
-        self.sources()
-            .into_iter()
-            .map(|(_, config)| config)
-            .fold(config::Config::builder(), |builder, source| {
-                builder.add_source(source.clone())
-            })
-            .build()
-            .expect("loaded configs should be merged without error")
+        self.inner.merge()
     }
 
-    pub fn sources(&self) -> Vec<(ConfigSource, &config::Config)> {
-        let config_sources = [
-            (ConfigSource::Default, Some(&self.default)),
-            (ConfigSource::EnvBase, Some(&self.env_base)),
-            (ConfigSource::User, self.user.as_ref()),
-            (ConfigSource::Repo, self.repo.as_ref()),
-            (ConfigSource::EnvOverrides, Some(&self.env_overrides)),
-            (ConfigSource::CommandArg, self.arg_overrides.as_ref()),
-        ];
-        config_sources
-            .into_iter()
-            .filter_map(|(source, config)| config.map(|c| (source, c)))
-            .collect_vec()
+    pub fn sources(&self) -> impl DoubleEndedIterator<Item = (ConfigSource, &config::Config)> {
+        self.inner
+            .layers()
+            .iter()
+            .map(|layer| (layer.source, &layer.data))
     }
 
     pub fn resolved_config_values(
@@ -430,46 +422,6 @@ fn env_overrides() -> config::Config {
         builder = builder.set_override("ui.editor", value).unwrap();
     }
     builder.build().unwrap()
-}
-
-fn read_config_file(path: &Path) -> Result<config::Config, ConfigError> {
-    config::Config::builder()
-        .add_source(
-            config::File::from(path)
-                .required(false)
-                .format(config::FileFormat::Toml),
-        )
-        .build()
-}
-
-fn read_config_path(config_path: &Path) -> Result<config::Config, ConfigError> {
-    let mut files = vec![];
-    if config_path.is_dir() {
-        if let Ok(read_dir) = config_path.read_dir() {
-            // TODO: Walk the directory recursively?
-            for dir_entry in read_dir.flatten() {
-                let path = dir_entry.path();
-                if path.is_file() {
-                    files.push(path);
-                }
-            }
-        }
-        files.sort();
-    } else {
-        files.push(config_path.to_owned());
-    }
-
-    files
-        .iter()
-        .fold(config::Config::builder(), |builder, path| {
-            // TODO: Accept other formats and/or accept only certain file extensions?
-            builder.add_source(
-                config::File::from(path.as_ref())
-                    .required(false)
-                    .format(config::FileFormat::Toml),
-            )
-        })
-        .build()
 }
 
 fn read_config(path: &Path) -> Result<toml_edit::ImDocument<String>, CommandError> {
@@ -781,14 +733,8 @@ mod tests {
 
     #[test]
     fn test_layered_configs_resolved_config_values_empty() {
-        let empty_config = config::Config::default();
         let layered_configs = LayeredConfigs {
-            default: empty_config.clone(),
-            env_base: empty_config.clone(),
-            user: None,
-            repo: None,
-            env_overrides: empty_config,
-            arg_overrides: None,
+            inner: StackedConfig::empty(),
         };
         assert_eq!(
             layered_configs
@@ -800,7 +746,6 @@ mod tests {
 
     #[test]
     fn test_layered_configs_resolved_config_values_single_key() {
-        let empty_config = config::Config::default();
         let env_base_config = config::Config::builder()
             .set_override("user.name", "base-user-name")
             .unwrap()
@@ -813,14 +758,13 @@ mod tests {
             .unwrap()
             .build()
             .unwrap();
-        let layered_configs = LayeredConfigs {
-            default: empty_config.clone(),
-            env_base: env_base_config,
-            user: None,
-            repo: Some(repo_config),
-            env_overrides: empty_config,
-            arg_overrides: None,
-        };
+        let mut inner = StackedConfig::empty();
+        inner.add_layer(ConfigLayer::with_data(
+            ConfigSource::EnvBase,
+            env_base_config,
+        ));
+        inner.add_layer(ConfigLayer::with_data(ConfigSource::Repo, repo_config));
+        let layered_configs = LayeredConfigs { inner };
         // Note: "email" is alphabetized, before "name" from same layer.
         insta::assert_debug_snapshot!(
             layered_configs.resolved_config_values(&ConfigNamePathBuf::root()).unwrap(),
@@ -947,7 +891,6 @@ mod tests {
 
     #[test]
     fn test_layered_configs_resolved_config_values_filter_path() {
-        let empty_config = config::Config::default();
         let user_config = config::Config::builder()
             .set_override("test-table1.foo", "user-FOO")
             .unwrap()
@@ -960,14 +903,10 @@ mod tests {
             .unwrap()
             .build()
             .unwrap();
-        let layered_configs = LayeredConfigs {
-            default: empty_config.clone(),
-            env_base: empty_config.clone(),
-            user: Some(user_config),
-            repo: Some(repo_config),
-            env_overrides: empty_config,
-            arg_overrides: None,
-        };
+        let mut inner = StackedConfig::empty();
+        inner.add_layer(ConfigLayer::with_data(ConfigSource::User, user_config));
+        inner.add_layer(ConfigLayer::with_data(ConfigSource::Repo, repo_config));
+        let layered_configs = LayeredConfigs { inner };
         insta::assert_debug_snapshot!(
             layered_configs
                 .resolved_config_values(&ConfigNamePathBuf::from_iter(["test-table1"]))

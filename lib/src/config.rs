@@ -16,11 +16,16 @@
 
 use std::borrow::Cow;
 use std::fmt;
+use std::ops::Range;
+use std::path::Path;
+use std::path::PathBuf;
 use std::slice;
 use std::str::FromStr;
 
 use config::Source as _;
 use itertools::Itertools as _;
+
+use crate::file_util::IoResultExt as _;
 
 /// Error that can occur when accessing configuration.
 // TODO: will be replaced with our custom error type
@@ -145,6 +150,158 @@ pub enum ConfigSource {
     CommandArg,
 }
 
+/// Set of configuration variables with source information.
+#[derive(Clone, Debug)]
+pub struct ConfigLayer {
+    /// Source type of this layer.
+    pub source: ConfigSource,
+    /// Source file path of this layer if any.
+    pub path: Option<PathBuf>,
+    /// Configuration variables.
+    pub data: config::Config,
+}
+
+impl ConfigLayer {
+    /// Creates new layer with the configuration variables `data`.
+    pub fn with_data(source: ConfigSource, data: config::Config) -> Self {
+        ConfigLayer {
+            source,
+            path: None,
+            data,
+        }
+    }
+
+    fn load_from_file(source: ConfigSource, path: PathBuf) -> Result<Self, ConfigError> {
+        // TODO: will be replaced with toml_edit::DocumentMut or ImDocument
+        let data = config::Config::builder()
+            .add_source(
+                config::File::from(path.clone())
+                    // TODO: The path should exist, but the config crate refuses
+                    // to read a special file (e.g. /dev/null) as TOML.
+                    .required(false)
+                    .format(config::FileFormat::Toml),
+            )
+            .build()?;
+        Ok(ConfigLayer {
+            source,
+            path: Some(path),
+            data,
+        })
+    }
+
+    fn load_from_dir(source: ConfigSource, path: &Path) -> Result<Vec<Self>, ConfigError> {
+        // TODO: Walk the directory recursively?
+        let mut file_paths: Vec<_> = path
+            .read_dir()
+            .and_then(|dir_entries| {
+                dir_entries
+                    .map(|entry| Ok(entry?.path()))
+                    // TODO: Accept only certain file extensions?
+                    .filter_ok(|path| path.is_file())
+                    .try_collect()
+            })
+            .context(path)
+            .map_err(|err| ConfigError::Foreign(err.into()))?;
+        file_paths.sort_unstable();
+        file_paths
+            .into_iter()
+            .map(|path| Self::load_from_file(source, path))
+            .try_collect()
+    }
+}
+
+/// Stack of configuration layers which can be merged as needed.
+#[derive(Clone, Debug)]
+pub struct StackedConfig {
+    /// Layers sorted by `source` (the lowest precedence one first.)
+    layers: Vec<ConfigLayer>,
+}
+
+impl StackedConfig {
+    /// Creates an empty stack of configuration layers.
+    pub fn empty() -> Self {
+        StackedConfig { layers: vec![] }
+    }
+
+    /// Loads config file from the specified `path`, inserts it at the position
+    /// specified by `source`. The file should exist.
+    pub fn load_file(
+        &mut self,
+        source: ConfigSource,
+        path: impl Into<PathBuf>,
+    ) -> Result<(), ConfigError> {
+        let layer = ConfigLayer::load_from_file(source, path.into())?;
+        self.add_layer(layer);
+        Ok(())
+    }
+
+    /// Loads config files from the specified directory `path`, inserts them at
+    /// the position specified by `source`. The directory should exist.
+    pub fn load_dir(
+        &mut self,
+        source: ConfigSource,
+        path: impl AsRef<Path>,
+    ) -> Result<(), ConfigError> {
+        let layers = ConfigLayer::load_from_dir(source, path.as_ref())?;
+        let index = self.insert_point(source);
+        self.layers.splice(index..index, layers);
+        Ok(())
+    }
+
+    /// Inserts new layer at the position specified by `layer.source`.
+    pub fn add_layer(&mut self, layer: ConfigLayer) {
+        let index = self.insert_point(layer.source);
+        self.layers.insert(index, layer);
+    }
+
+    /// Removes layers of the specified `source`.
+    pub fn remove_layers(&mut self, source: ConfigSource) {
+        self.layers.drain(self.layer_range(source));
+    }
+
+    fn layer_range(&self, source: ConfigSource) -> Range<usize> {
+        // Linear search since the size of Vec wouldn't be large.
+        let start = self
+            .layers
+            .iter()
+            .take_while(|layer| layer.source < source)
+            .count();
+        let count = self.layers[start..]
+            .iter()
+            .take_while(|layer| layer.source == source)
+            .count();
+        start..(start + count)
+    }
+
+    fn insert_point(&self, source: ConfigSource) -> usize {
+        // Search from end since layers are usually added in order, and the size
+        // of Vec wouldn't be large enough to do binary search.
+        let skip = self
+            .layers
+            .iter()
+            .rev()
+            .take_while(|layer| layer.source > source)
+            .count();
+        self.layers.len() - skip
+    }
+
+    /// Layers sorted by precedence.
+    pub fn layers(&self) -> &[ConfigLayer] {
+        &self.layers
+    }
+
+    /// Creates new merged config.
+    pub fn merge(&self) -> config::Config {
+        self.layers
+            .iter()
+            .fold(config::Config::builder(), |builder, layer| {
+                builder.add_source(layer.data.clone())
+            })
+            .build()
+            .expect("loaded configs should be merged without error")
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -184,5 +341,72 @@ mod tests {
             parse("foo.bar.'baz()'").split_safe_prefix(),
             (Some("foo.bar".into()), [key("baz()")].as_slice())
         );
+    }
+
+    #[test]
+    fn test_stacked_config_layer_order() {
+        let empty_data = || config::Config::builder().build().unwrap();
+        let layer_sources = |config: &StackedConfig| {
+            config
+                .layers()
+                .iter()
+                .map(|layer| layer.source)
+                .collect_vec()
+        };
+
+        // Insert in reverse order
+        let mut config = StackedConfig::empty();
+        config.add_layer(ConfigLayer::with_data(ConfigSource::Repo, empty_data()));
+        config.add_layer(ConfigLayer::with_data(ConfigSource::User, empty_data()));
+        config.add_layer(ConfigLayer::with_data(ConfigSource::Default, empty_data()));
+        assert_eq!(
+            layer_sources(&config),
+            vec![
+                ConfigSource::Default,
+                ConfigSource::User,
+                ConfigSource::Repo,
+            ]
+        );
+
+        // Insert some more
+        config.add_layer(ConfigLayer::with_data(
+            ConfigSource::CommandArg,
+            empty_data(),
+        ));
+        config.add_layer(ConfigLayer::with_data(ConfigSource::EnvBase, empty_data()));
+        config.add_layer(ConfigLayer::with_data(ConfigSource::User, empty_data()));
+        assert_eq!(
+            layer_sources(&config),
+            vec![
+                ConfigSource::Default,
+                ConfigSource::EnvBase,
+                ConfigSource::User,
+                ConfigSource::User,
+                ConfigSource::Repo,
+                ConfigSource::CommandArg,
+            ]
+        );
+
+        // Remove last, first, middle
+        config.remove_layers(ConfigSource::CommandArg);
+        config.remove_layers(ConfigSource::Default);
+        config.remove_layers(ConfigSource::User);
+        assert_eq!(
+            layer_sources(&config),
+            vec![ConfigSource::EnvBase, ConfigSource::Repo]
+        );
+
+        // Remove unknown
+        config.remove_layers(ConfigSource::Default);
+        config.remove_layers(ConfigSource::EnvOverrides);
+        assert_eq!(
+            layer_sources(&config),
+            vec![ConfigSource::EnvBase, ConfigSource::Repo]
+        );
+
+        // Remove remainders
+        config.remove_layers(ConfigSource::EnvBase);
+        config.remove_layers(ConfigSource::Repo);
+        assert_eq!(layer_sources(&config), vec![]);
     }
 }
