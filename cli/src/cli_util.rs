@@ -146,6 +146,7 @@ use crate::complete;
 use crate::config::new_config_path;
 use crate::config::AnnotatedValue;
 use crate::config::CommandNameAndArgs;
+use crate::config::ConfigEnvError;
 use crate::config::ConfigSource;
 use crate::config::LayeredConfigs;
 use crate::diff_util;
@@ -317,7 +318,7 @@ impl CommandHelper {
     pub fn resolved_config_values(
         &self,
         prefix: &ConfigNamePathBuf,
-    ) -> Result<Vec<AnnotatedValue>, crate::config::ConfigError> {
+    ) -> Result<Vec<AnnotatedValue>, ConfigEnvError> {
         self.data.layered_configs.resolved_config_values(prefix)
     }
 

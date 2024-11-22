@@ -56,6 +56,7 @@ use jj_lib::workspace::WorkspaceInitError;
 use thiserror::Error;
 
 use crate::cli_util::short_operation_hash;
+use crate::config::ConfigEnvError;
 use crate::description_util::ParseBulkEditMessageError;
 use crate::diff_util::DiffRenderError;
 use crate::formatter::FormatRecorder;
@@ -243,8 +244,8 @@ impl From<config::ConfigError> for CommandError {
     }
 }
 
-impl From<crate::config::ConfigError> for CommandError {
-    fn from(err: crate::config::ConfigError) -> Self {
+impl From<ConfigEnvError> for CommandError {
+    fn from(err: ConfigEnvError) -> Self {
         config_error(err)
     }
 }
