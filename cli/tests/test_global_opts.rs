@@ -593,6 +593,23 @@ fn test_invalid_config() {
 }
 
 #[test]
+fn test_invalid_config_value() {
+    // Test that we get a reasonable error if a config value is invalid
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    let stderr = test_env.jj_cmd_failure(
+        &repo_path,
+        &["status", "--config-toml=snapshot.auto-track=[0]"],
+    );
+    insta::assert_snapshot!(stderr, @r"
+    Config error: invalid type: sequence, expected a string for key `snapshot.auto-track`
+    For help, see https://martinvonz.github.io/jj/latest/config/.
+    ");
+}
+
+#[test]
 fn test_no_user_configured() {
     // Test that the user is reminded if they haven't configured their name or email
     let test_env = TestEnvironment::default();
