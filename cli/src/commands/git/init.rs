@@ -17,6 +17,7 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use jj_lib::config::ConfigNamePathBuf;
 use jj_lib::file_util;
 use jj_lib::git;
 use jj_lib::git::parse_git_ref;
@@ -35,7 +36,6 @@ use crate::command_error::user_error_with_message;
 use crate::command_error::CommandError;
 use crate::commands::git::maybe_add_gitignore;
 use crate::config::write_config_value_to_file;
-use crate::config::ConfigNamePathBuf;
 use crate::git_util::get_git_repo;
 use crate::git_util::is_colocated_git_workspace;
 use crate::git_util::print_failed_git_export;

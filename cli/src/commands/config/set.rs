@@ -16,6 +16,7 @@ use std::io;
 
 use clap_complete::ArgValueCandidates;
 use jj_lib::commit::Commit;
+use jj_lib::config::ConfigNamePathBuf;
 use jj_lib::repo::Repo;
 use tracing::instrument;
 
@@ -28,7 +29,6 @@ use crate::command_error::CommandError;
 use crate::complete;
 use crate::config::parse_toml_value_or_bare_string;
 use crate::config::write_config_value_to_file;
-use crate::config::ConfigNamePathBuf;
 use crate::ui::Ui;
 
 /// Update config file to set the given option to a given value.

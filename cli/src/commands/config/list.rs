@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use clap_complete::ArgValueCandidates;
+use jj_lib::config::ConfigNamePathBuf;
 use tracing::instrument;
 
 use super::ConfigLevelArgs;
@@ -21,7 +22,6 @@ use crate::command_error::CommandError;
 use crate::complete;
 use crate::config::to_toml_value;
 use crate::config::AnnotatedValue;
-use crate::config::ConfigNamePathBuf;
 use crate::config::ConfigSource;
 use crate::generic_templater::GenericTemplateLanguage;
 use crate::template_builder::TemplateLanguage as _;

@@ -15,13 +15,13 @@
 use std::io::Write as _;
 
 use clap_complete::ArgValueCandidates;
+use jj_lib::config::ConfigNamePathBuf;
 use tracing::instrument;
 
 use crate::cli_util::CommandHelper;
 use crate::command_error::config_error;
 use crate::command_error::CommandError;
 use crate::complete;
-use crate::config::ConfigNamePathBuf;
 use crate::ui::Ui;
 
 /// Get the value of a given config option.

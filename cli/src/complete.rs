@@ -17,6 +17,7 @@ use clap::FromArgMatches as _;
 use clap_complete::CompletionCandidate;
 use config::Config;
 use itertools::Itertools;
+use jj_lib::config::ConfigNamePathBuf;
 use jj_lib::workspace::DefaultWorkspaceLoaderFactory;
 use jj_lib::workspace::WorkspaceLoaderFactory as _;
 
@@ -26,7 +27,6 @@ use crate::cli_util::GlobalArgs;
 use crate::command_error::user_error;
 use crate::command_error::CommandError;
 use crate::config::default_config;
-use crate::config::ConfigNamePathBuf;
 use crate::config::LayeredConfigs;
 use crate::config::CONFIG_SCHEMA;
 use crate::ui::Ui;

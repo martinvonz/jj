@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use clap_complete::ArgValueCandidates;
+use jj_lib::config::ConfigNamePathBuf;
 use tracing::instrument;
 
 use super::ConfigLevelArgs;
@@ -22,7 +23,6 @@ use crate::command_error::user_error;
 use crate::command_error::CommandError;
 use crate::complete;
 use crate::config::remove_config_value_from_file;
-use crate::config::ConfigNamePathBuf;
 use crate::ui::Ui;
 
 /// Update config file to unset the given option.
