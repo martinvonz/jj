@@ -265,17 +265,17 @@ impl UserSettings {
 
     /// Looks up string value by `key`.
     pub fn get_string(&self, key: &str) -> Result<String, ConfigError> {
-        self.get(key).and_then(config::Value::into_string)
+        self.get(key)
     }
 
     /// Looks up integer value by `key`.
     pub fn get_int(&self, key: &str) -> Result<i64, ConfigError> {
-        self.get(key).and_then(config::Value::into_int)
+        self.get(key)
     }
 
     /// Looks up boolean value by `key`.
     pub fn get_bool(&self, key: &str) -> Result<bool, ConfigError> {
-        self.get(key).and_then(config::Value::into_bool)
+        self.get(key)
     }
 }
 
