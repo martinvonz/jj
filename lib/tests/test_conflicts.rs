@@ -767,6 +767,32 @@ fn test_parse_conflict_crlf_markers() {
 }
 
 #[test]
+fn test_parse_conflict_diff_stripped_whitespace() {
+    // Conflict parsing fails since diff contains empty line without leading space
+    assert_eq!(
+        parse_conflict(
+            indoc! {b"
+            line 1
+            <<<<<<<
+            %%%%%%%
+             line 2
+
+            -line 3
+            +left
+            \r
+             line 4
+            +++++++
+            right
+            >>>>>>>
+            line 5
+            "},
+            2
+        ),
+        None
+    );
+}
+
+#[test]
 fn test_parse_conflict_wrong_arity() {
     // Valid conflict marker but it has fewer sides than the caller expected
     assert_eq!(
