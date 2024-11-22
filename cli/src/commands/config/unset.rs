@@ -40,7 +40,7 @@ pub fn cmd_config_unset(
     command: &CommandHelper,
     args: &ConfigUnsetArgs,
 ) -> Result<(), CommandError> {
-    let config_path = get_new_config_file_path(&args.level.expect_source_kind(), command)?;
+    let config_path = get_new_config_file_path(args.level.expect_source_kind(), command)?;
     if config_path.is_dir() {
         return Err(user_error(format!(
             "Can't set config in path {path} (dirs not supported)",

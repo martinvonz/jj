@@ -59,6 +59,7 @@ use jj_lib::backend::TreeValue;
 use jj_lib::commit::Commit;
 use jj_lib::config::ConfigError;
 use jj_lib::config::ConfigNamePathBuf;
+use jj_lib::config::ConfigSource;
 use jj_lib::conflicts::ConflictMarkerStyle;
 use jj_lib::file_util;
 use jj_lib::fileset;
@@ -151,7 +152,6 @@ use crate::config::new_config_path;
 use crate::config::AnnotatedValue;
 use crate::config::CommandNameAndArgs;
 use crate::config::ConfigEnvError;
-use crate::config::ConfigSource;
 use crate::config::LayeredConfigs;
 use crate::diff_util;
 use crate::diff_util::DiffFormat;
@@ -2765,7 +2765,7 @@ impl LogContentFormat {
 }
 
 pub fn get_new_config_file_path(
-    config_source: &ConfigSource,
+    config_source: ConfigSource,
     command: &CommandHelper,
 ) -> Result<PathBuf, CommandError> {
     let edit_path = match config_source {

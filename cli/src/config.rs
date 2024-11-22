@@ -24,6 +24,7 @@ use std::process::Command;
 use itertools::Itertools;
 use jj_lib::config::ConfigError;
 use jj_lib::config::ConfigNamePathBuf;
+use jj_lib::config::ConfigSource;
 use jj_lib::settings::ConfigResultExt as _;
 use regex::Captures;
 use regex::Regex;
@@ -84,17 +85,6 @@ pub enum ConfigEnvError {
     ConfigCreateError(#[from] std::io::Error),
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum ConfigSource {
-    Default,
-    EnvBase,
-    // TODO: Track explicit file paths, especially for when user config is a dir.
-    User,
-    Repo,
-    EnvOverrides,
-    CommandArg,
-}
-
 #[derive(Clone, Debug, PartialEq)]
 pub struct AnnotatedValue {
     pub path: ConfigNamePathBuf,
@@ -117,6 +107,7 @@ pub struct AnnotatedValue {
 pub struct LayeredConfigs {
     default: config::Config,
     env_base: config::Config,
+    // TODO: Track explicit file paths, especially for when user config is a dir.
     user: Option<config::Config>,
     repo: Option<config::Config>,
     env_overrides: config::Config,
@@ -221,7 +212,7 @@ impl LayeredConfigs {
                         config_vals.push(AnnotatedValue {
                             path,
                             value: value.to_owned(),
-                            source: source.clone(),
+                            source,
                             // Note: Value updated below.
                             is_overridden: false,
                         });

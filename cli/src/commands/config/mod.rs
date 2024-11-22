@@ -19,6 +19,7 @@ mod path;
 mod set;
 mod unset;
 
+use jj_lib::config::ConfigSource;
 use tracing::instrument;
 
 use self::edit::cmd_config_edit;
@@ -35,7 +36,6 @@ use self::unset::cmd_config_unset;
 use self::unset::ConfigUnsetArgs;
 use crate::cli_util::CommandHelper;
 use crate::command_error::CommandError;
-use crate::config::ConfigSource;
 use crate::ui::Ui;
 
 #[derive(clap::Args, Clone, Debug)]
