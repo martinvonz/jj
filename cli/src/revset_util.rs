@@ -21,6 +21,7 @@ use std::sync::Arc;
 use itertools::Itertools as _;
 use jj_lib::backend::CommitId;
 use jj_lib::commit::Commit;
+use jj_lib::config::ConfigSource;
 use jj_lib::id_prefix::IdPrefixContext;
 use jj_lib::repo::Repo;
 use jj_lib::revset;
@@ -43,7 +44,6 @@ use thiserror::Error;
 
 use crate::command_error::user_error;
 use crate::command_error::CommandError;
-use crate::config::ConfigSource;
 use crate::config::LayeredConfigs;
 use crate::formatter::Formatter;
 use crate::templater::TemplateRenderer;
@@ -136,7 +136,7 @@ impl<'repo> RevsetExpressionEvaluator<'repo> {
 
 fn warn_user_redefined_builtin(
     ui: &Ui,
-    source: &ConfigSource,
+    source: ConfigSource,
     name: &str,
 ) -> Result<(), CommandError> {
     match source {
@@ -177,7 +177,7 @@ pub fn load_revset_aliases(
             continue;
         };
         for (decl, value) in table.into_iter().sorted_by(|a, b| a.0.cmp(&b.0)) {
-            warn_user_redefined_builtin(ui, &source, &decl)?;
+            warn_user_redefined_builtin(ui, source, &decl)?;
 
             let r = value
                 .into_string()

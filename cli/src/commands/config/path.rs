@@ -40,7 +40,7 @@ pub fn cmd_config_path(
     command: &CommandHelper,
     args: &ConfigPathArgs,
 ) -> Result<(), CommandError> {
-    let config_path = get_new_config_file_path(&args.level.expect_source_kind(), command)?;
+    let config_path = get_new_config_file_path(args.level.expect_source_kind(), command)?;
     writeln!(
         ui.stdout(),
         "{}",

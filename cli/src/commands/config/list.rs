@@ -14,6 +14,7 @@
 
 use clap_complete::ArgValueCandidates;
 use jj_lib::config::ConfigNamePathBuf;
+use jj_lib::config::ConfigSource;
 use tracing::instrument;
 
 use super::ConfigLevelArgs;
@@ -22,7 +23,6 @@ use crate::command_error::CommandError;
 use crate::complete;
 use crate::config::to_toml_value;
 use crate::config::AnnotatedValue;
-use crate::config::ConfigSource;
 use crate::generic_templater::GenericTemplateLanguage;
 use crate::template_builder::TemplateLanguage as _;
 use crate::templater::TemplatePropertyExt as _;

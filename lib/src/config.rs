@@ -128,6 +128,23 @@ impl fmt::Display for ConfigNamePathBuf {
     }
 }
 
+/// Source of configuration variables in order of precedence.
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub enum ConfigSource {
+    /// Default values (which has the lowest precedence.)
+    Default,
+    /// Base environment variables.
+    EnvBase,
+    /// User configuration files.
+    User,
+    /// Repo configuration files.
+    Repo,
+    /// Override environment variables.
+    EnvOverrides,
+    /// Command-line arguments (which has the highest precedence.)
+    CommandArg,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
