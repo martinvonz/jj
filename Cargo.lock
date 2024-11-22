@@ -1913,6 +1913,7 @@ dependencies = [
  "testutils",
  "thiserror",
  "tokio",
+ "toml_edit",
  "tracing",
  "version_check",
  "watchman_client",
