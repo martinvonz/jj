@@ -726,6 +726,29 @@ fn test_parse_conflict_multi_way() {
 }
 
 #[test]
+fn test_parse_conflict_crlf_markers() {
+    // Conflict markers aren't recognized due to CRLF
+    assert_eq!(
+        parse_conflict(
+            indoc! {b"
+            line 1\r
+            <<<<<<<\r
+            +++++++\r
+            left\r
+            -------\r
+            base\r
+            +++++++\r
+            right\r
+            >>>>>>>\r
+            line 5\r
+            "},
+            2
+        ),
+        None
+    );
+}
+
+#[test]
 fn test_parse_conflict_wrong_arity() {
     // Valid conflict marker but it has fewer sides than the caller expected
     assert_eq!(
