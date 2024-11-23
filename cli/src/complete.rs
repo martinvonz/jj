@@ -402,7 +402,7 @@ fn get_jj_command() -> Result<(std::process::Command, Config), CommandError> {
     let cwd = std::env::current_dir()
         .and_then(|cwd| cwd.canonicalize())
         .map_err(user_error)?;
-    let config_env = ConfigEnv::new()?;
+    let config_env = ConfigEnv::from_environment()?;
     let maybe_cwd_workspace_loader = DefaultWorkspaceLoaderFactory.create(find_workspace_dir(&cwd));
     let _ = layered_configs.read_user_config(&config_env);
     if let Ok(loader) = &maybe_cwd_workspace_loader {

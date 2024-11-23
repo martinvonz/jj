@@ -2772,7 +2772,7 @@ pub fn get_new_config_file_path(
         // TODO(#531): Special-case for editors that can't handle viewing directories?
         ConfigSource::User => command
             .config_env()
-            .new_config_path()?
+            .new_user_config_path()?
             .ok_or_else(|| user_error("No repo config path found to edit"))?
             .to_owned(),
         ConfigSource::Repo => command.workspace_loader()?.repo_path().join("config.toml"),
@@ -3553,7 +3553,7 @@ impl CliRunner {
                     "Did you update to a commit where the directory doesn't exist?",
                 )
             })?;
-        let config_env = ConfigEnv::new()?;
+        let config_env = ConfigEnv::from_environment()?;
         // Use cwd-relative workspace configs to resolve default command and
         // aliases. WorkspaceLoader::init() won't do any heavy lifting other
         // than the path resolution.
@@ -3569,7 +3569,7 @@ impl CliRunner {
         }
         let config = layered_configs.merge();
         ui.reset(&config).map_err(|e| {
-            let user_config_path = config_env.existing_config_path();
+            let user_config_path = config_env.existing_user_config_path();
             let paths = [repo_config_path.as_deref(), user_config_path]
                 .into_iter()
                 .flatten()
