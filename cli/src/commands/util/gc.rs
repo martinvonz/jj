@@ -24,6 +24,9 @@ use crate::command_error::CommandError;
 use crate::ui::Ui;
 
 /// Run backend-dependent garbage collection.
+///
+/// To garbage-collect old operations and the commits/objects referenced by
+/// then, run `jj op abandon ..<some old operation>` before `jj util gc`.
 #[derive(clap::Args, Clone, Debug)]
 pub struct UtilGcArgs {
     /// Time threshold

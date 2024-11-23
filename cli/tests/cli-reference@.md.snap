@@ -2264,7 +2264,9 @@ echo "args: $@"
 
 ## `jj util gc`
 
-Run backend-dependent garbage collection
+Run backend-dependent garbage collection.
+
+To garbage-collect old operations and the commits/objects referenced by then, run `jj op abandon ..<some old operation>` before `jj util gc`.
 
 **Usage:** `jj util gc [OPTIONS]`
 
