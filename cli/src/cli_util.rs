@@ -58,7 +58,6 @@ use jj_lib::backend::MergedTreeId;
 use jj_lib::backend::TreeValue;
 use jj_lib::commit::Commit;
 use jj_lib::config::ConfigError;
-use jj_lib::config::ConfigNamePathBuf;
 use jj_lib::config::ConfigSource;
 use jj_lib::conflicts::ConflictMarkerStyle;
 use jj_lib::file_util;
@@ -149,9 +148,7 @@ use crate::commit_templater::CommitTemplateLanguage;
 use crate::commit_templater::CommitTemplateLanguageExtension;
 use crate::complete;
 use crate::config::new_config_path;
-use crate::config::AnnotatedValue;
 use crate::config::CommandNameAndArgs;
-use crate::config::ConfigEnvError;
 use crate::config::LayeredConfigs;
 use crate::diff_util;
 use crate::diff_util::DiffFormat;
@@ -319,11 +316,9 @@ impl CommandHelper {
         &self.data.settings
     }
 
-    pub fn resolved_config_values(
-        &self,
-        prefix: &ConfigNamePathBuf,
-    ) -> Result<Vec<AnnotatedValue>, ConfigEnvError> {
-        self.data.layered_configs.resolved_config_values(prefix)
+    // TODO: will be moved to UserSettings
+    pub fn layered_configs(&self) -> &LayeredConfigs {
+        &self.data.layered_configs
     }
 
     pub fn revset_extensions(&self) -> &Arc<RevsetExtensions> {
