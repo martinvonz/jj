@@ -17,6 +17,7 @@ use std::collections::HashSet;
 use std::fs;
 use std::io::Write;
 use std::iter;
+use std::num::NonZeroU32;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::mpsc;
@@ -38,7 +39,9 @@ use jj_lib::commit_builder::CommitBuilder;
 use jj_lib::git;
 use jj_lib::git::FailedRefExportReason;
 use jj_lib::git::GitBranchPushTargets;
+use jj_lib::git::GitFetch;
 use jj_lib::git::GitFetchError;
+use jj_lib::git::GitFetchStats;
 use jj_lib::git::GitImportError;
 use jj_lib::git::GitPushError;
 use jj_lib::git::GitRefUpdate;
@@ -108,6 +111,25 @@ fn get_git_backend(repo: &Arc<ReadonlyRepo>) -> &GitBackend {
 
 fn get_git_repo(repo: &Arc<ReadonlyRepo>) -> git2::Repository {
     get_git_backend(repo).open_git_repo().unwrap()
+}
+
+fn git_fetch(
+    mut_repo: &mut MutableRepo,
+    git_repo: &git2::Repository,
+    remote_name: &str,
+    branch_names: &[StringPattern],
+    callbacks: git::RemoteCallbacks<'_>,
+    git_settings: &GitSettings,
+    depth: Option<NonZeroU32>,
+) -> Result<GitFetchStats, GitFetchError> {
+    let mut git_fetch = GitFetch::new(mut_repo, git_repo, git_settings);
+    let default_branch = git_fetch.fetch(remote_name, branch_names, callbacks, depth)?;
+    let import_stats = git_fetch.import_refs()?;
+    let stats = GitFetchStats {
+        default_branch,
+        import_stats,
+    };
+    Ok(stats)
 }
 
 #[test]
@@ -2262,7 +2284,7 @@ fn test_fetch_empty_repo() {
     let git_settings = GitSettings::default();
 
     let mut tx = test_data.repo.start_transaction(&test_data.settings);
-    let stats = git::fetch(
+    let stats = git_fetch(
         tx.repo_mut(),
         &test_data.git_repo,
         "origin",
@@ -2289,7 +2311,7 @@ fn test_fetch_initial_commit_head_is_not_set() {
     let initial_git_commit = empty_git_commit(&test_data.origin_repo, "refs/heads/main", &[]);
 
     let mut tx = test_data.repo.start_transaction(&test_data.settings);
-    let stats = git::fetch(
+    let stats = git_fetch(
         tx.repo_mut(),
         &test_data.git_repo,
         "origin",
@@ -2303,7 +2325,7 @@ fn test_fetch_initial_commit_head_is_not_set() {
     assert_eq!(stats.default_branch, None);
     assert!(stats.import_stats.abandoned_commits.is_empty());
     let repo = tx.commit("test").unwrap();
-    // The initial commit is visible after git::fetch().
+    // The initial commit is visible after git_fetch().
     let view = repo.view();
     assert!(view.heads().contains(&jj_id(&initial_git_commit)));
     let initial_commit_target = RefTarget::normal(jj_id(&initial_git_commit));
@@ -2350,7 +2372,7 @@ fn test_fetch_initial_commit_head_is_set() {
         .unwrap();
 
     let mut tx = test_data.repo.start_transaction(&test_data.settings);
-    let stats = git::fetch(
+    let stats = git_fetch(
         tx.repo_mut(),
         &test_data.git_repo,
         "origin",
@@ -2375,7 +2397,7 @@ fn test_fetch_success() {
     let initial_git_commit = empty_git_commit(&test_data.origin_repo, "refs/heads/main", &[]);
 
     let mut tx = test_data.repo.start_transaction(&test_data.settings);
-    git::fetch(
+    git_fetch(
         tx.repo_mut(),
         &test_data.git_repo,
         "origin",
@@ -2399,7 +2421,7 @@ fn test_fetch_success() {
         .unwrap();
 
     let mut tx = test_data.repo.start_transaction(&test_data.settings);
-    let stats = git::fetch(
+    let stats = git_fetch(
         tx.repo_mut(),
         &test_data.git_repo,
         "origin",
@@ -2457,7 +2479,7 @@ fn test_fetch_prune_deleted_ref() {
     let commit = empty_git_commit(&test_data.origin_repo, "refs/heads/main", &[]);
 
     let mut tx = test_data.repo.start_transaction(&test_data.settings);
-    git::fetch(
+    git_fetch(
         tx.repo_mut(),
         &test_data.git_repo,
         "origin",
@@ -2481,7 +2503,7 @@ fn test_fetch_prune_deleted_ref() {
         .delete()
         .unwrap();
     // After re-fetching, the bookmark should be deleted
-    let stats = git::fetch(
+    let stats = git_fetch(
         tx.repo_mut(),
         &test_data.git_repo,
         "origin",
@@ -2509,7 +2531,7 @@ fn test_fetch_no_default_branch() {
     let initial_git_commit = empty_git_commit(&test_data.origin_repo, "refs/heads/main", &[]);
 
     let mut tx = test_data.repo.start_transaction(&test_data.settings);
-    git::fetch(
+    git_fetch(
         tx.repo_mut(),
         &test_data.git_repo,
         "origin",
@@ -2533,7 +2555,7 @@ fn test_fetch_no_default_branch() {
         .set_head_detached(initial_git_commit.id())
         .unwrap();
 
-    let stats = git::fetch(
+    let stats = git_fetch(
         tx.repo_mut(),
         &test_data.git_repo,
         "origin",
@@ -2555,7 +2577,7 @@ fn test_fetch_empty_refspecs() {
 
     // Base refspecs shouldn't be respected
     let mut tx = test_data.repo.start_transaction(&test_data.settings);
-    git::fetch(
+    git_fetch(
         tx.repo_mut(),
         &test_data.git_repo,
         "origin",
@@ -2582,7 +2604,7 @@ fn test_fetch_no_such_remote() {
     let test_data = GitRepoData::create();
     let git_settings = GitSettings::default();
     let mut tx = test_data.repo.start_transaction(&test_data.settings);
-    let result = git::fetch(
+    let result = git_fetch(
         tx.repo_mut(),
         &test_data.git_repo,
         "invalid-remote",
