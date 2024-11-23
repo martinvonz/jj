@@ -130,9 +130,9 @@ impl LayeredConfigs {
     }
 
     #[instrument]
-    pub fn read_user_config(&mut self) -> Result<(), ConfigEnvError> {
+    pub fn read_user_config(&mut self, env: &ConfigEnv) -> Result<(), ConfigError> {
         self.inner.remove_layers(ConfigSource::User);
-        if let Some(path) = existing_config_path()? {
+        if let Some(path) = env.existing_config_path() {
             if path.is_dir() {
                 self.inner.load_dir(ConfigSource::User, path)?;
             } else {
@@ -140,10 +140,6 @@ impl LayeredConfigs {
             }
         }
         Ok(())
-    }
-
-    pub fn user_config_path(&self) -> Result<Option<PathBuf>, ConfigEnvError> {
-        existing_config_path()
     }
 
     #[instrument]
@@ -316,13 +312,13 @@ impl UnresolvedConfigEnv {
 }
 
 #[derive(Clone, Debug)]
-struct ConfigEnv {
+pub struct ConfigEnv {
     user_config_path: ConfigPath,
 }
 
 impl ConfigEnv {
     /// Initializes configuration loader based on environment variables.
-    fn new() -> Result<Self, ConfigEnvError> {
+    pub fn new() -> Result<Self, ConfigEnvError> {
         let env = UnresolvedConfigEnv {
             config_dir: dirs::config_dir(),
             home_dir: dirs::home_dir(),
@@ -333,38 +329,30 @@ impl ConfigEnv {
         })
     }
 
-    fn existing_config_path(&self) -> Option<&Path> {
+    /// Returns a path to the existing user-specific config file or directory.
+    pub fn existing_config_path(&self) -> Option<&Path> {
         match &self.user_config_path {
             ConfigPath::Existing(path) => Some(path),
             _ => None,
         }
     }
 
-    fn new_config_path(&self) -> Result<Option<&Path>, ConfigEnvError> {
+    /// Returns a path to the user-specific config file.
+    ///
+    /// If no config file is found, tries to guess a reasonable new location for
+    /// it. If a path to a new config file is returned, the parent directory may
+    /// be created as a result of this call.
+    pub fn new_config_path(&self) -> Result<Option<&Path>, ConfigEnvError> {
         match &self.user_config_path {
             ConfigPath::Existing(path) => Ok(Some(path)),
             ConfigPath::New(path) => {
+                // TODO: should we update self.user_config_path to Existing?
                 create_config_file(path)?;
                 Ok(Some(path))
             }
             ConfigPath::Unavailable => Ok(None),
         }
     }
-}
-
-pub fn existing_config_path() -> Result<Option<PathBuf>, ConfigEnvError> {
-    Ok(ConfigEnv::new()?
-        .existing_config_path()
-        .map(ToOwned::to_owned))
-}
-
-/// Returns a path to the user-specific config file.
-///
-/// If no config file is found, tries to guess a reasonable new
-/// location for it. If a path to a new config file is returned, the
-/// parent directory may be created as a result of this call.
-pub fn new_config_path() -> Result<Option<PathBuf>, ConfigEnvError> {
-    Ok(ConfigEnv::new()?.new_config_path()?.map(ToOwned::to_owned))
 }
 
 /// Environment variables that should be overridden by config values
