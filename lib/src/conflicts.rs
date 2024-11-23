@@ -30,6 +30,7 @@ use itertools::Itertools;
 use pollster::FutureExt;
 use regex::bytes::Regex;
 use regex::bytes::RegexBuilder;
+use smallvec::smallvec;
 
 use crate::backend::BackendError;
 use crate::backend::BackendResult;
@@ -45,6 +46,7 @@ use crate::diff::DiffHunk;
 use crate::diff::DiffHunkKind;
 use crate::files;
 use crate::files::MergeResult;
+use crate::merge;
 use crate::merge::Merge;
 use crate::merge::MergeBuilder;
 use crate::merge::MergedTreeValue;
@@ -599,4 +601,19 @@ pub async fn update_from_content(
         Merge::from_vec(new_file_ids)
     };
     Ok(new_file_ids)
+}
+
+pub fn explain_textual_diff_of_merges(
+    left: Merge<BString>,
+    right: Merge<BString>,
+) -> Vec<merge::DiffExplanationAtom<BString>> {
+    merge::explain_diff_of_merges(left, right, |left_content, right_content| {
+        diff_size(&[DiffHunk {
+            kind: DiffHunkKind::Different,
+            contents: smallvec![
+                left_content.as_slice().into(),
+                right_content.as_slice().into(),
+            ],
+        }])
+    })
 }
