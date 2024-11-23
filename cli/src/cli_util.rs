@@ -51,6 +51,7 @@ use clap_complete::ArgValueCandidates;
 use indexmap::IndexMap;
 use indexmap::IndexSet;
 use itertools::Itertools;
+use jj_lib::backend::BackendResult;
 use jj_lib::backend::ChangeId;
 use jj_lib::backend::CommitId;
 use jj_lib::backend::MergedTreeId;
@@ -2467,7 +2468,7 @@ fn update_stale_working_copy(
 
 #[instrument(skip_all)]
 pub fn print_conflicted_paths(
-    conflicts: Vec<(RepoPathBuf, MergedTreeValue)>,
+    conflicts: Vec<(RepoPathBuf, BackendResult<MergedTreeValue>)>,
     formatter: &mut dyn Formatter,
     workspace_command: &WorkspaceCommandHelper,
 ) -> Result<(), CommandError> {
@@ -2481,7 +2482,9 @@ pub fn print_conflicted_paths(
         .map(|p| format!("{:width$}", p, width = max_path_len.min(32) + 3));
 
     for ((_, conflict), formatted_path) in std::iter::zip(conflicts, formatted_paths) {
-        let conflict = conflict.simplify();
+        // TODO: Display the error for the path instead of failing the whole command if
+        // `conflict` is an error?
+        let conflict = conflict?.simplify();
         let sides = conflict.num_sides();
         let n_adds = conflict.adds().flatten().count();
         let deletions = sides - n_adds;

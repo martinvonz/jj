@@ -638,7 +638,10 @@ fn test_conflict_iterator() {
         vec![base1.clone()],
         vec![side1.clone(), side2.clone()],
     ));
-    let conflicts = tree.conflicts().collect_vec();
+    let conflicts = tree
+        .conflicts()
+        .map(|(path, conflict)| (path, conflict.unwrap()))
+        .collect_vec();
     let conflict_at = |path: &RepoPath| {
         Merge::from_removes_adds(
             vec![base1.path_value(path).unwrap()],
@@ -672,7 +675,10 @@ fn test_conflict_iterator() {
 
     // After we resolve conflicts, there are only non-trivial conflicts left
     let tree = tree.resolve().unwrap();
-    let conflicts = tree.conflicts().collect_vec();
+    let conflicts = tree
+        .conflicts()
+        .map(|(path, conflict)| (path, conflict.unwrap()))
+        .collect_vec();
     assert_eq!(
         conflicts,
         vec![
@@ -725,7 +731,10 @@ fn test_conflict_iterator_higher_arity() {
         vec![base1.clone(), base2.clone()],
         vec![side1.clone(), side2.clone(), side3.clone()],
     ));
-    let conflicts = tree.conflicts().collect_vec();
+    let conflicts = tree
+        .conflicts()
+        .map(|(path, conflict)| (path, conflict.unwrap()))
+        .collect_vec();
     let conflict_at = |path: &RepoPath| {
         Merge::from_removes_adds(
             vec![
