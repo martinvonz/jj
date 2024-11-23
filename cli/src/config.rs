@@ -101,58 +101,16 @@ pub struct AnnotatedValue {
     pub is_overridden: bool,
 }
 
-/// Set of configs which can be merged as needed.
-///
-/// Sources from the lowest precedence:
-/// 1. Default
-/// 2. Base environment variables
-/// 3. [User config](https://martinvonz.github.io/jj/latest/config/)
-/// 4. Repo config `.jj/repo/config.toml`
-/// 5. TODO: Workspace config `.jj/config.toml`
-/// 6. Override environment variables
-/// 7. Command-line arguments `--config-toml`
-#[derive(Clone, Debug)]
-pub struct LayeredConfigs {
-    inner: StackedConfig,
-}
-
-impl LayeredConfigs {
-    /// Initializes configs with infallible sources.
-    pub fn from_environment(default: config::Config) -> Self {
-        let inner = config_from_environment(default);
-        LayeredConfigs { inner }
-    }
-
-    pub fn parse_config_args(&mut self, toml_strs: &[String]) -> Result<(), ConfigEnvError> {
-        self.inner.remove_layers(ConfigSource::CommandArg);
-        let layer = parse_config_args(toml_strs)?;
-        self.inner.add_layer(layer);
-        Ok(())
-    }
-
-    /// Creates new merged config.
-    pub fn merge(&self) -> config::Config {
-        self.inner.merge()
-    }
-
-    pub fn sources(&self) -> impl DoubleEndedIterator<Item = (ConfigSource, &config::Config)> {
-        self.inner
-            .layers()
-            .iter()
-            .map(|layer| (layer.source, &layer.data))
-    }
-}
-
 /// Collects values under the given `filter_prefix` name recursively, from all
 /// layers.
 pub fn resolved_config_values(
-    layered_configs: &LayeredConfigs,
+    stacked_config: &StackedConfig,
     filter_prefix: &ConfigNamePathBuf,
 ) -> Result<Vec<AnnotatedValue>, ConfigError> {
     // Collect annotated values from each config.
     let mut config_vals = vec![];
-    for (source, config) in layered_configs.sources() {
-        let Some(top_value) = filter_prefix.lookup_value(config).optional()? else {
+    for layer in stacked_config.layers() {
+        let Some(top_value) = filter_prefix.lookup_value(&layer.data).optional()? else {
             continue;
         };
         let mut config_stack = vec![(filter_prefix.clone(), &top_value)];
@@ -170,7 +128,7 @@ pub fn resolved_config_values(
                     config_vals.push(AnnotatedValue {
                         name,
                         value: value.to_owned(),
-                        source,
+                        source: layer.source,
                         // Note: Value updated below.
                         is_overridden: false,
                     });
@@ -320,13 +278,13 @@ impl ConfigEnv {
     /// Loads user-specific config files into the given `config`. The old
     /// user-config layers will be replaced if any.
     #[instrument]
-    pub fn reload_user_config(&self, config: &mut LayeredConfigs) -> Result<(), ConfigError> {
-        config.inner.remove_layers(ConfigSource::User);
+    pub fn reload_user_config(&self, config: &mut StackedConfig) -> Result<(), ConfigError> {
+        config.remove_layers(ConfigSource::User);
         if let Some(path) = self.existing_user_config_path() {
             if path.is_dir() {
-                config.inner.load_dir(ConfigSource::User, path)?;
+                config.load_dir(ConfigSource::User, path)?;
             } else {
-                config.inner.load_file(ConfigSource::User, path)?;
+                config.load_file(ConfigSource::User, path)?;
             }
         }
         Ok(())
@@ -361,16 +319,27 @@ impl ConfigEnv {
     /// Loads repo-specific config file into the given `config`. The old
     /// repo-config layer will be replaced if any.
     #[instrument]
-    pub fn reload_repo_config(&self, config: &mut LayeredConfigs) -> Result<(), ConfigError> {
-        config.inner.remove_layers(ConfigSource::Repo);
+    pub fn reload_repo_config(&self, config: &mut StackedConfig) -> Result<(), ConfigError> {
+        config.remove_layers(ConfigSource::Repo);
         if let Some(path) = self.existing_repo_config_path() {
-            config.inner.load_file(ConfigSource::Repo, path)?;
+            config.load_file(ConfigSource::Repo, path)?;
         }
         Ok(())
     }
 }
 
 /// Initializes stacked config with the given `default` and infallible sources.
+///
+/// Sources from the lowest precedence:
+/// 1. Default
+/// 2. Base environment variables
+/// 3. [User config](https://martinvonz.github.io/jj/latest/config/)
+/// 4. Repo config `.jj/repo/config.toml`
+/// 5. TODO: Workspace config `.jj/config.toml`
+/// 6. Override environment variables
+/// 7. Command-line arguments `--config-toml`
+///
+/// This function sets up 1, 2, and 6.
 pub fn config_from_environment(default: config::Config) -> StackedConfig {
     let mut config = StackedConfig::empty();
     config.add_layer(ConfigLayer::with_data(ConfigSource::Default, default));
@@ -783,11 +752,9 @@ mod tests {
 
     #[test]
     fn test_resolved_config_values_empty() {
-        let layered_configs = LayeredConfigs {
-            inner: StackedConfig::empty(),
-        };
+        let config = StackedConfig::empty();
         assert_eq!(
-            resolved_config_values(&layered_configs, &ConfigNamePathBuf::root()).unwrap(),
+            resolved_config_values(&config, &ConfigNamePathBuf::root()).unwrap(),
             []
         );
     }
@@ -806,16 +773,15 @@ mod tests {
             .unwrap()
             .build()
             .unwrap();
-        let mut inner = StackedConfig::empty();
-        inner.add_layer(ConfigLayer::with_data(
+        let mut config = StackedConfig::empty();
+        config.add_layer(ConfigLayer::with_data(
             ConfigSource::EnvBase,
             env_base_config,
         ));
-        inner.add_layer(ConfigLayer::with_data(ConfigSource::Repo, repo_config));
-        let layered_configs = LayeredConfigs { inner };
+        config.add_layer(ConfigLayer::with_data(ConfigSource::Repo, repo_config));
         // Note: "email" is alphabetized, before "name" from same layer.
         insta::assert_debug_snapshot!(
-            resolved_config_values(&layered_configs, &ConfigNamePathBuf::root()).unwrap(),
+            resolved_config_values(&config, &ConfigNamePathBuf::root()).unwrap(),
             @r#"
         [
             AnnotatedValue {
@@ -951,16 +917,12 @@ mod tests {
             .unwrap()
             .build()
             .unwrap();
-        let mut inner = StackedConfig::empty();
-        inner.add_layer(ConfigLayer::with_data(ConfigSource::User, user_config));
-        inner.add_layer(ConfigLayer::with_data(ConfigSource::Repo, repo_config));
-        let layered_configs = LayeredConfigs { inner };
+        let mut config = StackedConfig::empty();
+        config.add_layer(ConfigLayer::with_data(ConfigSource::User, user_config));
+        config.add_layer(ConfigLayer::with_data(ConfigSource::Repo, repo_config));
         insta::assert_debug_snapshot!(
-            resolved_config_values(
-                &layered_configs,
-                &ConfigNamePathBuf::from_iter(["test-table1"]),
-            )
-            .unwrap(),
+            resolved_config_values(&config, &ConfigNamePathBuf::from_iter(["test-table1"]))
+                .unwrap(),
             @r#"
         [
             AnnotatedValue {
