@@ -91,7 +91,7 @@ pub(crate) fn cmd_resolve(
     }
     if args.list {
         return print_conflicted_paths(
-            &conflicts,
+            conflicts,
             ui.stdout_formatter().as_mut(),
             &workspace_command,
         );
@@ -129,7 +129,7 @@ pub(crate) fn cmd_resolve(
                     formatter,
                     "After this operation, some files at this revision still have conflicts:"
                 )?;
-                print_conflicted_paths(&new_conflicts, formatter.as_mut(), &workspace_command)?;
+                print_conflicted_paths(new_conflicts, formatter.as_mut(), &workspace_command)?;
             }
         }
     }
