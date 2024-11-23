@@ -73,7 +73,7 @@ pub fn cmd_config_set(
         check_wc_author(ui, command, &value, AuthorChange::Email)?;
     };
 
-    write_config_value_to_file(&args.name, value, &config_path)
+    write_config_value_to_file(&args.name, value, config_path)
 }
 
 /// Returns the commit of the working copy if it exists.

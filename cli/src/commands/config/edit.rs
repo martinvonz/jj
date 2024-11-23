@@ -38,5 +38,5 @@ pub fn cmd_config_edit(
     args: &ConfigEditArgs,
 ) -> Result<(), CommandError> {
     let config_path = get_new_config_file_path(args.level.expect_source_kind(), command)?;
-    run_ui_editor(command.settings(), &config_path)
+    run_ui_editor(command.settings(), config_path)
 }

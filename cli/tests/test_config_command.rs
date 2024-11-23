@@ -797,9 +797,7 @@ fn test_config_path() {
 fn test_config_edit_repo_outside_repo() {
     let test_env = TestEnvironment::default();
     let stderr = test_env.jj_cmd_failure(test_env.env_root(), &["config", "edit", "--repo"]);
-    insta::assert_snapshot!(stderr, @r###"
-    Error: There is no jj repo in "."
-    "###);
+    insta::assert_snapshot!(stderr, @"Error: No repo config path found to edit");
 }
 
 #[test]
