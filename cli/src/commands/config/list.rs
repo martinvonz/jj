@@ -44,7 +44,7 @@ pub struct ConfigListArgs {
     pub include_overridden: bool,
     #[command(flatten)]
     pub level: ConfigLevelArgs,
-    // TODO(#1047): Support --show-origin using LayeredConfigs.
+    // TODO(#1047): Support --show-origin using StackedConfig.
     /// Render each variable using the given template
     ///
     /// The following keywords are defined:
@@ -79,7 +79,7 @@ pub fn cmd_config_list(
     let mut formatter = ui.stdout_formatter();
     let name_path = args.name.clone().unwrap_or_else(ConfigNamePathBuf::root);
     let mut wrote_values = false;
-    for annotated in resolved_config_values(command.layered_configs(), &name_path)? {
+    for annotated in resolved_config_values(command.stacked_config(), &name_path)? {
         // Remove overridden values.
         if annotated.is_overridden && !args.include_overridden {
             continue;

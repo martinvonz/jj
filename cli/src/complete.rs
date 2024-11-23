@@ -26,9 +26,9 @@ use crate::cli_util::find_workspace_dir;
 use crate::cli_util::GlobalArgs;
 use crate::command_error::user_error;
 use crate::command_error::CommandError;
+use crate::config::config_from_environment;
 use crate::config::default_config;
 use crate::config::ConfigEnv;
-use crate::config::LayeredConfigs;
 use crate::config::CONFIG_SCHEMA;
 use crate::ui::Ui;
 
@@ -488,19 +488,19 @@ fn get_jj_command() -> Result<(JjBuilder, Config), CommandError> {
         .add_source(default_config())
         .build()
         .expect("default config should be valid");
-    let mut layered_configs = LayeredConfigs::from_environment(config);
-    let ui = Ui::with_config(&layered_configs.merge()).expect("default config should be valid");
+    let mut stacked_config = config_from_environment(config);
+    let ui = Ui::with_config(&stacked_config.merge()).expect("default config should be valid");
     let cwd = std::env::current_dir()
         .and_then(|cwd| cwd.canonicalize())
         .map_err(user_error)?;
     let mut config_env = ConfigEnv::from_environment()?;
     let maybe_cwd_workspace_loader = DefaultWorkspaceLoaderFactory.create(find_workspace_dir(&cwd));
-    let _ = config_env.reload_user_config(&mut layered_configs);
+    let _ = config_env.reload_user_config(&mut stacked_config);
     if let Ok(loader) = &maybe_cwd_workspace_loader {
         config_env.reset_repo_path(loader.repo_path());
-        let _ = config_env.reload_repo_config(&mut layered_configs);
+        let _ = config_env.reload_repo_config(&mut stacked_config);
     }
-    let mut config = layered_configs.merge();
+    let mut config = stacked_config.merge();
     // skip 2 because of the clap_complete prelude: jj -- jj <actual args...>
     let args = std::env::args_os().skip(2);
     let args = expand_args(&ui, &app, args, &config)?;
@@ -516,8 +516,8 @@ fn get_jj_command() -> Result<(JjBuilder, Config), CommandError> {
         // Try to update repo-specific config on a best-effort basis.
         if let Ok(loader) = DefaultWorkspaceLoaderFactory.create(&cwd.join(&repository)) {
             config_env.reset_repo_path(loader.repo_path());
-            let _ = config_env.reload_repo_config(&mut layered_configs);
-            config = layered_configs.merge();
+            let _ = config_env.reload_repo_config(&mut stacked_config);
+            config = stacked_config.merge();
         }
         cmd_args.push("--repository".into());
         cmd_args.push(repository);

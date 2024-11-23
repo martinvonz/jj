@@ -22,6 +22,7 @@ use itertools::Itertools as _;
 use jj_lib::backend::CommitId;
 use jj_lib::commit::Commit;
 use jj_lib::config::ConfigSource;
+use jj_lib::config::StackedConfig;
 use jj_lib::id_prefix::IdPrefixContext;
 use jj_lib::repo::Repo;
 use jj_lib::revset;
@@ -44,7 +45,6 @@ use thiserror::Error;
 
 use crate::command_error::user_error;
 use crate::command_error::CommandError;
-use crate::config::LayeredConfigs;
 use crate::formatter::Formatter;
 use crate::templater::TemplateRenderer;
 use crate::ui::Ui;
@@ -164,20 +164,20 @@ fn warn_user_redefined_builtin(
 
 pub fn load_revset_aliases(
     ui: &Ui,
-    layered_configs: &LayeredConfigs,
+    stacked_config: &StackedConfig,
 ) -> Result<RevsetAliasesMap, CommandError> {
     const TABLE_KEY: &str = "revset-aliases";
     let mut aliases_map = RevsetAliasesMap::new();
     // Load from all config layers in order. 'f(x)' in default layer should be
     // overridden by 'f(a)' in user.
-    for (source, config) in layered_configs.sources() {
-        let table = if let Some(table) = config.get_table(TABLE_KEY).optional()? {
+    for layer in stacked_config.layers() {
+        let table = if let Some(table) = layer.data.get_table(TABLE_KEY).optional()? {
             table
         } else {
             continue;
         };
         for (decl, value) in table.into_iter().sorted_by(|a, b| a.0.cmp(&b.0)) {
-            warn_user_redefined_builtin(ui, source, &decl)?;
+            warn_user_redefined_builtin(ui, layer.source, &decl)?;
 
             let r = value
                 .into_string()

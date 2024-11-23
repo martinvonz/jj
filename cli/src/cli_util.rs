@@ -59,6 +59,7 @@ use jj_lib::backend::TreeValue;
 use jj_lib::commit::Commit;
 use jj_lib::config::ConfigError;
 use jj_lib::config::ConfigSource;
+use jj_lib::config::StackedConfig;
 use jj_lib::conflicts::ConflictMarkerStyle;
 use jj_lib::file_util;
 use jj_lib::fileset;
@@ -147,9 +148,10 @@ use crate::command_error::CommandError;
 use crate::commit_templater::CommitTemplateLanguage;
 use crate::commit_templater::CommitTemplateLanguageExtension;
 use crate::complete;
+use crate::config::config_from_environment;
+use crate::config::parse_config_args;
 use crate::config::CommandNameAndArgs;
 use crate::config::ConfigEnv;
-use crate::config::LayeredConfigs;
 use crate::diff_util;
 use crate::diff_util::DiffFormat;
 use crate::diff_util::DiffFormatArgs;
@@ -279,7 +281,7 @@ struct CommandHelperData {
     global_args: GlobalArgs,
     config_env: ConfigEnv,
     settings: UserSettings,
-    layered_configs: LayeredConfigs,
+    stacked_config: StackedConfig,
     revset_extensions: Arc<RevsetExtensions>,
     commit_template_extensions: Vec<Arc<dyn CommitTemplateLanguageExtension>>,
     operation_template_extensions: Vec<Arc<dyn OperationTemplateLanguageExtension>>,
@@ -322,8 +324,8 @@ impl CommandHelper {
     }
 
     // TODO: will be moved to UserSettings
-    pub fn layered_configs(&self) -> &LayeredConfigs {
-        &self.data.layered_configs
+    pub fn stacked_config(&self) -> &StackedConfig {
+        &self.data.stacked_config
     }
 
     pub fn revset_extensions(&self) -> &Arc<RevsetExtensions> {
@@ -335,7 +337,7 @@ impl CommandHelper {
     /// For most commands that depend on a loaded repo, you should use
     /// `WorkspaceCommandHelper::template_aliases_map()` instead.
     fn load_template_aliases(&self, ui: &Ui) -> Result<TemplateAliasesMap, CommandError> {
-        load_template_aliases(ui, &self.data.layered_configs)
+        load_template_aliases(ui, &self.data.stacked_config)
     }
 
     /// Parses template of the given language into evaluation tree.
@@ -722,7 +724,7 @@ impl WorkspaceCommandEnvironment {
     #[instrument(skip_all)]
     fn new(ui: &Ui, command: &CommandHelper, workspace: &Workspace) -> Result<Self, CommandError> {
         let revset_aliases_map =
-            revset_util::load_revset_aliases(ui, &command.data.layered_configs)?;
+            revset_util::load_revset_aliases(ui, &command.data.stacked_config)?;
         let template_aliases_map = command.load_template_aliases(ui)?;
         let path_converter = RepoPathUiConverter::Fs {
             cwd: command.cwd().to_owned(),
@@ -2689,14 +2691,14 @@ pub fn update_working_copy(
 
 fn load_template_aliases(
     ui: &Ui,
-    layered_configs: &LayeredConfigs,
+    stacked_config: &StackedConfig,
 ) -> Result<TemplateAliasesMap, CommandError> {
     const TABLE_KEY: &str = "template-aliases";
     let mut aliases_map = TemplateAliasesMap::new();
     // Load from all config layers in order. 'f(x)' in default layer should be
     // overridden by 'f(a)' in user.
-    for (_, config) in layered_configs.sources() {
-        let table = if let Some(table) = config.get_table(TABLE_KEY).optional()? {
+    for layer in stacked_config.layers() {
+        let table = if let Some(table) = layer.data.get_table(TABLE_KEY).optional()? {
             table
         } else {
             continue;
@@ -3239,7 +3241,7 @@ fn handle_early_args(
     ui: &mut Ui,
     app: &Command,
     args: &[String],
-    layered_configs: &mut LayeredConfigs,
+    config: &mut StackedConfig,
 ) -> Result<(), CommandError> {
     // ignore_errors() bypasses errors like missing subcommand
     let early_matches = app
@@ -3269,8 +3271,8 @@ fn handle_early_args(
         args.config_toml.push(r#"ui.paginate="never""#.to_owned());
     }
     if !args.config_toml.is_empty() {
-        layered_configs.parse_config_args(&args.config_toml)?;
-        ui.reset(&layered_configs.merge())?;
+        config.add_layer(parse_config_args(&args.config_toml)?);
+        ui.reset(&config.merge())?;
     }
     Ok(())
 }
@@ -3346,9 +3348,9 @@ pub fn parse_args(
     app: &Command,
     tracing_subscription: &TracingSubscription,
     string_args: &[String],
-    layered_configs: &mut LayeredConfigs,
+    config: &mut StackedConfig,
 ) -> Result<(ArgMatches, Args), CommandError> {
-    handle_early_args(ui, app, string_args, layered_configs)?;
+    handle_early_args(ui, app, string_args, config)?;
     let matches = app
         .clone()
         .arg_required_else_help(true)
@@ -3542,7 +3544,7 @@ impl CliRunner {
     fn run_internal(
         self,
         ui: &mut Ui,
-        mut layered_configs: LayeredConfigs,
+        mut stacked_config: StackedConfig,
     ) -> Result<(), CommandError> {
         // `cwd` is canonicalized for consistency with `Workspace::workspace_root()` and
         // to easily compute relative paths between them.
@@ -3562,12 +3564,12 @@ impl CliRunner {
             .workspace_loader_factory
             .create(find_workspace_dir(&cwd))
             .map_err(|err| map_workspace_load_error(err, None));
-        config_env.reload_user_config(&mut layered_configs)?;
+        config_env.reload_user_config(&mut stacked_config)?;
         if let Ok(loader) = &maybe_cwd_workspace_loader {
             config_env.reset_repo_path(loader.repo_path());
-            config_env.reload_repo_config(&mut layered_configs)?;
+            config_env.reload_repo_config(&mut stacked_config)?;
         }
-        let config = layered_configs.merge();
+        let config = stacked_config.merge();
         ui.reset(&config).map_err(|e| {
             let user_config_path = config_env.existing_user_config_path();
             let repo_config_path = config_env.existing_repo_config_path();
@@ -3589,9 +3591,9 @@ impl CliRunner {
             &self.app,
             &self.tracing_subscription,
             &string_args,
-            &mut layered_configs,
+            &mut stacked_config,
         )
-        .map_err(|err| map_clap_cli_error(err, ui, &layered_configs))?;
+        .map_err(|err| map_clap_cli_error(err, ui, &stacked_config))?;
         for process_global_args_fn in self.process_global_args_fns {
             process_global_args_fn(ui, &matches)?;
         }
@@ -3603,14 +3605,14 @@ impl CliRunner {
                 .create(&cwd.join(path))
                 .map_err(|err| map_workspace_load_error(err, Some(path)))?;
             config_env.reset_repo_path(loader.repo_path());
-            config_env.reload_repo_config(&mut layered_configs)?;
+            config_env.reload_repo_config(&mut stacked_config)?;
             Ok(loader)
         } else {
             maybe_cwd_workspace_loader
         };
 
         // Apply workspace configs and --config-toml arguments.
-        let config = layered_configs.merge();
+        let config = stacked_config.merge();
         ui.reset(&config)?;
 
         // If -R is specified, check if the expanded arguments differ. Aliases
@@ -3634,7 +3636,7 @@ impl CliRunner {
             global_args: args.global_args,
             config_env,
             settings,
-            layered_configs,
+            stacked_config,
             revset_extensions: self.revset_extensions.into(),
             commit_template_extensions: self.commit_template_extensions,
             operation_template_extensions: self.operation_template_extensions,
@@ -3661,21 +3663,17 @@ impl CliRunner {
             .fold(builder, |builder, config| builder.add_source(config))
             .build()
             .unwrap();
-        let layered_configs = LayeredConfigs::from_environment(config);
-        let mut ui = Ui::with_config(&layered_configs.merge())
+        let stacked_config = config_from_environment(config);
+        let mut ui = Ui::with_config(&stacked_config.merge())
             .expect("default config should be valid, env vars are stringly typed");
-        let result = self.run_internal(&mut ui, layered_configs);
+        let result = self.run_internal(&mut ui, stacked_config);
         let exit_code = handle_command_result(&mut ui, result);
         ui.finalize_pager();
         exit_code
     }
 }
 
-fn map_clap_cli_error(
-    mut cmd_err: CommandError,
-    ui: &Ui,
-    layered_configs: &LayeredConfigs,
-) -> CommandError {
+fn map_clap_cli_error(mut cmd_err: CommandError, ui: &Ui, config: &StackedConfig) -> CommandError {
     let Some(err) = cmd_err.error.downcast_ref::<clap::Error>() else {
         return cmd_err;
     };
@@ -3685,7 +3683,7 @@ fn map_clap_cli_error(
     ) {
         if arg.as_str() == "--template <TEMPLATE>" && value.is_empty() {
             // Suppress the error, it's less important than the original error.
-            if let Ok(template_aliases) = load_template_aliases(ui, layered_configs) {
+            if let Ok(template_aliases) = load_template_aliases(ui, config) {
                 cmd_err.add_hint(format_template_aliases_hint(&template_aliases));
             }
         }
