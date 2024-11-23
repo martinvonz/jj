@@ -78,7 +78,10 @@ pub fn cmd_config_list(
     let mut formatter = ui.stdout_formatter();
     let name_path = args.name.clone().unwrap_or_else(ConfigNamePathBuf::root);
     let mut wrote_values = false;
-    for annotated in command.resolved_config_values(&name_path)? {
+    for annotated in command
+        .layered_configs()
+        .resolved_config_values(&name_path)?
+    {
         // Remove overridden values.
         if annotated.is_overridden && !args.include_overridden {
             continue;
