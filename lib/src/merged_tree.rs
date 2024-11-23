@@ -182,7 +182,7 @@ impl MergedTree {
     /// all sides are trees, so tree/file conflicts will be reported as a single
     /// conflict, not one for each path in the tree.
     // TODO: Restrict this by a matcher (or add a separate method for that).
-    pub fn conflicts(&self) -> impl Iterator<Item = (RepoPathBuf, MergedTreeValue)> {
+    pub fn conflicts(&self) -> impl Iterator<Item = (RepoPathBuf, BackendResult<MergedTreeValue>)> {
         ConflictIterator::new(self)
     }
 
@@ -651,20 +651,25 @@ impl ConflictIterator {
 }
 
 impl Iterator for ConflictIterator {
-    type Item = (RepoPathBuf, MergedTreeValue);
+    type Item = (RepoPathBuf, BackendResult<MergedTreeValue>);
 
     fn next(&mut self) -> Option<Self::Item> {
         while let Some(top) = self.stack.last_mut() {
             if let Some((path, tree_values)) = top.entries.pop() {
-                // TODO: propagate errors
-                if let Some(trees) = tree_values.to_tree_merge(&self.store, &path).unwrap() {
-                    // If all sides are trees or missing, descend into the merged tree
-                    self.stack.push(ConflictsDirItem::from(&trees));
-                } else {
-                    // Otherwise this is a conflict between files, trees, etc. If they could
-                    // be automatically resolved, they should have been when the top-level
-                    // tree conflict was written, so we assume that they can't be.
-                    return Some((path, tree_values));
+                match tree_values.to_tree_merge(&self.store, &path) {
+                    Ok(Some(trees)) => {
+                        // If all sides are trees or missing, descend into the merged tree
+                        self.stack.push(ConflictsDirItem::from(&trees));
+                    }
+                    Ok(None) => {
+                        // Otherwise this is a conflict between files, trees, etc. If they could
+                        // be automatically resolved, they should have been when the top-level
+                        // tree conflict was written, so we assume that they can't be.
+                        return Some((path, Ok(tree_values)));
+                    }
+                    Err(err) => {
+                        return Some((path, Err(err)));
+                    }
                 }
             } else {
                 self.stack.pop();
