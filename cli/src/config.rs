@@ -119,26 +119,14 @@ pub struct LayeredConfigs {
 impl LayeredConfigs {
     /// Initializes configs with infallible sources.
     pub fn from_environment(default: config::Config) -> Self {
-        let mut inner = StackedConfig::empty();
-        inner.add_layer(ConfigLayer::with_data(ConfigSource::Default, default));
-        inner.add_layer(ConfigLayer::with_data(ConfigSource::EnvBase, env_base()));
-        inner.add_layer(ConfigLayer::with_data(
-            ConfigSource::EnvOverrides,
-            env_overrides(),
-        ));
+        let inner = config_from_environment(default);
         LayeredConfigs { inner }
     }
 
     pub fn parse_config_args(&mut self, toml_strs: &[String]) -> Result<(), ConfigEnvError> {
         self.inner.remove_layers(ConfigSource::CommandArg);
-        let config = toml_strs
-            .iter()
-            .fold(config::Config::builder(), |builder, s| {
-                builder.add_source(config::File::from_str(s, config::FileFormat::Toml))
-            })
-            .build()?;
-        self.inner
-            .add_layer(ConfigLayer::with_data(ConfigSource::CommandArg, config));
+        let layer = parse_config_args(toml_strs)?;
+        self.inner.add_layer(layer);
         Ok(())
     }
 
@@ -382,6 +370,18 @@ impl ConfigEnv {
     }
 }
 
+/// Initializes stacked config with the given `default` and infallible sources.
+pub fn config_from_environment(default: config::Config) -> StackedConfig {
+    let mut config = StackedConfig::empty();
+    config.add_layer(ConfigLayer::with_data(ConfigSource::Default, default));
+    config.add_layer(ConfigLayer::with_data(ConfigSource::EnvBase, env_base()));
+    config.add_layer(ConfigLayer::with_data(
+        ConfigSource::EnvOverrides,
+        env_overrides(),
+    ));
+    config
+}
+
 /// Environment variables that should be overridden by config values
 fn env_base() -> config::Config {
     let mut builder = config::Config::builder();
@@ -459,6 +459,17 @@ fn env_overrides() -> config::Config {
         builder = builder.set_override("ui.editor", value).unwrap();
     }
     builder.build().unwrap()
+}
+
+/// Parses `--config-toml` arguments.
+pub fn parse_config_args(toml_strs: &[String]) -> Result<ConfigLayer, ConfigError> {
+    let config = toml_strs
+        .iter()
+        .fold(config::Config::builder(), |builder, s| {
+            builder.add_source(config::File::from_str(s, config::FileFormat::Toml))
+        })
+        .build()?;
+    Ok(ConfigLayer::with_data(ConfigSource::CommandArg, config))
 }
 
 fn read_config(path: &Path) -> Result<toml_edit::ImDocument<String>, CommandError> {
