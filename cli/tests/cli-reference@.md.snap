@@ -1174,7 +1174,7 @@ Before the command actually moves, creates, or deletes a remote bookmark, it mak
 * `--deleted` — Push all deleted bookmarks
 
    Only tracked bookmarks can be successfully deleted on the remote. A warning will be printed if any untracked bookmarks on the remote correspond to missing local bookmarks.
-* `--allow-new` — Allow pushing new bookmarks
+* `-N`, `--allow-new` — Allow pushing new bookmarks
 
    Newly-created remote bookmarks will be tracked automatically.
 * `--allow-empty-description` — Allow pushing commits with empty descriptions
