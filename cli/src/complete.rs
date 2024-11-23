@@ -495,10 +495,10 @@ fn get_jj_command() -> Result<(JjBuilder, Config), CommandError> {
         .map_err(user_error)?;
     let mut config_env = ConfigEnv::from_environment()?;
     let maybe_cwd_workspace_loader = DefaultWorkspaceLoaderFactory.create(find_workspace_dir(&cwd));
-    let _ = layered_configs.read_user_config(&config_env);
+    let _ = config_env.reload_user_config(&mut layered_configs);
     if let Ok(loader) = &maybe_cwd_workspace_loader {
         config_env.reset_repo_path(loader.repo_path());
-        let _ = layered_configs.read_repo_config(&config_env);
+        let _ = config_env.reload_repo_config(&mut layered_configs);
     }
     let mut config = layered_configs.merge();
     // skip 2 because of the clap_complete prelude: jj -- jj <actual args...>
@@ -516,7 +516,7 @@ fn get_jj_command() -> Result<(JjBuilder, Config), CommandError> {
         // Try to update repo-specific config on a best-effort basis.
         if let Ok(loader) = DefaultWorkspaceLoaderFactory.create(&cwd.join(&repository)) {
             config_env.reset_repo_path(loader.repo_path());
-            let _ = layered_configs.read_repo_config(&config_env);
+            let _ = config_env.reload_repo_config(&mut layered_configs);
             config = layered_configs.merge();
         }
         cmd_args.push("--repository".into());
