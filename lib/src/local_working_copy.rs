@@ -897,7 +897,7 @@ impl TreeState {
     }
 
     /// Look for changes to the working copy. If there are any changes, create
-    /// a new tree from it and return it, and also update the dirstate on disk.
+    /// a new tree from it.
     #[instrument(skip_all)]
     pub fn snapshot(&mut self, options: &SnapshotOptions) -> Result<bool, SnapshotError> {
         let SnapshotOptions {
