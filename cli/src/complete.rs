@@ -27,6 +27,7 @@ use crate::cli_util::GlobalArgs;
 use crate::command_error::user_error;
 use crate::command_error::CommandError;
 use crate::config::default_config;
+use crate::config::ConfigEnv;
 use crate::config::LayeredConfigs;
 use crate::config::CONFIG_SCHEMA;
 use crate::ui::Ui;
@@ -401,8 +402,9 @@ fn get_jj_command() -> Result<(std::process::Command, Config), CommandError> {
     let cwd = std::env::current_dir()
         .and_then(|cwd| cwd.canonicalize())
         .map_err(user_error)?;
+    let config_env = ConfigEnv::new()?;
     let maybe_cwd_workspace_loader = DefaultWorkspaceLoaderFactory.create(find_workspace_dir(&cwd));
-    let _ = layered_configs.read_user_config();
+    let _ = layered_configs.read_user_config(&config_env);
     if let Ok(loader) = &maybe_cwd_workspace_loader {
         let _ = layered_configs.read_repo_config(loader.repo_path());
     }

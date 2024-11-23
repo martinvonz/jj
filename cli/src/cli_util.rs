@@ -147,8 +147,8 @@ use crate::command_error::CommandError;
 use crate::commit_templater::CommitTemplateLanguage;
 use crate::commit_templater::CommitTemplateLanguageExtension;
 use crate::complete;
-use crate::config::new_config_path;
 use crate::config::CommandNameAndArgs;
+use crate::config::ConfigEnv;
 use crate::config::LayeredConfigs;
 use crate::diff_util;
 use crate::diff_util::DiffFormat;
@@ -277,6 +277,7 @@ struct CommandHelperData {
     string_args: Vec<String>,
     matches: ArgMatches,
     global_args: GlobalArgs,
+    config_env: ConfigEnv,
     settings: UserSettings,
     layered_configs: LayeredConfigs,
     revset_extensions: Arc<RevsetExtensions>,
@@ -310,6 +311,10 @@ impl CommandHelper {
 
     pub fn global_args(&self) -> &GlobalArgs {
         &self.data.global_args
+    }
+
+    pub fn config_env(&self) -> &ConfigEnv {
+        &self.data.config_env
     }
 
     pub fn settings(&self) -> &UserSettings {
@@ -2765,9 +2770,11 @@ pub fn get_new_config_file_path(
 ) -> Result<PathBuf, CommandError> {
     let edit_path = match config_source {
         // TODO(#531): Special-case for editors that can't handle viewing directories?
-        ConfigSource::User => {
-            new_config_path()?.ok_or_else(|| user_error("No repo config path found to edit"))?
-        }
+        ConfigSource::User => command
+            .config_env()
+            .new_config_path()?
+            .ok_or_else(|| user_error("No repo config path found to edit"))?
+            .to_owned(),
         ConfigSource::Repo => command.workspace_loader()?.repo_path().join("config.toml"),
         _ => {
             return Err(user_error(format!(
@@ -3546,6 +3553,7 @@ impl CliRunner {
                     "Did you update to a commit where the directory doesn't exist?",
                 )
             })?;
+        let config_env = ConfigEnv::new()?;
         // Use cwd-relative workspace configs to resolve default command and
         // aliases. WorkspaceLoader::init() won't do any heavy lifting other
         // than the path resolution.
@@ -3553,7 +3561,7 @@ impl CliRunner {
             .workspace_loader_factory
             .create(find_workspace_dir(&cwd))
             .map_err(|err| map_workspace_load_error(err, None));
-        layered_configs.read_user_config()?;
+        layered_configs.read_user_config(&config_env)?;
         let mut repo_config_path = None;
         if let Ok(loader) = &maybe_cwd_workspace_loader {
             layered_configs.read_repo_config(loader.repo_path())?;
@@ -3561,8 +3569,8 @@ impl CliRunner {
         }
         let config = layered_configs.merge();
         ui.reset(&config).map_err(|e| {
-            let user_config_path = layered_configs.user_config_path().unwrap_or(None);
-            let paths = [repo_config_path, user_config_path]
+            let user_config_path = config_env.existing_config_path();
+            let paths = [repo_config_path.as_deref(), user_config_path]
                 .into_iter()
                 .flatten()
                 .map(|path| format!("- {}", path.display()))
@@ -3622,6 +3630,7 @@ impl CliRunner {
             string_args,
             matches,
             global_args: args.global_args,
+            config_env,
             settings,
             layered_configs,
             revset_extensions: self.revset_extensions.into(),
