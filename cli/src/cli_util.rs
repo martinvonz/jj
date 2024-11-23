@@ -2767,15 +2767,16 @@ impl LogContentFormat {
 pub fn get_new_config_file_path(
     config_source: ConfigSource,
     command: &CommandHelper,
-) -> Result<PathBuf, CommandError> {
+) -> Result<&Path, CommandError> {
+    let config_env = command.config_env();
     let edit_path = match config_source {
         // TODO(#531): Special-case for editors that can't handle viewing directories?
-        ConfigSource::User => command
-            .config_env()
+        ConfigSource::User => config_env
             .new_user_config_path()?
-            .ok_or_else(|| user_error("No user config path found to edit"))?
-            .to_owned(),
-        ConfigSource::Repo => command.workspace_loader()?.repo_path().join("config.toml"),
+            .ok_or_else(|| user_error("No user config path found to edit"))?,
+        ConfigSource::Repo => config_env
+            .new_repo_config_path()
+            .ok_or_else(|| user_error("No repo config path found to edit"))?,
         _ => {
             return Err(user_error(format!(
                 "Can't get path for config source {config_source:?}"
@@ -3553,7 +3554,7 @@ impl CliRunner {
                     "Did you update to a commit where the directory doesn't exist?",
                 )
             })?;
-        let config_env = ConfigEnv::from_environment()?;
+        let mut config_env = ConfigEnv::from_environment()?;
         // Use cwd-relative workspace configs to resolve default command and
         // aliases. WorkspaceLoader::init() won't do any heavy lifting other
         // than the path resolution.
@@ -3562,15 +3563,15 @@ impl CliRunner {
             .create(find_workspace_dir(&cwd))
             .map_err(|err| map_workspace_load_error(err, None));
         layered_configs.read_user_config(&config_env)?;
-        let mut repo_config_path = None;
         if let Ok(loader) = &maybe_cwd_workspace_loader {
-            layered_configs.read_repo_config(loader.repo_path())?;
-            repo_config_path = Some(layered_configs.repo_config_path(loader.repo_path()));
+            config_env.reset_repo_path(loader.repo_path());
+            layered_configs.read_repo_config(&config_env)?;
         }
         let config = layered_configs.merge();
         ui.reset(&config).map_err(|e| {
             let user_config_path = config_env.existing_user_config_path();
-            let paths = [repo_config_path.as_deref(), user_config_path]
+            let repo_config_path = config_env.existing_repo_config_path();
+            let paths = [repo_config_path, user_config_path]
                 .into_iter()
                 .flatten()
                 .map(|path| format!("- {}", path.display()))
@@ -3601,7 +3602,8 @@ impl CliRunner {
                 .workspace_loader_factory
                 .create(&cwd.join(path))
                 .map_err(|err| map_workspace_load_error(err, Some(path)))?;
-            layered_configs.read_repo_config(loader.repo_path())?;
+            config_env.reset_repo_path(loader.repo_path());
+            layered_configs.read_repo_config(&config_env)?;
             Ok(loader)
         } else {
             maybe_cwd_workspace_loader

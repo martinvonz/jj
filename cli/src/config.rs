@@ -143,17 +143,12 @@ impl LayeredConfigs {
     }
 
     #[instrument]
-    pub fn read_repo_config(&mut self, repo_path: &Path) -> Result<(), ConfigEnvError> {
+    pub fn read_repo_config(&mut self, env: &ConfigEnv) -> Result<(), ConfigError> {
         self.inner.remove_layers(ConfigSource::Repo);
-        let path = self.repo_config_path(repo_path);
-        if path.exists() {
+        if let Some(path) = env.existing_repo_config_path() {
             self.inner.load_file(ConfigSource::Repo, path)?;
         }
         Ok(())
-    }
-
-    pub fn repo_config_path(&self, repo_path: &Path) -> PathBuf {
-        repo_path.join("config.toml")
     }
 
     pub fn parse_config_args(&mut self, toml_strs: &[String]) -> Result<(), ConfigEnvError> {
@@ -314,6 +309,7 @@ impl UnresolvedConfigEnv {
 #[derive(Clone, Debug)]
 pub struct ConfigEnv {
     user_config_path: ConfigPath,
+    repo_config_path: ConfigPath,
 }
 
 impl ConfigEnv {
@@ -326,6 +322,7 @@ impl ConfigEnv {
         };
         Ok(ConfigEnv {
             user_config_path: env.resolve()?,
+            repo_config_path: ConfigPath::Unavailable,
         })
     }
 
@@ -351,6 +348,32 @@ impl ConfigEnv {
                 Ok(Some(path))
             }
             ConfigPath::Unavailable => Ok(None),
+        }
+    }
+
+    /// Sets the directory where repo-specific config file is stored. The path
+    /// is usually `.jj/repo`.
+    pub fn reset_repo_path(&mut self, path: &Path) {
+        self.repo_config_path = ConfigPath::new(Some(path.join("config.toml")));
+    }
+
+    /// Returns a path to the existing repo-specific config file.
+    pub fn existing_repo_config_path(&self) -> Option<&Path> {
+        match &self.repo_config_path {
+            ConfigPath::Existing(path) => Some(path),
+            _ => None,
+        }
+    }
+
+    /// Returns a path to the repo-specific config file.
+    pub fn new_repo_config_path(&self) -> Option<&Path> {
+        match &self.repo_config_path {
+            ConfigPath::Existing(path) => Some(path),
+            ConfigPath::New(path) => {
+                // TODO: should we create new file?
+                Some(path)
+            }
+            ConfigPath::Unavailable => None,
         }
     }
 }
@@ -1185,6 +1208,7 @@ mod tests {
             };
             Ok(ConfigEnv {
                 user_config_path: env.resolve()?,
+                repo_config_path: ConfigPath::Unavailable,
             })
         }
 

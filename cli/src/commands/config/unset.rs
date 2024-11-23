@@ -48,5 +48,5 @@ pub fn cmd_config_unset(
         )));
     }
 
-    remove_config_value_from_file(&args.name, &config_path)
+    remove_config_value_from_file(&args.name, config_path)
 }
