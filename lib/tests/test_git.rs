@@ -2280,7 +2280,7 @@ fn test_fetch_empty_repo() {
 }
 
 #[test]
-fn test_fetch_initial_commit() {
+fn test_fetch_initial_commit_head_is_not_set() {
     let test_data = GitRepoData::create();
     let git_settings = GitSettings {
         auto_local_bookmark: true,
@@ -2328,6 +2328,41 @@ fn test_fetch_initial_commit() {
             },
         }
     );
+}
+
+#[test]
+fn test_fetch_initial_commit_head_is_set() {
+    let test_data = GitRepoData::create();
+    let git_settings = GitSettings {
+        auto_local_bookmark: true,
+        ..Default::default()
+    };
+    let initial_git_commit = empty_git_commit(&test_data.origin_repo, "refs/heads/main", &[]);
+    test_data.origin_repo.set_head("refs/heads/main").unwrap();
+    let new_git_commit = empty_git_commit(
+        &test_data.origin_repo,
+        "refs/heads/main",
+        &[&initial_git_commit],
+    );
+    test_data
+        .origin_repo
+        .reference("refs/tags/v1.0", new_git_commit.id(), false, "")
+        .unwrap();
+
+    let mut tx = test_data.repo.start_transaction(&test_data.settings);
+    let stats = git::fetch(
+        tx.repo_mut(),
+        &test_data.git_repo,
+        "origin",
+        &[StringPattern::everything()],
+        git::RemoteCallbacks::default(),
+        &git_settings,
+        None,
+    )
+    .unwrap();
+
+    assert_eq!(stats.default_branch, Some("main".to_string()));
+    assert!(stats.import_stats.abandoned_commits.is_empty());
 }
 
 #[test]
