@@ -829,6 +829,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#conflict-marker-style" class="md-nav__link">
+    <span class="md-ellipsis">
+      Conflict marker style
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#set-of-immutable-commits" class="md-nav__link">
     <span class="md-ellipsis">
       Set of immutable commits
@@ -2088,6 +2097,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#conflict-marker-style" class="md-nav__link">
+    <span class="md-ellipsis">
+      Conflict marker style
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#set-of-immutable-commits" class="md-nav__link">
     <span class="md-ellipsis">
       Set of immutable commits
@@ -2776,6 +2794,19 @@ invocations as follows:</p>
 <span class="k">[merge-tools.vimdiff]</span>
 <span class="n">diff-invocation-mode</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;file-by-file&quot;</span>
 </code></pre></div>
+<h3 id="conflict-marker-style">Conflict marker style<a class="headerlink" href="#conflict-marker-style" title="Permanent link">&para;</a></h3>
+<p>You can configure which style of conflict markers to use when materializing
+conflicts:</p>
+<div class="highlight"><pre><span></span><code><span class="k">[ui]</span>
+<span class="c1"># Shows a single snapshot and one or more diffs to apply to it</span>
+<span class="n">conflict-marker-style</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;diff&quot;</span>
+<span class="c1"># Shows a snapshot for each side and base of the conflict</span>
+<span class="n">conflict-marker-style</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;snapshot&quot;</span>
+<span class="c1"># Uses Git&#39;s &quot;diff3&quot; conflict markers to support tools that depend on it</span>
+<span class="n">conflict-marker-style</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;git&quot;</span>
+</code></pre></div>
+<p>For more details about these conflict marker styles, see the <a href="../conflicts/#conflict-markers">conflicts
+page</a>.</p>
 <h3 id="set-of-immutable-commits">Set of immutable commits<a class="headerlink" href="#set-of-immutable-commits" title="Permanent link">&para;</a></h3>
 <p>You can configure the set of immutable commits via
 <code>revset-aliases."immutable_heads()"</code>. The default set of immutable heads is

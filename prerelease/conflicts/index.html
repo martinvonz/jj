@@ -620,6 +620,15 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#alternative-conflict-marker-styles" class="md-nav__link">
+    <span class="md-ellipsis">
+      Alternative conflict marker styles
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1423,6 +1432,15 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#alternative-conflict-marker-styles" class="md-nav__link">
+    <span class="md-ellipsis">
+      Alternative conflict marker styles
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1440,6 +1458,11 @@
 
 <h1 id="first-class-conflicts">First-class conflicts<a class="headerlink" href="#first-class-conflicts" title="Permanent link">&para;</a></h1>
 <h2 id="introduction">Introduction<a class="headerlink" href="#introduction" title="Permanent link">&para;</a></h2>
+<p>Conflicts happen when Jujutsu can't figure out how to merge different changes
+made to the same file. For instance, this can happen if two people are working
+on the same file and make different changes to the same part of the file, and
+then their commits are merged together with <code>jj new</code> (or one is rebased onto the
+other with <code>jj rebase</code>).</p>
 <p>Unlike most other VCSs, Jujutsu can record conflicted states in commits. For
 example, if you rebase a commit and it results in a conflict, the conflict will
 be recorded in the rebased commit and the rebase operation will succeed. You can
@@ -1482,55 +1505,94 @@ conflict doesn't result in a nested conflict markers (see
 <a href="../working-copy/#conflicts">here</a>.</p>
 <h2 id="conflict-markers">Conflict markers<a class="headerlink" href="#conflict-markers" title="Permanent link">&para;</a></h2>
 <p>Conflicts are "materialized" using <em>conflict markers</em> in various contexts. For
-example, when you run <code>jj edit</code> on a commit with a conflict, it will be
-materialized in the working copy. Conflicts are also materialized when they are
-part of diff output (e.g. <code>jj show</code> on a commit that introduces or resolves a
-conflict). Here's an example of how Git can render a conflict using <a href="https://git-scm.com/docs/git-merge#_how_conflicts_are_presented">its "diff3"
-style</a>:</p>
-<div class="highlight"><pre><span></span><code>  &lt;&lt;&lt;&lt;&lt;&lt;&lt; left
-  apple
-  grapefruit
-  orange
-  ||||||| base
-  apple
-  grape
-  orange
-  =======
-  APPLE
-  GRAPE
-  ORANGE
-  &gt;&gt;&gt;&gt;&gt;&gt;&gt; right
+example, when you run <code>jj new</code> or <code>jj edit</code> on a commit with a conflict, it will
+be materialized in the working copy. Conflicts are also materialized when they
+are part of diff output (e.g. <code>jj show</code> on a commit that introduces or resolves
+a conflict).</p>
+<p>As an example, imagine that you have a file which contains the following text,
+all in lowercase:</p>
+<div class="highlight"><pre><span></span><code>apple
+grape
+orange
 </code></pre></div>
-<p>In this example, the left side changed "grape" to "grapefruit", and the right
-side made all lines uppercase. To resolve the conflict, we would presumably keep
-the right side (the third section) and replace "GRAPE" by "GRAPEFRUIT". This way
-of visually finding the changes between the base and one side and then applying
-them to the other side is a common way of resolving conflicts when using Git's
-"diff3" style.</p>
-<p>Jujutsu helps you by combining the base and one side into a unified diff for
-you, making it easier to spot the differences to apply to the other side. Here's
-how that would look for the same example as above:</p>
-<div class="highlight"><pre><span></span><code>  &lt;&lt;&lt;&lt;&lt;&lt;&lt;
-  %%%%%%%
-   apple
-  -grape
-  +grapefruit
-   orange
-  +++++++
-  APPLE
-  GRAPE
-  ORANGE
-  &gt;&gt;&gt;&gt;&gt;&gt;&gt;
+<p>One person replaces the word "grape" with "grapefruit" in commit A, while
+another person changes every line to uppercase in commit B. If you merge the
+changes together with <code>jj new A B</code>, the resulting commit will have a conflict
+since Jujutsu can't figure out how to combine these changes. Therefore, Jujutsu
+will materialize the conflict in the working copy using conflict markers, which
+would look like this:</p>
+<div class="highlight"><pre><span></span><code>&lt;&lt;&lt;&lt;&lt;&lt;&lt; Conflict 1 of 1
+%%%%%%% Changes from base to side #1
+ apple
+-grape
++grapefruit
+ orange
++++++++ Contents of side #2
+APPLE
+GRAPE
+ORANGE
+&gt;&gt;&gt;&gt;&gt;&gt;&gt; Conflict 1 of 1 ends
 </code></pre></div>
-<p>As in Git, the <code>&lt;&lt;&lt;&lt;&lt;&lt;&lt;</code> and <code>&gt;&gt;&gt;&gt;&gt;&gt;&gt;</code> lines mark the start and end of the
-conflict. The <code>%%%%%%%</code> line indicates the start of a diff. The <code>+++++++</code>
-line indicates the start of a snapshot (not a diff).</p>
-<p>There is another reason for this format (in addition to helping you spot the
-differences): The format supports more complex conflicts involving more than 3
-inputs. Such conflicts can arise when you merge more than 2 commits. They would
-typically be rendered as a single snapshot (as above) but with more than one
-unified diffs. The process for resolving them is similar: Manually apply each
-diff onto the snapshot.</p>
+<p>The markers <code>&lt;&lt;&lt;&lt;&lt;&lt;&lt;</code> and <code>&gt;&gt;&gt;&gt;&gt;&gt;&gt;</code> indicate the start and end of a conflict
+respectively. The marker <code>+++++++</code> indicates the start of a snapshot, while the
+marker <code>%%%%%%%</code> indicates the start of a diff to apply to the snapshot.
+Therefore, to resolve this conflict, you would apply the diff (changing "grape"
+to "grapefruit") to the snapshot (the side with every line in uppercase),
+editing the file to look like this:</p>
+<div class="highlight"><pre><span></span><code>APPLE
+GRAPEFRUIT
+ORANGE
+</code></pre></div>
+<p>In practice, conflicts are usually 2-sided, meaning that there's only 2
+conflicting changes being merged together at a time, but Jujutsu supports
+conflicts with arbitrarily many sides, which can happen when merging 3 or more
+commits at once. In that case, you would see a single snapshot section and
+multiple diff sections.</p>
+<p>Compared to just showing the content of each side of the conflict, the main
+benefit of Jujutsu's style of conflict markers is that you don't need to spend
+time manually comparing the sides to spot the differences between them. This is
+especially beneficial for many-sided conflicts, since resolving them just
+requires applying each diff to the snapshot one-by-one.</p>
+<h2 id="alternative-conflict-marker-styles">Alternative conflict marker styles<a class="headerlink" href="#alternative-conflict-marker-styles" title="Permanent link">&para;</a></h2>
+<p>If you prefer to just see the contents of each side of the conflict without the
+diff, Jujutsu also supports a "snapshot" style, which can be enabled by setting
+the <code>ui.conflict-marker-style</code> config option to "snapshot":</p>
+<div class="highlight"><pre><span></span><code>&lt;&lt;&lt;&lt;&lt;&lt;&lt; Conflict 1 of 1
++++++++ Contents of side #1
+apple
+grapefruit
+orange
+------- Contents of base
+apple
+grape
+orange
++++++++ Contents of side #2
+APPLE
+GRAPE
+ORANGE
+&gt;&gt;&gt;&gt;&gt;&gt;&gt; Conflict 1 of 1 ends
+</code></pre></div>
+<p>Some tools expect Git-style conflict markers, so Jujutsu also supports <a href="https://git-scm.com/docs/git-merge#_how_conflicts_are_presented">Git's
+"diff3" style</a>
+conflict markers by setting the <code>ui.conflict-marker-style</code> config option to
+"git":</p>
+<div class="highlight"><pre><span></span><code>&lt;&lt;&lt;&lt;&lt;&lt;&lt; Side #1 (Conflict 1 of 1)
+apple
+grapefruit
+orange
+||||||| Base
+apple
+grape
+orange
+=======
+APPLE
+GRAPE
+ORANGE
+&gt;&gt;&gt;&gt;&gt;&gt;&gt; Side #2 (Conflict 1 of 1 ends)
+</code></pre></div>
+<p>This conflict marker style only supports 2-sided conflicts though, so it falls
+back to the similar "snapshot" conflict markers if there are more than 2 sides
+to the conflict.</p>
 
 
 
