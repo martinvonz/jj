@@ -1871,7 +1871,7 @@ See https://martinvonz.github.io/jj/latest/working-copy/#stale-working-copy \
                 let conflicts = new_commit.tree()?.conflicts().collect_vec();
                 if !conflicts.is_empty() {
                     writeln!(formatter, "There are unresolved conflicts at these paths:")?;
-                    print_conflicted_paths(&conflicts, formatter.as_mut(), self)?;
+                    print_conflicted_paths(conflicts, formatter.as_mut(), self)?;
                 }
             }
         }
@@ -2428,7 +2428,7 @@ fn update_stale_working_copy(
 
 #[instrument(skip_all)]
 pub fn print_conflicted_paths(
-    conflicts: &[(RepoPathBuf, MergedTreeValue)],
+    conflicts: Vec<(RepoPathBuf, MergedTreeValue)>,
     formatter: &mut dyn Formatter,
     workspace_command: &WorkspaceCommandHelper,
 ) -> Result<(), CommandError> {
@@ -2441,8 +2441,8 @@ pub fn print_conflicted_paths(
         .into_iter()
         .map(|p| format!("{:width$}", p, width = max_path_len.min(32) + 3));
 
-    for ((_, conflict), formatted_path) in std::iter::zip(conflicts.iter(), formatted_paths) {
-        let conflict = conflict.clone().simplify();
+    for ((_, conflict), formatted_path) in std::iter::zip(conflicts, formatted_paths) {
+        let conflict = conflict.simplify();
         let sides = conflict.num_sides();
         let n_adds = conflict.adds().flatten().count();
         let deletions = sides - n_adds;
