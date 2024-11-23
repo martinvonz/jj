@@ -227,6 +227,29 @@ fn test_git_fetch_multiple_remotes_from_config() {
 }
 
 #[test]
+fn test_git_fetch_multiple_remotes_with_same_commit_no_race_condition() {
+    let test_env = TestEnvironment::default();
+    test_env.add_config("git.auto-local-bookmark = true");
+
+    // Create first remote.
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+    add_git_remote(&test_env, &repo_path, "rem1");
+    add_git_remote(&test_env, &repo_path, "rem2");
+
+    test_env.jj_cmd_ok(
+        &repo_path,
+        &["git", "fetch", "--remote", "rem1", "--remote", "rem2"],
+    );
+    insta::assert_snapshot!(get_bookmark_output(&test_env, &repo_path), @r###"
+    rem1: qxosxrvv 6a211027 message
+      @rem1: qxosxrvv 6a211027 message
+    rem2: yszkquru 2497a8a0 message
+      @rem2: yszkquru 2497a8a0 message
+    "###);
+}
+
+#[test]
 fn test_git_fetch_nonexistent_remote() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
@@ -237,10 +260,7 @@ fn test_git_fetch_nonexistent_remote() {
         &repo_path,
         &["git", "fetch", "--remote", "rem1", "--remote", "rem2"],
     );
-    insta::assert_snapshot!(stderr, @r###"
-    bookmark: rem1@rem1 [new] untracked
-    Error: No git remote named 'rem2'
-    "###);
+    insta::assert_snapshot!(stderr, @"Error: No git remote named 'rem2'");
     // No remote should have been fetched as part of the failing transaction
     insta::assert_snapshot!(get_bookmark_output(&test_env, &repo_path), @"");
 }
@@ -254,10 +274,7 @@ fn test_git_fetch_nonexistent_remote_from_config() {
     test_env.add_config(r#"git.fetch = ["rem1", "rem2"]"#);
 
     let stderr = &test_env.jj_cmd_failure(&repo_path, &["git", "fetch"]);
-    insta::assert_snapshot!(stderr, @r###"
-    bookmark: rem1@rem1 [new] untracked
-    Error: No git remote named 'rem2'
-    "###);
+    insta::assert_snapshot!(stderr, @"Error: No git remote named 'rem2'");
     // No remote should have been fetched as part of the failing transaction
     insta::assert_snapshot!(get_bookmark_output(&test_env, &repo_path), @"");
 }
