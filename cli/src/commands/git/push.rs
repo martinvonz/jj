@@ -118,7 +118,7 @@ pub struct GitPushArgs {
     /// Allow pushing new bookmarks
     ///
     /// Newly-created remote bookmarks will be tracked automatically.
-    #[arg(long, conflicts_with = "what")]
+    #[arg(long, short = 'N', conflicts_with = "what")]
     allow_new: bool,
     /// Allow pushing commits with empty descriptions
     #[arg(long)]
