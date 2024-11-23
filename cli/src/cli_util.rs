@@ -2773,7 +2773,7 @@ pub fn get_new_config_file_path(
         ConfigSource::User => command
             .config_env()
             .new_user_config_path()?
-            .ok_or_else(|| user_error("No repo config path found to edit"))?
+            .ok_or_else(|| user_error("No user config path found to edit"))?
             .to_owned(),
         ConfigSource::Repo => command.workspace_loader()?.repo_path().join("config.toml"),
         _ => {
