@@ -129,28 +129,6 @@ impl LayeredConfigs {
         LayeredConfigs { inner }
     }
 
-    #[instrument]
-    pub fn read_user_config(&mut self, env: &ConfigEnv) -> Result<(), ConfigError> {
-        self.inner.remove_layers(ConfigSource::User);
-        if let Some(path) = env.existing_user_config_path() {
-            if path.is_dir() {
-                self.inner.load_dir(ConfigSource::User, path)?;
-            } else {
-                self.inner.load_file(ConfigSource::User, path)?;
-            }
-        }
-        Ok(())
-    }
-
-    #[instrument]
-    pub fn read_repo_config(&mut self, env: &ConfigEnv) -> Result<(), ConfigError> {
-        self.inner.remove_layers(ConfigSource::Repo);
-        if let Some(path) = env.existing_repo_config_path() {
-            self.inner.load_file(ConfigSource::Repo, path)?;
-        }
-        Ok(())
-    }
-
     pub fn parse_config_args(&mut self, toml_strs: &[String]) -> Result<(), ConfigEnvError> {
         self.inner.remove_layers(ConfigSource::CommandArg);
         let config = toml_strs
@@ -351,6 +329,21 @@ impl ConfigEnv {
         }
     }
 
+    /// Loads user-specific config files into the given `config`. The old
+    /// user-config layers will be replaced if any.
+    #[instrument]
+    pub fn reload_user_config(&self, config: &mut LayeredConfigs) -> Result<(), ConfigError> {
+        config.inner.remove_layers(ConfigSource::User);
+        if let Some(path) = self.existing_user_config_path() {
+            if path.is_dir() {
+                config.inner.load_dir(ConfigSource::User, path)?;
+            } else {
+                config.inner.load_file(ConfigSource::User, path)?;
+            }
+        }
+        Ok(())
+    }
+
     /// Sets the directory where repo-specific config file is stored. The path
     /// is usually `.jj/repo`.
     pub fn reset_repo_path(&mut self, path: &Path) {
@@ -375,6 +368,17 @@ impl ConfigEnv {
             }
             ConfigPath::Unavailable => None,
         }
+    }
+
+    /// Loads repo-specific config file into the given `config`. The old
+    /// repo-config layer will be replaced if any.
+    #[instrument]
+    pub fn reload_repo_config(&self, config: &mut LayeredConfigs) -> Result<(), ConfigError> {
+        config.inner.remove_layers(ConfigSource::Repo);
+        if let Some(path) = self.existing_repo_config_path() {
+            config.inner.load_file(ConfigSource::Repo, path)?;
+        }
+        Ok(())
     }
 }
 

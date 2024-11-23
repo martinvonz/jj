@@ -3562,10 +3562,10 @@ impl CliRunner {
             .workspace_loader_factory
             .create(find_workspace_dir(&cwd))
             .map_err(|err| map_workspace_load_error(err, None));
-        layered_configs.read_user_config(&config_env)?;
+        config_env.reload_user_config(&mut layered_configs)?;
         if let Ok(loader) = &maybe_cwd_workspace_loader {
             config_env.reset_repo_path(loader.repo_path());
-            layered_configs.read_repo_config(&config_env)?;
+            config_env.reload_repo_config(&mut layered_configs)?;
         }
         let config = layered_configs.merge();
         ui.reset(&config).map_err(|e| {
@@ -3603,7 +3603,7 @@ impl CliRunner {
                 .create(&cwd.join(path))
                 .map_err(|err| map_workspace_load_error(err, Some(path)))?;
             config_env.reset_repo_path(loader.repo_path());
-            layered_configs.read_repo_config(&config_env)?;
+            config_env.reload_repo_config(&mut layered_configs)?;
             Ok(loader)
         } else {
             maybe_cwd_workspace_loader
