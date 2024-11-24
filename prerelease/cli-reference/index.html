@@ -8106,7 +8106,8 @@ inline it into your config file:</p>
 <li><code>&lt;ARGS&gt;</code> — Arguments to pass to the external command</li>
 </ul>
 <h2 id="jj-util-gc"><code>jj util gc</code><a class="headerlink" href="#jj-util-gc" title="Permanent link">&para;</a></h2>
-<p>Run backend-dependent garbage collection</p>
+<p>Run backend-dependent garbage collection.</p>
+<p>To garbage-collect old operations and the commits/objects referenced by then, run <code>jj op abandon ..&lt;some old operation&gt;</code> before <code>jj util gc</code>.</p>
 <p><strong>Usage:</strong> <code>jj util gc [OPTIONS]</code></p>
 <h6 id="options_48"><strong>Options:</strong><a class="headerlink" href="#options_48" title="Permanent link">&para;</a></h6>
 <ul>
