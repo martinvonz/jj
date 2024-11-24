@@ -59,6 +59,9 @@ pub(crate) struct DiffArgs {
     /// Restrict the diff to these paths
     #[arg(value_hint = clap::ValueHint::AnyPath)]
     paths: Vec<String>,
+    /// Exclude these paths from the diff
+    #[arg(short = 'x', long, value_hint = clap::ValueHint::AnyPath)]
+    exclude: Vec<String>,
     #[command(flatten)]
     format: DiffFormatArgs,
 }
@@ -72,6 +75,11 @@ pub(crate) fn cmd_diff(
     let workspace_command = command.workspace_helper(ui)?;
     let repo = workspace_command.repo();
     let fileset_expression = workspace_command.parse_file_patterns(ui, &args.paths)?;
+    let fileset_expression = if args.exclude.is_empty() {
+        fileset_expression
+    } else {
+        fileset_expression.difference(workspace_command.parse_file_patterns(ui, &args.exclude)?)
+    };
     let matcher = fileset_expression.to_matcher();
     let resolve_revision = |r: &Option<RevisionArg>| {
         workspace_command.resolve_single_rev(ui, r.as_ref().unwrap_or(&RevisionArg::AT))

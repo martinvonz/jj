@@ -692,6 +692,7 @@ With the `--from` and/or `--to` options, shows the difference from/to the given 
    If the revision is a merge commit, this shows changes *from* the automatic merge of the contents of all of its parents *to* the contents of the revision itself.
 * `-f`, `--from <FROM>` — Show changes from this revision
 * `-t`, `--to <TO>` — Show changes to this revision
+* `-x`, `--exclude <EXCLUDE>` — Exclude these paths from the diff
 * `-s`, `--summary` — For each path, show only whether it was modified, added, or deleted
 * `--stat` — Show a histogram of the changes
 * `--types` — For each path, show only its type before and after
