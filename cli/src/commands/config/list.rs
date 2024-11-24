@@ -116,9 +116,8 @@ pub fn cmd_config_list(
 fn config_template_language() -> GenericTemplateLanguage<'static, AnnotatedValue> {
     type L = GenericTemplateLanguage<'static, AnnotatedValue>;
     let mut language = L::new();
-    // "name" instead of "path" to avoid confusion with the source file path
     language.add_keyword("name", |self_property| {
-        let out_property = self_property.map(|annotated| annotated.path.to_string());
+        let out_property = self_property.map(|annotated| annotated.name.to_string());
         Ok(L::wrap_string(out_property))
     });
     language.add_keyword("value", |self_property| {
