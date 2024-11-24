@@ -69,6 +69,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * Adds a new template alias `commit_timestamp(commit)` which defaults to the
   committer date.
 
+* Conflict markers are now allowed to be longer than 7 characters, allowing
+  conflicts to be materialized and parsed correctly in files which already
+  contain lines that look like conflict markers.
+
 ### Fixed bugs
 
 * The `$NO_COLOR` environment variable must now be non-empty to be respected.
