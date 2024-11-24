@@ -28,8 +28,6 @@ use futures::StreamExt;
 use futures::TryStreamExt;
 use itertools::Itertools;
 use pollster::FutureExt;
-use regex::bytes::Regex;
-use regex::bytes::RegexBuilder;
 
 use crate::backend::BackendError;
 use crate::backend::BackendResult;
@@ -65,18 +63,15 @@ const CONFLICT_MINUS_LINE_CHAR: u8 = CONFLICT_MINUS_LINE.as_bytes()[0];
 const CONFLICT_PLUS_LINE_CHAR: u8 = CONFLICT_PLUS_LINE.as_bytes()[0];
 const CONFLICT_GIT_ANCESTOR_LINE_CHAR: u8 = CONFLICT_GIT_ANCESTOR_LINE.as_bytes()[0];
 const CONFLICT_GIT_SEPARATOR_LINE_CHAR: u8 = CONFLICT_GIT_SEPARATOR_LINE.as_bytes()[0];
-
-/// A conflict marker is one of the separators, optionally followed by a space
-/// and some text.
-// TODO: All the `{7}` could be replaced with `{7,}` to allow longer
-// separators. This could be useful to make it possible to allow conflict
-// markers inside the text of the conflicts.
-static CONFLICT_MARKER_REGEX: once_cell::sync::Lazy<Regex> = once_cell::sync::Lazy::new(|| {
-    RegexBuilder::new(r"^(<{7}|>{7}|%{7}|\-{7}|\+{7}|\|{7}|={7})( .*)?$")
-        .multi_line(true)
-        .build()
-        .unwrap()
-});
+const ALL_CONFLICT_MARKER_LINES: &[&str] = &[
+    CONFLICT_START_LINE,
+    CONFLICT_END_LINE,
+    CONFLICT_DIFF_LINE,
+    CONFLICT_MINUS_LINE,
+    CONFLICT_PLUS_LINE,
+    CONFLICT_GIT_ANCESTOR_LINE,
+    CONFLICT_GIT_SEPARATOR_LINE,
+];
 
 fn write_diff_hunks(hunks: &[DiffHunk], file: &mut dyn Write) -> io::Result<()> {
     for hunk in hunks {
@@ -661,11 +656,22 @@ fn parse_git_style_conflict_hunk(input: &[u8]) -> Merge<BString> {
     }
 }
 
-/// Check whether a line is a conflict marker. Removes trailing whitespace
-/// before checking against regex to ensure it parses CRLF endings correctly.
+/// Check whether a line is a conflict marker.
+///
+/// A conflict marker is one of the separators, optionally followed by a
+/// whitespace (including CR or LF) and some text.
 fn is_conflict_marker_line(line: &[u8]) -> bool {
-    let line = line.trim_end_with(|ch| ch.is_ascii_whitespace());
-    CONFLICT_MARKER_REGEX.is_match_at(line, 0)
+    detect_conflict_marker_line(line).is_some()
+}
+
+fn detect_conflict_marker_line(line: &[u8]) -> Option<u8> {
+    // TODO: Allow longer separators? This could be useful to make it possible
+    // to allow conflict markers inside the text of the conflicts.
+    let marker = ALL_CONFLICT_MARKER_LINES
+        .iter()
+        .find(|marker| line.starts_with(marker.as_bytes()))?;
+    let separated = line.get(marker.len()).map_or(true, u8::is_ascii_whitespace);
+    separated.then_some(marker.as_bytes()[0])
 }
 
 /// Parses conflict markers in `content` and returns an updated version of
