@@ -476,11 +476,12 @@ pub fn parse_conflict(input: &[u8], num_sides: usize) -> Option<Vec<Merge<BStrin
     let mut conflict_start = None;
     let mut conflict_start_len = 0;
     for line in input.split_inclusive(|b| *b == b'\n') {
-        if let Some(marker_char) = detect_conflict_marker_line(line) {
-            if marker_char == CONFLICT_START_LINE_CHAR {
+        match detect_conflict_marker_line(line, &[CONFLICT_START_LINE, CONFLICT_END_LINE]) {
+            Some(CONFLICT_START_LINE_CHAR) => {
                 conflict_start = Some(pos);
                 conflict_start_len = line.len();
-            } else if conflict_start.is_some() && marker_char == CONFLICT_END_LINE_CHAR {
+            }
+            Some(CONFLICT_END_LINE_CHAR) if conflict_start.is_some() => {
                 let conflict_body = &input[conflict_start.unwrap() + conflict_start_len..pos];
                 let hunk = parse_conflict_hunk(conflict_body);
                 if hunk.num_sides() == num_sides {
@@ -493,6 +494,7 @@ pub fn parse_conflict(input: &[u8], num_sides: usize) -> Option<Vec<Merge<BStrin
                 }
                 conflict_start = None;
             }
+            _ => {}
         }
         pos += line.len();
     }
@@ -517,7 +519,7 @@ fn parse_conflict_hunk(input: &[u8]) -> Merge<BString> {
     let initial_conflict_marker_char = input
         .lines_with_terminator()
         .next()
-        .and_then(detect_conflict_marker_line);
+        .and_then(|line| detect_conflict_marker_line(line, ALL_CONFLICT_MARKER_LINES));
 
     match initial_conflict_marker_char {
         // JJ-style conflicts must start with one of these 3 conflict marker lines
@@ -543,7 +545,10 @@ fn parse_jj_style_conflict_hunk(input: &[u8]) -> Merge<BString> {
     let mut removes = vec![];
     let mut adds = vec![];
     for line in input.lines_with_terminator() {
-        match detect_conflict_marker_line(line) {
+        match detect_conflict_marker_line(
+            line,
+            &[CONFLICT_DIFF_LINE, CONFLICT_MINUS_LINE, CONFLICT_PLUS_LINE],
+        ) {
             Some(CONFLICT_DIFF_LINE_CHAR) => {
                 state = State::Diff;
                 removes.push(BString::new(vec![]));
@@ -615,7 +620,10 @@ fn parse_git_style_conflict_hunk(input: &[u8]) -> Merge<BString> {
     let mut base = BString::new(vec![]);
     let mut right = BString::new(vec![]);
     for line in input.lines_with_terminator() {
-        match detect_conflict_marker_line(line) {
+        match detect_conflict_marker_line(
+            line,
+            &[CONFLICT_GIT_ANCESTOR_LINE, CONFLICT_GIT_SEPARATOR_LINE],
+        ) {
             Some(CONFLICT_GIT_ANCESTOR_LINE_CHAR) => {
                 if state == State::Left {
                     state = State::Base;
@@ -656,10 +664,10 @@ fn parse_git_style_conflict_hunk(input: &[u8]) -> Merge<BString> {
 ///
 /// A conflict marker is one of the separators, optionally followed by a
 /// whitespace (including CR or LF) and some text.
-fn detect_conflict_marker_line(line: &[u8]) -> Option<u8> {
+fn detect_conflict_marker_line(line: &[u8], marker_candidates: &[&str]) -> Option<u8> {
     // TODO: Allow longer separators? This could be useful to make it possible
     // to allow conflict markers inside the text of the conflicts.
-    let marker = ALL_CONFLICT_MARKER_LINES
+    let marker = marker_candidates
         .iter()
         .find(|marker| line.starts_with(marker.as_bytes()))?;
     let separated = line.get(marker.len()).map_or(true, u8::is_ascii_whitespace);
