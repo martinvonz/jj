@@ -178,50 +178,52 @@ impl LayeredConfigs {
             .iter()
             .map(|layer| (layer.source, &layer.data))
     }
+}
 
-    pub fn resolved_config_values(
-        &self,
-        filter_prefix: &ConfigNamePathBuf,
-    ) -> Result<Vec<AnnotatedValue>, ConfigEnvError> {
-        // Collect annotated values from each config.
-        let mut config_vals = vec![];
-        for (source, config) in self.sources() {
-            let Some(top_value) = filter_prefix.lookup_value(config).optional()? else {
-                continue;
-            };
-            let mut config_stack = vec![(filter_prefix.clone(), &top_value)];
-            while let Some((path, value)) = config_stack.pop() {
-                match &value.kind {
-                    config::ValueKind::Table(table) => {
-                        // TODO: Remove sorting when config crate maintains deterministic ordering.
-                        for (k, v) in table.iter().sorted_by_key(|(k, _)| *k).rev() {
-                            let mut key_path = path.clone();
-                            key_path.push(k);
-                            config_stack.push((key_path, v));
-                        }
+/// Collects values under the given `filter_prefix` name recursively, from all
+/// layers.
+pub fn resolved_config_values(
+    layered_configs: &LayeredConfigs,
+    filter_prefix: &ConfigNamePathBuf,
+) -> Result<Vec<AnnotatedValue>, ConfigError> {
+    // Collect annotated values from each config.
+    let mut config_vals = vec![];
+    for (source, config) in layered_configs.sources() {
+        let Some(top_value) = filter_prefix.lookup_value(config).optional()? else {
+            continue;
+        };
+        let mut config_stack = vec![(filter_prefix.clone(), &top_value)];
+        while let Some((path, value)) = config_stack.pop() {
+            match &value.kind {
+                config::ValueKind::Table(table) => {
+                    // TODO: Remove sorting when config crate maintains deterministic ordering.
+                    for (k, v) in table.iter().sorted_by_key(|(k, _)| *k).rev() {
+                        let mut key_path = path.clone();
+                        key_path.push(k);
+                        config_stack.push((key_path, v));
                     }
-                    _ => {
-                        config_vals.push(AnnotatedValue {
-                            path,
-                            value: value.to_owned(),
-                            source,
-                            // Note: Value updated below.
-                            is_overridden: false,
-                        });
-                    }
+                }
+                _ => {
+                    config_vals.push(AnnotatedValue {
+                        path,
+                        value: value.to_owned(),
+                        source,
+                        // Note: Value updated below.
+                        is_overridden: false,
+                    });
                 }
             }
         }
-
-        // Walk through config values in reverse order and mark each overridden value as
-        // overridden.
-        let mut keys_found = HashSet::new();
-        for val in config_vals.iter_mut().rev() {
-            val.is_overridden = !keys_found.insert(&val.path);
-        }
-
-        Ok(config_vals)
     }
+
+    // Walk through config values in reverse order and mark each overridden value as
+    // overridden.
+    let mut keys_found = HashSet::new();
+    for val in config_vals.iter_mut().rev() {
+        val.is_overridden = !keys_found.insert(&val.path);
+    }
+
+    Ok(config_vals)
 }
 
 enum ConfigPath {
@@ -732,20 +734,18 @@ mod tests {
     }
 
     #[test]
-    fn test_layered_configs_resolved_config_values_empty() {
+    fn test_resolved_config_values_empty() {
         let layered_configs = LayeredConfigs {
             inner: StackedConfig::empty(),
         };
         assert_eq!(
-            layered_configs
-                .resolved_config_values(&ConfigNamePathBuf::root())
-                .unwrap(),
+            resolved_config_values(&layered_configs, &ConfigNamePathBuf::root()).unwrap(),
             []
         );
     }
 
     #[test]
-    fn test_layered_configs_resolved_config_values_single_key() {
+    fn test_resolved_config_values_single_key() {
         let env_base_config = config::Config::builder()
             .set_override("user.name", "base-user-name")
             .unwrap()
@@ -767,7 +767,7 @@ mod tests {
         let layered_configs = LayeredConfigs { inner };
         // Note: "email" is alphabetized, before "name" from same layer.
         insta::assert_debug_snapshot!(
-            layered_configs.resolved_config_values(&ConfigNamePathBuf::root()).unwrap(),
+            resolved_config_values(&layered_configs, &ConfigNamePathBuf::root()).unwrap(),
             @r#"
         [
             AnnotatedValue {
@@ -890,7 +890,7 @@ mod tests {
     }
 
     #[test]
-    fn test_layered_configs_resolved_config_values_filter_path() {
+    fn test_resolved_config_values_filter_path() {
         let user_config = config::Config::builder()
             .set_override("test-table1.foo", "user-FOO")
             .unwrap()
@@ -908,9 +908,11 @@ mod tests {
         inner.add_layer(ConfigLayer::with_data(ConfigSource::Repo, repo_config));
         let layered_configs = LayeredConfigs { inner };
         insta::assert_debug_snapshot!(
-            layered_configs
-                .resolved_config_values(&ConfigNamePathBuf::from_iter(["test-table1"]))
-                .unwrap(),
+            resolved_config_values(
+                &layered_configs,
+                &ConfigNamePathBuf::from_iter(["test-table1"]),
+            )
+            .unwrap(),
             @r#"
         [
             AnnotatedValue {
