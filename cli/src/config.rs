@@ -671,6 +671,7 @@ impl TryFrom<Vec<String>> for NonEmptyCommandArgsVec {
 
 #[cfg(test)]
 mod tests {
+    use anyhow::anyhow;
     use maplit::hashmap;
 
     use super::*;
@@ -1189,32 +1190,44 @@ mod tests {
             }
         }
 
-        fn run(self) -> anyhow::Result<()> {
-            use anyhow::anyhow;
+        fn run(&self) -> anyhow::Result<()> {
             let tmp = setup_config_fs(&self.files)?;
+            self.check_existing(&tmp)?;
+            self.check_new(&tmp)?;
+            Ok(())
+        }
 
-            let check = |name, f: fn(ConfigEnv) -> Result<_, _>, want: Option<_>| {
-                let got = f(self.config(tmp.path())).map_err(|e| anyhow!("{name}: {e}"))?;
-                let want = want.map(|p| tmp.path().join(p));
-                if got != want {
-                    Err(anyhow!("{name}: got {got:?}, want {want:?}"))
-                } else {
-                    Ok(got)
-                }
-            };
+        fn check_existing(&self, tmp: &tempfile::TempDir) -> anyhow::Result<()> {
+            let want = match self.want {
+                Want::None => None,
+                Want::New(_) => None,
+                Want::ExistingAndNew(want) => Some(want),
+            }
+            .map(|p| tmp.path().join(p));
+            let got = self
+                .config(tmp.path())
+                .existing_config_path()
+                .map_err(|e| anyhow!("existing_config_path: {e}"))?;
+            if got != want {
+                return Err(anyhow!("existing_config_path: got {got:?}, want {want:?}"));
+            }
+            Ok(())
+        }
 
-            let (want_existing, want_new) = match self.want {
-                Want::None => (None, None),
-                Want::New(want) => (None, Some(want)),
-                Want::ExistingAndNew(want) => (Some(want), Some(want)),
-            };
-
-            check(
-                "existing_config_path",
-                ConfigEnv::existing_config_path,
-                want_existing,
-            )?;
-            let got = check("new_config_path", ConfigEnv::new_config_path, want_new)?;
+        fn check_new(&self, tmp: &tempfile::TempDir) -> anyhow::Result<()> {
+            let want = match self.want {
+                Want::None => None,
+                Want::New(want) => Some(want),
+                Want::ExistingAndNew(want) => Some(want),
+            }
+            .map(|p| tmp.path().join(p));
+            let got = self
+                .config(tmp.path())
+                .new_config_path()
+                .map_err(|e| anyhow!("new_config_path: {e}"))?;
+            if got != want {
+                return Err(anyhow!("new_config_path: got {got:?}, want {want:?}"));
+            }
             if let Some(path) = got {
                 if !Path::new(&path).is_file() {
                     return Err(anyhow!(
