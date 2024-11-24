@@ -492,6 +492,7 @@ fn get_tools_config(ui: &mut Ui, settings: &UserSettings) -> Result<ToolsConfig,
                                     cwd: "".into(),
                                     base: "".into(),
                                 },
+                                &Default::default(),
                             )
                         })
                         .try_collect()?,

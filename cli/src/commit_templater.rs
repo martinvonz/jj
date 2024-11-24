@@ -854,8 +854,9 @@ fn expect_fileset_literal(
 ) -> Result<FilesetExpression, TemplateParseError> {
     template_parser::expect_string_literal_with(node, |text, span| {
         let mut inner_diagnostics = FilesetDiagnostics::new();
-        let expression =
-            fileset::parse(&mut inner_diagnostics, text, path_converter).map_err(|err| {
+        let aliases_map = Default::default();
+        let expression = fileset::parse(&mut inner_diagnostics, text, path_converter, &aliases_map)
+            .map_err(|err| {
                 TemplateParseError::expression("In fileset expression", span).with_source(err)
             })?;
         diagnostics.extend_with(inner_diagnostics, |diag| {

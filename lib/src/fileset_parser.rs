@@ -27,7 +27,16 @@ use pest_derive::Parser;
 use thiserror::Error;
 
 use crate::dsl_util;
+use crate::dsl_util::AliasDeclaration;
+use crate::dsl_util::AliasDeclarationParser;
+use crate::dsl_util::AliasDefinitionParser;
+use crate::dsl_util::AliasExpandError;
+use crate::dsl_util::AliasExpandableExpression;
+use crate::dsl_util::AliasId;
+use crate::dsl_util::AliasesMap;
 use crate::dsl_util::Diagnostics;
+use crate::dsl_util::ExpressionFolder;
+use crate::dsl_util::FoldableExpression;
 use crate::dsl_util::InvalidArguments;
 use crate::dsl_util::StringLiteralParser;
 
@@ -71,6 +80,7 @@ impl Rule {
             Rule::expression => None,
             Rule::program => None,
             Rule::program_or_bare_string => None,
+            Rule::alias_declaration => None,
         }
     }
 }
@@ -106,6 +116,12 @@ pub enum FilesetParseErrorKind {
     InvalidArguments { name: String, message: String },
     #[error("{0}")]
     Expression(String),
+    #[error(r#"In alias "{0}""#)]
+    InAliasExpansion(String),
+    #[error(r#"In function parameter "{0}""#)]
+    InParameterExpansion(String),
+    #[error(r#"Alias "{0}" expanded recursively"#)]
+    RecursiveAlias(String),
 }
 
 impl FilesetParseError {
@@ -138,6 +154,26 @@ impl FilesetParseError {
     /// Category of the underlying error.
     pub fn kind(&self) -> &FilesetParseErrorKind {
         &self.kind
+    }
+}
+
+impl AliasExpandError for FilesetParseError {
+    fn invalid_arguments(err: InvalidArguments<'_>) -> Self {
+        err.into()
+    }
+
+    fn recursive_expansion(id: AliasId<'_>, span: pest::Span<'_>) -> Self {
+        Self::new(FilesetParseErrorKind::RecursiveAlias(id.to_string()), span)
+    }
+
+    fn within_alias_expansion(self, id: AliasId<'_>, span: pest::Span<'_>) -> Self {
+        let kind = match id {
+            AliasId::Symbol(_) | AliasId::Function(..) => {
+                FilesetParseErrorKind::InAliasExpansion(id.to_string())
+            }
+            AliasId::Parameter(_) => FilesetParseErrorKind::InParameterExpansion(id.to_string()),
+        };
+        Self::new(kind, span).with_source(self)
     }
 }
 
@@ -182,6 +218,51 @@ pub enum ExpressionKind<'i> {
     /// `x | y | ..`
     UnionAll(Vec<ExpressionNode<'i>>),
     FunctionCall(Box<FunctionCallNode<'i>>),
+    /// Identity node to preserve the span in the source template text.
+    AliasExpanded(AliasId<'i>, Box<ExpressionNode<'i>>),
+}
+
+impl<'i> FoldableExpression<'i> for ExpressionKind<'i> {
+    fn fold<F>(self, folder: &mut F, span: pest::Span<'i>) -> Result<Self, F::Error>
+    where
+        F: ExpressionFolder<'i, Self> + ?Sized,
+    {
+        match self {
+            ExpressionKind::Identifier(name) => folder.fold_identifier(name, span),
+            ExpressionKind::String(_) | ExpressionKind::StringPattern { .. } => Ok(self),
+            ExpressionKind::Unary(op, arg) => {
+                let arg = Box::new(folder.fold_expression(*arg)?);
+                Ok(ExpressionKind::Unary(op, arg))
+            }
+            ExpressionKind::Binary(op, lhs, rhs) => {
+                let lhs = Box::new(folder.fold_expression(*lhs)?);
+                let rhs = Box::new(folder.fold_expression(*rhs)?);
+                Ok(ExpressionKind::Binary(op, lhs, rhs))
+            }
+            ExpressionKind::UnionAll(nodes) => Ok(ExpressionKind::UnionAll(
+                dsl_util::fold_expression_nodes(folder, nodes)?,
+            )),
+            ExpressionKind::FunctionCall(function) => folder.fold_function_call(function, span),
+            ExpressionKind::AliasExpanded(id, subst) => {
+                let subst = Box::new(folder.fold_expression(*subst)?);
+                Ok(ExpressionKind::AliasExpanded(id, subst))
+            }
+        }
+    }
+}
+
+impl<'i> AliasExpandableExpression<'i> for ExpressionKind<'i> {
+    fn identifier(name: &'i str) -> Self {
+        ExpressionKind::Identifier(name)
+    }
+
+    fn function_call(function: Box<FunctionCallNode<'i>>) -> Self {
+        ExpressionKind::FunctionCall(function)
+    }
+
+    fn alias_expanded(id: AliasId<'i>, subst: Box<ExpressionNode<'i>>) -> Self {
+        ExpressionKind::AliasExpanded(id, subst)
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -346,6 +427,33 @@ pub fn parse_program_or_bare_string(text: &str) -> FilesetParseResult<Expression
     Ok(ExpressionNode::new(expr, span))
 }
 
+pub type FilesetAliasesMap = AliasesMap<FilesetAliasParser, String>;
+
+#[derive(Clone, Debug, Default)]
+pub struct FilesetAliasParser;
+
+impl AliasDeclarationParser for FilesetAliasParser {
+    type Error = FilesetParseError;
+
+    fn parse_declaration(&self, source: &str) -> Result<AliasDeclaration, Self::Error> {
+        let mut pairs = FilesetParser::parse(Rule::alias_declaration, source)?;
+        let first = pairs.next().unwrap();
+        match first.as_rule() {
+            Rule::identifier => Ok(AliasDeclaration::Symbol(first.as_str().to_owned())),
+            r => panic!("unexpected alias declaration rule {r:?}"),
+        }
+    }
+}
+
+impl AliasDefinitionParser for FilesetAliasParser {
+    type Output<'i> = ExpressionKind<'i>;
+    type Error = FilesetParseError;
+
+    fn parse_definition<'i>(&self, source: &'i str) -> Result<ExpressionNode<'i>, Self::Error> {
+        parse_program_or_bare_string(source)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use assert_matches::assert_matches;
@@ -422,6 +530,7 @@ mod tests {
                 let function = Box::new(normalize_function_call(*function));
                 ExpressionKind::FunctionCall(function)
             }
+            ExpressionKind::AliasExpanded(_, subst) => normalize_tree(*subst).kind,
         };
         ExpressionNode {
             kind: normalized_kind,

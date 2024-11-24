@@ -23,11 +23,14 @@ use itertools::Itertools as _;
 use once_cell::sync::Lazy;
 use thiserror::Error;
 
+use crate::dsl_util;
 use crate::dsl_util::collect_similar;
+use crate::dsl_util::AliasExpandError;
 use crate::fileset_parser;
 use crate::fileset_parser::BinaryOp;
 use crate::fileset_parser::ExpressionKind;
 use crate::fileset_parser::ExpressionNode;
+pub use crate::fileset_parser::FilesetAliasesMap;
 pub use crate::fileset_parser::FilesetDiagnostics;
 pub use crate::fileset_parser::FilesetParseError;
 pub use crate::fileset_parser::FilesetParseErrorKind;
@@ -465,6 +468,15 @@ fn resolve_expression(
         ExpressionKind::FunctionCall(function) => {
             resolve_function(diagnostics, path_converter, function)
         }
+        ExpressionKind::AliasExpanded(id, subst) => {
+            let mut inner_diagnostics = FilesetDiagnostics::new();
+            let expression = resolve_expression(&mut inner_diagnostics, path_converter, subst)
+                .map_err(|e| e.within_alias_expansion(*id, node.span))?;
+            diagnostics.extend_with(inner_diagnostics, |diag| {
+                diag.within_alias_expansion(*id, node.span)
+            });
+            Ok(expression)
+        }
     }
 }
 
@@ -473,9 +485,11 @@ pub fn parse(
     diagnostics: &mut FilesetDiagnostics,
     text: &str,
     path_converter: &RepoPathUiConverter,
+    aliases_map: &FilesetAliasesMap,
 ) -> FilesetParseResult<FilesetExpression> {
     let node = fileset_parser::parse_program(text)?;
     // TODO: add basic tree substitution pass to eliminate redundant expressions
+    let node = dsl_util::expand_aliases(node, aliases_map)?;
     resolve_expression(diagnostics, path_converter, &node)
 }
 
@@ -487,9 +501,11 @@ pub fn parse_maybe_bare(
     diagnostics: &mut FilesetDiagnostics,
     text: &str,
     path_converter: &RepoPathUiConverter,
+    aliases_map: &FilesetAliasesMap,
 ) -> FilesetParseResult<FilesetExpression> {
     let node = fileset_parser::parse_program_or_bare_string(text)?;
     // TODO: add basic tree substitution pass to eliminate redundant expressions
+    let node = dsl_util::expand_aliases(node, aliases_map)?;
     resolve_expression(diagnostics, path_converter, &node)
 }
 
@@ -529,7 +545,15 @@ mod tests {
             cwd: PathBuf::from("/ws/cur"),
             base: PathBuf::from("/ws"),
         };
-        let parse = |text| parse_maybe_bare(&mut FilesetDiagnostics::new(), text, &path_converter);
+        let aliases_map = Default::default();
+        let parse = |text| {
+            parse_maybe_bare(
+                &mut FilesetDiagnostics::new(),
+                text,
+                &path_converter,
+                &aliases_map,
+            )
+        };
 
         // cwd-relative patterns
         insta::assert_debug_snapshot!(
@@ -574,7 +598,15 @@ mod tests {
             cwd: PathBuf::from("/ws/cur*"),
             base: PathBuf::from("/ws"),
         };
-        let parse = |text| parse_maybe_bare(&mut FilesetDiagnostics::new(), text, &path_converter);
+        let aliases_map = Default::default();
+        let parse = |text| {
+            parse_maybe_bare(
+                &mut FilesetDiagnostics::new(),
+                text,
+                &path_converter,
+                &aliases_map,
+            )
+        };
 
         // cwd-relative, without meta characters
         insta::assert_debug_snapshot!(
@@ -747,7 +779,15 @@ mod tests {
             cwd: PathBuf::from("/ws/cur"),
             base: PathBuf::from("/ws"),
         };
-        let parse = |text| parse_maybe_bare(&mut FilesetDiagnostics::new(), text, &path_converter);
+        let aliases_map = Default::default();
+        let parse = |text| {
+            parse_maybe_bare(
+                &mut FilesetDiagnostics::new(),
+                text,
+                &path_converter,
+                &aliases_map,
+            )
+        };
 
         insta::assert_debug_snapshot!(parse("all()").unwrap(), @"All");
         insta::assert_debug_snapshot!(parse("none()").unwrap(), @"None");
@@ -775,7 +815,15 @@ mod tests {
             cwd: PathBuf::from("/ws/cur"),
             base: PathBuf::from("/ws"),
         };
-        let parse = |text| parse_maybe_bare(&mut FilesetDiagnostics::new(), text, &path_converter);
+        let aliases_map = Default::default();
+        let parse = |text| {
+            parse_maybe_bare(
+                &mut FilesetDiagnostics::new(),
+                text,
+                &path_converter,
+                &aliases_map,
+            )
+        };
 
         insta::assert_debug_snapshot!(parse("~x").unwrap(), @r###"
         Difference(

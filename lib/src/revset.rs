@@ -35,6 +35,7 @@ use crate::dsl_util;
 use crate::dsl_util::collect_similar;
 use crate::dsl_util::AliasExpandError as _;
 use crate::fileset;
+use crate::fileset::FilesetAliasesMap;
 use crate::fileset::FilesetDiagnostics;
 use crate::fileset::FilesetExpression;
 use crate::graph::GraphNode;
@@ -894,7 +895,9 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
             ));
         }
         let file_expressions = itertools::chain([arg], args)
-            .map(|arg| expect_fileset_expression(diagnostics, arg, ctx.path_converter))
+            .map(|arg| {
+                expect_fileset_expression(diagnostics, arg, ctx.path_converter, &Default::default())
+            })
             .try_collect()?;
         let expr = FilesetExpression::union_all(file_expressions);
         Ok(RevsetExpression::filter(RevsetFilterPredicate::File(expr)))
@@ -911,7 +914,12 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
                     files_arg.span,
                 )
             })?;
-            expect_fileset_expression(diagnostics, files_arg, ctx.path_converter)?
+            expect_fileset_expression(
+                diagnostics,
+                files_arg,
+                ctx.path_converter,
+                &Default::default(),
+            )?
         } else {
             // TODO: defaults to CLI path arguments?
             // https://github.com/martinvonz/jj/issues/2933#issuecomment-1925870731
@@ -968,16 +976,22 @@ pub fn expect_fileset_expression(
     diagnostics: &mut RevsetDiagnostics,
     node: &ExpressionNode,
     path_converter: &RepoPathUiConverter,
+    aliases_map: &FilesetAliasesMap,
 ) -> Result<FilesetExpression, RevsetParseError> {
     // Alias handling is a bit tricky. The outermost expression `alias` is
     // substituted, but inner expressions `x & alias` aren't. If this seemed
     // weird, we can either transform AST or turn off revset aliases completely.
     revset_parser::expect_expression_with(diagnostics, node, |diagnostics, node| {
         let mut inner_diagnostics = FilesetDiagnostics::new();
-        let expression = fileset::parse(&mut inner_diagnostics, node.span.as_str(), path_converter)
-            .map_err(|err| {
-                RevsetParseError::expression("In fileset expression", node.span).with_source(err)
-            })?;
+        let expression = fileset::parse(
+            &mut inner_diagnostics,
+            node.span.as_str(),
+            path_converter,
+            aliases_map,
+        )
+        .map_err(|err| {
+            RevsetParseError::expression("In fileset expression", node.span).with_source(err)
+        })?;
         diagnostics.extend_with(inner_diagnostics, |diag| {
             RevsetParseError::expression("In fileset expression", node.span).with_source(diag)
         });
