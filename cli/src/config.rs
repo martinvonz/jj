@@ -87,11 +87,16 @@ pub enum ConfigEnvError {
     ConfigCreateError(#[from] std::io::Error),
 }
 
+/// Configuration variable with its source information.
 #[derive(Clone, Debug, PartialEq)]
 pub struct AnnotatedValue {
+    /// Dotted name path to the configuration variable.
     pub path: ConfigNamePathBuf,
+    /// Configuration value.
     pub value: config::Value,
+    /// Source of the configuration value.
     pub source: ConfigSource,
+    /// True if this value is overridden in higher precedence layers.
     pub is_overridden: bool,
 }
 
