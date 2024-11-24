@@ -91,11 +91,12 @@ pub enum ConfigEnvError {
 #[derive(Clone, Debug, PartialEq)]
 pub struct AnnotatedValue {
     /// Dotted name path to the configuration variable.
-    pub path: ConfigNamePathBuf,
+    pub name: ConfigNamePathBuf,
     /// Configuration value.
     pub value: config::Value,
     /// Source of the configuration value.
     pub source: ConfigSource,
+    // TODO: add source file path
     /// True if this value is overridden in higher precedence layers.
     pub is_overridden: bool,
 }
@@ -198,19 +199,19 @@ pub fn resolved_config_values(
             continue;
         };
         let mut config_stack = vec![(filter_prefix.clone(), &top_value)];
-        while let Some((path, value)) = config_stack.pop() {
+        while let Some((name, value)) = config_stack.pop() {
             match &value.kind {
                 config::ValueKind::Table(table) => {
                     // TODO: Remove sorting when config crate maintains deterministic ordering.
                     for (k, v) in table.iter().sorted_by_key(|(k, _)| *k).rev() {
-                        let mut key_path = path.clone();
-                        key_path.push(k);
-                        config_stack.push((key_path, v));
+                        let mut sub_name = name.clone();
+                        sub_name.push(k);
+                        config_stack.push((sub_name, v));
                     }
                 }
                 _ => {
                     config_vals.push(AnnotatedValue {
-                        path,
+                        name,
                         value: value.to_owned(),
                         source,
                         // Note: Value updated below.
@@ -223,9 +224,9 @@ pub fn resolved_config_values(
 
     // Walk through config values in reverse order and mark each overridden value as
     // overridden.
-    let mut keys_found = HashSet::new();
+    let mut names_found = HashSet::new();
     for val in config_vals.iter_mut().rev() {
-        val.is_overridden = !keys_found.insert(&val.path);
+        val.is_overridden = !names_found.insert(&val.name);
     }
 
     Ok(config_vals)
@@ -776,7 +777,7 @@ mod tests {
             @r#"
         [
             AnnotatedValue {
-                path: ConfigNamePathBuf(
+                name: ConfigNamePathBuf(
                     [
                         Key {
                             key: "user",
@@ -814,7 +815,7 @@ mod tests {
                 is_overridden: true,
             },
             AnnotatedValue {
-                path: ConfigNamePathBuf(
+                name: ConfigNamePathBuf(
                     [
                         Key {
                             key: "user",
@@ -852,7 +853,7 @@ mod tests {
                 is_overridden: false,
             },
             AnnotatedValue {
-                path: ConfigNamePathBuf(
+                name: ConfigNamePathBuf(
                     [
                         Key {
                             key: "user",
@@ -921,7 +922,7 @@ mod tests {
             @r#"
         [
             AnnotatedValue {
-                path: ConfigNamePathBuf(
+                name: ConfigNamePathBuf(
                     [
                         Key {
                             key: "test-table1",
@@ -959,7 +960,7 @@ mod tests {
                 is_overridden: false,
             },
             AnnotatedValue {
-                path: ConfigNamePathBuf(
+                name: ConfigNamePathBuf(
                     [
                         Key {
                             key: "test-table1",
