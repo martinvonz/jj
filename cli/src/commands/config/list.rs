@@ -21,6 +21,7 @@ use super::ConfigLevelArgs;
 use crate::cli_util::CommandHelper;
 use crate::command_error::CommandError;
 use crate::complete;
+use crate::config::resolved_config_values;
 use crate::config::to_toml_value;
 use crate::config::AnnotatedValue;
 use crate::generic_templater::GenericTemplateLanguage;
@@ -78,10 +79,7 @@ pub fn cmd_config_list(
     let mut formatter = ui.stdout_formatter();
     let name_path = args.name.clone().unwrap_or_else(ConfigNamePathBuf::root);
     let mut wrote_values = false;
-    for annotated in command
-        .layered_configs()
-        .resolved_config_values(&name_path)?
-    {
+    for annotated in resolved_config_values(command.layered_configs(), &name_path)? {
         // Remove overridden values.
         if annotated.is_overridden && !args.include_overridden {
             continue;
