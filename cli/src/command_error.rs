@@ -374,7 +374,7 @@ impl From<SnapshotError> for CommandError {
                     err_str,
                 ))
                 .hinted(format!(
-                    "This is to prevent large files from being added on accident. You can fix \
+                    "This is to prevent large files from being added by accident. You can fix \
                      this error by:
   - Adding the file to `.gitignore`
   - Run `jj config set --repo snapshot.max-new-file-size {}`

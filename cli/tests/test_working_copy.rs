@@ -30,7 +30,7 @@ fn test_snapshot_large_file() {
     insta::assert_snapshot!(stderr, @r###"
     Error: Failed to snapshot the working copy
     The file '$TEST_ENV/repo/large' is too large to be snapshotted: it is 3 bytes too large; the maximum size allowed is 10 bytes (10.0B).
-    Hint: This is to prevent large files from being added on accident. You can fix this error by:
+    Hint: This is to prevent large files from being added by accident. You can fix this error by:
       - Adding the file to `.gitignore`
       - Run `jj config set --repo snapshot.max-new-file-size 13`
         This will increase the maximum file size allowed for new files, in this repository only.
@@ -46,7 +46,7 @@ fn test_snapshot_large_file() {
     insta::assert_snapshot!(stderr, @r###"
     Error: Failed to snapshot the working copy
     The file '$TEST_ENV/repo/large' is too large to be snapshotted: it is 1024 bytes too large; the maximum size allowed is 10240 bytes (10.0KiB).
-    Hint: This is to prevent large files from being added on accident. You can fix this error by:
+    Hint: This is to prevent large files from being added by accident. You can fix this error by:
       - Adding the file to `.gitignore`
       - Run `jj config set --repo snapshot.max-new-file-size 11264`
         This will increase the maximum file size allowed for new files, in this repository only.
