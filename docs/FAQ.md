@@ -285,6 +285,24 @@ your edits, then use `jj squash` to update the earlier revision with those edits
 For when you would use git stashing, use `jj edit <rev>` for expected behaviour.
 Other workflows may prefer `jj edit` as well.
 
+### Why are most merge commits marked as "(empty)"?
+
+Jujutsu, like Git, is a snapshot-based VCS. That means that each commit
+logically records the state of all current files in the repo. The changes in a
+commit are not recorded but are instead calculated when needed by comparing the
+commit's state to the parent commit's state. Jujutsu defines the changes in a
+commit to be relative to the auto-merged parents (if there's only one parent,
+then that merge is trivial - it's the parent commit's state). As a result, a
+merge commit that was a clean merge (no conflict resolution, no additional
+changes) is considered empty. Conversely, if the merge commit contains conflict
+resolutions or additional changes, then it will be considered non-empty.
+
+This definition of the changes in a commit is used throughout Jujutsu. It's
+used by `jj diff -r` and `jj log -p` to show the changes in a commit. It's used
+by `jj rebase` to rebase the changes in a commit. It's used in `jj log` to
+indicate which commits are empty. It's used in the `files()` revset function
+(and by `jj log <path>`) to find commits that modify a certain path. And so on.
+
 ### How do I deal with divergent changes ('??' after the [change ID])?
 
 A [divergent change][glossary_divergent_change] represents a change that has two
