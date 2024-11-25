@@ -343,8 +343,11 @@ Then run `jj squash` to move the resolution into the conflicted commit.
 $ cat file1
 <<<<<<< Conflict 1 of 1
 %%%%%%% Changes from base to side #1
--b1+a+++++++ Contents of side #2
-b2>>>>>>> Conflict 1 of 1 ends
+-b1
++a
++++++++ Contents of side #2
+b2
+>>>>>>> Conflict 1 of 1 ends
 
 $ echo resolved > file1
 
