@@ -432,6 +432,116 @@ fn test_resolution() {
     file    2-sided conflict
     "###);
 
+    // Check that merge tool can leave conflict markers by returning exit code 1
+    // when using `merge-conflict-exit-codes = [1]`. The Git "diff3" conflict
+    // markers should also be parsed correctly.
+    test_env.jj_cmd_ok(&repo_path, &["undo"]);
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff", "--git"]), 
+        @"");
+    std::fs::write(
+        &editor_script,
+        [
+            "dump editor5",
+            indoc! {"
+                write
+                <<<<<<<
+                some
+                |||||||
+                fake
+                =======
+                conflict
+                >>>>>>>
+            "},
+            "fail",
+        ]
+        .join("\0"),
+    )
+    .unwrap();
+    let (stdout, stderr) = test_env.jj_cmd_ok(
+        &repo_path,
+        &[
+            "resolve",
+            "--config-toml",
+            "merge-tools.fake-editor.merge-conflict-exit-codes = [1]",
+        ],
+    );
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r#"
+    Resolving conflicts in: file
+    Working copy now at: vruxwmqv 6690cdf4 conflict | (conflict) conflict
+    Parent commit      : zsuskuln aa493daf a | a
+    Parent commit      : royxmykx db6a4daf b | b
+    Added 0 files, modified 1 files, removed 0 files
+    There are unresolved conflicts at these paths:
+    file    2-sided conflict
+    New conflicts appeared in these commits:
+      vruxwmqv 6690cdf4 conflict | (conflict) conflict
+    To resolve the conflicts, start by updating to it:
+      jj new vruxwmqv
+    Then use `jj resolve`, or edit the conflict markers in the file directly.
+    Once the conflicts are resolved, you may want to inspect the result with `jj diff`.
+    Then run `jj squash` to move the resolution into the conflicted commit.
+    "#);
+    insta::assert_snapshot!(
+        std::fs::read_to_string(test_env.env_root().join("editor5")).unwrap(), @"");
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff", "--git"]), 
+    @r##"
+    diff --git a/file b/file
+    --- a/file
+    +++ b/file
+    @@ -1,7 +1,7 @@
+     <<<<<<< Conflict 1 of 1
+     %%%%%%% Changes from base to side #1
+    --base
+    -+a
+    +-fake
+    ++some
+     +++++++ Contents of side #2
+    -b
+    +conflict
+     >>>>>>> Conflict 1 of 1 ends
+    "##);
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["resolve", "--list"]), 
+    @r###"
+    file    2-sided conflict
+    "###);
+
+    // Check that an error is reported if a merge tool indicated it would leave
+    // conflict markers, but the output file didn't contain valid conflict markers.
+    test_env.jj_cmd_ok(&repo_path, &["undo"]);
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff", "--git"]), 
+        @"");
+    std::fs::write(
+        &editor_script,
+        [
+            indoc! {"
+                write
+                <<<<<<< this isn't diff3 style!
+                some
+                =======
+                conflict
+                >>>>>>>
+            "},
+            "fail",
+        ]
+        .join("\0"),
+    )
+    .unwrap();
+    let stderr = test_env.jj_cmd_failure(
+        &repo_path,
+        &[
+            "resolve",
+            "--config-toml",
+            "merge-tools.fake-editor.merge-conflict-exit-codes = [1]",
+        ],
+    );
+    // On Windows, the ExitStatus struct prints "exit code" instead of "exit status"
+    insta::assert_snapshot!(stderr.replace("exit code", "exit status"), @r#"
+    Resolving conflicts in: file
+    Error: Failed to resolve conflicts
+    Caused by: Tool exited with exit status: 1, but did not produce valid conflict markers (run with --debug to see the exact invocation)
+    "#);
+
     // TODO: Check that running `jj new` and then `jj resolve -r conflict` works
     // correctly.
 }

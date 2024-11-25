@@ -400,6 +400,14 @@
                             "type": "string"
                         }
                     },
+                    "merge-conflict-exit-codes": {
+                        "type": "array",
+                        "items": {
+                            "type": "number"
+                        },
+                        "description": "Array of exit codes to indicate that the conflict was only partially resolved. See https://martinvonz.github.io/jj/latest/config/#editing-conflict-markers-with-a-tool-or-a-text-editor",
+                        "default": []
+                    },
                     "merge-tool-edits-conflict-markers": {
                         "type": "boolean",
                         "description": "Whether to populate the output file with conflict markers before starting the merge tool. See https://martinvonz.github.io/jj/latest/config/#editing-conflict-markers-with-a-tool-or-a-text-editor",

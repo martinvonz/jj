@@ -72,6 +72,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * New `merge-tools.<TOOL>.conflict-marker-style` config option to override the
   conflict marker style used for a specific merge tool.
 
+* New `merge-tools.<TOOL>.merge-conflict-exit-codes` config option to allow a
+  merge tool to exit with a non-zero code to indicate that not all conflicts
+  were resolved.
+
 * `jj simplify-parents` now supports configuring the default revset when no
    `--source` or `--revisions` arguments are provided with the
    `revsets.simplify-parents` config.
