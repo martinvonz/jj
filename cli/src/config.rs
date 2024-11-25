@@ -333,18 +333,18 @@ impl ConfigEnv {
         })
     }
 
-    fn existing_config_path(self) -> Option<PathBuf> {
-        match self.user_config_path {
+    fn existing_config_path(&self) -> Option<&Path> {
+        match &self.user_config_path {
             ConfigPath::Existing(path) => Some(path),
             _ => None,
         }
     }
 
-    fn new_config_path(self) -> Result<Option<PathBuf>, ConfigEnvError> {
-        match self.user_config_path {
+    fn new_config_path(&self) -> Result<Option<&Path>, ConfigEnvError> {
+        match &self.user_config_path {
             ConfigPath::Existing(path) => Ok(Some(path)),
             ConfigPath::New(path) => {
-                create_config_file(&path)?;
+                create_config_file(path)?;
                 Ok(Some(path))
             }
             ConfigPath::Unavailable => Ok(None),
@@ -353,7 +353,9 @@ impl ConfigEnv {
 }
 
 pub fn existing_config_path() -> Result<Option<PathBuf>, ConfigEnvError> {
-    Ok(ConfigEnv::new()?.existing_config_path())
+    Ok(ConfigEnv::new()?
+        .existing_config_path()
+        .map(ToOwned::to_owned))
 }
 
 /// Returns a path to the user-specific config file.
@@ -362,7 +364,7 @@ pub fn existing_config_path() -> Result<Option<PathBuf>, ConfigEnvError> {
 /// location for it. If a path to a new config file is returned, the
 /// parent directory may be created as a result of this call.
 pub fn new_config_path() -> Result<Option<PathBuf>, ConfigEnvError> {
-    ConfigEnv::new()?.new_config_path()
+    Ok(ConfigEnv::new()?.new_config_path()?.map(ToOwned::to_owned))
 }
 
 /// Environment variables that should be overridden by config values
@@ -1212,11 +1214,11 @@ mod tests {
                 Want::ExistingAndNew(want) => Some(want),
             }
             .map(|p| tmp.path().join(p));
-            let got = self
+            let env = self
                 .resolve(tmp.path())
-                .map_err(|e| anyhow!("existing_config_path: {e}"))?
-                .existing_config_path();
-            if got != want {
+                .map_err(|e| anyhow!("existing_config_path: {e}"))?;
+            let got = env.existing_config_path();
+            if got != want.as_deref() {
                 return Err(anyhow!("existing_config_path: got {got:?}, want {want:?}"));
             }
             Ok(())
@@ -1229,12 +1231,13 @@ mod tests {
                 Want::ExistingAndNew(want) => Some(want),
             }
             .map(|p| tmp.path().join(p));
-            let got = self
+            let env = self
                 .resolve(tmp.path())
-                .map_err(|e| anyhow!("new_config_path: {e}"))?
+                .map_err(|e| anyhow!("new_config_path: {e}"))?;
+            let got = env
                 .new_config_path()
                 .map_err(|e| anyhow!("new_config_path: {e}"))?;
-            if got != want {
+            if got != want.as_deref() {
                 return Err(anyhow!("new_config_path: got {got:?}, want {want:?}"));
             }
             if let Some(path) = got {
