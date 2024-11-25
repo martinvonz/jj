@@ -561,6 +561,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#why-are-most-merge-commits-marked-as-empty" class="md-nav__link">
+    <span class="md-ellipsis">
+      Why are most merge commits marked as "(empty)"?
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#how-do-i-deal-with-divergent-changes-after-the-change-id" class="md-nav__link">
     <span class="md-ellipsis">
       How do I deal with divergent changes ('??' after the change ID)?
@@ -1656,6 +1665,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#why-are-most-merge-commits-marked-as-empty" class="md-nav__link">
+    <span class="md-ellipsis">
+      Why are most merge commits marked as "(empty)"?
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#how-do-i-deal-with-divergent-changes-after-the-change-id" class="md-nav__link">
     <span class="md-ellipsis">
       How do I deal with divergent changes ('??' after the change ID)?
@@ -1931,6 +1949,21 @@ your state without realising.</p>
 your edits, then use <code>jj squash</code> to update the earlier revision with those edits.
 For when you would use git stashing, use <code>jj edit &lt;rev&gt;</code> for expected behaviour.
 Other workflows may prefer <code>jj edit</code> as well.</p>
+<h3 id="why-are-most-merge-commits-marked-as-empty">Why are most merge commits marked as "(empty)"?<a class="headerlink" href="#why-are-most-merge-commits-marked-as-empty" title="Permanent link">&para;</a></h3>
+<p>Jujutsu, like Git, is a snapshot-based VCS. That means that each commit
+logically records the state of all current files in the repo. The changes in a
+commit are not recorded but are instead calculated when needed by comparing the
+commit's state to the parent commit's state. Jujutsu defines the changes in a
+commit to be relative to the auto-merged parents (if there's only one parent,
+then that merge is trivial - it's the parent commit's state). As a result, a
+merge commit that was a clean merge (no conflict resolution, no additional
+changes) is considered empty. Conversely, if the merge commit contains conflict
+resolutions or additional changes, then it will be considered non-empty.</p>
+<p>This definition of the changes in a commit is used throughout Jujutsu. It's
+used by <code>jj diff -r</code> and <code>jj log -p</code> to show the changes in a commit. It's used
+by <code>jj rebase</code> to rebase the changes in a commit. It's used in <code>jj log</code> to
+indicate which commits are empty. It's used in the <code>files()</code> revset function
+(and by <code>jj log &lt;path&gt;</code>) to find commits that modify a certain path. And so on.</p>
 <h3 id="how-do-i-deal-with-divergent-changes-after-the-change-id">How do I deal with divergent changes ('??' after the <a href="../glossary/#change-id">change ID</a>)?<a class="headerlink" href="#how-do-i-deal-with-divergent-changes-after-the-change-id" title="Permanent link">&para;</a></h3>
 <p>A <a href="../glossary/#divergent-change">divergent change</a> represents a change that has two
 or more visible commits associated with it. To refer to such commits, you must
