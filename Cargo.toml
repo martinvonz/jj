@@ -64,7 +64,7 @@ gix = { version = "0.67.0", default-features = false, features = [
     "max-performance-safe",
 ] }
 glob = "0.3.1"
-hashbrown = { version = "0.15.1", default-features = false, features = ["inline-more"] }
+hashbrown = { version = "0.15.2", default-features = false, features = ["inline-more"] }
 hex = "0.4.3"
 ignore = "0.4.23"
 indexmap = "2.6.0"
