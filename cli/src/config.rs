@@ -232,6 +232,7 @@ pub fn resolved_config_values(
     Ok(config_vals)
 }
 
+#[derive(Clone, Debug)]
 enum ConfigPath {
     /// Existing config file path.
     Existing(PathBuf),
@@ -279,22 +280,14 @@ fn create_config_file(path: &Path) -> std::io::Result<std::fs::File> {
 
 // The struct exists so that we can mock certain global values in unit tests.
 #[derive(Clone, Default, Debug)]
-struct ConfigEnv {
+struct UnresolvedConfigEnv {
     config_dir: Option<PathBuf>,
     home_dir: Option<PathBuf>,
     jj_config: Option<String>,
 }
 
-impl ConfigEnv {
-    fn new() -> Self {
-        ConfigEnv {
-            config_dir: dirs::config_dir(),
-            home_dir: dirs::home_dir(),
-            jj_config: env::var("JJ_CONFIG").ok(),
-        }
-    }
-
-    fn config_path(self) -> Result<ConfigPath, ConfigEnvError> {
+impl UnresolvedConfigEnv {
+    fn resolve(self) -> Result<ConfigPath, ConfigEnvError> {
         if let Some(path) = self.jj_config {
             // TODO: We should probably support colon-separated (std::env::split_paths)
             return Ok(ConfigPath::new(Some(PathBuf::from(path))));
@@ -320,16 +313,35 @@ impl ConfigEnv {
             (Unavailable, Unavailable) => Ok(Unavailable),
         }
     }
+}
 
-    fn existing_config_path(self) -> Result<Option<PathBuf>, ConfigEnvError> {
-        match self.config_path()? {
-            ConfigPath::Existing(path) => Ok(Some(path)),
-            _ => Ok(None),
+#[derive(Clone, Debug)]
+struct ConfigEnv {
+    user_config_path: ConfigPath,
+}
+
+impl ConfigEnv {
+    /// Initializes configuration loader based on environment variables.
+    fn new() -> Result<Self, ConfigEnvError> {
+        let env = UnresolvedConfigEnv {
+            config_dir: dirs::config_dir(),
+            home_dir: dirs::home_dir(),
+            jj_config: env::var("JJ_CONFIG").ok(),
+        };
+        Ok(ConfigEnv {
+            user_config_path: env.resolve()?,
+        })
+    }
+
+    fn existing_config_path(self) -> Option<PathBuf> {
+        match self.user_config_path {
+            ConfigPath::Existing(path) => Some(path),
+            _ => None,
         }
     }
 
     fn new_config_path(self) -> Result<Option<PathBuf>, ConfigEnvError> {
-        match self.config_path()? {
+        match self.user_config_path {
             ConfigPath::Existing(path) => Ok(Some(path)),
             ConfigPath::New(path) => {
                 create_config_file(&path)?;
@@ -341,7 +353,7 @@ impl ConfigEnv {
 }
 
 pub fn existing_config_path() -> Result<Option<PathBuf>, ConfigEnvError> {
-    ConfigEnv::new().existing_config_path()
+    Ok(ConfigEnv::new()?.existing_config_path())
 }
 
 /// Returns a path to the user-specific config file.
@@ -350,7 +362,7 @@ pub fn existing_config_path() -> Result<Option<PathBuf>, ConfigEnvError> {
 /// location for it. If a path to a new config file is returned, the
 /// parent directory may be created as a result of this call.
 pub fn new_config_path() -> Result<Option<PathBuf>, ConfigEnvError> {
-    ConfigEnv::new().new_config_path()
+    ConfigEnv::new()?.new_config_path()
 }
 
 /// Environment variables that should be overridden by config values
@@ -672,6 +684,7 @@ impl TryFrom<Vec<String>> for NonEmptyCommandArgsVec {
 #[cfg(test)]
 mod tests {
     use anyhow::anyhow;
+    use assert_matches::assert_matches;
     use maplit::hashmap;
 
     use super::*;
@@ -1007,7 +1020,7 @@ mod tests {
     fn test_config_path_home_dir_existing() -> anyhow::Result<()> {
         TestCase {
             files: vec!["home/.jjconfig.toml"],
-            cfg: ConfigEnv {
+            env: UnresolvedConfigEnv {
                 home_dir: Some("home".into()),
                 ..Default::default()
             },
@@ -1020,7 +1033,7 @@ mod tests {
     fn test_config_path_home_dir_new() -> anyhow::Result<()> {
         TestCase {
             files: vec![],
-            cfg: ConfigEnv {
+            env: UnresolvedConfigEnv {
                 home_dir: Some("home".into()),
                 ..Default::default()
             },
@@ -1033,7 +1046,7 @@ mod tests {
     fn test_config_path_config_dir_existing() -> anyhow::Result<()> {
         TestCase {
             files: vec!["config/jj/config.toml"],
-            cfg: ConfigEnv {
+            env: UnresolvedConfigEnv {
                 config_dir: Some("config".into()),
                 ..Default::default()
             },
@@ -1046,7 +1059,7 @@ mod tests {
     fn test_config_path_config_dir_new() -> anyhow::Result<()> {
         TestCase {
             files: vec![],
-            cfg: ConfigEnv {
+            env: UnresolvedConfigEnv {
                 config_dir: Some("config".into()),
                 ..Default::default()
             },
@@ -1059,7 +1072,7 @@ mod tests {
     fn test_config_path_new_prefer_config_dir() -> anyhow::Result<()> {
         TestCase {
             files: vec![],
-            cfg: ConfigEnv {
+            env: UnresolvedConfigEnv {
                 config_dir: Some("config".into()),
                 home_dir: Some("home".into()),
                 ..Default::default()
@@ -1073,7 +1086,7 @@ mod tests {
     fn test_config_path_jj_config_existing() -> anyhow::Result<()> {
         TestCase {
             files: vec!["custom.toml"],
-            cfg: ConfigEnv {
+            env: UnresolvedConfigEnv {
                 jj_config: Some("custom.toml".into()),
                 ..Default::default()
             },
@@ -1086,7 +1099,7 @@ mod tests {
     fn test_config_path_jj_config_new() -> anyhow::Result<()> {
         TestCase {
             files: vec![],
-            cfg: ConfigEnv {
+            env: UnresolvedConfigEnv {
                 jj_config: Some("custom.toml".into()),
                 ..Default::default()
             },
@@ -1099,7 +1112,7 @@ mod tests {
     fn test_config_path_config_pick_config_dir() -> anyhow::Result<()> {
         TestCase {
             files: vec!["config/jj/config.toml"],
-            cfg: ConfigEnv {
+            env: UnresolvedConfigEnv {
                 home_dir: Some("home".into()),
                 config_dir: Some("config".into()),
                 ..Default::default()
@@ -1113,7 +1126,7 @@ mod tests {
     fn test_config_path_config_pick_home_dir() -> anyhow::Result<()> {
         TestCase {
             files: vec!["home/.jjconfig.toml"],
-            cfg: ConfigEnv {
+            env: UnresolvedConfigEnv {
                 home_dir: Some("home".into()),
                 config_dir: Some("config".into()),
                 ..Default::default()
@@ -1127,7 +1140,7 @@ mod tests {
     fn test_config_path_none() -> anyhow::Result<()> {
         TestCase {
             files: vec![],
-            cfg: Default::default(),
+            env: Default::default(),
             want: Want::None,
         }
         .run()
@@ -1136,20 +1149,12 @@ mod tests {
     #[test]
     fn test_config_path_ambiguous() -> anyhow::Result<()> {
         let tmp = setup_config_fs(&vec!["home/.jjconfig.toml", "config/jj/config.toml"])?;
-        let cfg = ConfigEnv {
+        let env = UnresolvedConfigEnv {
             home_dir: Some(tmp.path().join("home")),
             config_dir: Some(tmp.path().join("config")),
             ..Default::default()
         };
-        use assert_matches::assert_matches;
-        assert_matches!(
-            cfg.clone().existing_config_path(),
-            Err(ConfigEnvError::AmbiguousSource(_, _))
-        );
-        assert_matches!(
-            cfg.clone().new_config_path(),
-            Err(ConfigEnvError::AmbiguousSource(_, _))
-        );
+        assert_matches!(env.resolve(), Err(ConfigEnvError::AmbiguousSource(_, _)));
         Ok(())
     }
 
@@ -1173,21 +1178,24 @@ mod tests {
 
     struct TestCase {
         files: Vec<&'static str>,
-        cfg: ConfigEnv,
+        env: UnresolvedConfigEnv,
         want: Want,
     }
 
     impl TestCase {
-        fn config(&self, root: &Path) -> ConfigEnv {
-            ConfigEnv {
-                config_dir: self.cfg.config_dir.as_ref().map(|p| root.join(p)),
-                home_dir: self.cfg.home_dir.as_ref().map(|p| root.join(p)),
+        fn resolve(&self, root: &Path) -> Result<ConfigEnv, ConfigEnvError> {
+            let env = UnresolvedConfigEnv {
+                config_dir: self.env.config_dir.as_ref().map(|p| root.join(p)),
+                home_dir: self.env.home_dir.as_ref().map(|p| root.join(p)),
                 jj_config: self
-                    .cfg
+                    .env
                     .jj_config
                     .as_ref()
                     .map(|p| root.join(p).to_str().unwrap().to_string()),
-            }
+            };
+            Ok(ConfigEnv {
+                user_config_path: env.resolve()?,
+            })
         }
 
         fn run(&self) -> anyhow::Result<()> {
@@ -1205,9 +1213,9 @@ mod tests {
             }
             .map(|p| tmp.path().join(p));
             let got = self
-                .config(tmp.path())
-                .existing_config_path()
-                .map_err(|e| anyhow!("existing_config_path: {e}"))?;
+                .resolve(tmp.path())
+                .map_err(|e| anyhow!("existing_config_path: {e}"))?
+                .existing_config_path();
             if got != want {
                 return Err(anyhow!("existing_config_path: got {got:?}, want {want:?}"));
             }
@@ -1222,7 +1230,8 @@ mod tests {
             }
             .map(|p| tmp.path().join(p));
             let got = self
-                .config(tmp.path())
+                .resolve(tmp.path())
+                .map_err(|e| anyhow!("new_config_path: {e}"))?
                 .new_config_path()
                 .map_err(|e| anyhow!("new_config_path: {e}"))?;
             if got != want {
