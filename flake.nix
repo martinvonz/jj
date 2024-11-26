@@ -60,7 +60,14 @@
         if pkgs.stdenv.isLinux then
           [ "-fuse-ld=mold" "-Wl,--compress-debug-sections=zstd" ]
         else if pkgs.stdenv.isDarwin then
-          [ "-fuse-ld=/usr/bin/ld" "-ld_new" ]
+          # on darwin, /usr/bin/ld actually looks at the environment variable
+          # $DEVELOPER_DIR, which is set by the nix stdenv, and if set,
+          # automatically uses it to route the `ld` invocation to the binary
+          # within. in the devShell though, that isn't what we want; it's
+          # functional, but Xcode's linker as of ~v15 (not yet open source)
+          # is ultra-fast and very shiny; it is enabled via -ld_new, and on by
+          # default as of v16+
+          [ "--ld-path=$(unset DEVELOPER_DIR; /usr/bin/xcrun --find ld)" "-ld_new" ]
         else
           [ ];
 
