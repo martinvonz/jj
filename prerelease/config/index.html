@@ -3224,7 +3224,10 @@ tool fill it in). To do that, set the
 <p>With this option set, if the output file still contains conflict markers after
 the conflict is done, <code>jj</code> assumes that the conflict was only partially resolved
 and parses the conflict markers to get the new state of the conflict. The
-conflict is considered fully resolved when there are no conflict markers left.</p>
+conflict is considered fully resolved when there are no conflict markers left.
+The conflict marker style can also be customized per tool using the
+<code>merge-tools.TOOL.conflict-marker-style</code> option, which takes the same values as
+<a href="#conflict-marker-style"><code>ui.conflict-marker-style</code></a>.</p>
 <h2 id="code-formatting-and-other-file-content-transformations">Code formatting and other file content transformations<a class="headerlink" href="#code-formatting-and-other-file-content-transformations" title="Permanent link">&para;</a></h2>
 <p>The <code>jj fix</code> command allows you to efficiently rewrite files in complex commit
 graphs with no risk of introducing conflicts, using tools like <code>clang-format</code> or
