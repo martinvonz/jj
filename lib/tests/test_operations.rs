@@ -20,6 +20,8 @@ use std::time::SystemTime;
 use assert_matches::assert_matches;
 use itertools::Itertools as _;
 use jj_lib::backend::CommitId;
+use jj_lib::config::ConfigLayer;
+use jj_lib::config::ConfigSource;
 use jj_lib::object_id::ObjectId;
 use jj_lib::op_walk;
 use jj_lib::op_walk::OpsetEvaluationError;
@@ -421,15 +423,15 @@ fn test_reparent_range_bookmarky() {
 }
 
 fn stable_op_id_settings() -> UserSettings {
-    UserSettings::from_config(
-        testutils::base_config()
-            .add_source(config::File::from_str(
-                "debug.operation-timestamp = '2001-02-03T04:05:06+07:00'",
-                config::FileFormat::Toml,
-            ))
-            .build()
-            .unwrap(),
-    )
+    let mut config = testutils::base_user_config();
+    config.add_layer(
+        ConfigLayer::parse(
+            ConfigSource::User,
+            "debug.operation-timestamp = '2001-02-03T04:05:06+07:00'",
+        )
+        .unwrap(),
+    );
+    UserSettings::from_config(config)
 }
 
 #[test]

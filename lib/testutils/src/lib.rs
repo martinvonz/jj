@@ -37,6 +37,9 @@ use jj_lib::backend::Timestamp;
 use jj_lib::backend::TreeValue;
 use jj_lib::commit::Commit;
 use jj_lib::commit_builder::CommitBuilder;
+use jj_lib::config::ConfigLayer;
+use jj_lib::config::ConfigSource;
+use jj_lib::config::StackedConfig;
 use jj_lib::git_backend::GitBackend;
 use jj_lib::local_backend::LocalBackend;
 use jj_lib::merged_tree::MergedTree;
@@ -101,22 +104,25 @@ pub fn new_temp_dir() -> TempDir {
         .unwrap()
 }
 
-pub fn base_config() -> config::ConfigBuilder<config::builder::DefaultState> {
-    config::Config::builder().add_source(config::File::from_str(
-        r#"
-            user.name = "Test User"
-            user.email = "test.user@example.com"
-            operation.username = "test-username"
-            operation.hostname = "host.example.com"
-            debug.randomness-seed = "42"
-        "#,
-        config::FileFormat::Toml,
-    ))
+/// Returns new low-level config object that includes fake user configuration
+/// needed to run basic operations.
+pub fn base_user_config() -> StackedConfig {
+    let config_text = r#"
+        user.name = "Test User"
+        user.email = "test.user@example.com"
+        operation.username = "test-username"
+        operation.hostname = "host.example.com"
+        debug.randomness-seed = "42"
+    "#;
+    let mut config = StackedConfig::empty();
+    config.add_layer(ConfigLayer::parse(ConfigSource::User, config_text).unwrap());
+    config
 }
 
+/// Returns new immutable settings object that includes fake user configuration
+/// needed to run basic operations.
 pub fn user_settings() -> UserSettings {
-    let config = base_config().build().unwrap();
-    UserSettings::from_config(config)
+    UserSettings::from_config(base_user_config())
 }
 
 #[derive(Debug)]

@@ -359,15 +359,21 @@ impl MergeEditor {
 
 #[cfg(test)]
 mod tests {
+    use jj_lib::config::ConfigLayer;
+    use jj_lib::config::ConfigSource;
+    use jj_lib::config::StackedConfig;
+
     use super::*;
 
-    fn config_from_string(text: &str) -> config::Config {
-        config::Config::builder()
-            // Load defaults to test the default args lookup
-            .add_source(crate::config::default_config())
-            .add_source(config::File::from_str(text, config::FileFormat::Toml))
-            .build()
-            .unwrap()
+    fn config_from_string(text: &str) -> StackedConfig {
+        let mut config = StackedConfig::empty();
+        // Load defaults to test the default args lookup
+        config.add_layer(ConfigLayer::with_data(
+            ConfigSource::Default,
+            crate::config::default_config(),
+        ));
+        config.add_layer(ConfigLayer::parse(ConfigSource::User, text).unwrap());
+        config
     }
 
     #[test]
@@ -440,7 +446,7 @@ mod tests {
     fn test_get_diff_editor_from_settings() {
         let get = |text| {
             let config = config_from_string(text);
-            let ui = Ui::with_config(&config).unwrap();
+            let ui = Ui::with_config(&config.merge()).unwrap();
             let settings = UserSettings::from_config(config);
             DiffEditor::from_settings(
                 &ui,
@@ -657,7 +663,7 @@ mod tests {
     fn test_get_merge_editor_from_settings() {
         let get = |text| {
             let config = config_from_string(text);
-            let ui = Ui::with_config(&config).unwrap();
+            let ui = Ui::with_config(&config.merge()).unwrap();
             let settings = UserSettings::from_config(config);
             MergeEditor::from_settings(&ui, &settings, ConflictMarkerStyle::Diff)
                 .map(|editor| editor.tool)

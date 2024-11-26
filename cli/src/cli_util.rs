@@ -281,7 +281,6 @@ struct CommandHelperData {
     global_args: GlobalArgs,
     config_env: ConfigEnv,
     settings: UserSettings,
-    stacked_config: StackedConfig,
     revset_extensions: Arc<RevsetExtensions>,
     commit_template_extensions: Vec<Arc<dyn CommitTemplateLanguageExtension>>,
     operation_template_extensions: Vec<Arc<dyn OperationTemplateLanguageExtension>>,
@@ -323,11 +322,6 @@ impl CommandHelper {
         &self.data.settings
     }
 
-    // TODO: will be moved to UserSettings
-    pub fn stacked_config(&self) -> &StackedConfig {
-        &self.data.stacked_config
-    }
-
     pub fn revset_extensions(&self) -> &Arc<RevsetExtensions> {
         &self.data.revset_extensions
     }
@@ -337,7 +331,7 @@ impl CommandHelper {
     /// For most commands that depend on a loaded repo, you should use
     /// `WorkspaceCommandHelper::template_aliases_map()` instead.
     fn load_template_aliases(&self, ui: &Ui) -> Result<TemplateAliasesMap, CommandError> {
-        load_template_aliases(ui, &self.data.stacked_config)
+        load_template_aliases(ui, self.settings().stacked_config())
     }
 
     /// Parses template of the given language into evaluation tree.
@@ -724,7 +718,7 @@ impl WorkspaceCommandEnvironment {
     #[instrument(skip_all)]
     fn new(ui: &Ui, command: &CommandHelper, workspace: &Workspace) -> Result<Self, CommandError> {
         let revset_aliases_map =
-            revset_util::load_revset_aliases(ui, &command.data.stacked_config)?;
+            revset_util::load_revset_aliases(ui, command.settings().stacked_config())?;
         let template_aliases_map = command.load_template_aliases(ui)?;
         let path_converter = RepoPathUiConverter::Fs {
             cwd: command.cwd().to_owned(),
@@ -3627,7 +3621,7 @@ impl CliRunner {
             }
         }
 
-        let settings = UserSettings::from_config(config);
+        let settings = UserSettings::from_config(stacked_config);
         let command_helper_data = CommandHelperData {
             app: self.app,
             cwd,
@@ -3636,7 +3630,6 @@ impl CliRunner {
             global_args: args.global_args,
             config_env,
             settings,
-            stacked_config,
             revset_extensions: self.revset_extensions.into(),
             commit_template_extensions: self.commit_template_extensions,
             operation_template_extensions: self.operation_template_extensions,
