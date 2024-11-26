@@ -171,6 +171,14 @@ impl ConfigLayer {
         }
     }
 
+    /// Parses TOML document `text` into new layer.
+    pub fn parse(source: ConfigSource, text: &str) -> Result<Self, ConfigError> {
+        let data = config::Config::builder()
+            .add_source(config::File::from_str(text, config::FileFormat::Toml))
+            .build()?;
+        Ok(Self::with_data(source, data))
+    }
+
     fn load_from_file(source: ConfigSource, path: PathBuf) -> Result<Self, ConfigError> {
         // TODO: will be replaced with toml_edit::DocumentMut or ImDocument
         let data = config::Config::builder()
