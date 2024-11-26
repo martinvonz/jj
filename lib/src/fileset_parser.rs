@@ -427,6 +427,8 @@ pub fn parse_program_or_bare_string(text: &str) -> FilesetParseResult<Expression
     Ok(ExpressionNode::new(expr, span))
 }
 
+/// User fileset aliases. When using the CLI, read from the "fileset-aliases"
+/// table.
 pub type FilesetAliasesMap = AliasesMap<FilesetAliasParser, String>;
 
 #[derive(Clone, Debug, Default)]
@@ -439,7 +441,7 @@ impl AliasDeclarationParser for FilesetAliasParser {
         let mut pairs = FilesetParser::parse(Rule::alias_declaration, source)?;
         let first = pairs.next().unwrap();
         match first.as_rule() {
-            Rule::identifier => Ok(AliasDeclaration::Symbol(first.as_str().to_owned())),
+            Rule::strict_identifier => Ok(AliasDeclaration::Symbol(first.as_str().to_owned())),
             r => panic!("unexpected alias declaration rule {r:?}"),
         }
     }

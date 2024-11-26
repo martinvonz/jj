@@ -771,6 +771,7 @@ impl WorkspaceCommandEnvironment {
             now.into(),
             self.command.revset_extensions(),
             Some(workspace_context),
+            &self.fileset_aliases_map,
         )
     }
 
