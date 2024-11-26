@@ -1,6 +1,8 @@
 use jj_lib::backend::MillisSinceEpoch;
 use jj_lib::backend::Signature;
 use jj_lib::backend::Timestamp;
+use jj_lib::config::ConfigLayer;
+use jj_lib::config::ConfigSource;
 use jj_lib::repo::Repo;
 use jj_lib::settings::UserSettings;
 use jj_lib::signing::SigStatus;
@@ -15,18 +17,19 @@ use testutils::TestRepoBackend;
 use testutils::TestWorkspace;
 
 fn user_settings(sign_all: bool) -> UserSettings {
-    let config = testutils::base_config()
-        .add_source(config::File::from_str(
+    let mut config = testutils::base_user_config();
+    config.add_layer(
+        ConfigLayer::parse(
+            ConfigSource::User,
             &format!(
                 r#"
                 signing.key = "impeccable"
                 signing.sign-all = {sign_all}
                 "#
             ),
-            config::FileFormat::Toml,
-        ))
-        .build()
-        .unwrap();
+        )
+        .unwrap(),
+    );
     UserSettings::from_config(config)
 }
 

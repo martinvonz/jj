@@ -1536,6 +1536,7 @@ mod tests {
     use test_case::test_case;
 
     use super::*;
+    use crate::config::StackedConfig;
     use crate::content_hash::blake2b_hash;
 
     #[test_case(false; "legacy tree format")]
@@ -2220,7 +2221,7 @@ mod tests {
     // UserSettings type. testutils returns jj_lib (2)'s UserSettings, whereas
     // our UserSettings type comes from jj_lib (1).
     fn user_settings() -> UserSettings {
-        let config = config::Config::default();
+        let config = StackedConfig::empty();
         UserSettings::from_config(config)
     }
 }

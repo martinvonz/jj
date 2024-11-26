@@ -28,6 +28,7 @@ use crate::backend::Commit;
 use crate::backend::Signature;
 use crate::backend::Timestamp;
 use crate::config::ConfigError;
+use crate::config::StackedConfig;
 use crate::conflicts::ConflictMarkerStyle;
 use crate::fmt_util::binary_prefix;
 use crate::fsmonitor::FsmonitorSettings;
@@ -35,6 +36,8 @@ use crate::signing::SignBehavior;
 
 #[derive(Debug, Clone)]
 pub struct UserSettings {
+    // TODO: merged "config" will be replaced by StackedConfig
+    stacked_config: StackedConfig,
     config: config::Config,
     timestamp: Option<Timestamp>,
     rng: Arc<JJRng>,
@@ -42,7 +45,7 @@ pub struct UserSettings {
 
 #[derive(Debug, Clone)]
 pub struct RepoSettings {
-    _config: config::Config,
+    _stacked_config: StackedConfig,
 }
 
 #[derive(Debug, Clone)]
@@ -135,10 +138,12 @@ fn get_rng_seed_config(config: &config::Config) -> Option<u64> {
 }
 
 impl UserSettings {
-    pub fn from_config(config: config::Config) -> Self {
+    pub fn from_config(stacked_config: StackedConfig) -> Self {
+        let config = stacked_config.merge();
         let timestamp = get_timestamp_config(&config, "debug.commit-timestamp");
         let rng_seed = get_rng_seed_config(&config);
         UserSettings {
+            stacked_config,
             config,
             timestamp,
             rng: Arc::new(JJRng::new(rng_seed)),
@@ -148,8 +153,10 @@ impl UserSettings {
     // TODO: Reconsider UserSettings/RepoSettings abstraction. See
     // https://github.com/martinvonz/jj/issues/616#issuecomment-1345170699
     pub fn with_repo(&self, _repo_path: &Path) -> Result<RepoSettings, ConfigError> {
-        let config = self.config.clone();
-        Ok(RepoSettings { _config: config })
+        let stacked_config = self.stacked_config.clone();
+        Ok(RepoSettings {
+            _stacked_config: stacked_config,
+        })
     }
 
     pub fn get_rng(&self) -> Arc<JJRng> {
@@ -222,6 +229,10 @@ impl UserSettings {
 
     pub fn allow_native_backend(&self) -> bool {
         self.get_bool("ui.allow-init-native").unwrap_or(false)
+    }
+
+    pub fn stacked_config(&self) -> &StackedConfig {
+        &self.stacked_config
     }
 
     // TODO: remove
