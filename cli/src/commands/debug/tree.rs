@@ -54,7 +54,7 @@ pub fn cmd_debug_tree(
             RepoPathBuf::root()
         };
         let store = workspace_command.repo().store();
-        let tree = store.get_tree(&dir, &tree_id)?;
+        let tree = store.get_tree(dir, &tree_id)?;
         MergedTree::resolved(tree)
     } else {
         let commit = workspace_command

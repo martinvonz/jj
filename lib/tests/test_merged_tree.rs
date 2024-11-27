@@ -164,7 +164,7 @@ fn test_from_legacy_tree() {
     tree_builder.set(dir1_filename.to_owned(), file_value(&dir1_filename_id));
 
     let tree_id = tree_builder.write_tree().unwrap();
-    let tree = store.get_tree(RepoPath::root(), &tree_id).unwrap();
+    let tree = store.get_tree(RepoPathBuf::root(), &tree_id).unwrap();
 
     let merged_tree = MergedTree::from_legacy_tree(tree.clone()).unwrap();
     assert_eq!(
