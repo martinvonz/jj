@@ -1315,8 +1315,6 @@ impl TreeState {
         executable: FileExecutableFlag,
         conflict_marker_style: ConflictMarkerStyle,
     ) -> Result<MergedTreeValue, SnapshotError> {
-        // If the file contained a conflict before and is now a normal file on disk, we
-        // try to parse any conflict markers in the file into a conflict.
         if let Some(current_tree_value) = current_tree_values.as_resolved() {
             #[cfg(unix)]
             let _ = current_tree_value; // use the variable
@@ -1333,6 +1331,9 @@ impl TreeState {
             };
             Ok(Merge::normal(TreeValue::File { id, executable }))
         } else if let Some(old_file_ids) = current_tree_values.to_file_merge() {
+            // If the file contained a conflict before and is a normal file on
+            // disk, we try to parse any conflict markers in the file into a
+            // conflict.
             let content = fs::read(disk_path).map_err(|err| SnapshotError::Other {
                 message: format!("Failed to open file {}", disk_path.display()),
                 err: err.into(),
