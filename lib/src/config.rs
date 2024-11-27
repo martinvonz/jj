@@ -25,6 +25,7 @@ use std::str::FromStr;
 
 use config::Source as _;
 use itertools::Itertools as _;
+use serde::Deserialize;
 
 use crate::file_util::IoResultExt as _;
 
@@ -289,6 +290,31 @@ impl ConfigLayer {
             .map(|path| Self::load_from_file(source, path))
             .try_collect()
     }
+
+    /// Looks up item by the `name` path. Returns `Some(item)` if an item
+    /// found at the path. Returns `Err(item)` if middle node wasn't a table.
+    fn look_up_item(&self, name: &ConfigNamePathBuf) -> Result<Option<&ConfigValue>, &ConfigValue> {
+        look_up_item(&self.data.cache, name)
+    }
+}
+
+/// Looks up item from the `root_item`. Returns `Some(item)` if an item found at
+/// the path. Returns `Err(item)` if middle node wasn't a table.
+fn look_up_item<'a>(
+    root_item: &'a ConfigValue,
+    name: &ConfigNamePathBuf,
+) -> Result<Option<&'a ConfigValue>, &'a ConfigValue> {
+    let mut cur_item = root_item;
+    for key in name.components().map(toml_edit::Key::get) {
+        let config::ValueKind::Table(table) = &cur_item.kind else {
+            return Err(cur_item);
+        };
+        cur_item = match table.get(key) {
+            Some(item) => item,
+            None => return Ok(None),
+        };
+    }
+    Ok(Some(cur_item))
 }
 
 /// Stack of configuration layers which can be merged as needed.
@@ -381,10 +407,106 @@ impl StackedConfig {
             .build()
             .expect("loaded configs should be merged without error")
     }
+
+    /// Looks up value of the specified type `T` from all layers, merges sub
+    /// fields as needed.
+    pub fn get<'de, T: Deserialize<'de>>(
+        &self,
+        name: impl ToConfigNamePath,
+    ) -> Result<T, ConfigError> {
+        self.get_item_with(name, T::deserialize)
+    }
+
+    /// Looks up value from all layers, merges sub fields as needed.
+    pub fn get_value(&self, name: impl ToConfigNamePath) -> Result<ConfigValue, ConfigError> {
+        self.get_item_with(name, Ok)
+    }
+
+    /// Looks up sub table from all layers, merges fields as needed.
+    // TODO: redesign this to attach better error indication?
+    pub fn get_table(&self, name: impl ToConfigNamePath) -> Result<ConfigTable, ConfigError> {
+        self.get(name)
+    }
+
+    fn get_item_with<T>(
+        &self,
+        name: impl ToConfigNamePath,
+        convert: impl FnOnce(ConfigValue) -> Result<T, ConfigError>,
+    ) -> Result<T, ConfigError> {
+        let name = name.into_name_path();
+        let name = name.borrow();
+        let (item, _layer_index) = get_merged_item(&self.layers, name)
+            .ok_or_else(|| ConfigError::NotFound(name.to_string()))?;
+        // TODO: Add source type/path to the error message. If the value is
+        // a table, the error might come from lower layers. We cannot report
+        // precise source information in that case. However, toml_edit captures
+        // dotted keys in the error object. If the keys field were public, we
+        // can look up the source information. This is probably simpler than
+        // reimplementing Deserializer.
+        convert(item).map_err(|err| err.extend_with_key(&name.to_string()))
+    }
+}
+
+/// Looks up item from `layers`, merges sub fields as needed. Returns a merged
+/// item and the uppermost layer index where the item was found.
+fn get_merged_item(
+    layers: &[ConfigLayer],
+    name: &ConfigNamePathBuf,
+) -> Option<(ConfigValue, usize)> {
+    let mut to_merge = Vec::new();
+    for (index, layer) in layers.iter().enumerate().rev() {
+        let item = match layer.look_up_item(name) {
+            Ok(Some(item)) => item,
+            Ok(None) => continue, // parent is a table, but no value found
+            Err(_) => break,      // parent is not a table, shadows lower layers
+        };
+        if matches!(item.kind, config::ValueKind::Table(_)) {
+            to_merge.push((item, index));
+        } else if to_merge.is_empty() {
+            return Some((item.clone(), index)); // no need to allocate vec
+        } else {
+            break; // shadows lower layers
+        }
+    }
+
+    // Simply merge tables from the bottom layer. Upper items should override
+    // the lower items (including their children) no matter if the upper items
+    // are shadowed by the other upper items.
+    let (item, mut top_index) = to_merge.pop()?;
+    let mut merged = item.clone();
+    for (item, index) in to_merge.into_iter().rev() {
+        merge_items(&mut merged, item);
+        top_index = index;
+    }
+    Some((merged, top_index))
+}
+
+/// Merges `upper_item` fields into `lower_item` recursively.
+fn merge_items(lower_item: &mut ConfigValue, upper_item: &ConfigValue) {
+    // TODO: If we switch to toml_edit, inline table will probably be treated as
+    // a value, not a table to be merged. For example, { fg = "red" } won't
+    // inherit other color parameters from the lower table.
+    let (config::ValueKind::Table(lower_table), config::ValueKind::Table(upper_table)) =
+        (&mut lower_item.kind, &upper_item.kind)
+    else {
+        // Not a table, the upper item wins.
+        *lower_item = upper_item.clone();
+        return;
+    };
+    for (key, upper) in upper_table {
+        lower_table
+            .entry(key.clone())
+            .and_modify(|lower| merge_items(lower, upper))
+            .or_insert_with(|| upper.clone());
+    }
 }
 
 #[cfg(test)]
 mod tests {
+    use assert_matches::assert_matches;
+    use indoc::indoc;
+    use pretty_assertions::assert_eq;
+
     use super::*;
 
     #[test]
@@ -489,5 +611,199 @@ mod tests {
         config.remove_layers(ConfigSource::EnvBase);
         config.remove_layers(ConfigSource::Repo);
         assert_eq!(layer_sources(&config), vec![]);
+    }
+
+    fn new_user_layer(text: &str) -> ConfigLayer {
+        ConfigLayer::parse(ConfigSource::User, text).unwrap()
+    }
+
+    fn parse_to_table(text: &str) -> ConfigTable {
+        new_user_layer(text).data.cache.into_table().unwrap()
+    }
+
+    #[test]
+    fn test_stacked_config_get_simple_value() {
+        let mut config = StackedConfig::empty();
+        config.add_layer(new_user_layer(indoc! {"
+            a.b.c = 'a.b.c #0'
+        "}));
+        config.add_layer(new_user_layer(indoc! {"
+            a.d = ['a.d #1']
+        "}));
+
+        assert_eq!(config.merge().get::<String>("a.b.c").unwrap(), "a.b.c #0");
+        assert_eq!(config.get::<String>("a.b.c").unwrap(), "a.b.c #0");
+
+        assert_eq!(
+            config.merge().get::<Vec<String>>("a.d").unwrap(),
+            vec!["a.d #1".to_owned()]
+        );
+        assert_eq!(
+            config.get::<Vec<String>>("a.d").unwrap(),
+            vec!["a.d #1".to_owned()]
+        );
+
+        // Table "a.b" exists, but key doesn't
+        assert_matches!(
+            config.merge().get::<String>("a.b.missing"),
+            Err(ConfigError::NotFound(name)) if name == "a.b.missing"
+        );
+        assert_matches!(
+            config.get::<String>("a.b.missing"),
+            Err(ConfigError::NotFound(name)) if name == "a.b.missing"
+        );
+
+        // Node "a.b.c" is not a table
+        assert_matches!(
+            config.merge().get::<String>("a.b.c.d"),
+            Err(ConfigError::NotFound(name)) if name == "a.b.c.d"
+        );
+        assert_matches!(
+            config.get::<String>("a.b.c.d"),
+            Err(ConfigError::NotFound(name)) if name == "a.b.c.d"
+        );
+
+        // Type error
+        assert_matches!(
+            config.merge().get::<String>("a.b"),
+            Err(ConfigError::Type { key: Some(name), .. }) if name == "a.b"
+        );
+        assert_matches!(
+            config.get::<String>("a.b"),
+            Err(ConfigError::Type { key: Some(name), .. }) if name == "a.b"
+        );
+    }
+
+    #[test]
+    fn test_stacked_config_get_value_shadowing_table() {
+        let mut config = StackedConfig::empty();
+        config.add_layer(new_user_layer(indoc! {"
+            a.b.c = 'a.b.c #0'
+        "}));
+        // a.b.c is shadowed by a.b
+        config.add_layer(new_user_layer(indoc! {"
+            a.b = 'a.b #1'
+        "}));
+
+        assert_eq!(config.merge().get::<String>("a.b").unwrap(), "a.b #1");
+        assert_eq!(config.get::<String>("a.b").unwrap(), "a.b #1");
+
+        assert_matches!(
+            config.merge().get::<String>("a.b.c"),
+            Err(ConfigError::NotFound(name)) if name == "a.b.c"
+        );
+        assert_matches!(
+            config.get::<String>("a.b.c"),
+            Err(ConfigError::NotFound(name)) if name == "a.b.c"
+        );
+    }
+
+    #[test]
+    fn test_stacked_config_get_table_shadowing_table() {
+        let mut config = StackedConfig::empty();
+        config.add_layer(new_user_layer(indoc! {"
+            a.b = 'a.b #0'
+        "}));
+        // a.b is shadowed by a.b.c
+        config.add_layer(new_user_layer(indoc! {"
+            a.b.c = 'a.b.c #1'
+        "}));
+
+        let expected = parse_to_table(indoc! {"
+            c = 'a.b.c #1'
+        "});
+        assert_eq!(config.merge().get_table("a.b").unwrap(), expected);
+        assert_eq!(config.get_table("a.b").unwrap(), expected);
+    }
+
+    #[test]
+    fn test_stacked_config_get_merged_table() {
+        let mut config = StackedConfig::empty();
+        config.add_layer(new_user_layer(indoc! {"
+            a.a.a = 'a.a.a #0'
+            a.a.b = 'a.a.b #0'
+            a.b = 'a.b #0'
+        "}));
+        config.add_layer(new_user_layer(indoc! {"
+            a.a.b = 'a.a.b #1'
+            a.a.c = 'a.a.c #1'
+            a.c = 'a.c #1'
+        "}));
+        let expected = parse_to_table(indoc! {"
+            a.a = 'a.a.a #0'
+            a.b = 'a.a.b #1'
+            a.c = 'a.a.c #1'
+            b = 'a.b #0'
+            c = 'a.c #1'
+        "});
+        assert_eq!(config.merge().get_table("a").unwrap(), expected);
+        assert_eq!(config.get_table("a").unwrap(), expected);
+    }
+
+    #[test]
+    fn test_stacked_config_get_merged_table_shadowed_top() {
+        let mut config = StackedConfig::empty();
+        config.add_layer(new_user_layer(indoc! {"
+            a.a.a = 'a.a.a #0'
+            a.b = 'a.b #0'
+        "}));
+        // a.a.a and a.b are shadowed by a
+        config.add_layer(new_user_layer(indoc! {"
+            a = 'a #1'
+        "}));
+        // a is shadowed by a.a.b
+        config.add_layer(new_user_layer(indoc! {"
+            a.a.b = 'a.a.b #2'
+        "}));
+        let expected = parse_to_table(indoc! {"
+            a.b = 'a.a.b #2'
+        "});
+        assert_eq!(config.merge().get_table("a").unwrap(), expected);
+        assert_eq!(config.get_table("a").unwrap(), expected);
+    }
+
+    #[test]
+    fn test_stacked_config_get_merged_table_shadowed_child() {
+        let mut config = StackedConfig::empty();
+        config.add_layer(new_user_layer(indoc! {"
+            a.a.a = 'a.a.a #0'
+            a.b = 'a.b #0'
+        "}));
+        // a.a.a is shadowed by a.a
+        config.add_layer(new_user_layer(indoc! {"
+            a.a = 'a.a #1'
+        "}));
+        // a.a is shadowed by a.a.b
+        config.add_layer(new_user_layer(indoc! {"
+            a.a.b = 'a.a.b #2'
+        "}));
+        let expected = parse_to_table(indoc! {"
+            a.b = 'a.a.b #2'
+            b = 'a.b #0'
+        "});
+        assert_eq!(config.merge().get_table("a").unwrap(), expected);
+        assert_eq!(config.get_table("a").unwrap(), expected);
+    }
+
+    #[test]
+    fn test_stacked_config_get_merged_table_shadowed_parent() {
+        let mut config = StackedConfig::empty();
+        config.add_layer(new_user_layer(indoc! {"
+            a.a.a = 'a.a.a #0'
+        "}));
+        // a.a.a is shadowed by a
+        config.add_layer(new_user_layer(indoc! {"
+            a = 'a #1'
+        "}));
+        // a is shadowed by a.a.b
+        config.add_layer(new_user_layer(indoc! {"
+            a.a.b = 'a.a.b #2'
+        "}));
+        let expected = parse_to_table(indoc! {"
+            b = 'a.a.b #2'
+        "});
+        // a is not under a.a, but it should still shadow lower layers
+        assert_eq!(config.merge().get_table("a.a").unwrap(), expected);
+        assert_eq!(config.get_table("a.a").unwrap(), expected);
     }
 }
