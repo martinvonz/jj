@@ -836,10 +836,10 @@ fn test_config_get() {
     "###);
 
     let stdout = test_env.jj_cmd_failure(test_env.env_root(), &["config", "get", "table.list"]);
-    insta::assert_snapshot!(stdout, @r###"
-    Config error: invalid type: sequence, expected a value convertible to a string
+    insta::assert_snapshot!(stdout.replace('\\', "/"), @r"
+    Config error: invalid type: sequence, expected a value convertible to a string in config/config0002.toml
     For help, see https://martinvonz.github.io/jj/latest/config/.
-    "###);
+    ");
 
     let stdout = test_env.jj_cmd_failure(test_env.env_root(), &["config", "get", "table"]);
     insta::assert_snapshot!(stdout, @r###"

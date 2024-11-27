@@ -47,9 +47,9 @@ pub fn cmd_config_get(
     command: &CommandHelper,
     args: &ConfigGetArgs,
 ) -> Result<(), CommandError> {
-    let value = args
-        .name
-        .lookup_value(command.settings().raw_config())
+    let value = command
+        .settings()
+        .get_value(&args.name)
         .and_then(|value| value.into_string())
         .map_err(|err| match err {
             ConfigError::Type {
