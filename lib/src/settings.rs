@@ -29,7 +29,9 @@ use crate::backend::Signature;
 use crate::backend::Timestamp;
 use crate::config::ConfigError;
 use crate::config::ConfigTable;
+use crate::config::ConfigValue;
 use crate::config::StackedConfig;
+use crate::config::ToConfigNamePath;
 use crate::conflicts::ConflictMarkerStyle;
 use crate::fmt_util::binary_prefix;
 use crate::fsmonitor::FsmonitorSettings;
@@ -37,16 +39,14 @@ use crate::signing::SignBehavior;
 
 #[derive(Debug, Clone)]
 pub struct UserSettings {
-    // TODO: merged "config" will be replaced by StackedConfig
-    stacked_config: StackedConfig,
-    config: config::Config,
+    config: StackedConfig,
     timestamp: Option<Timestamp>,
     rng: Arc<JJRng>,
 }
 
 #[derive(Debug, Clone)]
 pub struct RepoSettings {
-    _stacked_config: StackedConfig,
+    _config: StackedConfig,
 }
 
 #[derive(Debug, Clone)]
@@ -121,8 +121,9 @@ impl SignSettings {
     }
 }
 
-fn get_timestamp_config(config: &config::Config, key: &str) -> Option<Timestamp> {
-    match config.get_string(key) {
+fn get_timestamp_config(config: &StackedConfig, key: &'static str) -> Option<Timestamp> {
+    // TODO: Maybe switch to native TOML date-time type?
+    match config.get::<String>(key) {
         Ok(timestamp_str) => match DateTime::parse_from_rfc3339(&timestamp_str) {
             Ok(datetime) => Some(Timestamp::from_datetime(datetime)),
             Err(_) => None,
@@ -131,20 +132,18 @@ fn get_timestamp_config(config: &config::Config, key: &str) -> Option<Timestamp>
     }
 }
 
-fn get_rng_seed_config(config: &config::Config) -> Option<u64> {
+fn get_rng_seed_config(config: &StackedConfig) -> Option<u64> {
     config
-        .get_string("debug.randomness-seed")
+        .get::<String>("debug.randomness-seed")
         .ok()
         .and_then(|str| str.parse().ok())
 }
 
 impl UserSettings {
-    pub fn from_config(stacked_config: StackedConfig) -> Self {
-        let config = stacked_config.merge();
+    pub fn from_config(config: StackedConfig) -> Self {
         let timestamp = get_timestamp_config(&config, "debug.commit-timestamp");
         let rng_seed = get_rng_seed_config(&config);
         UserSettings {
-            stacked_config,
             config,
             timestamp,
             rng: Arc::new(JJRng::new(rng_seed)),
@@ -154,10 +153,8 @@ impl UserSettings {
     // TODO: Reconsider UserSettings/RepoSettings abstraction. See
     // https://github.com/martinvonz/jj/issues/616#issuecomment-1345170699
     pub fn with_repo(&self, _repo_path: &Path) -> Result<RepoSettings, ConfigError> {
-        let stacked_config = self.stacked_config.clone();
-        Ok(RepoSettings {
-            _stacked_config: stacked_config,
-        })
+        let config = self.config.clone();
+        Ok(RepoSettings { _config: config })
     }
 
     pub fn get_rng(&self) -> Arc<JJRng> {
@@ -232,12 +229,10 @@ impl UserSettings {
         self.get_bool("ui.allow-init-native").unwrap_or(false)
     }
 
-    pub fn stacked_config(&self) -> &StackedConfig {
-        &self.stacked_config
-    }
-
-    // TODO: remove
-    pub fn raw_config(&self) -> &config::Config {
+    /// Returns low-level config object.
+    ///
+    /// You should typically use `settings.get_<type>()` methods instead.
+    pub fn config(&self) -> &StackedConfig {
         &self.config
     }
 
@@ -278,29 +273,37 @@ impl UserSettings {
 
 /// General-purpose accessors.
 impl UserSettings {
-    /// Looks up value of the specified type `T` by `key`.
-    pub fn get<'de, T: Deserialize<'de>>(&self, key: &str) -> Result<T, ConfigError> {
-        self.config.get(key)
+    /// Looks up value of the specified type `T` by `name`.
+    pub fn get<'de, T: Deserialize<'de>>(
+        &self,
+        name: impl ToConfigNamePath,
+    ) -> Result<T, ConfigError> {
+        self.config.get(name)
     }
 
-    /// Looks up string value by `key`.
-    pub fn get_string(&self, key: &str) -> Result<String, ConfigError> {
-        self.get(key)
+    /// Looks up string value by `name`.
+    pub fn get_string(&self, name: impl ToConfigNamePath) -> Result<String, ConfigError> {
+        self.get(name)
     }
 
-    /// Looks up integer value by `key`.
-    pub fn get_int(&self, key: &str) -> Result<i64, ConfigError> {
-        self.get(key)
+    /// Looks up integer value by `name`.
+    pub fn get_int(&self, name: impl ToConfigNamePath) -> Result<i64, ConfigError> {
+        self.get(name)
     }
 
-    /// Looks up boolean value by `key`.
-    pub fn get_bool(&self, key: &str) -> Result<bool, ConfigError> {
-        self.get(key)
+    /// Looks up boolean value by `name`.
+    pub fn get_bool(&self, name: impl ToConfigNamePath) -> Result<bool, ConfigError> {
+        self.get(name)
     }
 
-    /// Looks up sub table by `key`.
-    pub fn get_table(&self, key: &str) -> Result<ConfigTable, ConfigError> {
-        self.config.get_table(key)
+    /// Looks up generic value by `name`.
+    pub fn get_value(&self, name: impl ToConfigNamePath) -> Result<ConfigValue, ConfigError> {
+        self.config.get_value(name)
+    }
+
+    /// Looks up sub table by `name`.
+    pub fn get_table(&self, name: impl ToConfigNamePath) -> Result<ConfigTable, ConfigError> {
+        self.config.get_table(name)
     }
 }
 

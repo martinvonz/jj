@@ -125,7 +125,7 @@ impl MergeTool {
 fn editor_args_from_settings(
     ui: &Ui,
     settings: &UserSettings,
-    key: &str,
+    key: &'static str,
 ) -> Result<CommandNameAndArgs, ConfigError> {
     // TODO: Make this configuration have a table of possible editors and detect the
     // best one here.

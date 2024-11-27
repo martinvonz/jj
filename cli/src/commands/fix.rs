@@ -25,7 +25,6 @@ use jj_lib::backend::BackendError;
 use jj_lib::backend::CommitId;
 use jj_lib::backend::FileId;
 use jj_lib::backend::TreeValue;
-use jj_lib::config::ConfigValue;
 use jj_lib::fileset;
 use jj_lib::fileset::FilesetDiagnostics;
 use jj_lib::fileset::FilesetExpression;
@@ -471,7 +470,7 @@ fn get_tools_config(ui: &mut Ui, settings: &UserSettings) -> Result<ToolsConfig,
             command = {}
             patterns = ["all()"]
             "###,
-            to_toml_value(&settings.get::<ConfigValue>("fix.tool-command").unwrap()).unwrap()
+            to_toml_value(&settings.get_value("fix.tool-command").unwrap()).unwrap()
         )?;
     }
     if let Ok(tools_table) = settings.get_table("fix.tools") {

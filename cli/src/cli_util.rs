@@ -58,6 +58,7 @@ use jj_lib::backend::MergedTreeId;
 use jj_lib::backend::TreeValue;
 use jj_lib::commit::Commit;
 use jj_lib::config::ConfigError;
+use jj_lib::config::ConfigNamePathBuf;
 use jj_lib::config::StackedConfig;
 use jj_lib::conflicts::ConflictMarkerStyle;
 use jj_lib::file_util;
@@ -330,7 +331,7 @@ impl CommandHelper {
     /// For most commands that depend on a loaded repo, you should use
     /// `WorkspaceCommandHelper::template_aliases_map()` instead.
     fn load_template_aliases(&self, ui: &Ui) -> Result<TemplateAliasesMap, CommandError> {
-        load_template_aliases(ui, self.settings().stacked_config())
+        load_template_aliases(ui, self.settings().config())
     }
 
     /// Parses template of the given language into evaluation tree.
@@ -657,16 +658,13 @@ struct AdvanceBookmarksSettings {
 impl AdvanceBookmarksSettings {
     fn from_settings(settings: &UserSettings) -> Result<Self, CommandError> {
         let get_setting = |setting_key| {
-            let setting = format!("experimental-advance-branches.{setting_key}");
-            match settings.get::<Vec<String>>(&setting).optional()? {
+            let name = ConfigNamePathBuf::from_iter(["experimental-advance-branches", setting_key]);
+            match settings.get::<Vec<String>>(&name).optional()? {
                 Some(patterns) => patterns
                     .into_iter()
                     .map(|s| {
                         StringPattern::parse(&s).map_err(|e| {
-                            config_error_with_message(
-                                format!("Error parsing '{s}' for {setting}"),
-                                e,
-                            )
+                            config_error_with_message(format!("Error parsing '{s}' for {name}"), e)
                         })
                     })
                     .collect(),
@@ -716,8 +714,7 @@ pub struct WorkspaceCommandEnvironment {
 impl WorkspaceCommandEnvironment {
     #[instrument(skip_all)]
     fn new(ui: &Ui, command: &CommandHelper, workspace: &Workspace) -> Result<Self, CommandError> {
-        let revset_aliases_map =
-            revset_util::load_revset_aliases(ui, command.settings().stacked_config())?;
+        let revset_aliases_map = revset_util::load_revset_aliases(ui, command.settings().config())?;
         let template_aliases_map = command.load_template_aliases(ui)?;
         let path_converter = RepoPathUiConverter::Fs {
             cwd: command.cwd().to_owned(),
