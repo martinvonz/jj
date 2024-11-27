@@ -344,7 +344,7 @@ pub fn materialize_merge_result<T: AsRef<[u8]>>(
     }
 }
 
-fn materialize_merge_result_with_marker_len<T: AsRef<[u8]>>(
+pub fn materialize_merge_result_with_marker_len<T: AsRef<[u8]>>(
     single_hunk: &Merge<T>,
     conflict_marker_style: ConflictMarkerStyle,
     conflict_marker_len: usize,
@@ -368,6 +368,28 @@ pub fn materialize_merge_result_to_bytes<T: AsRef<[u8]>>(
         MergeResult::Resolved(content) => content,
         MergeResult::Conflict(hunks) => {
             let conflict_marker_len = choose_materialized_conflict_marker_len(single_hunk);
+            let mut output = Vec::new();
+            materialize_conflict_hunks(
+                &hunks,
+                conflict_marker_style,
+                conflict_marker_len,
+                &mut output,
+            )
+            .expect("writing to an in-memory buffer should never fail");
+            output.into()
+        }
+    }
+}
+
+pub fn materialize_merge_result_to_bytes_with_marker_len<T: AsRef<[u8]>>(
+    single_hunk: &Merge<T>,
+    conflict_marker_style: ConflictMarkerStyle,
+    conflict_marker_len: usize,
+) -> BString {
+    let merge_result = files::merge(single_hunk);
+    match merge_result {
+        MergeResult::Resolved(content) => content,
+        MergeResult::Conflict(hunks) => {
             let mut output = Vec::new();
             materialize_conflict_hunks(
                 &hunks,
@@ -824,6 +846,7 @@ pub async fn update_from_content(
     path: &RepoPath,
     content: &[u8],
     conflict_marker_style: ConflictMarkerStyle,
+    conflict_marker_len: usize,
 ) -> BackendResult<Merge<Option<FileId>>> {
     let simplified_file_ids = file_ids.clone().simplify();
     let simplified_file_ids = &simplified_file_ids;
@@ -835,7 +858,6 @@ pub async fn update_from_content(
     // copy.
     let mut old_content = Vec::with_capacity(content.len());
     let merge_hunk = extract_as_single_hunk(simplified_file_ids, store, path).await?;
-    let conflict_marker_len = choose_materialized_conflict_marker_len(&merge_hunk);
     materialize_merge_result_with_marker_len(
         &merge_hunk,
         conflict_marker_style,
