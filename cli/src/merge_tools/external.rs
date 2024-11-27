@@ -12,8 +12,10 @@ use jj_lib::backend::FileId;
 use jj_lib::backend::MergedTreeId;
 use jj_lib::backend::TreeValue;
 use jj_lib::conflicts;
-use jj_lib::conflicts::materialize_merge_result_to_bytes;
+use jj_lib::conflicts::choose_materialized_conflict_marker_len;
+use jj_lib::conflicts::materialize_merge_result_to_bytes_with_marker_len;
 use jj_lib::conflicts::ConflictMarkerStyle;
+use jj_lib::conflicts::MIN_CONFLICT_MARKER_LEN;
 use jj_lib::gitignore::GitIgnoreFile;
 use jj_lib::matchers::Matcher;
 use jj_lib::merge::Merge;
@@ -181,8 +183,21 @@ pub fn run_mergetool_external(
         .conflict_marker_style
         .unwrap_or(default_conflict_marker_style);
 
+    // If the merge tool doesn't get conflict markers pre-populated in the output
+    // file, we should default to accepting MIN_CONFLICT_MARKER_LEN since the
+    // merge tool is unlikely to know about our rules for conflict marker length.
+    // In the future, we may want to add a "$markerLength" variable.
+    let conflict_marker_len = if editor.merge_tool_edits_conflict_markers {
+        choose_materialized_conflict_marker_len(&content)
+    } else {
+        MIN_CONFLICT_MARKER_LEN
+    };
     let initial_output_content = if editor.merge_tool_edits_conflict_markers {
-        materialize_merge_result_to_bytes(&content, conflict_marker_style)
+        materialize_merge_result_to_bytes_with_marker_len(
+            &content,
+            conflict_marker_style,
+            conflict_marker_len,
+        )
     } else {
         BString::default()
     };
@@ -257,6 +272,7 @@ pub fn run_mergetool_external(
             repo_path,
             output_file_contents.as_slice(),
             conflict_marker_style,
+            conflict_marker_len,
         )
         .block_on()?
     } else {
