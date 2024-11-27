@@ -170,17 +170,17 @@ impl Store {
         Ok(Commit::new(self.clone(), commit_id, data))
     }
 
-    pub fn get_tree(self: &Arc<Self>, dir: &RepoPath, id: &TreeId) -> BackendResult<Tree> {
+    pub fn get_tree(self: &Arc<Self>, dir: RepoPathBuf, id: &TreeId) -> BackendResult<Tree> {
         self.get_tree_async(dir, id).block_on()
     }
 
     pub async fn get_tree_async(
         self: &Arc<Self>,
-        dir: &RepoPath,
+        dir: RepoPathBuf,
         id: &TreeId,
     ) -> BackendResult<Tree> {
-        let data = self.get_backend_tree(dir, id).await?;
-        Ok(Tree::new(self.clone(), dir.to_owned(), id.clone(), data))
+        let data = self.get_backend_tree(&dir, id).await?;
+        Ok(Tree::new(self.clone(), dir, id.clone(), data))
     }
 
     async fn get_backend_tree(
@@ -205,11 +205,11 @@ impl Store {
     pub fn get_root_tree(self: &Arc<Self>, id: &MergedTreeId) -> BackendResult<MergedTree> {
         match &id {
             MergedTreeId::Legacy(id) => {
-                let tree = self.get_tree(RepoPath::root(), id)?;
+                let tree = self.get_tree(RepoPathBuf::root(), id)?;
                 MergedTree::from_legacy_tree(tree)
             }
             MergedTreeId::Merge(ids) => {
-                let trees = ids.try_map(|id| self.get_tree(RepoPath::root(), id))?;
+                let trees = ids.try_map(|id| self.get_tree(RepoPathBuf::root(), id))?;
                 Ok(MergedTree::new(trees))
             }
         }

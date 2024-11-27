@@ -16,6 +16,7 @@ use itertools::Itertools;
 use jj_lib::backend::TreeValue;
 use jj_lib::repo::Repo;
 use jj_lib::repo_path::RepoPath;
+use jj_lib::repo_path::RepoPathBuf;
 use jj_lib::repo_path::RepoPathComponent;
 use jj_lib::rewrite::rebase_commit;
 use jj_lib::tree::merge_trees;
@@ -65,7 +66,7 @@ fn test_same_type() {
             }
         }
         let tree_id = tree_builder.write_tree().unwrap();
-        store.get_tree(RepoPath::root(), &tree_id).unwrap()
+        store.get_tree(RepoPathBuf::root(), &tree_id).unwrap()
     };
 
     let base_tree = write_tree(0);
@@ -207,7 +208,7 @@ fn test_executable() {
             }
         }
         let tree_id = tree_builder.write_tree().unwrap();
-        store.get_tree(RepoPath::root(), &tree_id).unwrap()
+        store.get_tree(RepoPathBuf::root(), &tree_id).unwrap()
     };
 
     fn contents_in_tree<'a>(files: &[&'a str], index: usize) -> Vec<(&'a str, bool)> {
@@ -255,7 +256,7 @@ fn test_subtrees() {
             );
         }
         let tree_id = tree_builder.write_tree().unwrap();
-        store.get_tree(RepoPath::root(), &tree_id).unwrap()
+        store.get_tree(RepoPathBuf::root(), &tree_id).unwrap()
     };
 
     let base_tree = write_tree(vec!["f1", "d1/f1", "d1/d1/f1", "d1/d1/d1/f1"]);
@@ -309,7 +310,7 @@ fn test_subtree_becomes_empty() {
             );
         }
         let tree_id = tree_builder.write_tree().unwrap();
-        store.get_tree(RepoPath::root(), &tree_id).unwrap()
+        store.get_tree(RepoPathBuf::root(), &tree_id).unwrap()
     };
 
     let base_tree = write_tree(vec!["f1", "d1/f1", "d1/d1/d1/f1", "d1/d1/d1/f2"]);
@@ -338,7 +339,7 @@ fn test_subtree_one_missing() {
             );
         }
         let tree_id = tree_builder.write_tree().unwrap();
-        store.get_tree(RepoPath::root(), &tree_id).unwrap()
+        store.get_tree(RepoPathBuf::root(), &tree_id).unwrap()
     };
 
     let tree1 = write_tree(vec![]);
@@ -405,11 +406,11 @@ fn test_types() {
         "contents",
     );
     let base_tree_id = base_tree_builder.write_tree().unwrap();
-    let base_tree = store.get_tree(RepoPath::root(), &base_tree_id).unwrap();
+    let base_tree = store.get_tree(RepoPathBuf::root(), &base_tree_id).unwrap();
     let side1_tree_id = side1_tree_builder.write_tree().unwrap();
-    let side1_tree = store.get_tree(RepoPath::root(), &side1_tree_id).unwrap();
+    let side1_tree = store.get_tree(RepoPathBuf::root(), &side1_tree_id).unwrap();
     let side2_tree_id = side2_tree_builder.write_tree().unwrap();
-    let side2_tree = store.get_tree(RepoPath::root(), &side2_tree_id).unwrap();
+    let side2_tree = store.get_tree(RepoPathBuf::root(), &side2_tree_id).unwrap();
 
     // Created the merged tree
     let merged_tree = merge_trees(&side1_tree, &base_tree, &side2_tree).unwrap();

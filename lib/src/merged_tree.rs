@@ -117,7 +117,7 @@ impl MergedTree {
             .into_iter()
             .map(|builder| {
                 let tree_id = builder.write_tree()?;
-                store.get_tree(RepoPath::root(), &tree_id)
+                store.get_tree(RepoPathBuf::root(), &tree_id)
             })
             .try_collect()?;
         Ok(MergedTree {
@@ -199,7 +199,7 @@ impl MergedTree {
             Ok(Some(TreeValue::Tree(sub_tree_id))) => {
                 let subdir = self.dir().join(name);
                 Ok(Some(MergedTree::resolved(
-                    self.store().get_tree(&subdir, sub_tree_id)?,
+                    self.store().get_tree(subdir, sub_tree_id)?,
                 )))
             }
             Ok(_) => Ok(None),
@@ -207,7 +207,7 @@ impl MergedTree {
                 let trees = merge.try_map(|value| match value {
                     Some(TreeValue::Tree(sub_tree_id)) => {
                         let subdir = self.dir().join(name);
-                        self.store().get_tree(&subdir, sub_tree_id)
+                        self.store().get_tree(subdir, sub_tree_id)
                     }
                     _ => {
                         let subdir = self.dir().join(name);
@@ -939,12 +939,12 @@ impl<'matcher> TreeDiffStreamImpl<'matcher> {
 
     async fn single_tree(
         store: &Arc<Store>,
-        dir: &RepoPath,
+        dir: RepoPathBuf,
         value: Option<&TreeValue>,
     ) -> BackendResult<Tree> {
         match value {
             Some(TreeValue::Tree(tree_id)) => store.get_tree_async(dir, tree_id).await,
-            _ => Ok(Tree::empty(store.clone(), dir.to_owned())),
+            _ => Ok(Tree::empty(store.clone(), dir.clone())),
         }
     }
 
@@ -956,7 +956,7 @@ impl<'matcher> TreeDiffStreamImpl<'matcher> {
     ) -> BackendResult<MergedTree> {
         let trees = if values.is_tree() {
             let builder: MergeBuilder<Tree> = futures::stream::iter(values.iter())
-                .then(|value| Self::single_tree(&store, &dir, value.as_ref()))
+                .then(|value| Self::single_tree(&store, dir.clone(), value.as_ref()))
                 .try_collect()
                 .await?;
             builder.build()
@@ -1147,7 +1147,7 @@ impl MergedTreeBuilder {
     pub fn write_tree(self, store: &Arc<Store>) -> BackendResult<MergedTreeId> {
         let base_tree_ids = match self.base_tree_id.clone() {
             MergedTreeId::Legacy(base_tree_id) => {
-                let legacy_base_tree = store.get_tree(RepoPath::root(), &base_tree_id)?;
+                let legacy_base_tree = store.get_tree(RepoPathBuf::root(), &base_tree_id)?;
                 let base_tree = MergedTree::from_legacy_tree(legacy_base_tree)?;
                 base_tree.id().to_merge()
             }

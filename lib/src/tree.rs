@@ -155,7 +155,7 @@ impl Tree {
             match sub_tree {
                 TreeValue::Tree(sub_tree_id) => {
                     let subdir = self.dir.join(name);
-                    let sub_tree = self.store.get_tree(&subdir, sub_tree_id)?;
+                    let sub_tree = self.store.get_tree(subdir, sub_tree_id)?;
                     Ok(Some(sub_tree))
                 }
                 _ => Ok(None),
@@ -165,7 +165,7 @@ impl Tree {
         }
     }
 
-    fn known_sub_tree(&self, subdir: &RepoPath, id: &TreeId) -> Tree {
+    fn known_sub_tree(&self, subdir: RepoPathBuf, id: &TreeId) -> Tree {
         self.store.get_tree(subdir, id).unwrap()
     }
 
@@ -251,7 +251,7 @@ impl Iterator for TreeEntriesIterator<'_> {
                         if self.matcher.visit(&path).is_nothing() {
                             continue;
                         }
-                        let subtree = top.tree.known_sub_tree(&path, &id);
+                        let subtree = top.tree.known_sub_tree(path, &id);
                         self.stack.push(TreeEntriesDirItem::from(subtree));
                     }
                     value => {
@@ -369,9 +369,9 @@ fn merge_tree_value(
     Ok(match (base_tree_id, side1_tree_id, side2_tree_id) {
         (Some(base_id), Some(side1_id), Some(side2_id)) => {
             let subdir = dir.join(basename);
-            let base_tree = store.get_tree(&subdir, base_id)?;
-            let side1_tree = store.get_tree(&subdir, side1_id)?;
-            let side2_tree = store.get_tree(&subdir, side2_id)?;
+            let base_tree = store.get_tree(subdir.clone(), base_id)?;
+            let side1_tree = store.get_tree(subdir.clone(), side1_id)?;
+            let side2_tree = store.get_tree(subdir, side2_id)?;
             let merged_tree = merge_trees(&side1_tree, &base_tree, &side2_tree)?;
             if merged_tree.id() == empty_tree_id {
                 None

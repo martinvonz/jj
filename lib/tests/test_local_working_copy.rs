@@ -506,7 +506,7 @@ fn test_tree_builder_file_directory_transition() {
     let mut ws = test_workspace.workspace;
     let workspace_root = ws.workspace_root().to_owned();
     let mut check_out_tree = |tree_id: &TreeId| {
-        let tree = repo.store().get_tree(RepoPath::root(), tree_id).unwrap();
+        let tree = repo.store().get_tree(RepoPathBuf::root(), tree_id).unwrap();
         let commit = commit_with_tree(repo.store(), MergedTreeId::Legacy(tree.id().clone()));
         ws.check_out(
             repo.op_id().clone(),
@@ -1140,7 +1140,7 @@ fn test_gitignores_ignored_directory_already_tracked() {
             }
         }
         let id = tree_builder.write_tree().unwrap();
-        MergedTree::resolved(store.get_tree(RepoPath::root(), &id).unwrap())
+        MergedTree::resolved(store.get_tree(RepoPathBuf::root(), &id).unwrap())
     };
 
     let gitignore_path = RepoPath::from_internal_string(".gitignore");

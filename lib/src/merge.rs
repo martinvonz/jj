@@ -613,7 +613,7 @@ where
         if let Some(tree_id_merge) = tree_id_merge {
             let get_tree = |id: &Option<&TreeId>| -> BackendResult<Tree> {
                 if let Some(id) = id {
-                    store.get_tree(dir, id)
+                    store.get_tree(dir.to_owned(), id)
                 } else {
                     Ok(Tree::empty(store.clone(), dir.to_owned()))
                 }

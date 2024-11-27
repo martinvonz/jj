@@ -127,7 +127,7 @@ impl TreeBuilder {
         let store = &self.store;
         let mut tree_cache = {
             let dir = RepoPathBuf::root();
-            let tree = store.get_tree(&dir, &self.base_tree_id)?;
+            let tree = store.get_tree(dir.clone(), &self.base_tree_id)?;
             BTreeMap::from([(dir, tree)])
         };
 
