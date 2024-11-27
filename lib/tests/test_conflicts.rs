@@ -15,6 +15,7 @@
 use indoc::indoc;
 use itertools::Itertools;
 use jj_lib::backend::FileId;
+use jj_lib::conflicts::choose_materialized_conflict_marker_len;
 use jj_lib::conflicts::extract_as_single_hunk;
 use jj_lib::conflicts::materialize_merge_result_to_bytes;
 use jj_lib::conflicts::parse_conflict;
@@ -590,10 +591,16 @@ fn test_materialize_parse_roundtrip_different_markers() {
     for materialize_style in all_styles {
         let materialized = materialize_conflict_string(store, path, &conflict, materialize_style);
         for parse_style in all_styles {
-            let parsed =
-                update_from_content(&conflict, store, path, materialized.as_bytes(), parse_style)
-                    .block_on()
-                    .unwrap();
+            let parsed = update_from_content(
+                &conflict,
+                store,
+                path,
+                materialized.as_bytes(),
+                parse_style,
+                MIN_CONFLICT_MARKER_LEN,
+            )
+            .block_on()
+            .unwrap();
 
             assert_eq!(
                 parsed, conflict,
@@ -1630,9 +1637,16 @@ fn test_update_conflict_from_content() {
     let materialized =
         materialize_conflict_string(store, path, &conflict, ConflictMarkerStyle::Diff);
     let parse = |content| {
-        update_from_content(&conflict, store, path, content, ConflictMarkerStyle::Diff)
-            .block_on()
-            .unwrap()
+        update_from_content(
+            &conflict,
+            store,
+            path,
+            content,
+            ConflictMarkerStyle::Diff,
+            MIN_CONFLICT_MARKER_LEN,
+        )
+        .block_on()
+        .unwrap()
     };
     assert_eq!(parse(materialized.as_bytes()), conflict);
 
@@ -1680,9 +1694,16 @@ fn test_update_conflict_from_content_modify_delete() {
     let materialized =
         materialize_conflict_string(store, path, &conflict, ConflictMarkerStyle::Diff);
     let parse = |content| {
-        update_from_content(&conflict, store, path, content, ConflictMarkerStyle::Diff)
-            .block_on()
-            .unwrap()
+        update_from_content(
+            &conflict,
+            store,
+            path,
+            content,
+            ConflictMarkerStyle::Diff,
+            MIN_CONFLICT_MARKER_LEN,
+        )
+        .block_on()
+        .unwrap()
     };
     assert_eq!(parse(materialized.as_bytes()), conflict);
 
@@ -1736,9 +1757,16 @@ fn test_update_conflict_from_content_simplified_conflict() {
     let materialized_simplified =
         materialize_conflict_string(store, path, &simplified_conflict, ConflictMarkerStyle::Diff);
     let parse = |content| {
-        update_from_content(&conflict, store, path, content, ConflictMarkerStyle::Diff)
-            .block_on()
-            .unwrap()
+        update_from_content(
+            &conflict,
+            store,
+            path,
+            content,
+            ConflictMarkerStyle::Diff,
+            MIN_CONFLICT_MARKER_LEN,
+        )
+        .block_on()
+        .unwrap()
     };
     insta::assert_snapshot!(
         materialized,
@@ -1896,6 +1924,12 @@ fn test_update_conflict_from_content_with_long_markers() {
     );
 
     // The conflict should be materialized using long conflict markers
+    let materialized_marker_len = choose_materialized_conflict_marker_len(
+        &extract_as_single_hunk(&conflict, store, path)
+            .block_on()
+            .unwrap(),
+    );
+    assert!(materialized_marker_len > MIN_CONFLICT_MARKER_LEN);
     let materialized =
         materialize_conflict_string(store, path, &conflict, ConflictMarkerStyle::Snapshot);
     insta::assert_snapshot!(materialized, @r##"
@@ -1923,9 +1957,16 @@ fn test_update_conflict_from_content_with_long_markers() {
     // to avoid the two versions of the file being obviously identical, so that we
     // can test the actual parsing logic.
     let parse = |conflict, content| {
-        update_from_content(conflict, store, path, content, ConflictMarkerStyle::Diff)
-            .block_on()
-            .unwrap()
+        update_from_content(
+            conflict,
+            store,
+            path,
+            content,
+            ConflictMarkerStyle::Diff,
+            materialized_marker_len,
+        )
+        .block_on()
+        .unwrap()
     };
     assert_eq!(parse(&conflict, materialized.as_bytes()), conflict);
 
@@ -1999,6 +2040,11 @@ fn test_update_conflict_from_content_with_long_markers() {
         new_conflict
     );
 
+    // If we add back the second conflict, it should still be parsed correctly
+    // (the fake conflict markers shouldn't be interpreted as conflict markers
+    // still, since they aren't the longest ones in the file).
+    assert_eq!(parse(&new_conflict, materialized.as_bytes()), conflict);
+
     // If the new conflict is materialized again, it should have shorter
     // conflict markers now
     insta::assert_snapshot!(
@@ -2062,6 +2108,14 @@ fn test_update_from_content_malformed_conflict() {
         vec![Some(left_file_id.clone()), Some(right_file_id.clone())],
     );
 
+    // The conflict should be materialized with normal markers
+    let materialized_marker_len = choose_materialized_conflict_marker_len(
+        &extract_as_single_hunk(&conflict, store, path)
+            .block_on()
+            .unwrap(),
+    );
+    assert!(materialized_marker_len == MIN_CONFLICT_MARKER_LEN);
+
     let materialized =
         materialize_conflict_string(store, path, &conflict, ConflictMarkerStyle::Diff);
     insta::assert_snapshot!(materialized, @r##"
@@ -2086,9 +2140,16 @@ fn test_update_from_content_malformed_conflict() {
     );
 
     let parse = |conflict, content| {
-        update_from_content(conflict, store, path, content, ConflictMarkerStyle::Diff)
-            .block_on()
-            .unwrap()
+        update_from_content(
+            conflict,
+            store,
+            path,
+            content,
+            ConflictMarkerStyle::Diff,
+            materialized_marker_len,
+        )
+        .block_on()
+        .unwrap()
     };
     assert_eq!(parse(&conflict, materialized.as_bytes()), conflict);
 
@@ -2164,10 +2225,10 @@ fn test_update_from_content_malformed_conflict() {
     line 5
     "##);
 
-    // Snapshotting again will cause the conflict to appear resolved
+    // Even though the file now contains markers of length 7, the materialized
+    // markers of length 7 are still parsed
     let second_snapshot = parse(&new_conflict, new_conflict_contents.as_bytes());
-    assert_ne!(second_snapshot, new_conflict);
-    assert!(second_snapshot.is_resolved());
+    assert_eq!(second_snapshot, new_conflict);
 }
 
 fn materialize_conflict_string(

@@ -40,10 +40,11 @@ pub fn cmd_debug_local_working_copy(
     for (file, state) in wc.file_states()? {
         writeln!(
             ui.stdout(),
-            "{:?} {:13?} {:10?} {:?}",
+            "{:?} {:13?} {:10?} {:?} {:?}",
             state.file_type,
             state.size,
             state.mtime.0,
+            state.materialized_conflict_data,
             file
         )?;
     }
