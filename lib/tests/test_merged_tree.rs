@@ -157,11 +157,11 @@ fn test_from_legacy_tree() {
 
     // dir1: directory without conflicts
     let dir1_basename = RepoPathComponent::new("dir1");
-    let dir1_filename = &RepoPath::root()
+    let dir1_filename = RepoPath::root()
         .join(dir1_basename)
         .join(RepoPathComponent::new("file"));
-    let dir1_filename_id = write_file(store.as_ref(), dir1_filename, "file5_v2");
-    tree_builder.set(dir1_filename.to_owned(), file_value(&dir1_filename_id));
+    let dir1_filename_id = write_file(store.as_ref(), &dir1_filename, "file5_v2");
+    tree_builder.set(dir1_filename.clone(), file_value(&dir1_filename_id));
 
     let tree_id = tree_builder.write_tree().unwrap();
     let tree = store.get_tree(RepoPathBuf::root(), &tree_id).unwrap();
@@ -269,7 +269,7 @@ fn test_from_legacy_tree() {
     tree_builder.set_or_remove(file3_path.to_owned(), file3_conflict);
     tree_builder.set_or_remove(file4_path.to_owned(), file4_conflict);
     tree_builder.set_or_remove(
-        dir1_filename.to_owned(),
+        dir1_filename.clone(),
         Merge::normal(file_value(&dir1_filename_id)),
     );
     let recreated_merged_id = tree_builder.write_tree(store).unwrap();
