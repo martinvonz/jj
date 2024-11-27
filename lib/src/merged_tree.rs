@@ -211,7 +211,7 @@ impl MergedTree {
                     }
                     _ => {
                         let subdir = self.dir().join(name);
-                        Ok(Tree::empty(self.store().clone(), subdir.clone()))
+                        Ok(Tree::empty(self.store().clone(), subdir))
                     }
                 })?;
                 Ok(Some(MergedTree { trees }))
@@ -961,7 +961,7 @@ impl<'matcher> TreeDiffStreamImpl<'matcher> {
                 .await?;
             builder.build()
         } else {
-            Merge::resolved(Tree::empty(store, dir.clone()))
+            Merge::resolved(Tree::empty(store, dir))
         };
         Ok(MergedTree { trees })
     }
