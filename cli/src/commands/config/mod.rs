@@ -19,6 +19,8 @@ mod path;
 mod set;
 mod unset;
 
+use std::path::Path;
+
 use jj_lib::config::ConfigSource;
 use tracing::instrument;
 
@@ -35,7 +37,9 @@ use self::set::ConfigSetArgs;
 use self::unset::cmd_config_unset;
 use self::unset::ConfigUnsetArgs;
 use crate::cli_util::CommandHelper;
+use crate::command_error::user_error;
 use crate::command_error::CommandError;
+use crate::config::ConfigEnv;
 use crate::ui::Ui;
 
 #[derive(clap::Args, Clone, Debug)]
@@ -51,10 +55,6 @@ pub(crate) struct ConfigLevelArgs {
 }
 
 impl ConfigLevelArgs {
-    fn expect_source_kind(&self) -> ConfigSource {
-        self.get_source_kind().expect("No config_level provided")
-    }
-
     fn get_source_kind(&self) -> Option<ConfigSource> {
         if self.user {
             Some(ConfigSource::User)
@@ -62,6 +62,25 @@ impl ConfigLevelArgs {
             Some(ConfigSource::Repo)
         } else {
             None
+        }
+    }
+
+    fn new_config_file_path<'a>(
+        &self,
+        config_env: &'a ConfigEnv,
+    ) -> Result<&'a Path, CommandError> {
+        if self.user {
+            // TODO(#531): Special-case for editors that can't handle viewing
+            // directories?
+            config_env
+                .new_user_config_path()?
+                .ok_or_else(|| user_error("No user config path found to edit"))
+        } else if self.repo {
+            config_env
+                .new_repo_config_path()
+                .ok_or_else(|| user_error("No repo config path found to edit"))
+        } else {
+            panic!("No config_level provided")
         }
     }
 }

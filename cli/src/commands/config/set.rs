@@ -21,7 +21,6 @@ use jj_lib::repo::Repo;
 use tracing::instrument;
 
 use super::ConfigLevelArgs;
-use crate::cli_util::get_new_config_file_path;
 use crate::cli_util::CommandHelper;
 use crate::cli_util::WorkspaceCommandHelper;
 use crate::command_error::user_error;
@@ -54,7 +53,7 @@ pub fn cmd_config_set(
     command: &CommandHelper,
     args: &ConfigSetArgs,
 ) -> Result<(), CommandError> {
-    let config_path = get_new_config_file_path(args.level.expect_source_kind(), command)?;
+    let config_path = args.level.new_config_file_path(command.config_env())?;
     if config_path.is_dir() {
         return Err(user_error(format!(
             "Can't set config in path {path} (dirs not supported)",
