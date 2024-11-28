@@ -488,18 +488,27 @@ pub fn parse_author(author: &str) -> Result<(String, String), &'static str> {
 mod tests {
     use std::io::Write as _;
 
+    use indoc::indoc;
+    use jj_lib::config::ConfigLayer;
+    use jj_lib::config::ConfigSource;
+    use jj_lib::config::StackedConfig;
+
     use super::*;
     use crate::formatter::ColorFormatter;
     use crate::formatter::PlainTextFormatter;
 
     fn format_colored(write: impl FnOnce(&mut dyn Formatter) -> io::Result<()>) -> String {
-        let config = config::Config::builder()
-            .set_override("colors.cyan", "cyan")
-            .unwrap()
-            .set_override("colors.red", "red")
-            .unwrap()
-            .build()
-            .unwrap();
+        let mut config = StackedConfig::empty();
+        config.add_layer(
+            ConfigLayer::parse(
+                ConfigSource::Default,
+                indoc! {"
+                    colors.cyan = 'cyan'
+                    colors.red = 'red'
+                "},
+            )
+            .unwrap(),
+        );
         let mut output = Vec::new();
         let mut formatter = ColorFormatter::for_config(&mut output, &config, false).unwrap();
         write(&mut formatter).unwrap();

@@ -30,6 +30,7 @@ use crossterm::style::SetBackgroundColor;
 use crossterm::style::SetForegroundColor;
 use itertools::Itertools;
 use jj_lib::config::ConfigError;
+use jj_lib::config::StackedConfig;
 
 // Lets the caller label strings and translates the labels to colors
 pub trait Formatter: Write {
@@ -159,7 +160,7 @@ impl FormatterFactory {
         FormatterFactory { kind }
     }
 
-    pub fn color(config: &config::Config, debug: bool) -> Result<Self, ConfigError> {
+    pub fn color(config: &StackedConfig, debug: bool) -> Result<Self, ConfigError> {
         let rules = Arc::new(rules_from_config(config)?);
         let kind = FormatterFactoryKind::Color { rules, debug };
         Ok(FormatterFactory { kind })
@@ -296,11 +297,7 @@ impl<W: Write> ColorFormatter<W> {
         }
     }
 
-    pub fn for_config(
-        output: W,
-        config: &config::Config,
-        debug: bool,
-    ) -> Result<Self, ConfigError> {
+    pub fn for_config(output: W, config: &StackedConfig, debug: bool) -> Result<Self, ConfigError> {
         let rules = rules_from_config(config)?;
         Ok(Self::new(output, Arc::new(rules), debug))
     }
@@ -404,7 +401,7 @@ impl<W: Write> ColorFormatter<W> {
     }
 }
 
-fn rules_from_config(config: &config::Config) -> Result<Rules, ConfigError> {
+fn rules_from_config(config: &StackedConfig) -> Result<Rules, ConfigError> {
     let mut result = vec![];
     let table = config.get_table("colors")?;
     for (key, value) in table {
@@ -772,8 +769,7 @@ mod tests {
         // TODO: migrate off config::Config and switch to IndexMap
         let colors: HashMap<String, String> = config.get("colors").unwrap();
         let mut output: Vec<u8> = vec![];
-        let mut formatter =
-            ColorFormatter::for_config(&mut output, &config.merge(), false).unwrap();
+        let mut formatter = ColorFormatter::for_config(&mut output, &config, false).unwrap();
         for (label, color) in colors.iter().sorted() {
             formatter.push_label(label).unwrap();
             write!(formatter, " {color} ").unwrap();
@@ -813,8 +809,7 @@ mod tests {
         // TODO: migrate off config::Config and switch to IndexMap
         let colors: HashMap<String, String> = config.get("colors").unwrap();
         let mut output: Vec<u8> = vec![];
-        let mut formatter =
-            ColorFormatter::for_config(&mut output, &config.merge(), false).unwrap();
+        let mut formatter = ColorFormatter::for_config(&mut output, &config, false).unwrap();
         for label in colors.keys().sorted() {
             formatter.push_label(&label.replace(' ', "-")).unwrap();
             write!(formatter, " {label} ").unwrap();
@@ -839,8 +834,7 @@ mod tests {
         "#,
         );
         let mut output: Vec<u8> = vec![];
-        let mut formatter =
-            ColorFormatter::for_config(&mut output, &config.merge(), false).unwrap();
+        let mut formatter = ColorFormatter::for_config(&mut output, &config, false).unwrap();
         write!(formatter, " before ").unwrap();
         formatter.push_label("inside").unwrap();
         write!(formatter, " inside ").unwrap();
@@ -864,8 +858,7 @@ mod tests {
         "#,
         );
         let mut output: Vec<u8> = vec![];
-        let mut formatter =
-            ColorFormatter::for_config(&mut output, &config.merge(), false).unwrap();
+        let mut formatter = ColorFormatter::for_config(&mut output, &config, false).unwrap();
         formatter.push_label("red_fg").unwrap();
         write!(formatter, " fg only ").unwrap();
         formatter.pop_label().unwrap();
@@ -913,8 +906,7 @@ mod tests {
         "#,
         );
         let mut output: Vec<u8> = vec![];
-        let mut formatter =
-            ColorFormatter::for_config(&mut output, &config.merge(), false).unwrap();
+        let mut formatter = ColorFormatter::for_config(&mut output, &config, false).unwrap();
         formatter.push_label("not_bold").unwrap();
         write!(formatter, " not bold ").unwrap();
         formatter.push_label("bold_font").unwrap();
@@ -936,8 +928,7 @@ mod tests {
         "#,
         );
         let mut output: Vec<u8> = vec![];
-        let mut formatter =
-            ColorFormatter::for_config(&mut output, &config.merge(), false).unwrap();
+        let mut formatter = ColorFormatter::for_config(&mut output, &config, false).unwrap();
         write!(formatter, "before").unwrap();
         formatter.push_label("red").unwrap();
         write!(formatter, "first").unwrap();
@@ -959,8 +950,7 @@ mod tests {
         "#,
         );
         let mut output: Vec<u8> = vec![];
-        let mut formatter =
-            ColorFormatter::for_config(&mut output, &config.merge(), false).unwrap();
+        let mut formatter = ColorFormatter::for_config(&mut output, &config, false).unwrap();
         formatter.push_label("red").unwrap();
         write!(formatter, "\x1b[1mnot actually bold\x1b[0m").unwrap();
         formatter.pop_label().unwrap();
@@ -981,8 +971,7 @@ mod tests {
         "#,
         );
         let mut output: Vec<u8> = vec![];
-        let mut formatter =
-            ColorFormatter::for_config(&mut output, &config.merge(), false).unwrap();
+        let mut formatter = ColorFormatter::for_config(&mut output, &config, false).unwrap();
         write!(formatter, " before outer ").unwrap();
         formatter.push_label("outer").unwrap();
         write!(formatter, " before inner ").unwrap();
@@ -1006,8 +995,7 @@ mod tests {
         "#,
         );
         let mut output: Vec<u8> = vec![];
-        let mut formatter =
-            ColorFormatter::for_config(&mut output, &config.merge(), false).unwrap();
+        let mut formatter = ColorFormatter::for_config(&mut output, &config, false).unwrap();
         formatter.push_label("outer").unwrap();
         write!(formatter, " not colored ").unwrap();
         formatter.push_label("inner").unwrap();
@@ -1030,7 +1018,7 @@ mod tests {
         "#,
         );
         let mut output: Vec<u8> = vec![];
-        let err = ColorFormatter::for_config(&mut output, &config.merge(), false)
+        let err = ColorFormatter::for_config(&mut output, &config, false)
             .unwrap_err()
             .to_string();
         insta::assert_snapshot!(err,
@@ -1047,7 +1035,7 @@ mod tests {
             "##,
         );
         let mut output: Vec<u8> = vec![];
-        let err = ColorFormatter::for_config(&mut output, &config.merge(), false)
+        let err = ColorFormatter::for_config(&mut output, &config, false)
             .unwrap_err()
             .to_string();
         insta::assert_snapshot!(err,
@@ -1066,8 +1054,7 @@ mod tests {
         "#,
         );
         let mut output: Vec<u8> = vec![];
-        let mut formatter =
-            ColorFormatter::for_config(&mut output, &config.merge(), false).unwrap();
+        let mut formatter = ColorFormatter::for_config(&mut output, &config, false).unwrap();
         formatter.push_label("outer").unwrap();
         write!(formatter, "Blue on yellow, ").unwrap();
         formatter.push_label("default_fg").unwrap();
@@ -1096,8 +1083,7 @@ mod tests {
         "#,
         );
         let mut output: Vec<u8> = vec![];
-        let mut formatter =
-            ColorFormatter::for_config(&mut output, &config.merge(), false).unwrap();
+        let mut formatter = ColorFormatter::for_config(&mut output, &config, false).unwrap();
         formatter.push_label("outer1").unwrap();
         formatter.push_label("inner2").unwrap();
         write!(formatter, " hello ").unwrap();
@@ -1117,8 +1103,7 @@ mod tests {
         "#,
         );
         let mut output: Vec<u8> = vec![];
-        let mut formatter =
-            ColorFormatter::for_config(&mut output, &config.merge(), false).unwrap();
+        let mut formatter = ColorFormatter::for_config(&mut output, &config, false).unwrap();
         formatter.push_label("outer").unwrap();
         formatter.push_label("inner").unwrap();
         write!(formatter, " hello ").unwrap();
@@ -1140,8 +1125,7 @@ mod tests {
         "#,
         );
         let mut output: Vec<u8> = vec![];
-        let mut formatter =
-            ColorFormatter::for_config(&mut output, &config.merge(), false).unwrap();
+        let mut formatter = ColorFormatter::for_config(&mut output, &config, false).unwrap();
         formatter.push_label("a").unwrap();
         write!(formatter, " a1 ").unwrap();
         formatter.push_label("b").unwrap();
@@ -1168,8 +1152,7 @@ mod tests {
         "#,
         );
         let mut output: Vec<u8> = vec![];
-        let mut formatter =
-            ColorFormatter::for_config(&mut output, &config.merge(), false).unwrap();
+        let mut formatter = ColorFormatter::for_config(&mut output, &config, false).unwrap();
         formatter.push_label("outer").unwrap();
         formatter.push_label("inner").unwrap();
         write!(formatter, " inside ").unwrap();
@@ -1187,7 +1170,7 @@ mod tests {
         "#,
         );
         let mut output: Vec<u8> = vec![];
-        let mut formatter = ColorFormatter::for_config(&mut output, &config.merge(), true).unwrap();
+        let mut formatter = ColorFormatter::for_config(&mut output, &config, true).unwrap();
         formatter.push_label("outer").unwrap();
         formatter.push_label("inner").unwrap();
         write!(formatter, " inside ").unwrap();
@@ -1207,7 +1190,7 @@ mod tests {
         );
         let mut output: Vec<u8> = vec![];
         let mut formatter: Box<dyn Formatter> =
-            Box::new(ColorFormatter::for_config(&mut output, &config.merge(), false).unwrap());
+            Box::new(ColorFormatter::for_config(&mut output, &config, false).unwrap());
         formatter
             .as_mut()
             .labeled("inner")
@@ -1257,8 +1240,7 @@ mod tests {
         // Replayed output should be labeled.
         let config = config_from_string(r#" colors.inner = "red" "#);
         let mut output: Vec<u8> = vec![];
-        let mut formatter =
-            ColorFormatter::for_config(&mut output, &config.merge(), false).unwrap();
+        let mut formatter = ColorFormatter::for_config(&mut output, &config, false).unwrap();
         recorder.replay(&mut formatter).unwrap();
         drop(formatter);
         insta::assert_snapshot!(
@@ -1267,8 +1249,7 @@ mod tests {
 
         // Replayed output should be split at push/pop_label() call.
         let mut output: Vec<u8> = vec![];
-        let mut formatter =
-            ColorFormatter::for_config(&mut output, &config.merge(), false).unwrap();
+        let mut formatter = ColorFormatter::for_config(&mut output, &config, false).unwrap();
         recorder
             .replay_with(&mut formatter, |formatter, range| {
                 let data = &recorder.data()[range];
@@ -1295,16 +1276,14 @@ mod tests {
         // Replayed raw escape sequences are labeled.
         let config = config_from_string(r#" colors.inner = "red" "#);
         let mut output: Vec<u8> = vec![];
-        let mut formatter =
-            ColorFormatter::for_config(&mut output, &config.merge(), false).unwrap();
+        let mut formatter = ColorFormatter::for_config(&mut output, &config, false).unwrap();
         recorder.replay(&mut formatter).unwrap();
         drop(formatter);
         insta::assert_snapshot!(
             String::from_utf8(output).unwrap(), @" outer1 [38;5;1m inner1  inner2 [39m outer2 ");
 
         let mut output: Vec<u8> = vec![];
-        let mut formatter =
-            ColorFormatter::for_config(&mut output, &config.merge(), false).unwrap();
+        let mut formatter = ColorFormatter::for_config(&mut output, &config, false).unwrap();
         recorder
             .replay_with(&mut formatter, |_formatter, range| {
                 panic!(
