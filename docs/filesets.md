@@ -61,6 +61,20 @@ You can also specify patterns by using functions.
 * `all()`: Matches everything.
 * `none()`: Matches nothing.
 
+## Aliases
+
+New symbols can be defined in the config file, using predefined symbols/
+functions and other aliases.
+
+Unlike revsets, aliases currently cannot be functions.
+
+For example:
+```toml
+[fileset-aliases]
+LIB = "root-glob:lib/**"
+NO_LOCK = "~root-glob:**/*.lock"
+```
+
 ## Examples
 
 Show diff excluding `Cargo.lock`.
