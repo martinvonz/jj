@@ -39,7 +39,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 * A preview of improved shell completions was added. Please refer to the
   [documentation](https://martinvonz.github.io/jj/latest/install-and-setup/#command-line-completion)
-  to activate them.
+  to activate them. They additionally complete context-dependent, dynamic values
+  like bookmarks, aliases, revisions, operations and files.
 
 * Added the config setting `snapshot.auto-update-stale` for automatically
   running `jj workspace update-stale` when applicable.
