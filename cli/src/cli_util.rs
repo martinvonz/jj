@@ -3078,7 +3078,10 @@ impl ValueParserFactory for RevisionArg {
     }
 }
 
-fn get_string_or_array(config: &config::Config, key: &str) -> Result<Vec<String>, ConfigError> {
+fn get_string_or_array(
+    config: &StackedConfig,
+    key: &'static str,
+) -> Result<Vec<String>, ConfigError> {
     config
         .get(key)
         .map(|string| vec![string])
@@ -3087,7 +3090,7 @@ fn get_string_or_array(config: &config::Config, key: &str) -> Result<Vec<String>
 
 fn resolve_default_command(
     ui: &Ui,
-    config: &config::Config,
+    config: &StackedConfig,
     app: &Command,
     mut string_args: Vec<String>,
 ) -> Result<Vec<String>, CommandError> {
@@ -3130,7 +3133,7 @@ fn resolve_default_command(
 
 fn resolve_aliases(
     ui: &Ui,
-    config: &config::Config,
+    config: &StackedConfig,
     app: &Command,
     mut string_args: Vec<String>,
 ) -> Result<Vec<String>, CommandError> {
@@ -3240,7 +3243,7 @@ fn handle_early_args(
     }
     if !args.config_toml.is_empty() {
         config.add_layer(parse_config_args(&args.config_toml)?);
-        ui.reset(&config.merge())?;
+        ui.reset(config)?;
     }
     Ok(())
 }
@@ -3248,7 +3251,7 @@ fn handle_early_args(
 fn handle_shell_completion(
     ui: &Ui,
     app: &Command,
-    config: &config::Config,
+    config: &StackedConfig,
     cwd: &Path,
 ) -> Result<(), CommandError> {
     let mut args = vec![];
@@ -3296,7 +3299,7 @@ pub fn expand_args(
     ui: &Ui,
     app: &Command,
     args_os: impl IntoIterator<Item = OsString>,
-    config: &config::Config,
+    config: &StackedConfig,
 ) -> Result<Vec<String>, CommandError> {
     let mut string_args: Vec<String> = vec![];
     for arg_os in args_os {
@@ -3509,11 +3512,7 @@ impl CliRunner {
     }
 
     #[instrument(skip_all)]
-    fn run_internal(
-        self,
-        ui: &mut Ui,
-        mut stacked_config: StackedConfig,
-    ) -> Result<(), CommandError> {
+    fn run_internal(self, ui: &mut Ui, mut config: StackedConfig) -> Result<(), CommandError> {
         // `cwd` is canonicalized for consistency with `Workspace::workspace_root()` and
         // to easily compute relative paths between them.
         let cwd = env::current_dir()
@@ -3532,12 +3531,11 @@ impl CliRunner {
             .workspace_loader_factory
             .create(find_workspace_dir(&cwd))
             .map_err(|err| map_workspace_load_error(err, None));
-        config_env.reload_user_config(&mut stacked_config)?;
+        config_env.reload_user_config(&mut config)?;
         if let Ok(loader) = &maybe_cwd_workspace_loader {
             config_env.reset_repo_path(loader.repo_path());
-            config_env.reload_repo_config(&mut stacked_config)?;
+            config_env.reload_repo_config(&mut config)?;
         }
-        let config = stacked_config.merge();
         ui.reset(&config).map_err(|e| {
             let user_config_path = config_env.existing_user_config_path();
             let repo_config_path = config_env.existing_repo_config_path();
@@ -3559,9 +3557,9 @@ impl CliRunner {
             &self.app,
             &self.tracing_subscription,
             &string_args,
-            &mut stacked_config,
+            &mut config,
         )
-        .map_err(|err| map_clap_cli_error(err, ui, &stacked_config))?;
+        .map_err(|err| map_clap_cli_error(err, ui, &config))?;
         for process_global_args_fn in self.process_global_args_fns {
             process_global_args_fn(ui, &matches)?;
         }
@@ -3573,14 +3571,13 @@ impl CliRunner {
                 .create(&cwd.join(path))
                 .map_err(|err| map_workspace_load_error(err, Some(path)))?;
             config_env.reset_repo_path(loader.repo_path());
-            config_env.reload_repo_config(&mut stacked_config)?;
+            config_env.reload_repo_config(&mut config)?;
             Ok(loader)
         } else {
             maybe_cwd_workspace_loader
         };
 
         // Apply workspace configs and --config-toml arguments.
-        let config = stacked_config.merge();
         ui.reset(&config)?;
 
         // If -R is specified, check if the expanded arguments differ. Aliases
@@ -3595,7 +3592,7 @@ impl CliRunner {
             }
         }
 
-        let settings = UserSettings::from_config(stacked_config);
+        let settings = UserSettings::from_config(config);
         let command_helper_data = CommandHelperData {
             app: self.app,
             cwd,
@@ -3631,7 +3628,7 @@ impl CliRunner {
             .build()
             .unwrap();
         let stacked_config = config_from_environment(config);
-        let mut ui = Ui::with_config(&stacked_config.merge())
+        let mut ui = Ui::with_config(&stacked_config)
             .expect("default config should be valid, env vars are stringly typed");
         let result = self.run_internal(&mut ui, stacked_config);
         let exit_code = handle_command_result(&mut ui, result);

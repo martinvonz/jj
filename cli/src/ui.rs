@@ -33,6 +33,7 @@ use std::thread::JoinHandle;
 use indoc::indoc;
 use itertools::Itertools as _;
 use jj_lib::config::ConfigError;
+use jj_lib::config::StackedConfig;
 use minus::MinusError;
 use minus::Pager as MinusPager;
 use tracing::instrument;
@@ -262,8 +263,8 @@ pub struct Ui {
     output: UiOutput,
 }
 
-fn progress_indicator_setting(config: &config::Config) -> bool {
-    config.get_bool("ui.progress-indicator").unwrap_or(true)
+fn progress_indicator_setting(config: &StackedConfig) -> bool {
+    config.get("ui.progress-indicator").unwrap_or(true)
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -301,16 +302,16 @@ impl fmt::Display for ColorChoice {
     }
 }
 
-fn color_setting(config: &config::Config) -> ColorChoice {
+fn color_setting(config: &StackedConfig) -> ColorChoice {
     config
-        .get_string("ui.color")
+        .get::<String>("ui.color")
         .ok()
         .and_then(|s| s.parse().ok())
         .unwrap_or_default()
 }
 
 fn prepare_formatter_factory(
-    config: &config::Config,
+    config: &StackedConfig,
     stdout: &Stdout,
 ) -> Result<FormatterFactory, ConfigError> {
     let terminal = stdout.is_terminal();
@@ -331,8 +332,8 @@ fn prepare_formatter_factory(
     }
 }
 
-fn be_quiet(config: &config::Config) -> bool {
-    config.get_bool("ui.quiet").unwrap_or_default()
+fn be_quiet(config: &StackedConfig) -> bool {
+    config.get("ui.quiet").unwrap_or_default()
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, serde::Deserialize)]
@@ -343,20 +344,20 @@ pub enum PaginationChoice {
     Auto,
 }
 
-fn pagination_setting(config: &config::Config) -> Result<PaginationChoice, CommandError> {
+fn pagination_setting(config: &StackedConfig) -> Result<PaginationChoice, CommandError> {
     config
         .get::<PaginationChoice>("ui.paginate")
         .map_err(|err| config_error_with_message("Invalid `ui.paginate`", err))
 }
 
-fn pager_setting(config: &config::Config) -> Result<CommandNameAndArgs, CommandError> {
+fn pager_setting(config: &StackedConfig) -> Result<CommandNameAndArgs, CommandError> {
     config
         .get::<CommandNameAndArgs>("ui.pager")
         .map_err(|err| config_error_with_message("Invalid `ui.pager`", err))
 }
 
 impl Ui {
-    pub fn with_config(config: &config::Config) -> Result<Ui, CommandError> {
+    pub fn with_config(config: &StackedConfig) -> Result<Ui, CommandError> {
         let quiet = be_quiet(config);
         let formatter_factory = prepare_formatter_factory(config, &io::stdout())?;
         let progress_indicator = progress_indicator_setting(config);
@@ -370,7 +371,7 @@ impl Ui {
         })
     }
 
-    pub fn reset(&mut self, config: &config::Config) -> Result<(), CommandError> {
+    pub fn reset(&mut self, config: &StackedConfig) -> Result<(), CommandError> {
         self.quiet = be_quiet(config);
         self.paginate = pagination_setting(config)?;
         self.pager_cmd = pager_setting(config)?;

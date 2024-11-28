@@ -687,29 +687,28 @@ impl TryFrom<Vec<String>> for NonEmptyCommandArgsVec {
 mod tests {
     use anyhow::anyhow;
     use assert_matches::assert_matches;
+    use indoc::indoc;
     use maplit::hashmap;
 
     use super::*;
 
     #[test]
     fn test_command_args() {
-        let config = config::Config::builder()
-            .set_override("empty_array", Vec::<String>::new())
-            .unwrap()
-            .set_override("empty_string", "")
-            .unwrap()
-            .set_override("array", vec!["emacs", "-nw"])
-            .unwrap()
-            .set_override("string", "emacs -nw")
-            .unwrap()
-            .set_override("structured.env.KEY1", "value1")
-            .unwrap()
-            .set_override("structured.env.KEY2", "value2")
-            .unwrap()
-            .set_override("structured.command", vec!["emacs", "-nw"])
-            .unwrap()
-            .build()
-            .unwrap();
+        let mut config = StackedConfig::empty();
+        config.add_layer(
+            ConfigLayer::parse(
+                ConfigSource::User,
+                indoc! {"
+                    empty_array = []
+                    empty_string = ''
+                    array = ['emacs', '-nw']
+                    string = 'emacs -nw'
+                    structured.env = { KEY1 = 'value1', KEY2 = 'value2' }
+                    structured.command = ['emacs', '-nw']
+                "},
+            )
+            .unwrap(),
+        );
 
         assert!(config.get::<CommandNameAndArgs>("empty_array").is_err());
 

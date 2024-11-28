@@ -444,7 +444,7 @@ mod tests {
     fn test_get_diff_editor_from_settings() {
         let get = |text| {
             let config = config_from_string(text);
-            let ui = Ui::with_config(&config.merge()).unwrap();
+            let ui = Ui::with_config(&config).unwrap();
             let settings = UserSettings::from_config(config);
             DiffEditor::from_settings(
                 &ui,
@@ -661,7 +661,7 @@ mod tests {
     fn test_get_merge_editor_from_settings() {
         let get = |text| {
             let config = config_from_string(text);
-            let ui = Ui::with_config(&config.merge()).unwrap();
+            let ui = Ui::with_config(&config).unwrap();
             let settings = UserSettings::from_config(config);
             MergeEditor::from_settings(&ui, &settings, ConflictMarkerStyle::Diff)
                 .map(|editor| editor.tool)
