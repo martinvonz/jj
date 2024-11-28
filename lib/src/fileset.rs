@@ -23,7 +23,6 @@ use itertools::Itertools as _;
 use once_cell::sync::Lazy;
 use thiserror::Error;
 
-use crate::dsl_util;
 use crate::dsl_util::collect_similar;
 use crate::dsl_util::AliasExpandError;
 use crate::fileset_parser;
@@ -487,9 +486,8 @@ pub fn parse(
     path_converter: &RepoPathUiConverter,
     aliases_map: &FilesetAliasesMap,
 ) -> FilesetParseResult<FilesetExpression> {
-    let node = fileset_parser::parse_program(text)?;
+    let node = fileset_parser::parse(text, aliases_map)?;
     // TODO: add basic tree substitution pass to eliminate redundant expressions
-    let node = dsl_util::expand_aliases(node, aliases_map)?;
     resolve_expression(diagnostics, path_converter, &node)
 }
 
@@ -503,9 +501,8 @@ pub fn parse_maybe_bare(
     path_converter: &RepoPathUiConverter,
     aliases_map: &FilesetAliasesMap,
 ) -> FilesetParseResult<FilesetExpression> {
-    let node = fileset_parser::parse_program_or_bare_string(text)?;
+    let node = fileset_parser::parse_maybe_bare(text, aliases_map)?;
     // TODO: add basic tree substitution pass to eliminate redundant expressions
-    let node = dsl_util::expand_aliases(node, aliases_map)?;
     resolve_expression(diagnostics, path_converter, &node)
 }
 

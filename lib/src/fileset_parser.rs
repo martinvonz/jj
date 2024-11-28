@@ -394,19 +394,37 @@ fn parse_expression_node(pair: Pair<Rule>) -> FilesetParseResult<ExpressionNode>
         .parse(pair.into_inner())
 }
 
-/// Parses text into expression tree. No name resolution is made at this stage.
-pub fn parse_program(text: &str) -> FilesetParseResult<ExpressionNode> {
+/// Parses text into expression tree. No path resolution is made at this stage,
+/// see [`crate::fileset::parse()`].
+pub fn parse<'i>(
+    text: &'i str,
+    aliases_map: &'i FilesetAliasesMap,
+) -> FilesetParseResult<ExpressionNode<'i>> {
+    let node = parse_program(text)?;
+    dsl_util::expand_aliases(node, aliases_map)
+}
+
+fn parse_program(text: &str) -> FilesetParseResult<ExpressionNode> {
     let mut pairs = FilesetParser::parse(Rule::program, text)?;
     let first = pairs.next().unwrap();
     parse_expression_node(first)
 }
 
-/// Parses text into expression tree with bare string fallback. No name
-/// resolution is made at this stage.
+/// Parses text into expression tree with bare string fallback. No path
+/// resolution is made at this stage, see
+/// [`crate::fileset::parse_maybe_bare()`].
 ///
 /// If the text can't be parsed as a fileset expression, and if it doesn't
 /// contain any operator-like characters, it will be parsed as a file path.
-pub fn parse_program_or_bare_string(text: &str) -> FilesetParseResult<ExpressionNode> {
+pub fn parse_maybe_bare<'i>(
+    text: &'i str,
+    aliases_map: &'i FilesetAliasesMap,
+) -> FilesetParseResult<ExpressionNode<'i>> {
+    let node = parse_program_or_bare_string(text)?;
+    dsl_util::expand_aliases(node, aliases_map)
+}
+
+fn parse_program_or_bare_string(text: &str) -> FilesetParseResult<ExpressionNode> {
     let mut pairs = FilesetParser::parse(Rule::program_or_bare_string, text)?;
     let first = pairs.next().unwrap();
     let span = first.as_span();
@@ -462,6 +480,30 @@ mod tests {
 
     use super::*;
     use crate::dsl_util::KeywordArgument;
+
+    #[derive(Debug)]
+    struct WithFilesetAliasesMap(FilesetAliasesMap);
+
+    impl WithFilesetAliasesMap {
+        fn parse<'i>(&'i self, text: &'i str) -> Result<ExpressionNode<'i>, FilesetParseError> {
+            let node = parse_program(text)?;
+            dsl_util::expand_aliases(node, &self.0)
+        }
+
+        fn parse_normalized<'i>(&'i self, text: &'i str) -> ExpressionNode<'i> {
+            normalize_tree(self.parse(text).unwrap())
+        }
+    }
+
+    fn with_aliases(
+        aliases: impl IntoIterator<Item = (impl AsRef<str>, impl Into<String>)>,
+    ) -> WithFilesetAliasesMap {
+        let mut aliases_map = FilesetAliasesMap::new();
+        for (decl, defn) in aliases {
+            aliases_map.insert(decl, defn).unwrap();
+        }
+        WithFilesetAliasesMap(aliases_map)
+    }
 
     fn parse_into_kind(text: &str) -> Result<ExpressionKind, FilesetParseErrorKind> {
         parse_program(text)
@@ -831,6 +873,57 @@ mod tests {
         assert_eq!(
             parse_maybe_bare_into_kind(" No trim "),
             Ok(ExpressionKind::String(" No trim ".to_owned()))
+        );
+    }
+
+    #[test]
+    fn test_expand_symbol_alias() {
+        assert_eq!(
+            with_aliases([("AB", "a&b")]).parse_normalized("AB|c"),
+            parse_normalized("(a&b)|c")
+        );
+
+        // Not string substitution 'a&b|c', but tree substitution.
+        assert_eq!(
+            with_aliases([("BC", "b|c")]).parse_normalized("a&BC"),
+            parse_normalized("a&(b|c)")
+        );
+
+        // String literal should not be substituted with alias.
+        assert_eq!(
+            with_aliases([("A", "a")]).parse_normalized(r#"A|"A"|'A'"#),
+            parse_normalized("a|'A'|'A'")
+        );
+
+        // Part of string pattern cannot be substituted.
+        assert_eq!(
+            with_aliases([("A", "a")]).parse_normalized("cwd:A"),
+            parse_normalized("cwd:A")
+        );
+
+        // Multi-level substitution.
+        assert_eq!(
+            with_aliases([("A", "BC"), ("BC", "b|C"), ("C", "c")]).parse_normalized("A"),
+            parse_normalized("b|c")
+        );
+
+        // Infinite recursion, where the top-level error isn't of RecursiveAlias kind.
+        assert_eq!(
+            with_aliases([("A", "A")]).parse("A").unwrap_err().kind,
+            FilesetParseErrorKind::InAliasExpansion("A".to_owned())
+        );
+        assert_eq!(
+            with_aliases([("A", "B"), ("B", "b|C"), ("C", "c|B")])
+                .parse("A")
+                .unwrap_err()
+                .kind,
+            FilesetParseErrorKind::InAliasExpansion("A".to_owned())
+        );
+
+        // Error in alias definition.
+        assert_eq!(
+            with_aliases([("A", "a(")]).parse("A").unwrap_err().kind,
+            FilesetParseErrorKind::InAliasExpansion("A".to_owned())
         );
     }
 
