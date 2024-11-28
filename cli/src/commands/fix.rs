@@ -474,7 +474,7 @@ fn get_tools_config(ui: &mut Ui, settings: &UserSettings) -> Result<ToolsConfig,
             to_toml_value(&settings.get::<ConfigValue>("fix.tool-command").unwrap()).unwrap()
         )?;
     }
-    if let Ok(tools_table) = settings.raw_config().get_table("fix.tools") {
+    if let Ok(tools_table) = settings.get_table("fix.tools") {
         // Convert the map into a sorted vector early so errors are deterministic.
         let mut tools: Vec<ToolConfig> = tools_table
             .into_iter()

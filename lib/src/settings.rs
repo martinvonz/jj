@@ -28,6 +28,7 @@ use crate::backend::Commit;
 use crate::backend::Signature;
 use crate::backend::Timestamp;
 use crate::config::ConfigError;
+use crate::config::ConfigTable;
 use crate::config::StackedConfig;
 use crate::conflicts::ConflictMarkerStyle;
 use crate::fmt_util::binary_prefix;
@@ -295,6 +296,11 @@ impl UserSettings {
     /// Looks up boolean value by `key`.
     pub fn get_bool(&self, key: &str) -> Result<bool, ConfigError> {
         self.get(key)
+    }
+
+    /// Looks up sub table by `key`.
+    pub fn get_table(&self, key: &str) -> Result<ConfigTable, ConfigError> {
+        self.config.get_table(key)
     }
 }
 
