@@ -676,11 +676,7 @@ fn get_jj_command() -> Result<(JjBuilder, UserSettings), CommandError> {
     // child process. This shouldn't fail, since none of the global args are
     // required.
     let app = crate::commands::default_app();
-    let config = config::Config::builder()
-        .add_source(default_config())
-        .build()
-        .expect("default config should be valid");
-    let mut stacked_config = config_from_environment(config);
+    let mut stacked_config = config_from_environment(default_config());
     let ui = Ui::with_config(&stacked_config.merge()).expect("default config should be valid");
     let cwd = std::env::current_dir()
         .and_then(|cwd| cwd.canonicalize())
