@@ -58,7 +58,6 @@ use jj_lib::backend::MergedTreeId;
 use jj_lib::backend::TreeValue;
 use jj_lib::commit::Commit;
 use jj_lib::config::ConfigError;
-use jj_lib::config::ConfigSource;
 use jj_lib::config::StackedConfig;
 use jj_lib::conflicts::ConflictMarkerStyle;
 use jj_lib::file_util;
@@ -2764,28 +2763,6 @@ impl LogContentFormat {
         }
         Ok(())
     }
-}
-
-pub fn get_new_config_file_path(
-    config_source: ConfigSource,
-    command: &CommandHelper,
-) -> Result<&Path, CommandError> {
-    let config_env = command.config_env();
-    let edit_path = match config_source {
-        // TODO(#531): Special-case for editors that can't handle viewing directories?
-        ConfigSource::User => config_env
-            .new_user_config_path()?
-            .ok_or_else(|| user_error("No user config path found to edit"))?,
-        ConfigSource::Repo => config_env
-            .new_repo_config_path()
-            .ok_or_else(|| user_error("No repo config path found to edit"))?,
-        _ => {
-            return Err(user_error(format!(
-                "Can't get path for config source {config_source:?}"
-            )));
-        }
-    };
-    Ok(edit_path)
 }
 
 pub fn run_ui_editor(settings: &UserSettings, edit_path: &Path) -> Result<(), CommandError> {
