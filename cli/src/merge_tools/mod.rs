@@ -159,7 +159,7 @@ pub fn get_external_tool_config(
     name: &str,
 ) -> Result<Option<ExternalMergeTool>, ConfigError> {
     const TABLE_KEY: &str = "merge-tools";
-    let tools_table = settings.raw_config().get_table(TABLE_KEY)?;
+    let tools_table = settings.get_table(TABLE_KEY)?;
     if let Some(v) = tools_table.get(name) {
         let mut result: ExternalMergeTool = v
             .clone()
