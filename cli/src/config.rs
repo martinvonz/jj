@@ -267,7 +267,12 @@ impl ConfigEnv {
         match &self.user_config_path {
             ConfigPath::Existing(path) => Ok(Some(path)),
             ConfigPath::New(path) => {
-                // TODO: should we update self.user_config_path to Existing?
+                // TODO: Maybe we shouldn't create new file here. Not all
+                // callers need an empty file. For example, "jj config path"
+                // should be a readonly operation. "jj config set" doesn't have
+                // to create an empty file to be overwritten. Since it's unclear
+                // who and when to update ConfigPath::New(_) to ::Existing(_),
+                // it's probably better to not cache the path existence.
                 create_config_file(path)?;
                 Ok(Some(path))
             }
@@ -308,10 +313,7 @@ impl ConfigEnv {
     pub fn new_repo_config_path(&self) -> Option<&Path> {
         match &self.repo_config_path {
             ConfigPath::Existing(path) => Some(path),
-            ConfigPath::New(path) => {
-                // TODO: should we create new file?
-                Some(path)
-            }
+            ConfigPath::New(path) => Some(path),
             ConfigPath::Unavailable => None,
         }
     }
