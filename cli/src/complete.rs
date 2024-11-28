@@ -17,9 +17,9 @@ use std::io::BufRead;
 use clap::builder::StyledStr;
 use clap::FromArgMatches as _;
 use clap_complete::CompletionCandidate;
-use config::Config;
 use itertools::Itertools;
 use jj_lib::config::ConfigNamePathBuf;
+use jj_lib::settings::UserSettings;
 use jj_lib::workspace::DefaultWorkspaceLoaderFactory;
 use jj_lib::workspace::WorkspaceLoaderFactory as _;
 
@@ -101,7 +101,7 @@ pub fn tracked_bookmarks() -> Vec<CompletionCandidate> {
 }
 
 pub fn untracked_bookmarks() -> Vec<CompletionCandidate> {
-    with_jj(|jj, config| {
+    with_jj(|jj, settings| {
         let output = jj
             .build()
             .arg("bookmark")
@@ -118,7 +118,7 @@ pub fn untracked_bookmarks() -> Vec<CompletionCandidate> {
             .output()
             .map_err(user_error)?;
 
-        let prefix = config.get::<String>("git.push-bookmark-prefix").ok();
+        let prefix = settings.get_string("git.push-bookmark-prefix").ok();
 
         Ok(String::from_utf8_lossy(&output.stdout)
             .lines()
@@ -139,7 +139,7 @@ pub fn untracked_bookmarks() -> Vec<CompletionCandidate> {
 }
 
 pub fn bookmarks() -> Vec<CompletionCandidate> {
-    with_jj(|jj, config| {
+    with_jj(|jj, settings| {
         let output = jj
             .build()
             .arg("bookmark")
@@ -156,7 +156,7 @@ pub fn bookmarks() -> Vec<CompletionCandidate> {
             .map_err(user_error)?;
         let stdout = String::from_utf8_lossy(&output.stdout);
 
-        let prefix = config.get::<String>("git.push-bookmark-prefix").ok();
+        let prefix = settings.get_string("git.push-bookmark-prefix").ok();
 
         Ok((&stdout
             .lines()
@@ -204,8 +204,8 @@ pub fn git_remotes() -> Vec<CompletionCandidate> {
 }
 
 pub fn aliases() -> Vec<CompletionCandidate> {
-    with_jj(|_, config| {
-        Ok(config
+    with_jj(|_, settings| {
+        Ok(settings
             .get_table("aliases")?
             .into_keys()
             // This is opinionated, but many people probably have several
@@ -219,7 +219,7 @@ pub fn aliases() -> Vec<CompletionCandidate> {
 }
 
 fn revisions(revisions: Option<&str>) -> Vec<CompletionCandidate> {
-    with_jj(|jj, config| {
+    with_jj(|jj, settings| {
         // display order
         const LOCAL_BOOKMARK_MINE: usize = 0;
         const LOCAL_BOOKMARK: usize = 1;
@@ -232,7 +232,7 @@ fn revisions(revisions: Option<&str>) -> Vec<CompletionCandidate> {
 
         // bookmarks
 
-        let prefix = config.get::<String>("git.push-bookmark-prefix").ok();
+        let prefix = settings.get_string("git.push-bookmark-prefix").ok();
 
         let mut cmd = jj.build();
         cmd.arg("bookmark")
@@ -298,8 +298,8 @@ fn revisions(revisions: Option<&str>) -> Vec<CompletionCandidate> {
 
         let revisions = revisions
             .map(String::from)
-            .or_else(|| config.get_string("revsets.short-prefixes").ok())
-            .or_else(|| config.get_string("revsets.log").ok())
+            .or_else(|| settings.get_string("revsets.short-prefixes").ok())
+            .or_else(|| settings.get_string("revsets.log").ok())
             .unwrap_or_default();
 
         let output = jj
@@ -643,10 +643,10 @@ pub fn interdiff_files(current: &std::ffi::OsStr) -> Vec<CompletionCandidate> {
 /// In case of errors, print them and early return an empty vector.
 fn with_jj<F>(completion_fn: F) -> Vec<CompletionCandidate>
 where
-    F: FnOnce(JjBuilder, &Config) -> Result<Vec<CompletionCandidate>, CommandError>,
+    F: FnOnce(JjBuilder, &UserSettings) -> Result<Vec<CompletionCandidate>, CommandError>,
 {
     get_jj_command()
-        .and_then(|(jj, config)| completion_fn(jj, &config))
+        .and_then(|(jj, settings)| completion_fn(jj, &settings))
         .unwrap_or_else(|e| {
             eprintln!("{}", e.error);
             Vec::new()
@@ -662,7 +662,7 @@ where
 /// give completion code access to custom backends. Shelling out was chosen as
 /// the preferred method, because it's more maintainable and the performance
 /// requirements of completions aren't very high.
-fn get_jj_command() -> Result<(JjBuilder, Config), CommandError> {
+fn get_jj_command() -> Result<(JjBuilder, UserSettings), CommandError> {
     let current_exe = std::env::current_exe().map_err(user_error)?;
     let mut cmd_args = Vec::<String>::new();
 
@@ -692,7 +692,7 @@ fn get_jj_command() -> Result<(JjBuilder, Config), CommandError> {
         config_env.reset_repo_path(loader.repo_path());
         let _ = config_env.reload_repo_config(&mut stacked_config);
     }
-    let mut config = stacked_config.merge();
+    let config = stacked_config.merge();
     // skip 2 because of the clap_complete prelude: jj -- jj <actual args...>
     let args = std::env::args_os().skip(2);
     let args = expand_args(&ui, &app, args, &config)?;
@@ -709,7 +709,6 @@ fn get_jj_command() -> Result<(JjBuilder, Config), CommandError> {
         if let Ok(loader) = DefaultWorkspaceLoaderFactory.create(&cwd.join(&repository)) {
             config_env.reset_repo_path(loader.repo_path());
             let _ = config_env.reload_repo_config(&mut stacked_config);
-            config = stacked_config.merge();
         }
         cmd_args.push("--repository".into());
         cmd_args.push(repository);
@@ -750,8 +749,9 @@ fn get_jj_command() -> Result<(JjBuilder, Config), CommandError> {
         cmd: current_exe,
         args: cmd_args,
     };
+    let settings = UserSettings::from_config(stacked_config);
 
-    Ok((builder, config))
+    Ok((builder, settings))
 }
 
 /// A helper struct to allow completion functions to call jj multiple times with
