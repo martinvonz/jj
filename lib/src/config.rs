@@ -14,6 +14,7 @@
 
 //! Configuration store helpers.
 
+use std::borrow::Borrow;
 use std::borrow::Cow;
 use std::fmt;
 use std::ops::Range;
@@ -135,6 +136,73 @@ impl fmt::Display for ConfigNamePathBuf {
             write!(f, "{key}")?;
         }
         components.try_for_each(|key| write!(f, ".{key}"))
+    }
+}
+
+/// Value that can be converted to a dotted config name path.
+///
+/// This is an abstraction to specify a config name path in either a string or a
+/// parsed form. It's similar to `Into<T>`, but the output type `T` is
+/// constrained by the source type.
+pub trait ToConfigNamePath: Sized {
+    /// Path type to be converted from `Self`.
+    type Output: Borrow<ConfigNamePathBuf>;
+
+    /// Converts this object into a dotted config name path.
+    fn into_name_path(self) -> Self::Output;
+}
+
+impl ToConfigNamePath for ConfigNamePathBuf {
+    type Output = Self;
+
+    fn into_name_path(self) -> Self::Output {
+        self
+    }
+}
+
+impl ToConfigNamePath for &ConfigNamePathBuf {
+    type Output = Self;
+
+    fn into_name_path(self) -> Self::Output {
+        self
+    }
+}
+
+impl ToConfigNamePath for &'static str {
+    // This can be changed to ConfigNamePathStr(str) if allocation cost matters.
+    type Output = ConfigNamePathBuf;
+
+    /// Parses this string into a dotted config name path.
+    ///
+    /// The string must be a valid TOML dotted key. A static str is required to
+    /// prevent API misuse.
+    fn into_name_path(self) -> Self::Output {
+        self.parse()
+            .expect("valid TOML dotted key must be provided")
+    }
+}
+
+impl<const N: usize> ToConfigNamePath for [&str; N] {
+    type Output = ConfigNamePathBuf;
+
+    fn into_name_path(self) -> Self::Output {
+        self.into_iter().collect()
+    }
+}
+
+impl<const N: usize> ToConfigNamePath for &[&str; N] {
+    type Output = ConfigNamePathBuf;
+
+    fn into_name_path(self) -> Self::Output {
+        self.as_slice().into_name_path()
+    }
+}
+
+impl ToConfigNamePath for &[&str] {
+    type Output = ConfigNamePathBuf;
+
+    fn into_name_path(self) -> Self::Output {
+        self.iter().copied().collect()
     }
 }
 
