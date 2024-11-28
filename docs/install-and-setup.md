@@ -210,13 +210,17 @@ To set up command-line completion, source the output of
 `jj util completion bash/zsh/fish`. Exactly how to source it
 depends on your shell.
 
-Improved completions are currently in the works, these will complete things like
-bookmark names as well. You can activate them with the alternative "dynamic"
-instructions below. They should still complete everything the static completions
-did, so only activate one of them. Please let us know if you encounter any
-issues, so we can ensure a smooth transition once we default to these new
-completions. If you have ideas about specific completions that could be added,
-please share them [here](https://github.com/martinvonz/jj/issues/4763).
+Improved completions are also available. They will complete things like
+bookmarks, aliases, revisions, operations and files. They can be context aware,
+for example they respect the global flags `--repository` and `--at-operation` as
+well as some command-specific ones like `--revision`, `--from` and `--to`. You
+can activate them with the alternative "dynamic" instructions below. They should
+still complete everything the static completions did, so only activate one of
+them. Please let us know if you encounter any issues, so we can ensure a smooth
+transition once we default to these new completions. Our initial experience
+is that these new completions work best with `fish`. If you have ideas about
+specific completions that could be added, please share them
+[here](https://github.com/martinvonz/jj/issues/4763).
 
 ### Bash
 
