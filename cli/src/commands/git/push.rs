@@ -402,15 +402,30 @@ fn validate_commits_ready_to_push(
         if commit.has_conflict()? {
             reasons.push("it has conflicts");
         }
-        if !args.allow_private && is_private(commit.id())? {
+        let is_private = is_private(commit.id())?;
+        if !args.allow_private && is_private {
             reasons.push("it is private");
         }
         if !reasons.is_empty() {
-            return Err(user_error(format!(
+            let mut error = user_error(format!(
                 "Won't push commit {} since {}",
                 short_commit_hash(commit.id()),
                 reasons.join(" and ")
-            )));
+            ));
+            error.add_formatted_hint_with(|formatter| {
+                write!(formatter, "Rejected commit: ")?;
+                workspace_helper.write_commit_summary(formatter, &commit)?;
+                Ok(())
+            });
+            if !args.allow_private && is_private {
+                error.add_hint(format!(
+                    "Configured git.private-commits: '{}'",
+                    settings
+                        .get_string("git.private-commits")
+                        .expect("should have private-commits setting")
+                ));
+            }
+            return Err(error);
         }
     }
     Ok(())
