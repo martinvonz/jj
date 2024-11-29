@@ -28,7 +28,6 @@ use jj_lib::config::ConfigNamePathBuf;
 use jj_lib::config::ConfigSource;
 use jj_lib::config::ConfigValue;
 use jj_lib::config::StackedConfig;
-use jj_lib::settings::ConfigResultExt as _;
 use regex::Captures;
 use regex::Regex;
 use thiserror::Error;
@@ -111,12 +110,15 @@ pub fn resolved_config_values(
     // Collect annotated values from each config.
     let mut config_vals = vec![];
     for layer in stacked_config.layers() {
-        let Some(top_value) = filter_prefix.lookup_value(&layer.data).optional()? else {
+        // TODO: Err(item) means all descendant paths are overridden by the
+        // current layer. For example, the default ui.pager.<field> should be
+        // marked as overridden if user had ui.pager = [...] set.
+        let Ok(Some(top_item)) = layer.look_up_item(filter_prefix) else {
             continue;
         };
-        let mut config_stack = vec![(filter_prefix.clone(), &top_value)];
-        while let Some((name, value)) = config_stack.pop() {
-            match &value.kind {
+        let mut config_stack = vec![(filter_prefix.clone(), top_item)];
+        while let Some((name, item)) = config_stack.pop() {
+            match &item.kind {
                 config::ValueKind::Table(table) => {
                     // TODO: Remove sorting when config crate maintains deterministic ordering.
                     for (k, v) in table.iter().sorted_by_key(|(k, _)| *k).rev() {
@@ -128,7 +130,7 @@ pub fn resolved_config_values(
                 _ => {
                     config_vals.push(AnnotatedValue {
                         name,
-                        value: value.to_owned(),
+                        value: item.to_owned(),
                         source: layer.source,
                         // Note: Value updated below.
                         is_overridden: false,
