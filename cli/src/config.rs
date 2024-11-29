@@ -51,32 +51,6 @@ pub fn parse_toml_value_or_bare_string(value_str: &str) -> toml_edit::Value {
     }
 }
 
-pub fn to_toml_value(value: &ConfigValue) -> Result<toml_edit::Value, ConfigError> {
-    fn type_error<T: fmt::Display>(message: T) -> ConfigError {
-        ConfigError::Message(message.to_string())
-    }
-    // It's unlikely that the config object contained unsupported values, but
-    // there's no guarantee. For example, values coming from environment
-    // variables might be big int.
-    match value.kind {
-        config::ValueKind::Nil => Err(type_error(format!("Unexpected value: {value}"))),
-        config::ValueKind::Boolean(v) => Ok(v.into()),
-        config::ValueKind::I64(v) => Ok(v.into()),
-        config::ValueKind::I128(v) => Ok(i64::try_from(v).map_err(type_error)?.into()),
-        config::ValueKind::U64(v) => Ok(i64::try_from(v).map_err(type_error)?.into()),
-        config::ValueKind::U128(v) => Ok(i64::try_from(v).map_err(type_error)?.into()),
-        config::ValueKind::Float(v) => Ok(v.into()),
-        config::ValueKind::String(ref v) => Ok(v.into()),
-        // TODO: Remove sorting when config crate maintains deterministic ordering.
-        config::ValueKind::Table(ref table) => table
-            .iter()
-            .sorted_by_key(|(k, _)| *k)
-            .map(|(k, v)| Ok((k, to_toml_value(v)?)))
-            .collect(),
-        config::ValueKind::Array(ref array) => array.iter().map(to_toml_value).collect(),
-    }
-}
-
 #[derive(Error, Debug)]
 pub enum ConfigEnvError {
     #[error(transparent)]
@@ -118,24 +92,30 @@ pub fn resolved_config_values(
         };
         let mut config_stack = vec![(filter_prefix.clone(), top_item)];
         while let Some((name, item)) = config_stack.pop() {
-            match &item.kind {
-                config::ValueKind::Table(table) => {
-                    // TODO: Remove sorting when config crate maintains deterministic ordering.
-                    for (k, v) in table.iter().sorted_by_key(|(k, _)| *k).rev() {
-                        let mut sub_name = name.clone();
-                        sub_name.push(k);
-                        config_stack.push((sub_name, v));
-                    }
+            // TODO: item.as_table() to print inline table as a value?
+            if let Some(table) = item.as_table_like() {
+                // table.iter() does not implement DoubleEndedIterator as of
+                // toml_edit 0.22.22.
+                let frame = config_stack.len();
+                // TODO: Remove sorting
+                for (k, v) in table.iter().sorted_by_key(|(k, _)| *k) {
+                    let mut sub_name = name.clone();
+                    sub_name.push(k);
+                    config_stack.push((sub_name, v));
                 }
-                _ => {
-                    config_vals.push(AnnotatedValue {
-                        name,
-                        value: item.to_owned(),
-                        source: layer.source,
-                        // Note: Value updated below.
-                        is_overridden: false,
-                    });
-                }
+                config_stack[frame..].reverse();
+            } else {
+                let value = item
+                    .clone()
+                    .into_value()
+                    .expect("Item::None should not exist in table");
+                config_vals.push(AnnotatedValue {
+                    name,
+                    value,
+                    source: layer.source,
+                    // Note: Value updated below.
+                    is_overridden: false,
+                });
             }
         }
     }
@@ -798,12 +778,13 @@ mod tests {
                         },
                     ],
                 ),
-                value: Value {
-                    origin: None,
-                    kind: String(
-                        "base@user.email",
-                    ),
-                },
+                value: String(
+                    Formatted {
+                        value: "base@user.email",
+                        repr: "default",
+                        decor: Decor { .. },
+                    },
+                ),
                 source: EnvBase,
                 is_overridden: true,
             },
@@ -824,12 +805,13 @@ mod tests {
                         },
                     ],
                 ),
-                value: Value {
-                    origin: None,
-                    kind: String(
-                        "base-user-name",
-                    ),
-                },
+                value: String(
+                    Formatted {
+                        value: "base-user-name",
+                        repr: "default",
+                        decor: Decor { .. },
+                    },
+                ),
                 source: EnvBase,
                 is_overridden: false,
             },
@@ -850,12 +832,13 @@ mod tests {
                         },
                     ],
                 ),
-                value: Value {
-                    origin: None,
-                    kind: String(
-                        "repo@user.email",
-                    ),
-                },
+                value: String(
+                    Formatted {
+                        value: "repo@user.email",
+                        repr: "default",
+                        decor: Decor { .. },
+                    },
+                ),
                 source: Repo,
                 is_overridden: false,
             },
@@ -897,12 +880,13 @@ mod tests {
                         },
                     ],
                 ),
-                value: Value {
-                    origin: None,
-                    kind: String(
-                        "user-FOO",
-                    ),
-                },
+                value: String(
+                    Formatted {
+                        value: "user-FOO",
+                        repr: "default",
+                        decor: Decor { .. },
+                    },
+                ),
                 source: User,
                 is_overridden: false,
             },
@@ -923,12 +907,13 @@ mod tests {
                         },
                     ],
                 ),
-                value: Value {
-                    origin: None,
-                    kind: String(
-                        "repo-BAR",
-                    ),
-                },
+                value: String(
+                    Formatted {
+                        value: "repo-BAR",
+                        repr: "default",
+                        decor: Decor { .. },
+                    },
+                ),
                 source: Repo,
                 is_overridden: false,
             },

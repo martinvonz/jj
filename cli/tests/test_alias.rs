@@ -230,20 +230,22 @@ fn test_alias_invalid_definition() {
     test_env.add_config(
         r#"[aliases]
     non-list = 5
-    non-string-list = [[]]
+    non-string-list = [0]
     "#,
     );
     let stderr = test_env.jj_cmd_failure(test_env.env_root(), &["non-list"]);
     insta::assert_snapshot!(stderr.replace('\\', "/"), @r"
     Config error: Invalid type or value for aliases.non-list
     Caused by: invalid type: integer `5`, expected a sequence
+
     Hint: Check the config file: $TEST_ENV/config/config0002.toml
     For help, see https://martinvonz.github.io/jj/latest/config/.
     ");
     let stderr = test_env.jj_cmd_failure(test_env.env_root(), &["non-string-list"]);
-    insta::assert_snapshot!(stderr.replace('\\', "/"), @r"
+    insta::assert_snapshot!(stderr, @r"
     Config error: Invalid type or value for aliases.non-string-list
-    Caused by: invalid type: sequence, expected a string for key `[0]` in config/config0002.toml
+    Caused by: invalid type: integer `0`, expected a string
+
     Hint: Check the config file: $TEST_ENV/config/config0002.toml
     For help, see https://martinvonz.github.io/jj/latest/config/.
     ");
@@ -318,7 +320,5 @@ fn test_alias_in_repo_config() {
             repo2_path.to_str().unwrap(),
         ],
     );
-    insta::assert_snapshot!(stdout, @r###"
-    aliases.l = ["log", "-r@", "--no-graph", '-T"user alias\n"']
-    "###);
+    insta::assert_snapshot!(stdout, @r#"aliases.l = ['log', '-r@', '--no-graph', '-T"user alias\n"']"#);
 }

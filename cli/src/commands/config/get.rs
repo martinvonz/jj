@@ -13,12 +13,10 @@
 // limitations under the License.
 
 use std::io::Write as _;
-use std::path::PathBuf;
 
 use clap_complete::ArgValueCandidates;
-use jj_lib::config::ConfigError;
-use jj_lib::config::ConfigGetError;
 use jj_lib::config::ConfigNamePathBuf;
+use jj_lib::config::ConfigValue;
 use tracing::instrument;
 
 use crate::cli_util::CommandHelper;
@@ -48,21 +46,24 @@ pub fn cmd_config_get(
     command: &CommandHelper,
     args: &ConfigGetArgs,
 ) -> Result<(), CommandError> {
-    let value = command.settings().get_value(&args.name)?;
-    let stringified = value.into_string().map_err(|err| -> CommandError {
-        match err {
-            ConfigError::Type {
-                origin, unexpected, ..
-            } => ConfigGetError::Type {
-                name: args.name.to_string(),
-                error: format!("Expected a value convertible to a string, but is {unexpected}")
-                    .into(),
-                source_path: origin.map(PathBuf::from),
+    let stringified = command
+        .settings()
+        .get_value_with(&args.name, |value| match value {
+            // Remove extra formatting from a string value
+            ConfigValue::String(v) => Ok(v.into_value()),
+            // Print other values in TOML syntax (but whitespace trimmed)
+            ConfigValue::Integer(_)
+            | ConfigValue::Float(_)
+            | ConfigValue::Boolean(_)
+            | ConfigValue::Datetime(_) => Ok(value.decorated("", "").to_string()),
+            // TODO: maybe okay to just print array or table in TOML syntax?
+            ConfigValue::Array(_) => {
+                Err("Expected a value convertible to a string, but is an array")
             }
-            .into(),
-            err => err.into(),
-        }
-    })?;
+            ConfigValue::InlineTable(_) => {
+                Err("Expected a value convertible to a string, but is a table")
+            }
+        })?;
     writeln!(ui.stdout(), "{stringified}")?;
     Ok(())
 }
