@@ -249,6 +249,23 @@ impl ConfigLayer {
 
     // Add .get_value(name) if needed. look_up_*() are low-level API.
 
+    /// Looks up sub table by the `name` path. Returns `Some(table)` if a table
+    /// was found at the path. Returns `Err(item)` if middle or leaf node wasn't
+    /// a table.
+    pub fn look_up_table(
+        &self,
+        name: impl ToConfigNamePath,
+    ) -> Result<Option<&ConfigTable>, &config::Value> {
+        match self.look_up_item(name) {
+            Ok(Some(item)) => match &item.kind {
+                config::ValueKind::Table(table) => Ok(Some(table)),
+                _ => Err(item),
+            },
+            Ok(None) => Ok(None),
+            Err(item) => Err(item),
+        }
+    }
+
     /// Looks up item by the `name` path. Returns `Some(item)` if an item
     /// found at the path. Returns `Err(item)` if middle node wasn't a table.
     pub fn look_up_item(
