@@ -12,6 +12,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Breaking changes
 
+* Configuration variables are no longer "stringly" typed. For example, `true` is
+  not converted to a string `"true"`, and vice versa.
+
 * The following configuration variables are now parsed strictly:
   `ui.progress-indicator`, `ui.quiet`
 

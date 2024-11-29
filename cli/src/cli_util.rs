@@ -2694,22 +2694,19 @@ fn load_template_aliases(
             Ok(Some(table)) => table,
             Ok(None) => continue,
             Err(item) => {
-                // TODO: rewrite error construction after migrating to toml_edit
-                let error = item.clone().into_table().unwrap_err();
                 return Err(ConfigGetError::Type {
                     name: table_name.to_string(),
-                    error: error.into(),
+                    error: format!("Expected a table, but is {}", item.type_name()).into(),
                     source_path: layer.path.clone(),
                 }
                 .into());
             }
         };
         // TODO: remove sorting after migrating to toml_edit
-        for (decl, value) in table.iter().sorted_by_key(|&(decl, _)| decl) {
-            let r = value
-                .clone()
-                .into_string()
-                .map_err(|e| e.to_string())
+        for (decl, item) in table.iter().sorted_by_key(|&(decl, _)| decl) {
+            let r = item
+                .as_str()
+                .ok_or_else(|| format!("Expected a string, but is {}", item.type_name()))
                 .and_then(|v| aliases_map.insert(decl, v).map_err(|e| e.to_string()));
             if let Err(s) = r {
                 writeln!(

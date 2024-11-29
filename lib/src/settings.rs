@@ -374,10 +374,10 @@ impl TryFrom<ConfigValue> for HumanByteSize {
     type Error = &'static str;
 
     fn try_from(value: ConfigValue) -> Result<Self, Self::Error> {
-        if let Ok(n) = value.clone().into_int() {
+        if let Some(n) = value.as_integer() {
             let n = u64::try_from(n).map_err(|_| "Integer out of range")?;
             Ok(HumanByteSize(n))
-        } else if let Ok(s) = value.into_string() {
+        } else if let Some(s) = value.as_str() {
             s.parse()
         } else {
             Err("Expected a positive integer or a string in '<number><unit>' form")

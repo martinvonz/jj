@@ -586,10 +586,16 @@ fn test_invalid_config() {
 
     test_env.add_config("[section]key = value-missing-quotes");
     let stderr = test_env.jj_cmd_failure(test_env.env_root(), &["init", "repo"]);
-    insta::assert_snapshot!(stderr.replace('\\', "/"), @r###"
-    Config error: expected newline, found an identifier at line 1 column 10 in config/config0002.toml
+    insta::assert_snapshot!(stderr, @r"
+    Config error: TOML parse error at line 1, column 10
+      |
+    1 | [section]key = value-missing-quotes
+      |          ^
+    invalid table header
+    expected newline, `#`
+     in $TEST_ENV/config/config0002.toml
     For help, see https://martinvonz.github.io/jj/latest/config/.
-    "###);
+    ");
 }
 
 #[test]
@@ -606,6 +612,7 @@ fn test_invalid_config_value() {
     insta::assert_snapshot!(stderr, @r"
     Config error: Invalid type or value for snapshot.auto-track
     Caused by: invalid type: sequence, expected a string
+
     For help, see https://martinvonz.github.io/jj/latest/config/.
     ");
 }

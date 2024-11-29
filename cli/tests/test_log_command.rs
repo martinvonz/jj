@@ -1326,7 +1326,8 @@ fn test_graph_styles() {
     );
     insta::assert_snapshot!(stderr, @r"
     Config error: Invalid type or value for ui.graph.style
-    Caused by: enum GraphStyle does not have variant constructor unknown
+    Caused by: unknown variant `unknown`, expected one of `ascii`, `ascii-large`, `curved`, `square`
+
     For help, see https://martinvonz.github.io/jj/latest/config/.
     ");
 }

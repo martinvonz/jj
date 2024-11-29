@@ -153,12 +153,12 @@ bar
     );
 
     let stdout = test_env.jj_cmd_success(test_env.env_root(), &["config", "list", "multiline"]);
-    insta::assert_snapshot!(stdout, @r###"
-    multiline = """
+    insta::assert_snapshot!(stdout, @r"
+    multiline = '''
     foo
     bar
-    """
-    "###);
+    '''
+    ");
 
     let stdout = test_env.jj_cmd_success(
         test_env.env_root(),
@@ -170,13 +170,13 @@ bar
             "--config-toml=multiline='single'",
         ],
     );
-    insta::assert_snapshot!(stdout, @r###"
-    # multiline = """
+    insta::assert_snapshot!(stdout, @r"
+    # multiline = '''
     # foo
     # bar
-    # """
-    multiline = "single"
-    "###);
+    # '''
+    multiline = 'single'
+    ");
 }
 
 #[test]
@@ -836,17 +836,18 @@ fn test_config_get() {
     "###);
 
     let stdout = test_env.jj_cmd_failure(test_env.env_root(), &["config", "get", "table.list"]);
-    insta::assert_snapshot!(stdout.replace('\\', "/"), @r"
+    insta::assert_snapshot!(stdout, @r"
     Config error: Invalid type or value for table.list
-    Caused by: Expected a value convertible to a string, but is sequence
-    Hint: Check the config file: config/config0002.toml
+    Caused by: Expected a value convertible to a string, but is an array
+    Hint: Check the config file: $TEST_ENV/config/config0002.toml
     For help, see https://martinvonz.github.io/jj/latest/config/.
     ");
 
     let stdout = test_env.jj_cmd_failure(test_env.env_root(), &["config", "get", "table"]);
     insta::assert_snapshot!(stdout, @r"
     Config error: Invalid type or value for table
-    Caused by: Expected a value convertible to a string, but is map
+    Caused by: Expected a value convertible to a string, but is a table
+    Hint: Check the config file: $TEST_ENV/config/config0003.toml
     For help, see https://martinvonz.github.io/jj/latest/config/.
     ");
 
@@ -975,7 +976,8 @@ fn test_config_show_paths() {
     let stderr = test_env.jj_cmd_failure(test_env.env_root(), &["st"]);
     insta::assert_snapshot!(stderr, @r"
     Config error: Invalid type or value for ui.paginate
-    Caused by: enum PaginationChoice does not have variant constructor :builtin
+    Caused by: unknown variant `:builtin`, expected `never` or `auto`
+
     Hint: Check the config file: $TEST_ENV/config/config.toml
     For help, see https://martinvonz.github.io/jj/latest/config/.
     ");

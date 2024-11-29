@@ -22,7 +22,6 @@ use crate::cli_util::CommandHelper;
 use crate::command_error::CommandError;
 use crate::complete;
 use crate::config::resolved_config_values;
-use crate::config::to_toml_value;
 use crate::config::AnnotatedValue;
 use crate::generic_templater::GenericTemplateLanguage;
 use crate::template_builder::TemplateLanguage as _;
@@ -122,8 +121,9 @@ fn config_template_language() -> GenericTemplateLanguage<'static, AnnotatedValue
     });
     language.add_keyword("value", |self_property| {
         // TODO: would be nice if we can provide raw dynamically-typed value
+        // .decorated("", "") to trim leading/trailing whitespace
         let out_property =
-            self_property.and_then(|annotated| Ok(to_toml_value(&annotated.value)?.to_string()));
+            self_property.map(|annotated| annotated.value.decorated("", "").to_string());
         Ok(L::wrap_string(out_property))
     });
     language.add_keyword("overridden", |self_property| {

@@ -52,7 +52,6 @@ use crate::command_error::config_error;
 use crate::command_error::print_parse_diagnostics;
 use crate::command_error::CommandError;
 use crate::complete;
-use crate::config::to_toml_value;
 use crate::config::CommandNameAndArgs;
 use crate::ui::Ui;
 
@@ -470,7 +469,10 @@ fn get_tools_config(ui: &mut Ui, settings: &UserSettings) -> Result<ToolsConfig,
             command = {}
             patterns = ["all()"]
             "###,
-            to_toml_value(&settings.get_value("fix.tool-command").unwrap()).unwrap()
+            settings
+                .get_value("fix.tool-command")
+                .unwrap()
+                .decorated("", "") // trim whitespace
         )?;
     }
     let tools: Vec<ToolConfig> = settings

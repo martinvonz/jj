@@ -417,44 +417,41 @@ fn rules_from_config(config: &StackedConfig) -> Result<Rules, ConfigGetError> {
             .split_whitespace()
             .map(ToString::to_string)
             .collect_vec();
+        // TODO: report invalid type?
         let value = config.get_value(["colors", key])?;
-        match value.kind {
-            config::ValueKind::String(color_name) => {
-                let style = Style {
-                    fg_color: Some(color_for_name_or_hex(&color_name).map_err(to_config_err)?),
-                    bg_color: None,
-                    bold: None,
-                    underlined: None,
-                };
-                result.push((labels, style));
+        if let Some(color_name) = value.as_str() {
+            let style = Style {
+                fg_color: Some(color_for_name_or_hex(color_name).map_err(to_config_err)?),
+                bg_color: None,
+                bold: None,
+                underlined: None,
+            };
+            result.push((labels, style));
+        } else if let Some(style_table) = value.as_inline_table() {
+            let mut style = Style::default();
+            if let Some(item) = style_table.get("fg") {
+                if let Some(color_name) = item.as_str() {
+                    style.fg_color =
+                        Some(color_for_name_or_hex(color_name).map_err(to_config_err)?);
+                }
             }
-            config::ValueKind::Table(style_table) => {
-                let mut style = Style::default();
-                if let Some(value) = style_table.get("fg") {
-                    if let config::ValueKind::String(color_name) = &value.kind {
-                        style.fg_color =
-                            Some(color_for_name_or_hex(color_name).map_err(to_config_err)?);
-                    }
+            if let Some(item) = style_table.get("bg") {
+                if let Some(color_name) = item.as_str() {
+                    style.bg_color =
+                        Some(color_for_name_or_hex(color_name).map_err(to_config_err)?);
                 }
-                if let Some(value) = style_table.get("bg") {
-                    if let config::ValueKind::String(color_name) = &value.kind {
-                        style.bg_color =
-                            Some(color_for_name_or_hex(color_name).map_err(to_config_err)?);
-                    }
-                }
-                if let Some(value) = style_table.get("bold") {
-                    if let config::ValueKind::Boolean(value) = &value.kind {
-                        style.bold = Some(*value);
-                    }
-                }
-                if let Some(value) = style_table.get("underline") {
-                    if let config::ValueKind::Boolean(value) = &value.kind {
-                        style.underlined = Some(*value);
-                    }
-                }
-                result.push((labels, style));
             }
-            _ => {}
+            if let Some(item) = style_table.get("bold") {
+                if let Some(value) = item.as_bool() {
+                    style.bold = Some(value);
+                }
+            }
+            if let Some(item) = style_table.get("underline") {
+                if let Some(value) = item.as_bool() {
+                    style.underlined = Some(value);
+                }
+            }
+            result.push((labels, style));
         }
     }
     Ok(result)
