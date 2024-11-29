@@ -85,6 +85,23 @@ fn test_config_list_table() {
 }
 
 #[test]
+fn test_config_list_inline_table() {
+    let test_env = TestEnvironment::default();
+    test_env.add_config(
+        r#"
+    test-table = { x = true, y = 1 }
+    "#,
+    );
+    let stdout = test_env.jj_cmd_success(test_env.env_root(), &["config", "list", "test-table"]);
+    insta::assert_snapshot!(stdout, @"test-table = { x = true, y = 1 }");
+    // Inner value cannot be addressed by a dotted name path
+    let (stdout, stderr) =
+        test_env.jj_cmd_ok(test_env.env_root(), &["config", "list", "test-table.x"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @"Warning: No matching config key for test-table.x");
+}
+
+#[test]
 fn test_config_list_array() {
     let test_env = TestEnvironment::default();
     test_env.add_config(
@@ -99,7 +116,7 @@ fn test_config_list_array() {
 }
 
 #[test]
-fn test_config_list_inline_table() {
+fn test_config_list_array_of_tables() {
     let test_env = TestEnvironment::default();
     test_env.add_config(
         r#"
@@ -110,6 +127,8 @@ fn test_config_list_inline_table() {
         z."key=with whitespace" = []
     "#,
     );
+    // TODO: Perhaps, each value should be listed separately, but there's no
+    // path notation like "test-table[0].x".
     let stdout = test_env.jj_cmd_success(test_env.env_root(), &["config", "list", "test-table"]);
     insta::assert_snapshot!(stdout, @r###"
     test-table = [{ x = 1 }, { y = ["z"], z = { "key=with whitespace" = [] } }]

@@ -90,12 +90,11 @@ pub fn resolved_config_values(
         };
         let mut config_stack = vec![(filter_prefix.clone(), top_item)];
         while let Some((name, item)) = config_stack.pop() {
-            // TODO: item.as_table() to print inline table as a value?
-            if let Some(table) = item.as_table_like() {
+            if let Some(table) = item.as_table() {
                 // table.iter() does not implement DoubleEndedIterator as of
                 // toml_edit 0.22.22.
                 let frame = config_stack.len();
-                for (k, v) in table.iter() {
+                for (k, v) in table {
                     let mut sub_name = name.clone();
                     sub_name.push(k);
                     config_stack.push((sub_name, v));

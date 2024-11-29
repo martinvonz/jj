@@ -20,9 +20,8 @@ located in `.jj/repo/config.toml`.
 - Settings [specified in the command-line](#specifying-config-on-the-command-line).
 
 These are listed in the order they are loaded; the settings from earlier items
-in
-the list are overridden by the settings from later items if they disagree. Every
-type of config except for the built-in settings is optional.
+in the list are overridden by the settings from later items if they disagree.
+Every type of config except for the built-in settings is optional.
 
 See the [TOML site] and the [syntax guide] for a detailed description of the
 syntax. We cover some of the basics below.
@@ -34,7 +33,8 @@ syntax. We cover some of the basics below.
 The first thing to remember is that the value of a setting (the part to the
 right of the `=` sign) should be surrounded in quotes if it's a string.
 
-### Dotted style and headings
+### Dotted style, headings, and inline tables
+
 In TOML, anything under a heading can be dotted instead. For example,
 `user.name = "YOUR NAME"` is equivalent to:
 
@@ -48,7 +48,7 @@ For future reference, here are a couple of more complicated examples,
 ```toml
 # Dotted style
 template-aliases."format_short_id(id)" = "id.shortest(12)"
-colors."commit_id prefix".bold = true
+colors."commit_id prefix" = { bold = true }
 
 # is equivalent to:
 [template-aliases]
@@ -57,6 +57,14 @@ colors."commit_id prefix".bold = true
 [colors]
 "commit_id prefix" = { bold = true }
 ```
+
+Dotted and non-inline table items are merged one by one if the same keys exist
+in multiple files. In the example above, `template-aliases` and `colors` are
+the tables to be merged. `template-aliases."format_short_id(id)"` and
+`colors."commit_id prefix"` in the default settings are overridden. On the other
+hand, inner items of an inline table are *not* merged. For example, `{ bold =
+true }` wouldn't be merged as `{ fg = "blue", bold = true }` even if the default
+settings had `colors."commit_id prefix" = { fg = "blue" }`.
 
 The docs below refer to keys in text using dotted notation, but example
 blocks will use heading notation to be unambiguous. If you are confident with TOML
@@ -146,7 +154,7 @@ commit_id = "green"
 ```
 
 Parts of the style that are not overridden - such as the foreground color in the
-example above - are inherited from the parent style.
+example above - are inherited from the style of the parent label.
 
 Which elements can be colored is not yet documented, but see
 the [default color configuration](https://github.com/martinvonz/jj/blob/main/cli/src/config/colors.toml)

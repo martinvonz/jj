@@ -18,6 +18,12 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * The following configuration variables are now parsed strictly:
   `colors.<labels>`, `ui.color`, `ui.progress-indicator`, `ui.quiet`
 
+* `jj config list` now prints inline tables `{ key = value, .. }` literally.
+  Inner items of inline tables are no longer merged across configuration files.
+  See [the table syntax
+  documentation](docs/config.md#dotted-style-headings-and-inline-tables) for
+  details.
+
 * The deprecated `[alias]` config section is no longer respected. Move command
   aliases to the `[aliases]` section.
 
