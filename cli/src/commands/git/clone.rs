@@ -225,7 +225,7 @@ fn do_git_clone(
         git::fetch(
             fetch_tx.repo_mut(),
             &git_repo,
-            remote_name,
+            &[remote_name],
             &[StringPattern::everything()],
             cb,
             &command.settings().git_settings(),

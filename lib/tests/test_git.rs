@@ -2265,7 +2265,7 @@ fn test_fetch_empty_repo() {
     let stats = git::fetch(
         tx.repo_mut(),
         &test_data.git_repo,
-        "origin",
+        &["origin"],
         &[StringPattern::everything()],
         git::RemoteCallbacks::default(),
         &git_settings,
@@ -2292,7 +2292,7 @@ fn test_fetch_initial_commit() {
     let stats = git::fetch(
         tx.repo_mut(),
         &test_data.git_repo,
-        "origin",
+        &["origin"],
         &[StringPattern::everything()],
         git::RemoteCallbacks::default(),
         &git_settings,
@@ -2343,7 +2343,7 @@ fn test_fetch_success() {
     git::fetch(
         tx.repo_mut(),
         &test_data.git_repo,
-        "origin",
+        &["origin"],
         &[StringPattern::everything()],
         git::RemoteCallbacks::default(),
         &git_settings,
@@ -2367,7 +2367,7 @@ fn test_fetch_success() {
     let stats = git::fetch(
         tx.repo_mut(),
         &test_data.git_repo,
-        "origin",
+        &["origin"],
         &[StringPattern::everything()],
         git::RemoteCallbacks::default(),
         &git_settings,
@@ -2425,7 +2425,7 @@ fn test_fetch_prune_deleted_ref() {
     git::fetch(
         tx.repo_mut(),
         &test_data.git_repo,
-        "origin",
+        &["origin"],
         &[StringPattern::everything()],
         git::RemoteCallbacks::default(),
         &git_settings,
@@ -2449,7 +2449,7 @@ fn test_fetch_prune_deleted_ref() {
     let stats = git::fetch(
         tx.repo_mut(),
         &test_data.git_repo,
-        "origin",
+        &["origin"],
         &[StringPattern::everything()],
         git::RemoteCallbacks::default(),
         &git_settings,
@@ -2477,7 +2477,7 @@ fn test_fetch_no_default_branch() {
     git::fetch(
         tx.repo_mut(),
         &test_data.git_repo,
-        "origin",
+        &["origin"],
         &[StringPattern::everything()],
         git::RemoteCallbacks::default(),
         &git_settings,
@@ -2501,7 +2501,7 @@ fn test_fetch_no_default_branch() {
     let stats = git::fetch(
         tx.repo_mut(),
         &test_data.git_repo,
-        "origin",
+        &["origin"],
         &[StringPattern::everything()],
         git::RemoteCallbacks::default(),
         &git_settings,
@@ -2523,7 +2523,7 @@ fn test_fetch_empty_refspecs() {
     git::fetch(
         tx.repo_mut(),
         &test_data.git_repo,
-        "origin",
+        &["origin"],
         &[],
         git::RemoteCallbacks::default(),
         &git_settings,
@@ -2550,7 +2550,7 @@ fn test_fetch_no_such_remote() {
     let result = git::fetch(
         tx.repo_mut(),
         &test_data.git_repo,
-        "invalid-remote",
+        &["invalid-remote"],
         &[StringPattern::everything()],
         git::RemoteCallbacks::default(),
         &git_settings,
