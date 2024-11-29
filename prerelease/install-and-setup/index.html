@@ -1961,13 +1961,17 @@ $<span class="w"> </span>jj<span class="w"> </span>config<span class="w"> </span
 <p>To set up command-line completion, source the output of
 <code>jj util completion bash/zsh/fish</code>. Exactly how to source it
 depends on your shell.</p>
-<p>Improved completions are currently in the works, these will complete things like
-bookmark names as well. You can activate them with the alternative "dynamic"
-instructions below. They should still complete everything the static completions
-did, so only activate one of them. Please let us know if you encounter any
-issues, so we can ensure a smooth transition once we default to these new
-completions. If you have ideas about specific completions that could be added,
-please share them <a href="https://github.com/martinvonz/jj/issues/4763">here</a>.</p>
+<p>Improved completions are also available. They will complete things like
+bookmarks, aliases, revisions, operations and files. They can be context aware,
+for example they respect the global flags <code>--repository</code> and <code>--at-operation</code> as
+well as some command-specific ones like <code>--revision</code>, <code>--from</code> and <code>--to</code>. You
+can activate them with the alternative "dynamic" instructions below. They should
+still complete everything the static completions did, so only activate one of
+them. Please let us know if you encounter any issues, so we can ensure a smooth
+transition once we default to these new completions. Our initial experience
+is that these new completions work best with <code>fish</code>. If you have ideas about
+specific completions that could be added, please share them
+<a href="https://github.com/martinvonz/jj/issues/4763">here</a>.</p>
 <h3 id="bash">Bash<a class="headerlink" href="#bash" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><span class="nb">source</span><span class="w"> </span>&lt;<span class="o">(</span>jj<span class="w"> </span>util<span class="w"> </span>completion<span class="w"> </span>bash<span class="o">)</span>
 </code></pre></div>
