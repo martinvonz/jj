@@ -97,8 +97,7 @@ pub fn resolved_config_values(
                 // table.iter() does not implement DoubleEndedIterator as of
                 // toml_edit 0.22.22.
                 let frame = config_stack.len();
-                // TODO: Remove sorting
-                for (k, v) in table.iter().sorted_by_key(|(k, _)| *k) {
+                for (k, v) in table.iter() {
                     let mut sub_name = name.clone();
                     sub_name.push(k);
                     config_stack.push((sub_name, v));
@@ -771,33 +770,6 @@ mod tests {
                             dotted_decor: Decor { .. },
                         },
                         Key {
-                            key: "email",
-                            repr: None,
-                            leaf_decor: Decor { .. },
-                            dotted_decor: Decor { .. },
-                        },
-                    ],
-                ),
-                value: String(
-                    Formatted {
-                        value: "base@user.email",
-                        repr: "default",
-                        decor: Decor { .. },
-                    },
-                ),
-                source: EnvBase,
-                is_overridden: true,
-            },
-            AnnotatedValue {
-                name: ConfigNamePathBuf(
-                    [
-                        Key {
-                            key: "user",
-                            repr: None,
-                            leaf_decor: Decor { .. },
-                            dotted_decor: Decor { .. },
-                        },
-                        Key {
                             key: "name",
                             repr: None,
                             leaf_decor: Decor { .. },
@@ -814,6 +786,33 @@ mod tests {
                 ),
                 source: EnvBase,
                 is_overridden: false,
+            },
+            AnnotatedValue {
+                name: ConfigNamePathBuf(
+                    [
+                        Key {
+                            key: "user",
+                            repr: None,
+                            leaf_decor: Decor { .. },
+                            dotted_decor: Decor { .. },
+                        },
+                        Key {
+                            key: "email",
+                            repr: None,
+                            leaf_decor: Decor { .. },
+                            dotted_decor: Decor { .. },
+                        },
+                    ],
+                ),
+                value: String(
+                    Formatted {
+                        value: "base@user.email",
+                        repr: "default",
+                        decor: Decor { .. },
+                    },
+                ),
+                source: EnvBase,
+                is_overridden: true,
             },
             AnnotatedValue {
                 name: ConfigNamePathBuf(

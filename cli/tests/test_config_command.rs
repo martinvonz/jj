@@ -78,8 +78,8 @@ fn test_config_list_table() {
         stdout,
         @r###"
     test-table.x = true
-    test-table.y.bar = 123
     test-table.y.foo = "abc"
+    test-table.y.bar = 123
     test-table.z."with space"."function()" = 5
     "###);
 }
@@ -133,10 +133,10 @@ fn test_config_list_all() {
     insta::assert_snapshot!(
         find_stdout_lines(r"(test-val|test-table\b[^=]*)", &stdout),
         @r###"
-    test-table.x = true
-    test-table.y.bar = 123
-    test-table.y.foo = "abc"
     test-val = [1, 2, 3]
+    test-table.x = true
+    test-table.y.foo = "abc"
+    test-table.y.bar = 123
     "###);
 }
 
