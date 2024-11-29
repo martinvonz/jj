@@ -59,7 +59,9 @@ use jj_lib::backend::TreeValue;
 use jj_lib::commit::Commit;
 use jj_lib::config::ConfigGetError;
 use jj_lib::config::ConfigGetResultExt as _;
+use jj_lib::config::ConfigLayer;
 use jj_lib::config::ConfigNamePathBuf;
+use jj_lib::config::ConfigSource;
 use jj_lib::config::StackedConfig;
 use jj_lib::conflicts::ConflictMarkerStyle;
 use jj_lib::file_util;
@@ -3251,7 +3253,7 @@ fn handle_early_args(
         args.config_toml.push(r#"ui.paginate="never""#.to_owned());
     }
     if !args.config_toml.is_empty() {
-        config.add_layer(parse_config_args(&args.config_toml)?);
+        config.extend_layers(parse_config_args(&args.config_toml)?);
         ui.reset(config)?;
     }
     Ok(())
@@ -3360,7 +3362,7 @@ pub fn format_template<C: Clone>(ui: &Ui, arg: &C, template: &TemplateRenderer<C
 pub struct CliRunner {
     tracing_subscription: TracingSubscription,
     app: Command,
-    extra_configs: Vec<config::Config>,
+    config_layers: Vec<ConfigLayer>,
     store_factories: StoreFactories,
     working_copy_factories: WorkingCopyFactories,
     workspace_loader_factory: Box<dyn WorkspaceLoaderFactory>,
@@ -3385,7 +3387,7 @@ impl CliRunner {
         CliRunner {
             tracing_subscription,
             app: crate::commands::default_app(),
-            extra_configs: vec![],
+            config_layers: crate::config::default_config_layers(),
             store_factories: StoreFactories::default(),
             working_copy_factories: default_working_copy_factories(),
             workspace_loader_factory: Box::new(DefaultWorkspaceLoaderFactory),
@@ -3417,8 +3419,12 @@ impl CliRunner {
     }
 
     /// Adds default configs in addition to the normal defaults.
-    pub fn add_extra_config(mut self, extra_configs: config::Config) -> Self {
-        self.extra_configs.push(extra_configs);
+    ///
+    /// The `layer.source` must be `Default`. Other sources such as `User` would
+    /// be replaced by loaded configuration.
+    pub fn add_extra_config(mut self, layer: ConfigLayer) -> Self {
+        assert_eq!(layer.source, ConfigSource::Default);
+        self.config_layers.push(layer);
         self
     }
 
@@ -3620,19 +3626,12 @@ impl CliRunner {
     #[must_use]
     #[instrument(skip(self))]
     pub fn run(mut self) -> ExitCode {
-        let builder = config::Config::builder().add_source(crate::config::default_config());
-        let config = self
-            .extra_configs
-            .drain(..)
-            .fold(builder, |builder, config| builder.add_source(config))
-            .build()
-            .unwrap();
         // Tell crossterm to ignore NO_COLOR (we check it ourselves)
         crossterm::style::force_color_output(true);
-        let stacked_config = config_from_environment(config);
-        let mut ui = Ui::with_config(&stacked_config)
+        let config = config_from_environment(self.config_layers.drain(..));
+        let mut ui = Ui::with_config(&config)
             .expect("default config should be valid, env vars are stringly typed");
-        let result = self.run_internal(&mut ui, stacked_config);
+        let result = self.run_internal(&mut ui, config);
         let exit_code = handle_command_result(&mut ui, result);
         ui.finalize_pager();
         exit_code

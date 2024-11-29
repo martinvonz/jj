@@ -364,10 +364,7 @@ mod tests {
     fn config_from_string(text: &str) -> StackedConfig {
         let mut config = StackedConfig::empty();
         // Load defaults to test the default args lookup
-        config.add_layer(ConfigLayer::with_data(
-            ConfigSource::Default,
-            crate::config::default_config(),
-        ));
+        config.extend_layers(crate::config::default_config_layers());
         config.add_layer(ConfigLayer::parse(ConfigSource::User, text).unwrap());
         config
     }
