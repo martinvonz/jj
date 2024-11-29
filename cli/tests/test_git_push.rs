@@ -894,9 +894,10 @@ fn test_git_push_conflict() {
     test_env.jj_cmd_ok(&workspace_root, &["bookmark", "create", "my-bookmark"]);
     test_env.jj_cmd_ok(&workspace_root, &["describe", "-m", "third"]);
     let stderr = test_env.jj_cmd_failure(&workspace_root, &["git", "push", "--all"]);
-    insta::assert_snapshot!(stderr, @r###"
+    insta::assert_snapshot!(stderr, @r"
     Error: Won't push commit 73c265a92cfd since it has conflicts
-    "###);
+    Hint: Rejected commit: yostqsxw 73c265a9 my-bookmark | (conflict) third
+    ");
 }
 
 #[test]
@@ -908,9 +909,10 @@ fn test_git_push_no_description() {
         &workspace_root,
         &["git", "push", "--allow-new", "--bookmark", "my-bookmark"],
     );
-    insta::assert_snapshot!(stderr, @r###"
+    insta::assert_snapshot!(stderr, @r"
     Error: Won't push commit 5b36783cd11c since it has no description
-    "###);
+    Hint: Rejected commit: yqosqzyt 5b36783c my-bookmark | (empty) (no description set)
+    ");
     test_env.jj_cmd_ok(
         &workspace_root,
         &[
@@ -943,9 +945,10 @@ fn test_git_push_no_description_in_immutable() {
             "--dry-run",
         ],
     );
-    insta::assert_snapshot!(stderr, @r###"
+    insta::assert_snapshot!(stderr, @r"
     Error: Won't push commit 5b36783cd11c since it has no description
-    "###);
+    Hint: Rejected commit: yqosqzyt 5b36783c imm | (empty) (no description set)
+    ");
 
     test_env.add_config(r#"revset-aliases."immutable_heads()" = "imm""#);
     let (stdout, stderr) = test_env.jj_cmd_ok(
@@ -982,18 +985,20 @@ fn test_git_push_missing_author() {
         &workspace_root,
         &["git", "push", "--allow-new", "--bookmark", "missing-name"],
     );
-    insta::assert_snapshot!(stderr, @r###"
+    insta::assert_snapshot!(stderr, @r"
     Error: Won't push commit 944313939bbd since it has no author and/or committer set
-    "###);
+    Hint: Rejected commit: vruxwmqv 94431393 missing-name | (empty) initial
+    ");
     run_without_var("JJ_EMAIL", &["new", "root()", "-m=initial"]);
     run_without_var("JJ_EMAIL", &["bookmark", "create", "missing-email"]);
     let stderr = test_env.jj_cmd_failure(
         &workspace_root,
         &["git", "push", "--allow-new", "--bookmark=missing-email"],
     );
-    insta::assert_snapshot!(stderr, @r###"
+    insta::assert_snapshot!(stderr, @r"
     Error: Won't push commit 59354714f789 since it has no author and/or committer set
-    "###);
+    Hint: Rejected commit: kpqxywon 59354714 missing-email | (empty) initial
+    ");
 }
 
 #[test]
@@ -1023,9 +1028,10 @@ fn test_git_push_missing_author_in_immutable() {
             "--dry-run",
         ],
     );
-    insta::assert_snapshot!(stderr, @r###"
+    insta::assert_snapshot!(stderr, @r"
     Error: Won't push commit 011f740bf8b5 since it has no author and/or committer set
-    "###);
+    Hint: Rejected commit: yostqsxw 011f740b imm | (empty) no author email
+    ");
 
     test_env.add_config(r#"revset-aliases."immutable_heads()" = "imm""#);
     let (stdout, stderr) = test_env.jj_cmd_ok(
@@ -1062,9 +1068,10 @@ fn test_git_push_missing_committer() {
         &workspace_root,
         &["git", "push", "--allow-new", "--bookmark=missing-name"],
     );
-    insta::assert_snapshot!(stderr, @r###"
+    insta::assert_snapshot!(stderr, @r"
     Error: Won't push commit 4fd190283d1a since it has no author and/or committer set
-    "###);
+    Hint: Rejected commit: yqosqzyt 4fd19028 missing-name | (empty) no committer name
+    ");
     test_env.jj_cmd_ok(&workspace_root, &["new", "root()"]);
     test_env.jj_cmd_ok(&workspace_root, &["bookmark", "create", "missing-email"]);
     run_without_var("JJ_EMAIL", &["describe", "-m=no committer email"]);
@@ -1072,9 +1079,10 @@ fn test_git_push_missing_committer() {
         &workspace_root,
         &["git", "push", "--allow-new", "--bookmark=missing-email"],
     );
-    insta::assert_snapshot!(stderr, @r###"
+    insta::assert_snapshot!(stderr, @r"
     Error: Won't push commit eab97428a6ec since it has no author and/or committer set
-    "###);
+    Hint: Rejected commit: kpqxywon eab97428 missing-email | (empty) no committer email
+    ");
 
     // Test message when there are multiple reasons (missing committer and
     // description)
@@ -1083,9 +1091,10 @@ fn test_git_push_missing_committer() {
         &workspace_root,
         &["git", "push", "--allow-new", "--bookmark=missing-email"],
     );
-    insta::assert_snapshot!(stderr, @r###"
+    insta::assert_snapshot!(stderr, @r"
     Error: Won't push commit 1143ed607f54 since it has no description and it has no author and/or committer set
-    "###);
+    Hint: Rejected commit: kpqxywon 1143ed60 missing-email | (empty) (no description set)
+    ");
 }
 
 #[test]
@@ -1116,9 +1125,10 @@ fn test_git_push_missing_committer_in_immutable() {
             "--dry-run",
         ],
     );
-    insta::assert_snapshot!(stderr, @r###"
+    insta::assert_snapshot!(stderr, @r"
     Error: Won't push commit 7e61dc727a8f since it has no author and/or committer set
-    "###);
+    Hint: Rejected commit: yostqsxw 7e61dc72 imm | (empty) no committer email
+    ");
 
     test_env.add_config(r#"revset-aliases."immutable_heads()" = "imm""#);
     let (stdout, stderr) = test_env.jj_cmd_ok(
