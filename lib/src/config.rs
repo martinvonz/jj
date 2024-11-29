@@ -27,6 +27,11 @@ use itertools::Itertools as _;
 
 use crate::file_util::IoResultExt as _;
 
+/// Table of config key and value pairs.
+pub type ConfigTable = config::Map<String, config::Value>;
+/// Generic config value.
+pub type ConfigValue = config::Value;
+
 /// Error that can occur when accessing configuration.
 // TODO: will be replaced with our custom error type
 pub type ConfigError = config::ConfigError;
@@ -63,11 +68,11 @@ impl ConfigNamePathBuf {
     /// This is a workaround for the `config.get()` API, which doesn't support
     /// literal path expression. If we implement our own config abstraction,
     /// this method should be moved there.
-    pub fn lookup_value(&self, config: &config::Config) -> Result<config::Value, ConfigError> {
+    pub fn lookup_value(&self, config: &config::Config) -> Result<ConfigValue, ConfigError> {
         // Use config.get() if the TOML keys can be converted to config path
         // syntax. This should be cheaper than cloning the whole config map.
         let (key_prefix, components) = self.split_safe_prefix();
-        let value: config::Value = match &key_prefix {
+        let value: ConfigValue = match &key_prefix {
             Some(key) => config.get(key)?,
             None => config.collect()?.into(),
         };
