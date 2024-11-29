@@ -36,6 +36,19 @@ use testutils::CommitGraphBuilder;
 use testutils::TestRepo;
 use testutils::TestRepoBackend;
 
+fn config_with_commit_timestamp(timestamp: &str) -> StackedConfig {
+    let mut config = testutils::base_user_config();
+    config.add_layer(ConfigLayer::with_data(
+        ConfigSource::User,
+        config::Config::builder()
+            .set_override("debug.commit-timestamp", timestamp)
+            .unwrap()
+            .build()
+            .unwrap(),
+    ));
+    config
+}
+
 fn diff_paths(from_tree: &MergedTree, to_tree: &MergedTree) -> Vec<RepoPathBuf> {
     from_tree
         .diff_stream(to_tree, &EverythingMatcher)
@@ -268,16 +281,7 @@ fn test_rewrite_resets_author_timestamp(backend: TestRepoBackend) {
 
     // Create discardable commit
     let initial_timestamp = "2001-02-03T04:05:06+07:00";
-    let mut config = testutils::base_user_config();
-    config.add_layer(ConfigLayer::with_data(
-        ConfigSource::User,
-        config::Config::builder()
-            .set_override("debug.commit-timestamp", initial_timestamp)
-            .unwrap()
-            .build()
-            .unwrap(),
-    ));
-    let settings = UserSettings::from_config(config);
+    let settings = UserSettings::from_config(config_with_commit_timestamp(initial_timestamp));
     let mut tx = repo.start_transaction(&settings);
     let initial_commit = tx
         .repo_mut()
@@ -296,16 +300,7 @@ fn test_rewrite_resets_author_timestamp(backend: TestRepoBackend) {
 
     // Rewrite discardable commit to no longer be discardable
     let new_timestamp_1 = "2002-03-04T05:06:07+08:00";
-    let mut config = testutils::base_user_config();
-    config.add_layer(ConfigLayer::with_data(
-        ConfigSource::User,
-        config::Config::builder()
-            .set_override("debug.commit-timestamp", new_timestamp_1)
-            .unwrap()
-            .build()
-            .unwrap(),
-    ));
-    let settings = UserSettings::from_config(config);
+    let settings = UserSettings::from_config(config_with_commit_timestamp(new_timestamp_1));
     let rewritten_commit_1 = tx
         .repo_mut()
         .rewrite_commit(&settings, &initial_commit)
@@ -323,16 +318,7 @@ fn test_rewrite_resets_author_timestamp(backend: TestRepoBackend) {
 
     // Rewrite non-discardable commit
     let new_timestamp_2 = "2003-04-05T06:07:08+09:00";
-    let mut config = testutils::base_user_config();
-    config.add_layer(ConfigLayer::with_data(
-        ConfigSource::User,
-        config::Config::builder()
-            .set_override("debug.commit-timestamp", new_timestamp_2)
-            .unwrap()
-            .build()
-            .unwrap(),
-    ));
-    let settings = UserSettings::from_config(config);
+    let settings = UserSettings::from_config(config_with_commit_timestamp(new_timestamp_2));
     let rewritten_commit_2 = tx
         .repo_mut()
         .rewrite_commit(&settings, &rewritten_commit_1)
