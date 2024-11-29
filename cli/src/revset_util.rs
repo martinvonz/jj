@@ -184,7 +184,7 @@ pub fn load_revset_aliases(
                 .into());
             }
         };
-        for (decl, item) in table.iter() {
+        for (decl, item) in table {
             warn_user_redefined_builtin(ui, layer.source, decl)?;
 
             let r = item

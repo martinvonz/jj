@@ -2760,7 +2760,7 @@ fn load_template_aliases(
                 .into());
             }
         };
-        for (decl, item) in table.iter() {
+        for (decl, item) in table {
             let r = item
                 .as_str()
                 .ok_or_else(|| format!("Expected a string, but is {}", item.type_name()))

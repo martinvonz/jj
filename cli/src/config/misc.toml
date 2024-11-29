@@ -20,8 +20,10 @@ always-allow-large-revsets = false
 color = "auto"
 diff-instructions = true
 graph.style = "curved"
+# let user override pager.env independently
+pager.command = ["less", "-FRX"]
+pager.env = { LESSCHARSET = "utf-8" }
 paginate = "auto"
-pager = { command = ["less", "-FRX"], env = { LESSCHARSET = "utf-8" } }
 progress-indicator = true
 quiet = false
 log-word-wrap = false
