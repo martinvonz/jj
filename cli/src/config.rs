@@ -26,6 +26,7 @@ use jj_lib::config::ConfigError;
 use jj_lib::config::ConfigLayer;
 use jj_lib::config::ConfigNamePathBuf;
 use jj_lib::config::ConfigSource;
+use jj_lib::config::ConfigValue;
 use jj_lib::config::StackedConfig;
 use jj_lib::settings::ConfigResultExt as _;
 use regex::Captures;
@@ -51,7 +52,7 @@ pub fn parse_toml_value_or_bare_string(value_str: &str) -> toml_edit::Value {
     }
 }
 
-pub fn to_toml_value(value: &config::Value) -> Result<toml_edit::Value, ConfigError> {
+pub fn to_toml_value(value: &ConfigValue) -> Result<toml_edit::Value, ConfigError> {
     fn type_error<T: fmt::Display>(message: T) -> ConfigError {
         ConfigError::Message(message.to_string())
     }
@@ -93,7 +94,7 @@ pub struct AnnotatedValue {
     /// Dotted name path to the configuration variable.
     pub name: ConfigNamePathBuf,
     /// Configuration value.
-    pub value: config::Value,
+    pub value: ConfigValue,
     /// Source of the configuration value.
     pub source: ConfigSource,
     // TODO: add source file path
