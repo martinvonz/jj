@@ -358,17 +358,6 @@ impl StackedConfig {
         &self.layers
     }
 
-    /// Creates new merged config.
-    pub fn merge(&self) -> config::Config {
-        self.layers
-            .iter()
-            .fold(config::Config::builder(), |builder, layer| {
-                builder.add_source(layer.data.clone())
-            })
-            .build()
-            .expect("loaded configs should be merged without error")
-    }
-
     /// Looks up value of the specified type `T` from all layers, merges sub
     /// fields as needed.
     pub fn get<'de, T: Deserialize<'de>>(
@@ -555,13 +544,8 @@ mod tests {
             a.d = ['a.d #1']
         "}));
 
-        assert_eq!(config.merge().get::<String>("a.b.c").unwrap(), "a.b.c #0");
         assert_eq!(config.get::<String>("a.b.c").unwrap(), "a.b.c #0");
 
-        assert_eq!(
-            config.merge().get::<Vec<String>>("a.d").unwrap(),
-            vec!["a.d #1".to_owned()]
-        );
         assert_eq!(
             config.get::<Vec<String>>("a.d").unwrap(),
             vec!["a.d #1".to_owned()]
@@ -569,29 +553,17 @@ mod tests {
 
         // Table "a.b" exists, but key doesn't
         assert_matches!(
-            config.merge().get::<String>("a.b.missing"),
-            Err(ConfigError::NotFound(name)) if name == "a.b.missing"
-        );
-        assert_matches!(
             config.get::<String>("a.b.missing"),
             Err(ConfigError::NotFound(name)) if name == "a.b.missing"
         );
 
         // Node "a.b.c" is not a table
         assert_matches!(
-            config.merge().get::<String>("a.b.c.d"),
-            Err(ConfigError::NotFound(name)) if name == "a.b.c.d"
-        );
-        assert_matches!(
             config.get::<String>("a.b.c.d"),
             Err(ConfigError::NotFound(name)) if name == "a.b.c.d"
         );
 
         // Type error
-        assert_matches!(
-            config.merge().get::<String>("a.b"),
-            Err(ConfigError::Type { key: Some(name), .. }) if name == "a.b"
-        );
         assert_matches!(
             config.get::<String>("a.b"),
             Err(ConfigError::Type { key: Some(name), .. }) if name == "a.b"
@@ -609,13 +581,8 @@ mod tests {
             a.b = 'a.b #1'
         "}));
 
-        assert_eq!(config.merge().get::<String>("a.b").unwrap(), "a.b #1");
         assert_eq!(config.get::<String>("a.b").unwrap(), "a.b #1");
 
-        assert_matches!(
-            config.merge().get::<String>("a.b.c"),
-            Err(ConfigError::NotFound(name)) if name == "a.b.c"
-        );
         assert_matches!(
             config.get::<String>("a.b.c"),
             Err(ConfigError::NotFound(name)) if name == "a.b.c"
@@ -636,7 +603,6 @@ mod tests {
         let expected = parse_to_table(indoc! {"
             c = 'a.b.c #1'
         "});
-        assert_eq!(config.merge().get_table("a.b").unwrap(), expected);
         assert_eq!(config.get_table("a.b").unwrap(), expected);
     }
 
@@ -660,7 +626,6 @@ mod tests {
             b = 'a.b #0'
             c = 'a.c #1'
         "});
-        assert_eq!(config.merge().get_table("a").unwrap(), expected);
         assert_eq!(config.get_table("a").unwrap(), expected);
     }
 
@@ -682,7 +647,6 @@ mod tests {
         let expected = parse_to_table(indoc! {"
             a.b = 'a.a.b #2'
         "});
-        assert_eq!(config.merge().get_table("a").unwrap(), expected);
         assert_eq!(config.get_table("a").unwrap(), expected);
     }
 
@@ -705,7 +669,6 @@ mod tests {
             a.b = 'a.a.b #2'
             b = 'a.b #0'
         "});
-        assert_eq!(config.merge().get_table("a").unwrap(), expected);
         assert_eq!(config.get_table("a").unwrap(), expected);
     }
 
@@ -727,7 +690,6 @@ mod tests {
             b = 'a.a.b #2'
         "});
         // a is not under a.a, but it should still shadow lower layers
-        assert_eq!(config.merge().get_table("a.a").unwrap(), expected);
         assert_eq!(config.get_table("a.a").unwrap(), expected);
     }
 }
