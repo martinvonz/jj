@@ -184,8 +184,7 @@ pub fn load_revset_aliases(
                 .into());
             }
         };
-        // TODO: remove sorting after migrating to toml_edit
-        for (decl, item) in table.iter().sorted_by_key(|&(decl, _)| decl) {
+        for (decl, item) in table.iter() {
             warn_user_redefined_builtin(ui, layer.source, decl)?;
 
             let r = item

@@ -2702,8 +2702,7 @@ fn load_template_aliases(
                 .into());
             }
         };
-        // TODO: remove sorting after migrating to toml_edit
-        for (decl, item) in table.iter().sorted_by_key(|&(decl, _)| decl) {
+        for (decl, item) in table.iter() {
             let r = item
                 .as_str()
                 .ok_or_else(|| format!("Expected a string, but is {}", item.type_name()))
