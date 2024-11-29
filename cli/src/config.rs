@@ -88,7 +88,7 @@ pub enum ConfigEnvError {
 }
 
 /// Configuration variable with its source information.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct AnnotatedValue {
     /// Dotted name path to the configuration variable.
     pub name: ConfigNamePathBuf,
@@ -748,10 +748,7 @@ mod tests {
     #[test]
     fn test_resolved_config_values_empty() {
         let config = StackedConfig::empty();
-        assert_eq!(
-            resolved_config_values(&config, &ConfigNamePathBuf::root()),
-            []
-        );
+        assert!(resolved_config_values(&config, &ConfigNamePathBuf::root()).is_empty());
     }
 
     #[test]
