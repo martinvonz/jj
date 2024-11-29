@@ -15,7 +15,6 @@
 //! Configuration store helpers.
 
 use std::borrow::Borrow;
-use std::borrow::Cow;
 use std::fmt;
 use std::ops::Range;
 use std::path::Path;
@@ -23,7 +22,6 @@ use std::path::PathBuf;
 use std::slice;
 use std::str::FromStr;
 
-use config::Source as _;
 use itertools::Itertools as _;
 use serde::Deserialize;
 
@@ -63,48 +61,6 @@ impl ConfigNamePathBuf {
     /// Appends the given `key` component.
     pub fn push(&mut self, key: impl Into<toml_edit::Key>) {
         self.0.push(key.into());
-    }
-
-    /// Looks up value in the given `config`.
-    ///
-    /// This is a workaround for the `config.get()` API, which doesn't support
-    /// literal path expression. If we implement our own config abstraction,
-    /// this method should be moved there.
-    pub fn lookup_value(&self, config: &config::Config) -> Result<ConfigValue, ConfigError> {
-        // Use config.get() if the TOML keys can be converted to config path
-        // syntax. This should be cheaper than cloning the whole config map.
-        let (key_prefix, components) = self.split_safe_prefix();
-        let value: ConfigValue = match &key_prefix {
-            Some(key) => config.get(key)?,
-            None => config.collect()?.into(),
-        };
-        components
-            .iter()
-            .try_fold(value, |value, key| {
-                let mut table = value.into_table().ok()?;
-                table.remove(key.get())
-            })
-            .ok_or_else(|| ConfigError::NotFound(self.to_string()))
-    }
-
-    /// Splits path to dotted literal expression and remainder.
-    ///
-    /// The literal expression part doesn't contain meta characters other than
-    /// ".", therefore it can be passed in to `config.get()`.
-    /// https://github.com/mehcode/config-rs/issues/110
-    fn split_safe_prefix(&self) -> (Option<Cow<'_, str>>, &[toml_edit::Key]) {
-        // https://github.com/mehcode/config-rs/blob/v0.13.4/src/path/parser.rs#L15
-        let is_ident = |key: &str| {
-            key.chars()
-                .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
-        };
-        let pos = self.0.iter().take_while(|&k| is_ident(k)).count();
-        let safe_key = match pos {
-            0 => None,
-            1 => Some(Cow::Borrowed(self.0[0].get())),
-            _ => Some(Cow::Owned(self.0[..pos].iter().join("."))),
-        };
-        (safe_key, &self.0[pos..])
     }
 }
 
@@ -291,10 +247,15 @@ impl ConfigLayer {
             .try_collect()
     }
 
+    // Add .get_value(name) if needed. look_up_*() are low-level API.
+
     /// Looks up item by the `name` path. Returns `Some(item)` if an item
     /// found at the path. Returns `Err(item)` if middle node wasn't a table.
-    fn look_up_item(&self, name: &ConfigNamePathBuf) -> Result<Option<&ConfigValue>, &ConfigValue> {
-        look_up_item(&self.data.cache, name)
+    pub fn look_up_item(
+        &self,
+        name: impl ToConfigNamePath,
+    ) -> Result<Option<&ConfigValue>, &ConfigValue> {
+        look_up_item(&self.data.cache, name.into_name_path().borrow())
     }
 }
 
@@ -508,43 +469,6 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
-
-    #[test]
-    fn test_split_safe_config_name_path() {
-        let parse = |s| ConfigNamePathBuf::from_str(s).unwrap();
-        let key = |s: &str| toml_edit::Key::new(s);
-
-        // Empty (or root) path isn't recognized by config::Config::get()
-        assert_eq!(
-            ConfigNamePathBuf::root().split_safe_prefix(),
-            (None, [].as_slice())
-        );
-
-        assert_eq!(
-            parse("Foo-bar_1").split_safe_prefix(),
-            (Some("Foo-bar_1".into()), [].as_slice())
-        );
-        assert_eq!(
-            parse("'foo()'").split_safe_prefix(),
-            (None, [key("foo()")].as_slice())
-        );
-        assert_eq!(
-            parse("foo.'bar()'").split_safe_prefix(),
-            (Some("foo".into()), [key("bar()")].as_slice())
-        );
-        assert_eq!(
-            parse("foo.'bar()'.baz").split_safe_prefix(),
-            (Some("foo".into()), [key("bar()"), key("baz")].as_slice())
-        );
-        assert_eq!(
-            parse("foo.bar").split_safe_prefix(),
-            (Some("foo.bar".into()), [].as_slice())
-        );
-        assert_eq!(
-            parse("foo.bar.'baz()'").split_safe_prefix(),
-            (Some("foo.bar".into()), [key("baz()")].as_slice())
-        );
-    }
 
     #[test]
     fn test_stacked_config_layer_order() {
