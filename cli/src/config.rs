@@ -333,7 +333,8 @@ impl ConfigEnv {
     }
 }
 
-/// Initializes stacked config with the given `default` and infallible sources.
+/// Initializes stacked config with the given `default_layers` and infallible
+/// sources.
 ///
 /// Sources from the lowest precedence:
 /// 1. Default
@@ -345,19 +346,18 @@ impl ConfigEnv {
 /// 7. Command-line arguments `--config-toml`
 ///
 /// This function sets up 1, 2, and 6.
-pub fn config_from_environment(default: config::Config) -> StackedConfig {
+pub fn config_from_environment(
+    default_layers: impl IntoIterator<Item = ConfigLayer>,
+) -> StackedConfig {
     let mut config = StackedConfig::empty();
-    config.add_layer(ConfigLayer::with_data(ConfigSource::Default, default));
-    config.add_layer(ConfigLayer::with_data(ConfigSource::EnvBase, env_base()));
-    config.add_layer(ConfigLayer::with_data(
-        ConfigSource::EnvOverrides,
-        env_overrides(),
-    ));
+    config.extend_layers(default_layers);
+    config.add_layer(env_base_layer());
+    config.add_layer(env_overrides_layer());
     config
 }
 
 /// Environment variables that should be overridden by config values
-fn env_base() -> config::Config {
+fn env_base_layer() -> ConfigLayer {
     let mut builder = config::Config::builder();
     if !env::var("NO_COLOR").unwrap_or_default().is_empty() {
         // "User-level configuration files and per-instance command-line arguments
@@ -372,35 +372,31 @@ fn env_base() -> config::Config {
     } else if let Ok(value) = env::var("EDITOR") {
         builder = builder.set_override("ui.editor", value).unwrap();
     }
-
-    builder.build().unwrap()
+    ConfigLayer::with_data(ConfigSource::EnvBase, builder.build().unwrap())
 }
 
-pub fn default_config() -> config::Config {
+pub fn default_config_layers() -> Vec<ConfigLayer> {
     // Syntax error in default config isn't a user error. That's why defaults are
     // loaded by separate builder.
-    macro_rules! from_toml {
-        ($file:literal) => {
-            config::File::from_str(include_str!($file), config::FileFormat::Toml)
-        };
-    }
-    let mut builder = config::Config::builder()
-        .add_source(from_toml!("config/colors.toml"))
-        .add_source(from_toml!("config/merge_tools.toml"))
-        .add_source(from_toml!("config/misc.toml"))
-        .add_source(from_toml!("config/revsets.toml"))
-        .add_source(from_toml!("config/templates.toml"));
+    let parse = |text: &'static str| ConfigLayer::parse(ConfigSource::Default, text).unwrap();
+    let mut layers = vec![
+        parse(include_str!("config/colors.toml")),
+        parse(include_str!("config/merge_tools.toml")),
+        parse(include_str!("config/misc.toml")),
+        parse(include_str!("config/revsets.toml")),
+        parse(include_str!("config/templates.toml")),
+    ];
     if cfg!(unix) {
-        builder = builder.add_source(from_toml!("config/unix.toml"));
+        layers.push(parse(include_str!("config/unix.toml")));
     }
     if cfg!(windows) {
-        builder = builder.add_source(from_toml!("config/windows.toml"));
+        layers.push(parse(include_str!("config/windows.toml")));
     }
-    builder.build().unwrap()
+    layers
 }
 
 /// Environment variables that override config values
-fn env_overrides() -> config::Config {
+fn env_overrides_layer() -> ConfigLayer {
     let mut builder = config::Config::builder();
     if let Ok(value) = env::var("JJ_USER") {
         builder = builder.set_override("user.name", value).unwrap();
@@ -432,18 +428,19 @@ fn env_overrides() -> config::Config {
     if let Ok(value) = env::var("JJ_EDITOR") {
         builder = builder.set_override("ui.editor", value).unwrap();
     }
-    builder.build().unwrap()
+    ConfigLayer::with_data(ConfigSource::EnvOverrides, builder.build().unwrap())
 }
 
 /// Parses `--config-toml` arguments.
-pub fn parse_config_args(toml_strs: &[String]) -> Result<ConfigLayer, ConfigError> {
-    let config = toml_strs
+pub fn parse_config_args(toml_strs: &[String]) -> Result<Vec<ConfigLayer>, ConfigError> {
+    // It might look silly that a layer is constructed per argument, but
+    // --config-toml argument can contain a full TOML document, and it makes
+    // sense to preserve line numbers within the doc. If we add
+    // --config=KEY=VALUE, multiple values might be loaded into one layer.
+    toml_strs
         .iter()
-        .fold(config::Config::builder(), |builder, s| {
-            builder.add_source(config::File::from_str(s, config::FileFormat::Toml))
-        })
-        .build()?;
-    Ok(ConfigLayer::with_data(ConfigSource::CommandArg, config))
+        .map(|text| ConfigLayer::parse(ConfigSource::CommandArg, text))
+        .try_collect()
 }
 
 fn read_config(path: &Path) -> Result<toml_edit::ImDocument<String>, CommandError> {

@@ -29,7 +29,7 @@ use crate::cli_util::GlobalArgs;
 use crate::command_error::user_error;
 use crate::command_error::CommandError;
 use crate::config::config_from_environment;
-use crate::config::default_config;
+use crate::config::default_config_layers;
 use crate::config::ConfigEnv;
 use crate::config::CONFIG_SCHEMA;
 use crate::ui::Ui;
@@ -687,7 +687,7 @@ fn get_jj_command() -> Result<(JjBuilder, UserSettings), CommandError> {
     // child process. This shouldn't fail, since none of the global args are
     // required.
     let app = crate::commands::default_app();
-    let mut config = config_from_environment(default_config());
+    let mut config = config_from_environment(default_config_layers());
     let ui = Ui::with_config(&config).expect("default config should be valid");
     let cwd = std::env::current_dir()
         .and_then(|cwd| cwd.canonicalize())
