@@ -2683,25 +2683,28 @@ fn load_template_aliases(
     ui: &Ui,
     stacked_config: &StackedConfig,
 ) -> Result<TemplateAliasesMap, CommandError> {
-    const TABLE_KEY: &str = "template-aliases";
+    let table_name = ConfigNamePathBuf::from_iter(["template-aliases"]);
     let mut aliases_map = TemplateAliasesMap::new();
     // Load from all config layers in order. 'f(x)' in default layer should be
     // overridden by 'f(a)' in user.
     for layer in stacked_config.layers() {
-        let table = if let Some(table) = layer.data.get_table(TABLE_KEY).optional()? {
-            table
-        } else {
-            continue;
+        let table = match layer.look_up_table(&table_name) {
+            Ok(Some(table)) => table,
+            Ok(None) => continue,
+            // TODO: rewrite error construction after migrating to toml_edit
+            Err(item) => return Err(item.clone().into_table().unwrap_err().into()),
         };
-        for (decl, value) in table.into_iter().sorted_by(|a, b| a.0.cmp(&b.0)) {
+        // TODO: remove sorting after migrating to toml_edit
+        for (decl, value) in table.iter().sorted_by_key(|&(decl, _)| decl) {
             let r = value
+                .clone()
                 .into_string()
                 .map_err(|e| e.to_string())
-                .and_then(|v| aliases_map.insert(&decl, v).map_err(|e| e.to_string()));
+                .and_then(|v| aliases_map.insert(decl, v).map_err(|e| e.to_string()));
             if let Err(s) = r {
                 writeln!(
                     ui.warning_default(),
-                    r#"Failed to load "{TABLE_KEY}.{decl}": {s}"#
+                    r#"Failed to load "{table_name}.{decl}": {s}"#
                 )?;
             }
         }
