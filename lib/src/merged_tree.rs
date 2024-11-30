@@ -717,7 +717,7 @@ impl<'matcher> TreeDiffIterator<'matcher> {
         }
     }
 
-    /// Gets the given tree if `value` is a tree, otherwise an empty tree.
+    /// Gets the given trees if `values` are trees, otherwise an empty tree.
     fn trees(
         store: &Arc<Store>,
         dir: &RepoPath,
@@ -951,7 +951,7 @@ impl<'matcher> TreeDiffStreamImpl<'matcher> {
         }
     }
 
-    /// Gets the given tree if `value` is a tree, otherwise an empty tree.
+    /// Gets the given trees if `values` are trees, otherwise an empty tree.
     async fn trees(
         store: Arc<Store>,
         dir: RepoPathBuf,
