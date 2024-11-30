@@ -38,14 +38,11 @@ use testutils::TestRepoBackend;
 
 fn config_with_commit_timestamp(timestamp: &str) -> StackedConfig {
     let mut config = testutils::base_user_config();
-    config.add_layer(ConfigLayer::with_data(
-        ConfigSource::User,
-        config::Config::builder()
-            .set_override("debug.commit-timestamp", timestamp)
-            .unwrap()
-            .build()
-            .unwrap(),
-    ));
+    let mut layer = ConfigLayer::empty(ConfigSource::User);
+    layer
+        .set_value("debug.commit-timestamp", timestamp)
+        .unwrap();
+    config.add_layer(layer);
     config
 }
 
