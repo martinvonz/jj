@@ -20,6 +20,7 @@ use std::sync::Arc;
 
 use jj_lib::backend::MergedTreeId;
 use jj_lib::config::ConfigError;
+use jj_lib::config::ConfigNamePathBuf;
 use jj_lib::conflicts::extract_as_single_hunk;
 use jj_lib::conflicts::ConflictMarkerStyle;
 use jj_lib::gitignore::GitIgnoreFile;
@@ -158,22 +159,19 @@ pub fn get_external_tool_config(
     settings: &UserSettings,
     name: &str,
 ) -> Result<Option<ExternalMergeTool>, ConfigError> {
-    const TABLE_KEY: &str = "merge-tools";
-    let tools_table = settings.get_table(TABLE_KEY)?;
-    if let Some(v) = tools_table.get(name) {
-        let mut result: ExternalMergeTool = v
-            .clone()
-            .try_deserialize()
-            // add config key, deserialize error is otherwise unclear
-            .map_err(|e| ConfigError::Message(format!("{TABLE_KEY}.{name}: {e}")))?;
-
-        if result.program.is_empty() {
-            result.program.clone_from(&name.to_string());
-        };
-        Ok(Some(result))
-    } else {
-        Ok(None)
-    }
+    let full_name = ConfigNamePathBuf::from_iter(["merge-tools", name]);
+    let Some(mut tool) = settings
+        .get::<ExternalMergeTool>(&full_name)
+        .optional()
+        // add config key, deserialize error is otherwise unclear
+        .map_err(|e| ConfigError::Message(format!("{full_name}: {e}")))?
+    else {
+        return Ok(None);
+    };
+    if tool.program.is_empty() {
+        tool.program = name.to_owned();
+    };
+    Ok(Some(tool))
 }
 
 /// Configured diff editor.
