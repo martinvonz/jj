@@ -54,6 +54,21 @@ fn test_snapshot_large_file() {
         This will increase the maximum file size allowed for new files, for this command only.
     "###);
 
+    // test invalid configuration
+    let stderr = test_env.jj_cmd_failure(
+        &repo_path,
+        &[
+            "file",
+            "list",
+            "--config-toml=snapshot.max-new-file-size = []",
+        ],
+    );
+    insta::assert_snapshot!(stderr, @r"
+    Config error: Invalid type or value for snapshot.max-new-file-size
+    Caused by: Expected a positive integer or a string in '<number><unit>' form
+    For help, see https://martinvonz.github.io/jj/latest/config/.
+    ");
+
     // No error if we disable auto-tracking of the path
     test_env.add_config(r#"snapshot.auto-track = 'none()'"#);
     let stdout = test_env.jj_cmd_success(&repo_path, &["file", "list"]);

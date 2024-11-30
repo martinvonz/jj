@@ -237,8 +237,8 @@ impl UserSettings {
 
     pub fn max_new_file_size(&self) -> Result<u64, ConfigGetError> {
         let cfg = self
-            .get::<HumanByteSize>("snapshot.max-new-file-size")
-            .map(|x| x.0);
+            .get_value_with("snapshot.max-new-file-size", TryInto::try_into)
+            .map(|HumanByteSize(x)| x);
         match cfg {
             Ok(0) => Ok(u64::MAX),
             x @ Ok(_) => x,
@@ -338,8 +338,7 @@ impl JJRng {
 }
 
 /// A size in bytes optionally formatted/serialized with binary prefixes
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, serde::Deserialize)]
-#[serde(try_from = "String")]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub struct HumanByteSize(pub u64);
 
 impl std::fmt::Display for HumanByteSize {
@@ -363,11 +362,18 @@ impl FromStr for HumanByteSize {
     }
 }
 
-impl TryFrom<String> for HumanByteSize {
+impl TryFrom<ConfigValue> for HumanByteSize {
     type Error = &'static str;
 
-    fn try_from(value: String) -> Result<Self, Self::Error> {
-        value.parse()
+    fn try_from(value: ConfigValue) -> Result<Self, Self::Error> {
+        if let Ok(n) = value.clone().into_int() {
+            let n = u64::try_from(n).map_err(|_| "Integer out of range")?;
+            Ok(HumanByteSize(n))
+        } else if let Ok(s) = value.into_string() {
+            s.parse()
+        } else {
+            Err("Expected a positive integer or a string in '<number><unit>' form")
+        }
     }
 }
 
@@ -398,6 +404,8 @@ fn parse_human_byte_size(v: &str) -> Result<u64, &'static str> {
 
 #[cfg(test)]
 mod tests {
+    use assert_matches::assert_matches;
+
     use super::*;
 
     #[test]
@@ -421,5 +429,21 @@ mod tests {
             Err("must start with a number")
         );
         assert_eq!(parse_human_byte_size(""), Err("must start with a number"));
+    }
+
+    #[test]
+    fn byte_size_from_config_value() {
+        assert_eq!(
+            HumanByteSize::try_from(ConfigValue::from(42)).unwrap(),
+            HumanByteSize(42)
+        );
+        assert_eq!(
+            HumanByteSize::try_from(ConfigValue::from("42K")).unwrap(),
+            HumanByteSize(42 * 1024)
+        );
+        assert_matches!(
+            HumanByteSize::try_from(ConfigValue::from(-1)),
+            Err("Integer out of range")
+        );
     }
 }
