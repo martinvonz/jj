@@ -47,6 +47,8 @@ This document contains the help content for the `jj` command-line program.
 * [`jj file track`↴](#jj-file-track)
 * [`jj file untrack`↴](#jj-file-untrack)
 * [`jj fix`↴](#jj-fix)
+* [`jj gerrit`↴](#jj-gerrit)
+* [`jj gerrit send`↴](#jj-gerrit-send)
 * [`jj git`↴](#jj-git)
 * [`jj git clone`↴](#jj-git-clone)
 * [`jj git export`↴](#jj-git-export)
@@ -135,6 +137,7 @@ To get started, see the tutorial at https://martinvonz.github.io/jj/latest/tutor
 * `evolog` — Show how a change has evolved over time
 * `file` — File operations
 * `fix` — Update files with formatting fixes or other changes
+* `gerrit` — Interact with Gerrit Code Review
 * `git` — Commands for working with Git remotes and the underlying Git repo
 * `help` — Print this message or the help of the given subcommand(s)
 * `init` — Create a new repo in the given directory
@@ -1030,6 +1033,44 @@ will be removed in a future version.
 
 * `-s`, `--source <SOURCE>` — Fix files in the specified revision(s) and their descendants. If no revisions are specified, this defaults to the `revsets.fix` setting, or `reachable(@, mutable())` if it is not set
 * `--include-unchanged-files` — Fix unchanged files in addition to changed ones. If no paths are specified, all files in the repo will be fixed
+
+
+
+## `jj gerrit`
+
+Interact with Gerrit Code Review
+
+**Usage:** `jj gerrit <COMMAND>`
+
+###### **Subcommands:**
+
+* `send` — Send changes to Gerrit for code review, or update existing changes
+
+
+
+## `jj gerrit send`
+
+Send changes to Gerrit for code review, or update existing changes.
+
+Sending in a set of revisions to Gerrit creates a single "change" for each revision included in the revset. This change is then available for review on your Gerrit instance.
+
+This command modifies each commit in the revset to include a `Change-Id` footer in its commit message if one does not already exist. Note that this ID is NOT compatible with jj IDs, and is Gerrit-specific.
+
+If a change already exists for a given revision (i.e. it contains the same `Change-Id`), this command will update the contents of the existing change to match.
+
+Note: this command takes 1-or-more revsets arguments, each of which can resolve to multiple revisions; so you may post trees or ranges of commits to Gerrit for review all at once.
+
+**Usage:** `jj gerrit send [OPTIONS]`
+
+###### **Options:**
+
+* `-r`, `--revisions <REVISIONS>` — The revset, selecting which commits are sent in to Gerrit. This can be any arbitrary set of commits; they will be modified to include a `Change-Id` footer if one does not already exist, and then sent off to Gerrit for review
+* `-f`, `--for <FOR>` — The location where your changes are intended to land. This should be an upstream branch
+* `--remote <REMOTE>` — The Gerrit remote to push to. Can be configured with the `gerrit.remote` repository option as well. This is typically a full SSH URL for your Gerrit instance
+* `-n`, `--dry-run` — If true, do not actually add `Change-Id`s to commits, and do not push the changes to Gerrit
+
+  Possible values: `true`, `false`
+
 
 
 
