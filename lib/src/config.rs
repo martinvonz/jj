@@ -17,6 +17,7 @@
 use std::borrow::Borrow;
 use std::convert::Infallible;
 use std::fmt;
+use std::mem;
 use std::ops::Range;
 use std::path::Path;
 use std::path::PathBuf;
@@ -59,6 +60,11 @@ pub enum ConfigGetError {
         source_path: Option<PathBuf>,
     },
 }
+
+/// Error that can occur when updating config variable.
+#[derive(Debug, Error)]
+#[error(transparent)]
+pub struct ConfigUpdateError(pub ConfigError);
 
 /// Extension methods for `Result<T, ConfigGetError>`.
 pub trait ConfigGetResultExt<T> {
@@ -232,6 +238,11 @@ pub struct ConfigLayer {
 }
 
 impl ConfigLayer {
+    /// Creates new layer with empty data.
+    pub fn empty(source: ConfigSource) -> Self {
+        Self::with_data(source, config::Config::default())
+    }
+
     /// Creates new layer with the configuration variables `data`.
     pub fn with_data(source: ConfigSource, data: config::Config) -> Self {
         ConfigLayer {
@@ -313,6 +324,21 @@ impl ConfigLayer {
         name: impl ToConfigNamePath,
     ) -> Result<Option<&ConfigValue>, &ConfigValue> {
         look_up_item(&self.data.cache, name.into_name_path().borrow())
+    }
+
+    /// Sets new `value` to the `name` path.
+    pub fn set_value(
+        &mut self,
+        name: &str, // TODO: impl ToConfigNamePath
+        value: impl Into<ConfigValue>,
+    ) -> Result<(), ConfigUpdateError> {
+        self.data = config::Config::builder()
+            .add_source(mem::take(&mut self.data))
+            .set_override(name, value)
+            .map_err(ConfigUpdateError)?
+            .build()
+            .map_err(ConfigUpdateError)?;
+        Ok(())
     }
 }
 

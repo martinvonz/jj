@@ -358,21 +358,21 @@ pub fn config_from_environment(
 
 /// Environment variables that should be overridden by config values
 fn env_base_layer() -> ConfigLayer {
-    let mut builder = config::Config::builder();
+    let mut layer = ConfigLayer::empty(ConfigSource::EnvBase);
     if !env::var("NO_COLOR").unwrap_or_default().is_empty() {
         // "User-level configuration files and per-instance command-line arguments
         // should override $NO_COLOR." https://no-color.org/
-        builder = builder.set_override("ui.color", "never").unwrap();
+        layer.set_value("ui.color", "never").unwrap();
     }
     if let Ok(value) = env::var("PAGER") {
-        builder = builder.set_override("ui.pager", value).unwrap();
+        layer.set_value("ui.pager", value).unwrap();
     }
     if let Ok(value) = env::var("VISUAL") {
-        builder = builder.set_override("ui.editor", value).unwrap();
+        layer.set_value("ui.editor", value).unwrap();
     } else if let Ok(value) = env::var("EDITOR") {
-        builder = builder.set_override("ui.editor", value).unwrap();
+        layer.set_value("ui.editor", value).unwrap();
     }
-    ConfigLayer::with_data(ConfigSource::EnvBase, builder.build().unwrap())
+    layer
 }
 
 pub fn default_config_layers() -> Vec<ConfigLayer> {
@@ -397,38 +397,32 @@ pub fn default_config_layers() -> Vec<ConfigLayer> {
 
 /// Environment variables that override config values
 fn env_overrides_layer() -> ConfigLayer {
-    let mut builder = config::Config::builder();
+    let mut layer = ConfigLayer::empty(ConfigSource::EnvOverrides);
     if let Ok(value) = env::var("JJ_USER") {
-        builder = builder.set_override("user.name", value).unwrap();
+        layer.set_value("user.name", value).unwrap();
     }
     if let Ok(value) = env::var("JJ_EMAIL") {
-        builder = builder.set_override("user.email", value).unwrap();
+        layer.set_value("user.email", value).unwrap();
     }
     if let Ok(value) = env::var("JJ_TIMESTAMP") {
-        builder = builder
-            .set_override("debug.commit-timestamp", value)
-            .unwrap();
+        layer.set_value("debug.commit-timestamp", value).unwrap();
     }
     if let Ok(Ok(value)) = env::var("JJ_RANDOMNESS_SEED").map(|s| s.parse::<i64>()) {
-        builder = builder
-            .set_override("debug.randomness-seed", value)
-            .unwrap();
+        layer.set_value("debug.randomness-seed", value).unwrap();
     }
     if let Ok(value) = env::var("JJ_OP_TIMESTAMP") {
-        builder = builder
-            .set_override("debug.operation-timestamp", value)
-            .unwrap();
+        layer.set_value("debug.operation-timestamp", value).unwrap();
     }
     if let Ok(value) = env::var("JJ_OP_HOSTNAME") {
-        builder = builder.set_override("operation.hostname", value).unwrap();
+        layer.set_value("operation.hostname", value).unwrap();
     }
     if let Ok(value) = env::var("JJ_OP_USERNAME") {
-        builder = builder.set_override("operation.username", value).unwrap();
+        layer.set_value("operation.username", value).unwrap();
     }
     if let Ok(value) = env::var("JJ_EDITOR") {
-        builder = builder.set_override("ui.editor", value).unwrap();
+        layer.set_value("ui.editor", value).unwrap();
     }
-    ConfigLayer::with_data(ConfigSource::EnvOverrides, builder.build().unwrap())
+    layer
 }
 
 /// Parses `--config-toml` arguments.
@@ -762,24 +756,20 @@ mod tests {
 
     #[test]
     fn test_resolved_config_values_single_key() {
-        let env_base_config = config::Config::builder()
-            .set_override("user.name", "base-user-name")
-            .unwrap()
-            .set_override("user.email", "base@user.email")
-            .unwrap()
-            .build()
+        let mut env_base_layer = ConfigLayer::empty(ConfigSource::EnvBase);
+        env_base_layer
+            .set_value("user.name", "base-user-name")
             .unwrap();
-        let repo_config = config::Config::builder()
-            .set_override("user.email", "repo@user.email")
-            .unwrap()
-            .build()
+        env_base_layer
+            .set_value("user.email", "base@user.email")
+            .unwrap();
+        let mut repo_layer = ConfigLayer::empty(ConfigSource::Repo);
+        repo_layer
+            .set_value("user.email", "repo@user.email")
             .unwrap();
         let mut config = StackedConfig::empty();
-        config.add_layer(ConfigLayer::with_data(
-            ConfigSource::EnvBase,
-            env_base_config,
-        ));
-        config.add_layer(ConfigLayer::with_data(ConfigSource::Repo, repo_config));
+        config.add_layer(env_base_layer);
+        config.add_layer(repo_layer);
         // Note: "email" is alphabetized, before "name" from same layer.
         insta::assert_debug_snapshot!(
             resolved_config_values(&config, &ConfigNamePathBuf::root()),
@@ -906,21 +896,14 @@ mod tests {
 
     #[test]
     fn test_resolved_config_values_filter_path() {
-        let user_config = config::Config::builder()
-            .set_override("test-table1.foo", "user-FOO")
-            .unwrap()
-            .set_override("test-table2.bar", "user-BAR")
-            .unwrap()
-            .build()
-            .unwrap();
-        let repo_config = config::Config::builder()
-            .set_override("test-table1.bar", "repo-BAR")
-            .unwrap()
-            .build()
-            .unwrap();
+        let mut user_layer = ConfigLayer::empty(ConfigSource::User);
+        user_layer.set_value("test-table1.foo", "user-FOO").unwrap();
+        user_layer.set_value("test-table2.bar", "user-BAR").unwrap();
+        let mut repo_layer = ConfigLayer::empty(ConfigSource::Repo);
+        repo_layer.set_value("test-table1.bar", "repo-BAR").unwrap();
         let mut config = StackedConfig::empty();
-        config.add_layer(ConfigLayer::with_data(ConfigSource::User, user_config));
-        config.add_layer(ConfigLayer::with_data(ConfigSource::Repo, repo_config));
+        config.add_layer(user_layer);
+        config.add_layer(repo_layer);
         insta::assert_debug_snapshot!(
             resolved_config_values(&config, &ConfigNamePathBuf::from_iter(["test-table1"])),
             @r#"
