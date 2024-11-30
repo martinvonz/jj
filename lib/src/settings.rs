@@ -15,6 +15,7 @@
 #![allow(missing_docs)]
 
 use std::path::Path;
+use std::str::FromStr;
 use std::sync::Arc;
 use std::sync::Mutex;
 
@@ -348,22 +349,29 @@ impl std::fmt::Display for HumanByteSize {
     }
 }
 
-impl TryFrom<String> for HumanByteSize {
-    type Error = String;
+impl FromStr for HumanByteSize {
+    type Err = &'static str;
 
-    fn try_from(value: String) -> Result<Self, Self::Error> {
-        let res = value.parse::<u64>();
-        match res {
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.parse() {
             Ok(bytes) => Ok(HumanByteSize(bytes)),
             Err(_) => {
-                let bytes = parse_human_byte_size(&value)?;
+                let bytes = parse_human_byte_size(s)?;
                 Ok(HumanByteSize(bytes))
             }
         }
     }
 }
 
-fn parse_human_byte_size(v: &str) -> Result<u64, &str> {
+impl TryFrom<String> for HumanByteSize {
+    type Error = &'static str;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        value.parse()
+    }
+}
+
+fn parse_human_byte_size(v: &str) -> Result<u64, &'static str> {
     let digit_end = v.find(|c: char| !c.is_ascii_digit()).unwrap_or(v.len());
     if digit_end == 0 {
         return Err("must start with a number");
