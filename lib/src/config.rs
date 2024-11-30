@@ -368,8 +368,7 @@ impl StackedConfig {
         path: impl AsRef<Path>,
     ) -> Result<(), ConfigError> {
         let layers = ConfigLayer::load_from_dir(source, path.as_ref())?;
-        let index = self.insert_point(source);
-        self.layers.splice(index..index, layers);
+        self.extend_layers(layers);
         Ok(())
     }
 
@@ -377,6 +376,14 @@ impl StackedConfig {
     pub fn add_layer(&mut self, layer: ConfigLayer) {
         let index = self.insert_point(layer.source);
         self.layers.insert(index, layer);
+    }
+
+    /// Inserts multiple layers at the positions specified by `layer.source`.
+    pub fn extend_layers(&mut self, layers: impl IntoIterator<Item = ConfigLayer>) {
+        for (source, chunk) in &layers.into_iter().chunk_by(|layer| layer.source) {
+            let index = self.insert_point(source);
+            self.layers.splice(index..index, chunk);
+        }
     }
 
     /// Removes layers of the specified `source`.
@@ -582,8 +589,26 @@ mod tests {
             vec![ConfigSource::EnvBase, ConfigSource::Repo]
         );
 
+        // Insert multiple
+        config.extend_layers([
+            ConfigLayer::with_data(ConfigSource::Repo, empty_data()),
+            ConfigLayer::with_data(ConfigSource::Repo, empty_data()),
+            ConfigLayer::with_data(ConfigSource::User, empty_data()),
+        ]);
+        assert_eq!(
+            layer_sources(&config),
+            vec![
+                ConfigSource::EnvBase,
+                ConfigSource::User,
+                ConfigSource::Repo,
+                ConfigSource::Repo,
+                ConfigSource::Repo,
+            ]
+        );
+
         // Remove remainders
         config.remove_layers(ConfigSource::EnvBase);
+        config.remove_layers(ConfigSource::User);
         config.remove_layers(ConfigSource::Repo);
         assert_eq!(layer_sources(&config), vec![]);
     }
