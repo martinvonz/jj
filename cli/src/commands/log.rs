@@ -14,8 +14,8 @@
 
 use clap_complete::ArgValueCandidates;
 use jj_lib::backend::CommitId;
-use jj_lib::config::ConfigError;
-use jj_lib::config::ConfigResultExt as _;
+use jj_lib::config::ConfigGetError;
+use jj_lib::config::ConfigGetResultExt as _;
 use jj_lib::graph::GraphEdgeType;
 use jj_lib::graph::ReverseGraphIterator;
 use jj_lib::graph::TopoGroupedGraphIterator;
@@ -331,7 +331,7 @@ pub(crate) fn cmd_log(
 pub fn get_node_template(
     style: GraphStyle,
     settings: &UserSettings,
-) -> Result<String, ConfigError> {
+) -> Result<String, ConfigGetError> {
     let symbol = settings.get_string("templates.log_node").optional()?;
     let default = if style.is_ascii() {
         "builtin_log_node_ascii"

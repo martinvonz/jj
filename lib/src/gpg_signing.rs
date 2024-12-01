@@ -25,8 +25,8 @@ use std::str;
 
 use thiserror::Error;
 
-use crate::config::ConfigError;
-use crate::config::ConfigResultExt as _;
+use crate::config::ConfigGetError;
+use crate::config::ConfigGetResultExt as _;
 use crate::settings::UserSettings;
 use crate::signing::SigStatus;
 use crate::signing::SignError;
@@ -146,7 +146,7 @@ impl GpgBackend {
         self
     }
 
-    pub fn from_settings(settings: &UserSettings) -> Result<Self, ConfigError> {
+    pub fn from_settings(settings: &UserSettings) -> Result<Self, ConfigGetError> {
         let program = settings
             .get_string("signing.backends.gpg.program")
             .optional()?

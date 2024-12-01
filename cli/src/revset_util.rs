@@ -21,6 +21,7 @@ use std::sync::Arc;
 use itertools::Itertools as _;
 use jj_lib::backend::CommitId;
 use jj_lib::commit::Commit;
+use jj_lib::config::ConfigGetError;
 use jj_lib::config::ConfigNamePathBuf;
 use jj_lib::config::ConfigSource;
 use jj_lib::config::StackedConfig;
@@ -174,8 +175,16 @@ pub fn load_revset_aliases(
         let table = match layer.look_up_table(&table_name) {
             Ok(Some(table)) => table,
             Ok(None) => continue,
-            // TODO: rewrite error construction after migrating to toml_edit
-            Err(item) => return Err(item.clone().into_table().unwrap_err().into()),
+            Err(item) => {
+                // TODO: rewrite error construction after migrating to toml_edit
+                let error = item.clone().into_table().unwrap_err();
+                return Err(ConfigGetError::Type {
+                    name: table_name.to_string(),
+                    error: error.into(),
+                    source_path: layer.path.clone(),
+                }
+                .into());
+            }
         };
         // TODO: remove sorting after migrating to toml_edit
         for (decl, value) in table.iter().sorted_by_key(|&(decl, _)| decl) {

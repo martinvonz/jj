@@ -21,7 +21,7 @@ use clap::ArgGroup;
 use clap_complete::ArgValueCandidates;
 use itertools::Itertools;
 use jj_lib::backend::CommitId;
-use jj_lib::config::ConfigResultExt as _;
+use jj_lib::config::ConfigGetResultExt as _;
 use jj_lib::git;
 use jj_lib::git::GitBranchPushTargets;
 use jj_lib::git::GitPushError;

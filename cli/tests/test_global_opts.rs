@@ -604,7 +604,8 @@ fn test_invalid_config_value() {
         &["status", "--config-toml=snapshot.auto-track=[0]"],
     );
     insta::assert_snapshot!(stderr, @r"
-    Config error: invalid type: sequence, expected a string for key `snapshot.auto-track`
+    Config error: Invalid type or value for snapshot.auto-track
+    Caused by: invalid type: sequence, expected a string
     For help, see https://martinvonz.github.io/jj/latest/config/.
     ");
 }

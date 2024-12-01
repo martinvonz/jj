@@ -22,7 +22,7 @@ use std::sync::RwLock;
 use thiserror::Error;
 
 use crate::backend::CommitId;
-use crate::config::ConfigError;
+use crate::config::ConfigGetError;
 use crate::gpg_signing::GpgBackend;
 use crate::settings::UserSettings;
 use crate::ssh_signing::SshBackend;
@@ -122,7 +122,7 @@ pub enum SignInitError {
     UnknownBackend(String),
     /// Failed to load backend configuration.
     #[error("Failed to configure signing backend")]
-    BackendConfig(#[source] ConfigError),
+    BackendConfig(#[source] ConfigGetError),
 }
 
 /// A enum that describes if a created/rewritten commit should be signed or not.

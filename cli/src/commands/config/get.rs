@@ -13,14 +13,15 @@
 // limitations under the License.
 
 use std::io::Write as _;
+use std::path::PathBuf;
 
 use clap_complete::ArgValueCandidates;
 use jj_lib::config::ConfigError;
+use jj_lib::config::ConfigGetError;
 use jj_lib::config::ConfigNamePathBuf;
 use tracing::instrument;
 
 use crate::cli_util::CommandHelper;
-use crate::command_error::config_error;
 use crate::command_error::CommandError;
 use crate::complete;
 use crate::ui::Ui;
@@ -48,29 +49,19 @@ pub fn cmd_config_get(
     args: &ConfigGetArgs,
 ) -> Result<(), CommandError> {
     let value = command.settings().get_value(&args.name)?;
-    let stringified = value.into_string().map_err(|err| match err {
-        ConfigError::Type {
-            origin,
-            unexpected,
-            expected,
-            key,
-        } => {
-            let expected = format!("a value convertible to {expected}");
-            // Copied from `impl fmt::Display for ConfigError`. We can't use
-            // the `Display` impl directly because `expected` is required to
-            // be a `'static str`.
-            let mut buf = String::new();
-            use std::fmt::Write;
-            write!(buf, "invalid type: {unexpected}, expected {expected}").unwrap();
-            if let Some(key) = key {
-                write!(buf, " for key `{key}`").unwrap();
+    let stringified = value.into_string().map_err(|err| -> CommandError {
+        match err {
+            ConfigError::Type {
+                origin, unexpected, ..
+            } => ConfigGetError::Type {
+                name: args.name.to_string(),
+                error: format!("Expected a value convertible to a string, but is {unexpected}")
+                    .into(),
+                source_path: origin.map(PathBuf::from),
             }
-            if let Some(origin) = origin {
-                write!(buf, " in {origin}").unwrap();
-            }
-            config_error(buf)
+            .into(),
+            err => err.into(),
         }
-        err => err.into(),
     })?;
     writeln!(ui.stdout(), "{stringified}")?;
     Ok(())

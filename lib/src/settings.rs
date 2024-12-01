@@ -27,8 +27,8 @@ use crate::backend::ChangeId;
 use crate::backend::Commit;
 use crate::backend::Signature;
 use crate::backend::Timestamp;
-use crate::config::ConfigError;
-use crate::config::ConfigResultExt as _;
+use crate::config::ConfigGetError;
+use crate::config::ConfigGetResultExt as _;
 use crate::config::ConfigTable;
 use crate::config::ConfigValue;
 use crate::config::StackedConfig;
@@ -166,7 +166,7 @@ impl UserSettings {
         self.get_string("user.email").unwrap_or_default()
     }
 
-    pub fn fsmonitor_settings(&self) -> Result<FsmonitorSettings, ConfigError> {
+    pub fn fsmonitor_settings(&self) -> Result<FsmonitorSettings, ConfigGetError> {
         FsmonitorSettings::from_settings(self)
     }
 
@@ -234,14 +234,14 @@ impl UserSettings {
         GitSettings::from_settings(self)
     }
 
-    pub fn max_new_file_size(&self) -> Result<u64, ConfigError> {
+    pub fn max_new_file_size(&self) -> Result<u64, ConfigGetError> {
         let cfg = self
             .get::<HumanByteSize>("snapshot.max-new-file-size")
             .map(|x| x.0);
         match cfg {
             Ok(0) => Ok(u64::MAX),
             x @ Ok(_) => x,
-            Err(ConfigError::NotFound(_)) => Ok(1024 * 1024),
+            Err(ConfigGetError::NotFound { .. }) => Ok(1024 * 1024),
             e @ Err(_) => e,
         }
     }
@@ -257,7 +257,7 @@ impl UserSettings {
         SignSettings::from_settings(self)
     }
 
-    pub fn conflict_marker_style(&self) -> Result<ConflictMarkerStyle, ConfigError> {
+    pub fn conflict_marker_style(&self) -> Result<ConflictMarkerStyle, ConfigGetError> {
         Ok(self
             .get("ui.conflict-marker-style")
             .optional()?
@@ -271,32 +271,32 @@ impl UserSettings {
     pub fn get<'de, T: Deserialize<'de>>(
         &self,
         name: impl ToConfigNamePath,
-    ) -> Result<T, ConfigError> {
+    ) -> Result<T, ConfigGetError> {
         self.config.get(name)
     }
 
     /// Looks up string value by `name`.
-    pub fn get_string(&self, name: impl ToConfigNamePath) -> Result<String, ConfigError> {
+    pub fn get_string(&self, name: impl ToConfigNamePath) -> Result<String, ConfigGetError> {
         self.get(name)
     }
 
     /// Looks up integer value by `name`.
-    pub fn get_int(&self, name: impl ToConfigNamePath) -> Result<i64, ConfigError> {
+    pub fn get_int(&self, name: impl ToConfigNamePath) -> Result<i64, ConfigGetError> {
         self.get(name)
     }
 
     /// Looks up boolean value by `name`.
-    pub fn get_bool(&self, name: impl ToConfigNamePath) -> Result<bool, ConfigError> {
+    pub fn get_bool(&self, name: impl ToConfigNamePath) -> Result<bool, ConfigGetError> {
         self.get(name)
     }
 
     /// Looks up generic value by `name`.
-    pub fn get_value(&self, name: impl ToConfigNamePath) -> Result<ConfigValue, ConfigError> {
+    pub fn get_value(&self, name: impl ToConfigNamePath) -> Result<ConfigValue, ConfigGetError> {
         self.config.get_value(name)
     }
 
     /// Looks up sub table by `name`.
-    pub fn get_table(&self, name: impl ToConfigNamePath) -> Result<ConfigTable, ConfigError> {
+    pub fn get_table(&self, name: impl ToConfigNamePath) -> Result<ConfigTable, ConfigGetError> {
         self.config.get_table(name)
     }
 }
