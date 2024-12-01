@@ -106,7 +106,7 @@ pub struct AnnotatedValue {
 pub fn resolved_config_values(
     stacked_config: &StackedConfig,
     filter_prefix: &ConfigNamePathBuf,
-) -> Result<Vec<AnnotatedValue>, ConfigError> {
+) -> Vec<AnnotatedValue> {
     // Collect annotated values from each config.
     let mut config_vals = vec![];
     for layer in stacked_config.layers() {
@@ -147,7 +147,7 @@ pub fn resolved_config_values(
         val.is_overridden = !names_found.insert(&val.name);
     }
 
-    Ok(config_vals)
+    config_vals
 }
 
 #[derive(Clone, Debug)]
@@ -759,7 +759,7 @@ mod tests {
     fn test_resolved_config_values_empty() {
         let config = StackedConfig::empty();
         assert_eq!(
-            resolved_config_values(&config, &ConfigNamePathBuf::root()).unwrap(),
+            resolved_config_values(&config, &ConfigNamePathBuf::root()),
             []
         );
     }
@@ -786,7 +786,7 @@ mod tests {
         config.add_layer(ConfigLayer::with_data(ConfigSource::Repo, repo_config));
         // Note: "email" is alphabetized, before "name" from same layer.
         insta::assert_debug_snapshot!(
-            resolved_config_values(&config, &ConfigNamePathBuf::root()).unwrap(),
+            resolved_config_values(&config, &ConfigNamePathBuf::root()),
             @r#"
         [
             AnnotatedValue {
@@ -926,8 +926,7 @@ mod tests {
         config.add_layer(ConfigLayer::with_data(ConfigSource::User, user_config));
         config.add_layer(ConfigLayer::with_data(ConfigSource::Repo, repo_config));
         insta::assert_debug_snapshot!(
-            resolved_config_values(&config, &ConfigNamePathBuf::from_iter(["test-table1"]))
-                .unwrap(),
+            resolved_config_values(&config, &ConfigNamePathBuf::from_iter(["test-table1"])),
             @r#"
         [
             AnnotatedValue {
