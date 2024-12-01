@@ -36,6 +36,8 @@ use jj_lib::config::ConfigGetError;
 use jj_lib::config::StackedConfig;
 use minus::MinusError;
 use minus::Pager as MinusPager;
+use serde::de::Deserialize as _;
+use serde::de::IntoDeserializer as _;
 use tracing::instrument;
 
 use crate::command_error::CommandError;
@@ -262,7 +264,8 @@ pub struct Ui {
     output: UiOutput,
 }
 
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, serde::Deserialize)]
+#[serde(rename_all = "kebab-case")]
 pub enum ColorChoice {
     Always,
     Never,
@@ -272,16 +275,13 @@ pub enum ColorChoice {
 }
 
 impl FromStr for ColorChoice {
-    type Err = &'static str;
+    type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "always" => Ok(ColorChoice::Always),
-            "never" => Ok(ColorChoice::Never),
-            "debug" => Ok(ColorChoice::Debug),
-            "auto" => Ok(ColorChoice::Auto),
-            _ => Err("must be one of always, never, or auto"),
-        }
+        // serde::de::value::Error is Box<str> wrapper. Map it to String to hide
+        // the implementation detail.
+        Self::deserialize(s.into_deserializer())
+            .map_err(|err: serde::de::value::Error| err.to_string())
     }
 }
 
@@ -297,20 +297,12 @@ impl fmt::Display for ColorChoice {
     }
 }
 
-fn color_setting(config: &StackedConfig) -> ColorChoice {
-    config
-        .get::<String>("ui.color")
-        .ok()
-        .and_then(|s| s.parse().ok())
-        .unwrap_or_default()
-}
-
 fn prepare_formatter_factory(
     config: &StackedConfig,
     stdout: &Stdout,
 ) -> Result<FormatterFactory, ConfigGetError> {
     let terminal = stdout.is_terminal();
-    let (color, debug) = match color_setting(config) {
+    let (color, debug) = match config.get("ui.color")? {
         ColorChoice::Always => (true, false),
         ColorChoice::Never => (false, false),
         ColorChoice::Debug => (true, true),

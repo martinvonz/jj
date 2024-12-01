@@ -17,6 +17,7 @@ context = 3
 # TODO: delete ui.allow-filesets in jj 0.26+
 allow-filesets = true
 always-allow-large-revsets = false
+color = "auto"
 diff-instructions = true
 graph.style = "curved"
 paginate = "auto"
