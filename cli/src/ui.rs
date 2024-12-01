@@ -262,10 +262,6 @@ pub struct Ui {
     output: UiOutput,
 }
 
-fn progress_indicator_setting(config: &StackedConfig) -> bool {
-    config.get("ui.progress-indicator").unwrap_or(true)
-}
-
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum ColorChoice {
     Always,
@@ -331,10 +327,6 @@ fn prepare_formatter_factory(
     }
 }
 
-fn be_quiet(config: &StackedConfig) -> bool {
-    config.get("ui.quiet").unwrap_or_default()
-}
-
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, serde::Deserialize)]
 #[serde(rename_all(deserialize = "kebab-case"))]
 pub enum PaginationChoice {
@@ -343,34 +335,24 @@ pub enum PaginationChoice {
     Auto,
 }
 
-fn pagination_setting(config: &StackedConfig) -> Result<PaginationChoice, ConfigGetError> {
-    config.get::<PaginationChoice>("ui.paginate")
-}
-
-fn pager_setting(config: &StackedConfig) -> Result<CommandNameAndArgs, ConfigGetError> {
-    config.get::<CommandNameAndArgs>("ui.pager")
-}
-
 impl Ui {
     pub fn with_config(config: &StackedConfig) -> Result<Ui, CommandError> {
-        let quiet = be_quiet(config);
         let formatter_factory = prepare_formatter_factory(config, &io::stdout())?;
-        let progress_indicator = progress_indicator_setting(config);
         Ok(Ui {
-            quiet,
+            quiet: config.get("ui.quiet").unwrap_or_default(),
             formatter_factory,
-            pager_cmd: pager_setting(config)?,
-            paginate: pagination_setting(config)?,
-            progress_indicator,
+            pager_cmd: config.get("ui.pager")?,
+            paginate: config.get("ui.paginate")?,
+            progress_indicator: config.get("ui.progress-indicator").unwrap_or(true),
             output: UiOutput::new_terminal(),
         })
     }
 
     pub fn reset(&mut self, config: &StackedConfig) -> Result<(), CommandError> {
-        self.quiet = be_quiet(config);
-        self.paginate = pagination_setting(config)?;
-        self.pager_cmd = pager_setting(config)?;
-        self.progress_indicator = progress_indicator_setting(config);
+        self.quiet = config.get("ui.quiet").unwrap_or_default();
+        self.paginate = config.get("ui.paginate")?;
+        self.pager_cmd = config.get("ui.pager")?;
+        self.progress_indicator = config.get("ui.progress-indicator").unwrap_or(true);
         self.formatter_factory = prepare_formatter_factory(config, &io::stdout())?;
         Ok(())
     }
