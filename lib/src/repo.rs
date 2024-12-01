@@ -194,7 +194,7 @@ impl ReadonlyRepo {
         let backend_path = store_path.join("type");
         fs::write(&backend_path, backend.name()).context(&backend_path)?;
         let store = Store::new(backend, signer);
-        let repo_settings = user_settings.with_repo(&repo_path).unwrap();
+        let repo_settings = user_settings.with_repo(&repo_path);
 
         let op_store_path = repo_path.join("op_store");
         fs::create_dir(&op_store_path).context(&op_store_path)?;
@@ -667,7 +667,7 @@ impl RepoLoader {
             store_factories.load_backend(user_settings, &repo_path.join("store"))?,
             Signer::from_settings(user_settings)?,
         );
-        let repo_settings = user_settings.with_repo(repo_path).unwrap();
+        let repo_settings = user_settings.with_repo(repo_path);
         let root_op_data = RootOperationData {
             root_commit_id: store.root_commit_id().clone(),
         };
