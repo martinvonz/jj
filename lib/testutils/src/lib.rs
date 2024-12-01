@@ -112,7 +112,7 @@ pub fn base_user_config() -> StackedConfig {
         user.email = "test.user@example.com"
         operation.username = "test-username"
         operation.hostname = "host.example.com"
-        debug.randomness-seed = "42"
+        debug.randomness-seed = 42
     "#;
     let mut config = StackedConfig::empty();
     config.add_layer(ConfigLayer::parse(ConfigSource::User, config_text).unwrap());
