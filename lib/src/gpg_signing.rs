@@ -26,7 +26,7 @@ use std::str;
 use thiserror::Error;
 
 use crate::config::ConfigError;
-use crate::settings::ConfigResultExt as _;
+use crate::config::ConfigResultExt as _;
 use crate::settings::UserSettings;
 use crate::signing::SigStatus;
 use crate::signing::SignError;

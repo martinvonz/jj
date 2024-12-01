@@ -15,6 +15,7 @@
 use clap_complete::ArgValueCandidates;
 use jj_lib::backend::CommitId;
 use jj_lib::config::ConfigError;
+use jj_lib::config::ConfigResultExt as _;
 use jj_lib::graph::GraphEdgeType;
 use jj_lib::graph::ReverseGraphIterator;
 use jj_lib::graph::TopoGroupedGraphIterator;
@@ -23,7 +24,6 @@ use jj_lib::revset::RevsetEvaluationError;
 use jj_lib::revset::RevsetExpression;
 use jj_lib::revset::RevsetFilterPredicate;
 use jj_lib::revset::RevsetIteratorExt;
-use jj_lib::settings::ConfigResultExt as _;
 use jj_lib::settings::UserSettings;
 use tracing::instrument;
 
