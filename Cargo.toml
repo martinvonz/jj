@@ -67,7 +67,7 @@ glob = "0.3.1"
 hashbrown = { version = "0.15.2", default-features = false, features = ["inline-more"] }
 hex = "0.4.3"
 ignore = "0.4.23"
-indexmap = "2.7.0"
+indexmap = { version = "2.7.0", features = ["serde"] }
 indoc = "2.0.4"
 insta = { version = "1.41.1", features = ["filters"] }
 itertools = "0.13.0"
