@@ -132,17 +132,10 @@ fn get_timestamp_config(config: &StackedConfig, key: &'static str) -> Option<Tim
     }
 }
 
-fn get_rng_seed_config(config: &StackedConfig) -> Option<u64> {
-    config
-        .get::<String>("debug.randomness-seed")
-        .ok()
-        .and_then(|str| str.parse().ok())
-}
-
 impl UserSettings {
     pub fn from_config(config: StackedConfig) -> Self {
         let timestamp = get_timestamp_config(&config, "debug.commit-timestamp");
-        let rng_seed = get_rng_seed_config(&config);
+        let rng_seed = config.get::<u64>("debug.randomness-seed").ok();
         UserSettings {
             config,
             timestamp,

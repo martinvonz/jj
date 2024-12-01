@@ -411,7 +411,7 @@ fn env_overrides() -> config::Config {
             .set_override("debug.commit-timestamp", value)
             .unwrap();
     }
-    if let Ok(value) = env::var("JJ_RANDOMNESS_SEED") {
+    if let Ok(Ok(value)) = env::var("JJ_RANDOMNESS_SEED").map(|s| s.parse::<i64>()) {
         builder = builder
             .set_override("debug.randomness-seed", value)
             .unwrap();
