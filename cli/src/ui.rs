@@ -339,20 +339,20 @@ impl Ui {
     pub fn with_config(config: &StackedConfig) -> Result<Ui, CommandError> {
         let formatter_factory = prepare_formatter_factory(config, &io::stdout())?;
         Ok(Ui {
-            quiet: config.get("ui.quiet").unwrap_or_default(),
+            quiet: config.get("ui.quiet")?,
             formatter_factory,
             pager_cmd: config.get("ui.pager")?,
             paginate: config.get("ui.paginate")?,
-            progress_indicator: config.get("ui.progress-indicator").unwrap_or(true),
+            progress_indicator: config.get("ui.progress-indicator")?,
             output: UiOutput::new_terminal(),
         })
     }
 
     pub fn reset(&mut self, config: &StackedConfig) -> Result<(), CommandError> {
-        self.quiet = config.get("ui.quiet").unwrap_or_default();
+        self.quiet = config.get("ui.quiet")?;
         self.paginate = config.get("ui.paginate")?;
         self.pager_cmd = config.get("ui.pager")?;
-        self.progress_indicator = config.get("ui.progress-indicator").unwrap_or(true);
+        self.progress_indicator = config.get("ui.progress-indicator")?;
         self.formatter_factory = prepare_formatter_factory(config, &io::stdout())?;
         Ok(())
     }

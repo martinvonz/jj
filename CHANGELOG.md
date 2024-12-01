@@ -12,6 +12,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Breaking changes
 
+* The following configuration variables are now parsed strictly:
+  `ui.progress-indicator`, `ui.quiet`
+
 ### Deprecations
 
 ### New features

@@ -21,6 +21,8 @@ diff-instructions = true
 graph.style = "curved"
 paginate = "auto"
 pager = { command = ["less", "-FRX"], env = { LESSCHARSET = "utf-8" } }
+progress-indicator = true
+quiet = false
 log-word-wrap = false
 log-synthetic-elided-nodes = true
 conflict-marker-style = "diff"
