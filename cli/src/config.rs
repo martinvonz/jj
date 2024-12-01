@@ -683,6 +683,13 @@ mod tests {
 
     use super::*;
 
+    fn insta_settings() -> insta::Settings {
+        let mut settings = insta::Settings::clone_current();
+        // Suppress Decor { .. } which is uninteresting
+        settings.add_filter(r"\bDecor \{[^}]*\}", "Decor { .. }");
+        settings
+    }
+
     #[test]
     fn test_command_args() {
         let mut config = StackedConfig::empty();
@@ -753,6 +760,8 @@ mod tests {
 
     #[test]
     fn test_resolved_config_values_single_key() {
+        let settings = insta_settings();
+        let _guard = settings.bind_to_scope();
         let mut env_base_layer = ConfigLayer::empty(ConfigSource::EnvBase);
         env_base_layer
             .set_value("user.name", "base-user-name")
@@ -778,26 +787,14 @@ mod tests {
                         Key {
                             key: "user",
                             repr: None,
-                            leaf_decor: Decor {
-                                prefix: "default",
-                                suffix: "default",
-                            },
-                            dotted_decor: Decor {
-                                prefix: "default",
-                                suffix: "default",
-                            },
+                            leaf_decor: Decor { .. },
+                            dotted_decor: Decor { .. },
                         },
                         Key {
                             key: "email",
                             repr: None,
-                            leaf_decor: Decor {
-                                prefix: "default",
-                                suffix: "default",
-                            },
-                            dotted_decor: Decor {
-                                prefix: "default",
-                                suffix: "default",
-                            },
+                            leaf_decor: Decor { .. },
+                            dotted_decor: Decor { .. },
                         },
                     ],
                 ),
@@ -816,26 +813,14 @@ mod tests {
                         Key {
                             key: "user",
                             repr: None,
-                            leaf_decor: Decor {
-                                prefix: "default",
-                                suffix: "default",
-                            },
-                            dotted_decor: Decor {
-                                prefix: "default",
-                                suffix: "default",
-                            },
+                            leaf_decor: Decor { .. },
+                            dotted_decor: Decor { .. },
                         },
                         Key {
                             key: "name",
                             repr: None,
-                            leaf_decor: Decor {
-                                prefix: "default",
-                                suffix: "default",
-                            },
-                            dotted_decor: Decor {
-                                prefix: "default",
-                                suffix: "default",
-                            },
+                            leaf_decor: Decor { .. },
+                            dotted_decor: Decor { .. },
                         },
                     ],
                 ),
@@ -854,26 +839,14 @@ mod tests {
                         Key {
                             key: "user",
                             repr: None,
-                            leaf_decor: Decor {
-                                prefix: "default",
-                                suffix: "default",
-                            },
-                            dotted_decor: Decor {
-                                prefix: "default",
-                                suffix: "default",
-                            },
+                            leaf_decor: Decor { .. },
+                            dotted_decor: Decor { .. },
                         },
                         Key {
                             key: "email",
                             repr: None,
-                            leaf_decor: Decor {
-                                prefix: "default",
-                                suffix: "default",
-                            },
-                            dotted_decor: Decor {
-                                prefix: "default",
-                                suffix: "default",
-                            },
+                            leaf_decor: Decor { .. },
+                            dotted_decor: Decor { .. },
                         },
                     ],
                 ),
@@ -893,6 +866,8 @@ mod tests {
 
     #[test]
     fn test_resolved_config_values_filter_path() {
+        let settings = insta_settings();
+        let _guard = settings.bind_to_scope();
         let mut user_layer = ConfigLayer::empty(ConfigSource::User);
         user_layer.set_value("test-table1.foo", "user-FOO").unwrap();
         user_layer.set_value("test-table2.bar", "user-BAR").unwrap();
@@ -911,26 +886,14 @@ mod tests {
                         Key {
                             key: "test-table1",
                             repr: None,
-                            leaf_decor: Decor {
-                                prefix: "default",
-                                suffix: "default",
-                            },
-                            dotted_decor: Decor {
-                                prefix: "default",
-                                suffix: "default",
-                            },
+                            leaf_decor: Decor { .. },
+                            dotted_decor: Decor { .. },
                         },
                         Key {
                             key: "foo",
                             repr: None,
-                            leaf_decor: Decor {
-                                prefix: "default",
-                                suffix: "default",
-                            },
-                            dotted_decor: Decor {
-                                prefix: "default",
-                                suffix: "default",
-                            },
+                            leaf_decor: Decor { .. },
+                            dotted_decor: Decor { .. },
                         },
                     ],
                 ),
@@ -949,26 +912,14 @@ mod tests {
                         Key {
                             key: "test-table1",
                             repr: None,
-                            leaf_decor: Decor {
-                                prefix: "default",
-                                suffix: "default",
-                            },
-                            dotted_decor: Decor {
-                                prefix: "default",
-                                suffix: "default",
-                            },
+                            leaf_decor: Decor { .. },
+                            dotted_decor: Decor { .. },
                         },
                         Key {
                             key: "bar",
                             repr: None,
-                            leaf_decor: Decor {
-                                prefix: "default",
-                                suffix: "default",
-                            },
-                            dotted_decor: Decor {
-                                prefix: "default",
-                                suffix: "default",
-                            },
+                            leaf_decor: Decor { .. },
+                            dotted_decor: Decor { .. },
                         },
                     ],
                 ),
