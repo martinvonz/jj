@@ -28,6 +28,7 @@ use crate::backend::Commit;
 use crate::backend::Signature;
 use crate::backend::Timestamp;
 use crate::config::ConfigError;
+use crate::config::ConfigResultExt as _;
 use crate::config::ConfigTable;
 use crate::config::ConfigValue;
 use crate::config::StackedConfig;
@@ -322,20 +323,6 @@ impl JJRng {
         match seed {
             Some(seed) => ChaCha20Rng::seed_from_u64(seed),
             None => ChaCha20Rng::from_entropy(),
-        }
-    }
-}
-
-pub trait ConfigResultExt<T> {
-    fn optional(self) -> Result<Option<T>, ConfigError>;
-}
-
-impl<T> ConfigResultExt<T> for Result<T, ConfigError> {
-    fn optional(self) -> Result<Option<T>, ConfigError> {
-        match self {
-            Ok(value) => Ok(Some(value)),
-            Err(ConfigError::NotFound(_)) => Ok(None),
-            Err(err) => Err(err),
         }
     }
 }

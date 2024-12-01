@@ -36,6 +36,22 @@ pub type ConfigValue = config::Value;
 // TODO: will be replaced with our custom error type
 pub type ConfigError = config::ConfigError;
 
+/// Extension methods for `Result<T, ConfigError>`.
+pub trait ConfigResultExt<T> {
+    /// Converts `NotFound` error to `Ok(None)`, leaving other errors.
+    fn optional(self) -> Result<Option<T>, ConfigError>;
+}
+
+impl<T> ConfigResultExt<T> for Result<T, ConfigError> {
+    fn optional(self) -> Result<Option<T>, ConfigError> {
+        match self {
+            Ok(value) => Ok(Some(value)),
+            Err(ConfigError::NotFound(_)) => Ok(None),
+            Err(err) => Err(err),
+        }
+    }
+}
+
 /// Dotted config name path.
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct ConfigNamePathBuf(Vec<toml_edit::Key>);

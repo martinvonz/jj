@@ -16,10 +16,10 @@ use std::slice;
 
 use itertools::Itertools as _;
 use jj_lib::config::ConfigError;
+use jj_lib::config::ConfigResultExt as _;
 use jj_lib::op_walk;
 use jj_lib::operation::Operation;
 use jj_lib::repo::RepoLoader;
-use jj_lib::settings::ConfigResultExt as _;
 use jj_lib::settings::UserSettings;
 
 use super::diff::show_op_diff;
