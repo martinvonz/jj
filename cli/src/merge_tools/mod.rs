@@ -19,9 +19,9 @@ mod external;
 use std::sync::Arc;
 
 use jj_lib::backend::MergedTreeId;
-use jj_lib::config::ConfigError;
+use jj_lib::config::ConfigGetError;
+use jj_lib::config::ConfigGetResultExt as _;
 use jj_lib::config::ConfigNamePathBuf;
-use jj_lib::config::ConfigResultExt as _;
 use jj_lib::conflicts::extract_as_single_hunk;
 use jj_lib::conflicts::ConflictMarkerStyle;
 use jj_lib::gitignore::GitIgnoreFile;
@@ -62,7 +62,7 @@ pub enum DiffEditError {
     #[error("Failed to snapshot changes")]
     Snapshot(#[from] SnapshotError),
     #[error(transparent)]
-    Config(#[from] ConfigError),
+    Config(#[from] ConfigGetError),
 }
 
 #[derive(Debug, Error)]
@@ -104,7 +104,7 @@ pub enum ConflictResolveError {
 #[derive(Debug, Error)]
 pub enum MergeToolConfigError {
     #[error(transparent)]
-    Config(#[from] ConfigError),
+    Config(#[from] ConfigGetError),
     #[error("The tool `{tool_name}` cannot be used as a merge tool with `jj resolve`")]
     MergeArgsNotConfigured { tool_name: String },
 }
@@ -127,7 +127,7 @@ fn editor_args_from_settings(
     ui: &Ui,
     settings: &UserSettings,
     key: &'static str,
-) -> Result<CommandNameAndArgs, ConfigError> {
+) -> Result<CommandNameAndArgs, ConfigGetError> {
     // TODO: Make this configuration have a table of possible editors and detect the
     // best one here.
     if let Some(args) = settings.get(key).optional()? {
@@ -146,7 +146,10 @@ fn editor_args_from_settings(
 
 /// Resolves builtin merge tool name or loads external tool options from
 /// `[merge-tools.<name>]`.
-fn get_tool_config(settings: &UserSettings, name: &str) -> Result<Option<MergeTool>, ConfigError> {
+fn get_tool_config(
+    settings: &UserSettings,
+    name: &str,
+) -> Result<Option<MergeTool>, ConfigGetError> {
     if name == BUILTIN_EDITOR_NAME {
         Ok(Some(MergeTool::Builtin))
     } else {
@@ -158,14 +161,9 @@ fn get_tool_config(settings: &UserSettings, name: &str) -> Result<Option<MergeTo
 pub fn get_external_tool_config(
     settings: &UserSettings,
     name: &str,
-) -> Result<Option<ExternalMergeTool>, ConfigError> {
+) -> Result<Option<ExternalMergeTool>, ConfigGetError> {
     let full_name = ConfigNamePathBuf::from_iter(["merge-tools", name]);
-    let Some(mut tool) = settings
-        .get::<ExternalMergeTool>(&full_name)
-        .optional()
-        // add config key, deserialize error is otherwise unclear
-        .map_err(|e| ConfigError::Message(format!("{full_name}: {e}")))?
-    else {
+    let Some(mut tool) = settings.get::<ExternalMergeTool>(&full_name).optional()? else {
         return Ok(None);
     };
     if tool.program.is_empty() {

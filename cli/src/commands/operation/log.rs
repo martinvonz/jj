@@ -15,8 +15,8 @@
 use std::slice;
 
 use itertools::Itertools as _;
-use jj_lib::config::ConfigError;
-use jj_lib::config::ConfigResultExt as _;
+use jj_lib::config::ConfigGetError;
+use jj_lib::config::ConfigGetResultExt as _;
 use jj_lib::op_walk;
 use jj_lib::operation::Operation;
 use jj_lib::repo::RepoLoader;
@@ -247,7 +247,7 @@ fn do_op_log(
     Ok(())
 }
 
-fn get_node_template(style: GraphStyle, settings: &UserSettings) -> Result<String, ConfigError> {
+fn get_node_template(style: GraphStyle, settings: &UserSettings) -> Result<String, ConfigGetError> {
     let symbol = settings.get_string("templates.op_log_node").optional()?;
     let default = if style.is_ascii() {
         "builtin_op_log_node_ascii"

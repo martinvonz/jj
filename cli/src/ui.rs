@@ -32,13 +32,12 @@ use std::thread::JoinHandle;
 
 use indoc::indoc;
 use itertools::Itertools as _;
-use jj_lib::config::ConfigError;
+use jj_lib::config::ConfigGetError;
 use jj_lib::config::StackedConfig;
 use minus::MinusError;
 use minus::Pager as MinusPager;
 use tracing::instrument;
 
-use crate::command_error::config_error_with_message;
 use crate::command_error::CommandError;
 use crate::config::CommandNameAndArgs;
 use crate::formatter::Formatter;
@@ -313,7 +312,7 @@ fn color_setting(config: &StackedConfig) -> ColorChoice {
 fn prepare_formatter_factory(
     config: &StackedConfig,
     stdout: &Stdout,
-) -> Result<FormatterFactory, ConfigError> {
+) -> Result<FormatterFactory, ConfigGetError> {
     let terminal = stdout.is_terminal();
     let (color, debug) = match color_setting(config) {
         ColorChoice::Always => (true, false),
@@ -344,16 +343,12 @@ pub enum PaginationChoice {
     Auto,
 }
 
-fn pagination_setting(config: &StackedConfig) -> Result<PaginationChoice, CommandError> {
-    config
-        .get::<PaginationChoice>("ui.paginate")
-        .map_err(|err| config_error_with_message("Invalid `ui.paginate`", err))
+fn pagination_setting(config: &StackedConfig) -> Result<PaginationChoice, ConfigGetError> {
+    config.get::<PaginationChoice>("ui.paginate")
 }
 
-fn pager_setting(config: &StackedConfig) -> Result<CommandNameAndArgs, CommandError> {
-    config
-        .get::<CommandNameAndArgs>("ui.pager")
-        .map_err(|err| config_error_with_message("Invalid `ui.pager`", err))
+fn pager_setting(config: &StackedConfig) -> Result<CommandNameAndArgs, ConfigGetError> {
+    config.get::<CommandNameAndArgs>("ui.pager")
 }
 
 impl Ui {

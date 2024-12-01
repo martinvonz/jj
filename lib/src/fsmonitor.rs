@@ -24,8 +24,8 @@
 
 use std::path::PathBuf;
 
-use crate::config::ConfigError;
-use crate::config::ConfigResultExt as _;
+use crate::config::ConfigGetError;
+use crate::config::ConfigGetResultExt as _;
 use crate::settings::UserSettings;
 
 /// Config for Watchman filesystem monitor (<https://facebook.github.io/watchman/>).
@@ -58,8 +58,9 @@ pub enum FsmonitorSettings {
 
 impl FsmonitorSettings {
     /// Creates an `FsmonitorSettings` from a `config`.
-    pub fn from_settings(settings: &UserSettings) -> Result<FsmonitorSettings, ConfigError> {
-        match settings.get_string("core.fsmonitor") {
+    pub fn from_settings(settings: &UserSettings) -> Result<FsmonitorSettings, ConfigGetError> {
+        let name = "core.fsmonitor";
+        match settings.get_string(name) {
             Ok(s) => match s.as_str() {
                 "watchman" => Ok(Self::Watchman(WatchmanConfig {
                     register_trigger: settings
@@ -67,15 +68,19 @@ impl FsmonitorSettings {
                         .optional()?
                         .unwrap_or_default(),
                 })),
-                "test" => Err(ConfigError::Message(
-                    "cannot use test fsmonitor in real repository".to_string(),
-                )),
+                "test" => Err(ConfigGetError::Type {
+                    name: name.to_owned(),
+                    error: "Cannot use test fsmonitor in real repository".into(),
+                    source_path: None,
+                }),
                 "none" => Ok(Self::None),
-                other => Err(ConfigError::Message(format!(
-                    "unknown fsmonitor kind: {other}",
-                ))),
+                other => Err(ConfigGetError::Type {
+                    name: name.to_owned(),
+                    error: format!("Unknown fsmonitor kind: {other}").into(),
+                    source_path: None,
+                }),
             },
-            Err(ConfigError::NotFound(_)) => Ok(Self::None),
+            Err(ConfigGetError::NotFound { .. }) => Ok(Self::None),
             Err(err) => Err(err),
         }
     }

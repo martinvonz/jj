@@ -14,7 +14,7 @@
 
 use clap_complete::ArgValueCandidates;
 use itertools::Itertools;
-use jj_lib::config::ConfigResultExt as _;
+use jj_lib::config::ConfigGetResultExt as _;
 use jj_lib::repo::Repo;
 use jj_lib::settings::UserSettings;
 use jj_lib::str_util::StringPattern;

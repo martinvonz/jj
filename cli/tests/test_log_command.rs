@@ -1324,10 +1324,11 @@ fn test_graph_styles() {
         &repo_path,
         &["log", "--config-toml=ui.graph.style='unknown'"],
     );
-    insta::assert_snapshot!(stderr, @r###"
-    Config error: enum GraphStyle does not have variant constructor unknown
+    insta::assert_snapshot!(stderr, @r"
+    Config error: Invalid type or value for ui.graph.style
+    Caused by: enum GraphStyle does not have variant constructor unknown
     For help, see https://martinvonz.github.io/jj/latest/config/.
-    "###);
+    ");
 }
 
 #[test]

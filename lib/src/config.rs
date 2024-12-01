@@ -15,6 +15,7 @@
 //! Configuration store helpers.
 
 use std::borrow::Borrow;
+use std::convert::Infallible;
 use std::fmt;
 use std::ops::Range;
 use std::path::Path;
@@ -24,6 +25,7 @@ use std::str::FromStr;
 
 use itertools::Itertools as _;
 use serde::Deserialize;
+use thiserror::Error;
 
 use crate::file_util::IoResultExt as _;
 
@@ -36,17 +38,39 @@ pub type ConfigValue = config::Value;
 // TODO: will be replaced with our custom error type
 pub type ConfigError = config::ConfigError;
 
-/// Extension methods for `Result<T, ConfigError>`.
-pub trait ConfigResultExt<T> {
-    /// Converts `NotFound` error to `Ok(None)`, leaving other errors.
-    fn optional(self) -> Result<Option<T>, ConfigError>;
+/// Error that can occur when looking up config variable.
+#[derive(Debug, Error)]
+pub enum ConfigGetError {
+    /// Config value is not set.
+    #[error("Value not found for {name}")]
+    NotFound {
+        /// Dotted config name path.
+        name: String,
+    },
+    /// Config value cannot be converted to the expected type.
+    #[error("Invalid type or value for {name}")]
+    Type {
+        /// Dotted config name path.
+        name: String,
+        /// Source error.
+        #[source]
+        error: Box<dyn std::error::Error + Send + Sync>,
+        /// Source file path where the value is defined.
+        source_path: Option<PathBuf>,
+    },
 }
 
-impl<T> ConfigResultExt<T> for Result<T, ConfigError> {
-    fn optional(self) -> Result<Option<T>, ConfigError> {
+/// Extension methods for `Result<T, ConfigGetError>`.
+pub trait ConfigGetResultExt<T> {
+    /// Converts `NotFound` error to `Ok(None)`, leaving other errors.
+    fn optional(self) -> Result<Option<T>, ConfigGetError>;
+}
+
+impl<T> ConfigGetResultExt<T> for Result<T, ConfigGetError> {
+    fn optional(self) -> Result<Option<T>, ConfigGetError> {
         match self {
             Ok(value) => Ok(Some(value)),
-            Err(ConfigError::NotFound(_)) => Ok(None),
+            Err(ConfigGetError::NotFound { .. }) => Ok(None),
             Err(err) => Err(err),
         }
     }
@@ -396,37 +420,42 @@ impl StackedConfig {
     pub fn get<'de, T: Deserialize<'de>>(
         &self,
         name: impl ToConfigNamePath,
-    ) -> Result<T, ConfigError> {
+    ) -> Result<T, ConfigGetError> {
         self.get_item_with(name, T::deserialize)
     }
 
     /// Looks up value from all layers, merges sub fields as needed.
-    pub fn get_value(&self, name: impl ToConfigNamePath) -> Result<ConfigValue, ConfigError> {
-        self.get_item_with(name, Ok)
+    pub fn get_value(&self, name: impl ToConfigNamePath) -> Result<ConfigValue, ConfigGetError> {
+        self.get_item_with::<_, Infallible>(name, Ok)
     }
 
     /// Looks up sub table from all layers, merges fields as needed.
     // TODO: redesign this to attach better error indication?
-    pub fn get_table(&self, name: impl ToConfigNamePath) -> Result<ConfigTable, ConfigError> {
+    pub fn get_table(&self, name: impl ToConfigNamePath) -> Result<ConfigTable, ConfigGetError> {
         self.get(name)
     }
 
-    fn get_item_with<T>(
+    fn get_item_with<T, E: Into<Box<dyn std::error::Error + Send + Sync>>>(
         &self,
         name: impl ToConfigNamePath,
-        convert: impl FnOnce(ConfigValue) -> Result<T, ConfigError>,
-    ) -> Result<T, ConfigError> {
+        convert: impl FnOnce(ConfigValue) -> Result<T, E>,
+    ) -> Result<T, ConfigGetError> {
         let name = name.into_name_path();
         let name = name.borrow();
-        let (item, _layer_index) = get_merged_item(&self.layers, name)
-            .ok_or_else(|| ConfigError::NotFound(name.to_string()))?;
-        // TODO: Add source type/path to the error message. If the value is
-        // a table, the error might come from lower layers. We cannot report
-        // precise source information in that case. However, toml_edit captures
-        // dotted keys in the error object. If the keys field were public, we
-        // can look up the source information. This is probably simpler than
-        // reimplementing Deserializer.
-        convert(item).map_err(|err| err.extend_with_key(&name.to_string()))
+        let (item, layer_index) =
+            get_merged_item(&self.layers, name).ok_or_else(|| ConfigGetError::NotFound {
+                name: name.to_string(),
+            })?;
+        // If the value is a table, the error might come from lower layers. We
+        // cannot report precise source information in that case. However,
+        // toml_edit captures dotted keys in the error object. If the keys field
+        // were public, we can look up the source information. This is probably
+        // simpler than reimplementing Deserializer.
+        convert(item).map_err(|err| ConfigGetError::Type {
+            name: name.to_string(),
+            error: err.into(),
+            source_path: self.layers[layer_index].path.clone(),
+        })
     }
 }
 
@@ -587,19 +616,19 @@ mod tests {
         // Table "a.b" exists, but key doesn't
         assert_matches!(
             config.get::<String>("a.b.missing"),
-            Err(ConfigError::NotFound(name)) if name == "a.b.missing"
+            Err(ConfigGetError::NotFound { name }) if name == "a.b.missing"
         );
 
         // Node "a.b.c" is not a table
         assert_matches!(
             config.get::<String>("a.b.c.d"),
-            Err(ConfigError::NotFound(name)) if name == "a.b.c.d"
+            Err(ConfigGetError::NotFound { name }) if name == "a.b.c.d"
         );
 
         // Type error
         assert_matches!(
             config.get::<String>("a.b"),
-            Err(ConfigError::Type { key: Some(name), .. }) if name == "a.b"
+            Err(ConfigGetError::Type { name, .. }) if name == "a.b"
         );
     }
 
@@ -618,7 +647,7 @@ mod tests {
 
         assert_matches!(
             config.get::<String>("a.b.c"),
-            Err(ConfigError::NotFound(name)) if name == "a.b.c"
+            Err(ConfigGetError::NotFound { name }) if name == "a.b.c"
         );
     }
 

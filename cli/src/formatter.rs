@@ -29,7 +29,7 @@ use crossterm::style::SetAttribute;
 use crossterm::style::SetBackgroundColor;
 use crossterm::style::SetForegroundColor;
 use itertools::Itertools;
-use jj_lib::config::ConfigError;
+use jj_lib::config::ConfigGetError;
 use jj_lib::config::StackedConfig;
 
 // Lets the caller label strings and translates the labels to colors
@@ -160,7 +160,7 @@ impl FormatterFactory {
         FormatterFactory { kind }
     }
 
-    pub fn color(config: &StackedConfig, debug: bool) -> Result<Self, ConfigError> {
+    pub fn color(config: &StackedConfig, debug: bool) -> Result<Self, ConfigGetError> {
         let rules = Arc::new(rules_from_config(config)?);
         let kind = FormatterFactoryKind::Color { rules, debug };
         Ok(FormatterFactory { kind })
@@ -297,7 +297,11 @@ impl<W: Write> ColorFormatter<W> {
         }
     }
 
-    pub fn for_config(output: W, config: &StackedConfig, debug: bool) -> Result<Self, ConfigError> {
+    pub fn for_config(
+        output: W,
+        config: &StackedConfig,
+        debug: bool,
+    ) -> Result<Self, ConfigGetError> {
         let rules = rules_from_config(config)?;
         Ok(Self::new(output, Arc::new(rules), debug))
     }
@@ -401,10 +405,15 @@ impl<W: Write> ColorFormatter<W> {
     }
 }
 
-fn rules_from_config(config: &StackedConfig) -> Result<Rules, ConfigError> {
+fn rules_from_config(config: &StackedConfig) -> Result<Rules, ConfigGetError> {
     let mut result = vec![];
     let table = config.get_table("colors")?;
     for (key, value) in table {
+        let to_config_err = |message: String| ConfigGetError::Type {
+            name: format!("colors.'{key}'"),
+            error: message.into(),
+            source_path: None,
+        };
         let labels = key
             .split_whitespace()
             .map(ToString::to_string)
@@ -412,7 +421,7 @@ fn rules_from_config(config: &StackedConfig) -> Result<Rules, ConfigError> {
         match value.kind {
             config::ValueKind::String(color_name) => {
                 let style = Style {
-                    fg_color: Some(color_for_name_or_hex(&color_name)?),
+                    fg_color: Some(color_for_name_or_hex(&color_name).map_err(to_config_err)?),
                     bg_color: None,
                     bold: None,
                     underlined: None,
@@ -423,12 +432,14 @@ fn rules_from_config(config: &StackedConfig) -> Result<Rules, ConfigError> {
                 let mut style = Style::default();
                 if let Some(value) = style_table.get("fg") {
                     if let config::ValueKind::String(color_name) = &value.kind {
-                        style.fg_color = Some(color_for_name_or_hex(color_name)?);
+                        style.fg_color =
+                            Some(color_for_name_or_hex(color_name).map_err(to_config_err)?);
                     }
                 }
                 if let Some(value) = style_table.get("bg") {
                     if let config::ValueKind::String(color_name) = &value.kind {
-                        style.bg_color = Some(color_for_name_or_hex(color_name)?);
+                        style.bg_color =
+                            Some(color_for_name_or_hex(color_name).map_err(to_config_err)?);
                     }
                 }
                 if let Some(value) = style_table.get("bold") {
@@ -449,7 +460,7 @@ fn rules_from_config(config: &StackedConfig) -> Result<Rules, ConfigError> {
     Ok(result)
 }
 
-fn color_for_name_or_hex(name_or_hex: &str) -> Result<Color, ConfigError> {
+fn color_for_name_or_hex(name_or_hex: &str) -> Result<Color, String> {
     match name_or_hex {
         "default" => Ok(Color::Reset),
         "black" => Ok(Color::Black),
@@ -468,8 +479,7 @@ fn color_for_name_or_hex(name_or_hex: &str) -> Result<Color, ConfigError> {
         "bright magenta" => Ok(Color::Magenta),
         "bright cyan" => Ok(Color::Cyan),
         "bright white" => Ok(Color::White),
-        _ => color_for_hex(name_or_hex)
-            .ok_or_else(|| ConfigError::Message(format!("invalid color: {name_or_hex}"))),
+        _ => color_for_hex(name_or_hex).ok_or_else(|| format!("Invalid color: {name_or_hex}")),
     }
 }
 
@@ -699,6 +709,7 @@ fn write_sanitized(output: &mut impl Write, buf: &[u8]) -> Result<(), Error> {
 
 #[cfg(test)]
 mod tests {
+    use std::error::Error as _;
     use std::str;
 
     use indoc::indoc;
@@ -1018,11 +1029,9 @@ mod tests {
         "#,
         );
         let mut output: Vec<u8> = vec![];
-        let err = ColorFormatter::for_config(&mut output, &config, false)
-            .unwrap_err()
-            .to_string();
-        insta::assert_snapshot!(err,
-        @"invalid color: bloo");
+        let err = ColorFormatter::for_config(&mut output, &config, false).unwrap_err();
+        insta::assert_snapshot!(err, @"Invalid type or value for colors.'outer inner'");
+        insta::assert_snapshot!(err.source().unwrap(), @"Invalid color: bloo");
     }
 
     #[test]
@@ -1035,11 +1044,9 @@ mod tests {
             "##,
         );
         let mut output: Vec<u8> = vec![];
-        let err = ColorFormatter::for_config(&mut output, &config, false)
-            .unwrap_err()
-            .to_string();
-        insta::assert_snapshot!(err,
-            @"invalid color: #ffgggg");
+        let err = ColorFormatter::for_config(&mut output, &config, false).unwrap_err();
+        insta::assert_snapshot!(err, @"Invalid type or value for colors.'outer inner'");
+        insta::assert_snapshot!(err.source().unwrap(), @"Invalid color: #ffgggg");
     }
 
     #[test]

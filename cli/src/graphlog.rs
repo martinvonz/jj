@@ -17,7 +17,7 @@ use std::io;
 use std::io::Write;
 
 use itertools::Itertools;
-use jj_lib::config::ConfigError;
+use jj_lib::config::ConfigGetError;
 use jj_lib::settings::UserSettings;
 use renderdag::Ancestor;
 use renderdag::GraphRowRenderer;
@@ -113,7 +113,7 @@ pub enum GraphStyle {
 }
 
 impl GraphStyle {
-    pub fn from_settings(settings: &UserSettings) -> Result<Self, ConfigError> {
+    pub fn from_settings(settings: &UserSettings) -> Result<Self, ConfigGetError> {
         settings.get("ui.graph.style")
     }
 

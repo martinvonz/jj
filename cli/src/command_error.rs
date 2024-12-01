@@ -23,6 +23,7 @@ use std::sync::Arc;
 use itertools::Itertools as _;
 use jj_lib::backend::BackendError;
 use jj_lib::config::ConfigError;
+use jj_lib::config::ConfigGetError;
 use jj_lib::dsl_util::Diagnostics;
 use jj_lib::fileset::FilePatternParseError;
 use jj_lib::fileset::FilesetParseError;
@@ -248,6 +249,20 @@ impl From<ConfigError> for CommandError {
 impl From<ConfigEnvError> for CommandError {
     fn from(err: ConfigEnvError) -> Self {
         config_error(err)
+    }
+}
+
+impl From<ConfigGetError> for CommandError {
+    fn from(err: ConfigGetError) -> Self {
+        let hint = match &err {
+            ConfigGetError::NotFound { .. } => None,
+            ConfigGetError::Type { source_path, .. } => source_path
+                .as_ref()
+                .map(|path| format!("Check the config file: {}", path.display())),
+        };
+        let mut cmd_err = config_error(err);
+        cmd_err.extend_hints(hint);
+        cmd_err
     }
 }
 

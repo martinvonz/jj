@@ -57,9 +57,9 @@ use jj_lib::backend::CommitId;
 use jj_lib::backend::MergedTreeId;
 use jj_lib::backend::TreeValue;
 use jj_lib::commit::Commit;
-use jj_lib::config::ConfigError;
+use jj_lib::config::ConfigGetError;
+use jj_lib::config::ConfigGetResultExt as _;
 use jj_lib::config::ConfigNamePathBuf;
-use jj_lib::config::ConfigResultExt as _;
 use jj_lib::config::StackedConfig;
 use jj_lib::conflicts::ConflictMarkerStyle;
 use jj_lib::file_util;
@@ -2691,8 +2691,16 @@ fn load_template_aliases(
         let table = match layer.look_up_table(&table_name) {
             Ok(Some(table)) => table,
             Ok(None) => continue,
-            // TODO: rewrite error construction after migrating to toml_edit
-            Err(item) => return Err(item.clone().into_table().unwrap_err().into()),
+            Err(item) => {
+                // TODO: rewrite error construction after migrating to toml_edit
+                let error = item.clone().into_table().unwrap_err();
+                return Err(ConfigGetError::Type {
+                    name: table_name.to_string(),
+                    error: error.into(),
+                    source_path: layer.path.clone(),
+                }
+                .into());
+            }
         };
         // TODO: remove sorting after migrating to toml_edit
         for (decl, value) in table.iter().sorted_by_key(|&(decl, _)| decl) {
@@ -2721,7 +2729,7 @@ pub struct LogContentFormat {
 
 impl LogContentFormat {
     /// Creates new formatting helper for the terminal.
-    pub fn new(ui: &Ui, settings: &UserSettings) -> Result<Self, ConfigError> {
+    pub fn new(ui: &Ui, settings: &UserSettings) -> Result<Self, ConfigGetError> {
         Ok(LogContentFormat {
             width: ui.term_width(),
             word_wrap: settings.get_bool("ui.log-word-wrap")?,
@@ -2763,9 +2771,7 @@ pub fn run_ui_editor(settings: &UserSettings, edit_path: &Path) -> Result<(), Co
     // Work around UNC paths not being well supported on Windows (no-op for
     // non-Windows): https://github.com/martinvonz/jj/issues/3986
     let edit_path = dunce::simplified(edit_path);
-    let editor: CommandNameAndArgs = settings
-        .get("ui.editor")
-        .map_err(|err| config_error_with_message("Invalid `ui.editor`", err))?;
+    let editor: CommandNameAndArgs = settings.get("ui.editor")?;
     let mut cmd = editor.to_command();
     cmd.arg(edit_path);
     tracing::info!(?cmd, "running editor");
@@ -3084,7 +3090,7 @@ impl ValueParserFactory for RevisionArg {
 fn get_string_or_array(
     config: &StackedConfig,
     key: &'static str,
-) -> Result<Vec<String>, ConfigError> {
+) -> Result<Vec<String>, ConfigGetError> {
     config
         .get(key)
         .map(|string| vec![string])
@@ -3539,16 +3545,7 @@ impl CliRunner {
             config_env.reset_repo_path(loader.repo_path());
             config_env.reload_repo_config(&mut config)?;
         }
-        ui.reset(&config).map_err(|e| {
-            let user_config_path = config_env.existing_user_config_path();
-            let repo_config_path = config_env.existing_repo_config_path();
-            let paths = [repo_config_path, user_config_path]
-                .into_iter()
-                .flatten()
-                .map(|path| format!("- {}", path.display()))
-                .join("\n");
-            e.hinted(format!("Check the following config files:\n{paths}"))
-        })?;
+        ui.reset(&config)?;
 
         if env::var_os("COMPLETE").is_some() {
             return handle_shell_completion(ui, &self.app, &config, &cwd);

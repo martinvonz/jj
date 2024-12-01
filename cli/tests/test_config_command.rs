@@ -820,10 +820,10 @@ fn test_config_get() {
     );
 
     let stdout = test_env.jj_cmd_failure(test_env.env_root(), &["config", "get", "nonexistent"]);
-    insta::assert_snapshot!(stdout, @r###"
-    Config error: configuration property "nonexistent" not found
+    insta::assert_snapshot!(stdout, @r"
+    Config error: Value not found for nonexistent
     For help, see https://martinvonz.github.io/jj/latest/config/.
-    "###);
+    ");
 
     let stdout = test_env.jj_cmd_success(test_env.env_root(), &["config", "get", "table.string"]);
     insta::assert_snapshot!(stdout, @r###"
@@ -837,15 +837,18 @@ fn test_config_get() {
 
     let stdout = test_env.jj_cmd_failure(test_env.env_root(), &["config", "get", "table.list"]);
     insta::assert_snapshot!(stdout.replace('\\', "/"), @r"
-    Config error: invalid type: sequence, expected a value convertible to a string in config/config0002.toml
+    Config error: Invalid type or value for table.list
+    Caused by: Expected a value convertible to a string, but is sequence
+    Hint: Check the config file: config/config0002.toml
     For help, see https://martinvonz.github.io/jj/latest/config/.
     ");
 
     let stdout = test_env.jj_cmd_failure(test_env.env_root(), &["config", "get", "table"]);
-    insta::assert_snapshot!(stdout, @r###"
-    Config error: invalid type: map, expected a value convertible to a string
+    insta::assert_snapshot!(stdout, @r"
+    Config error: Invalid type or value for table
+    Caused by: Expected a value convertible to a string, but is map
     For help, see https://martinvonz.github.io/jj/latest/config/.
-    "###);
+    ");
 
     let stdout =
         test_env.jj_cmd_success(test_env.env_root(), &["config", "get", "table.overridden"]);
@@ -896,10 +899,10 @@ fn test_config_path_syntax() {
     Warning: No matching config key for a.'b()'.x
     "###);
     let stderr = test_env.jj_cmd_failure(test_env.env_root(), &["config", "get", "a.'b()'.x"]);
-    insta::assert_snapshot!(stderr, @r###"
-    Config error: configuration property "a.'b()'.x" not found
+    insta::assert_snapshot!(stderr, @r"
+    Config error: Value not found for a.'b()'.x
     For help, see https://martinvonz.github.io/jj/latest/config/.
-    "###);
+    ");
 
     // "-" and "_" are valid TOML keys
     let stdout = test_env.jj_cmd_success(test_env.env_root(), &["config", "list", "-"]);
@@ -970,13 +973,12 @@ fn test_config_show_paths() {
         &["config", "set", "--user", "ui.paginate", ":builtin"],
     );
     let stderr = test_env.jj_cmd_failure(test_env.env_root(), &["st"]);
-    insta::assert_snapshot!(stderr, @r###"
-    Config error: Invalid `ui.paginate`
+    insta::assert_snapshot!(stderr, @r"
+    Config error: Invalid type or value for ui.paginate
     Caused by: enum PaginationChoice does not have variant constructor :builtin
-    Hint: Check the following config files:
-    - $TEST_ENV/config/config.toml
+    Hint: Check the config file: $TEST_ENV/config/config.toml
     For help, see https://martinvonz.github.io/jj/latest/config/.
-    "###);
+    ");
 }
 
 #[test]
