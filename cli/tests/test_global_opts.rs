@@ -455,6 +455,22 @@ fn test_color_config() {
     @  230dd059e1b059aefc0da06a2e5a7dbf22362f22
     ◆  0000000000000000000000000000000000000000
     "###);
+
+    // Invalid --color
+    let stderr = test_env.jj_cmd_cli_error(&repo_path, &["log", "--color=foo"]);
+    insta::assert_snapshot!(stderr, @r"
+    error: invalid value 'foo' for '--color <WHEN>': unknown variant `foo`, expected one of `always`, `never`, `debug`, `auto`
+
+    For more information, try '--help'.
+    ");
+    // Invalid ui.color
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "--config-toml=ui.color=true"]);
+    insta::assert_snapshot!(stderr, @r"
+    Config error: Invalid type or value for ui.color
+    Caused by: wanted string or table
+
+    For help, see https://martinvonz.github.io/jj/latest/config/.
+    ");
 }
 
 #[test]
