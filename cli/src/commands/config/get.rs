@@ -47,34 +47,31 @@ pub fn cmd_config_get(
     command: &CommandHelper,
     args: &ConfigGetArgs,
 ) -> Result<(), CommandError> {
-    let value = command
-        .settings()
-        .get_value(&args.name)
-        .and_then(|value| value.into_string())
-        .map_err(|err| match err {
-            ConfigError::Type {
-                origin,
-                unexpected,
-                expected,
-                key,
-            } => {
-                let expected = format!("a value convertible to {expected}");
-                // Copied from `impl fmt::Display for ConfigError`. We can't use
-                // the `Display` impl directly because `expected` is required to
-                // be a `'static str`.
-                let mut buf = String::new();
-                use std::fmt::Write;
-                write!(buf, "invalid type: {unexpected}, expected {expected}").unwrap();
-                if let Some(key) = key {
-                    write!(buf, " for key `{key}`").unwrap();
-                }
-                if let Some(origin) = origin {
-                    write!(buf, " in {origin}").unwrap();
-                }
-                config_error(buf)
+    let value = command.settings().get_value(&args.name)?;
+    let stringified = value.into_string().map_err(|err| match err {
+        ConfigError::Type {
+            origin,
+            unexpected,
+            expected,
+            key,
+        } => {
+            let expected = format!("a value convertible to {expected}");
+            // Copied from `impl fmt::Display for ConfigError`. We can't use
+            // the `Display` impl directly because `expected` is required to
+            // be a `'static str`.
+            let mut buf = String::new();
+            use std::fmt::Write;
+            write!(buf, "invalid type: {unexpected}, expected {expected}").unwrap();
+            if let Some(key) = key {
+                write!(buf, " for key `{key}`").unwrap();
             }
-            err => err.into(),
-        })?;
-    writeln!(ui.stdout(), "{value}")?;
+            if let Some(origin) = origin {
+                write!(buf, " in {origin}").unwrap();
+            }
+            config_error(buf)
+        }
+        err => err.into(),
+    })?;
+    writeln!(ui.stdout(), "{stringified}")?;
     Ok(())
 }
