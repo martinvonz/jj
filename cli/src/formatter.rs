@@ -709,6 +709,7 @@ mod tests {
     use std::error::Error as _;
     use std::str;
 
+    use indexmap::IndexMap;
     use indoc::indoc;
     use jj_lib::config::ConfigLayer;
     use jj_lib::config::ConfigSource;
@@ -774,11 +775,10 @@ mod tests {
             bright-cyan = 'bright cyan'
             bright-white = 'bright white'
         "});
-        // TODO: migrate off config::Config and switch to IndexMap
-        let colors: HashMap<String, String> = config.get("colors").unwrap();
+        let colors: IndexMap<String, String> = config.get("colors").unwrap();
         let mut output: Vec<u8> = vec![];
         let mut formatter = ColorFormatter::for_config(&mut output, &config, false).unwrap();
-        for (label, color) in colors.iter().sorted() {
+        for (label, color) in &colors {
             formatter.push_label(label).unwrap();
             write!(formatter, " {color} ").unwrap();
             formatter.pop_label().unwrap();
@@ -787,21 +787,21 @@ mod tests {
         drop(formatter);
         insta::assert_snapshot!(String::from_utf8(output).unwrap(), @r"
         [38;5;0m black [39m
-        [38;5;4m blue [39m
-        [38;5;8m bright black [39m
-        [38;5;12m bright blue [39m
-        [38;5;14m bright cyan [39m
-        [38;5;10m bright green [39m
-        [38;5;13m bright magenta [39m
-        [38;5;9m bright red [39m
-        [38;5;15m bright white [39m
-        [38;5;11m bright yellow [39m
-        [38;5;6m cyan [39m
-        [38;5;2m green [39m
-        [38;5;5m magenta [39m
         [38;5;1m red [39m
-        [38;5;7m white [39m
+        [38;5;2m green [39m
         [38;5;3m yellow [39m
+        [38;5;4m blue [39m
+        [38;5;5m magenta [39m
+        [38;5;6m cyan [39m
+        [38;5;7m white [39m
+        [38;5;8m bright black [39m
+        [38;5;9m bright red [39m
+        [38;5;10m bright green [39m
+        [38;5;11m bright yellow [39m
+        [38;5;12m bright blue [39m
+        [38;5;13m bright magenta [39m
+        [38;5;14m bright cyan [39m
+        [38;5;15m bright white [39m
         ");
     }
 
@@ -814,11 +814,10 @@ mod tests {
             white = '#ffffff'
             pastel-blue = '#AFE0D9'
         "});
-        // TODO: migrate off config::Config and switch to IndexMap
-        let colors: HashMap<String, String> = config.get("colors").unwrap();
+        let colors: IndexMap<String, String> = config.get("colors").unwrap();
         let mut output: Vec<u8> = vec![];
         let mut formatter = ColorFormatter::for_config(&mut output, &config, false).unwrap();
-        for label in colors.keys().sorted() {
+        for label in colors.keys() {
             formatter.push_label(&label.replace(' ', "-")).unwrap();
             write!(formatter, " {label} ").unwrap();
             formatter.pop_label().unwrap();
@@ -827,8 +826,8 @@ mod tests {
         drop(formatter);
         insta::assert_snapshot!(String::from_utf8(output).unwrap(), @r"
         [38;2;0;0;0m black [39m
-        [38;2;175;224;217m pastel-blue [39m
         [38;2;255;255;255m white [39m
+        [38;2;175;224;217m pastel-blue [39m
         ");
     }
 
