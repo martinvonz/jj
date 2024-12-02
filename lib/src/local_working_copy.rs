@@ -972,12 +972,12 @@ impl TreeState {
                     .collect()
             });
         trace_span!("process tree entries").in_scope(|| {
-            while let Ok((path, tree_values)) = tree_entries_rx.recv() {
+            for (path, tree_values) in &tree_entries_rx {
                 tree_builder.set_or_remove(path, tree_values);
             }
         });
         trace_span!("process present files").in_scope(|| {
-            while let Ok(path) = present_files_rx.recv() {
+            for path in &present_files_rx {
                 deleted_files.remove(&path);
             }
         });
