@@ -631,13 +631,6 @@ struct FsmonitorMatcher {
     watchman_clock: Option<crate::protos::working_copy::WatchmanClock>,
 }
 
-struct DirectoryToVisit<'a> {
-    dir: RepoPathBuf,
-    disk_dir: PathBuf,
-    git_ignore: Arc<GitIgnoreFile>,
-    file_states: FileStates<'a>,
-}
-
 #[derive(Debug, Error)]
 pub enum TreeStateError {
     #[error("Reading tree state from {path}")]
@@ -1021,6 +1014,13 @@ impl TreeState {
             watchman_clock,
         })
     }
+}
+
+struct DirectoryToVisit<'a> {
+    dir: RepoPathBuf,
+    disk_dir: PathBuf,
+    git_ignore: Arc<GitIgnoreFile>,
+    file_states: FileStates<'a>,
 }
 
 /// Helper to scan local-disk directories and files in parallel.
