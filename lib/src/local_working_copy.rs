@@ -1043,11 +1043,13 @@ impl TreeState {
 
         let git_ignore = git_ignore
             .chain_with_file(&dir.to_internal_dir_string(), disk_dir.join(".gitignore"))?;
-        let dir_entries = disk_dir
+        let dir_entries: Vec<_> = disk_dir
             .read_dir()
-            .unwrap()
-            .map(|maybe_entry| maybe_entry.unwrap())
-            .collect_vec();
+            .and_then(|entries| entries.try_collect())
+            .map_err(|err| SnapshotError::Other {
+                message: format!("Failed to read directory {}", disk_dir.display()),
+                err: err.into(),
+            })?;
         dir_entries.into_par_iter().try_for_each_with(
             (
                 tree_entries_tx.clone(),
