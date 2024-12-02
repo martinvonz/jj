@@ -2111,4 +2111,21 @@ fn test_snapshot_max_new_file_size() {
         matches!(err, SnapshotError::NewFileTooLarge { .. }),
         "the failure should be attributed to new file size"
     );
+
+    // A file in sub directory should also be caught
+    let sub_large_path = RepoPath::from_internal_string("sub/large");
+    std::fs::create_dir(
+        sub_large_path
+            .parent()
+            .unwrap()
+            .to_fs_path_unchecked(&workspace_root),
+    )
+    .unwrap();
+    std::fs::rename(
+        large_path.to_fs_path_unchecked(&workspace_root),
+        sub_large_path.to_fs_path_unchecked(&workspace_root),
+    )
+    .unwrap();
+    let result = test_workspace.snapshot_with_options(&options);
+    assert_matches!(result, Err(SnapshotError::NewFileTooLarge { .. }));
 }
