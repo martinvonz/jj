@@ -863,9 +863,9 @@ impl TreeState {
     /// a new tree from it.
     #[instrument(skip_all)]
     pub fn snapshot(&mut self, options: &SnapshotOptions) -> Result<bool, SnapshotError> {
-        let SnapshotOptions {
-            base_ignores,
-            fsmonitor_settings,
+        let &SnapshotOptions {
+            ref base_ignores,
+            ref fsmonitor_settings,
             progress,
             start_tracking_matcher,
             max_new_file_size,
@@ -897,26 +897,26 @@ impl TreeState {
         let (present_files_tx, present_files_rx) = channel();
 
         trace_span!("traverse filesystem").in_scope(|| -> Result<(), SnapshotError> {
-            let current_tree = self.current_tree()?;
-            let snapshotter = FileSnapshotter { tree_state: self };
+            let snapshotter = FileSnapshotter {
+                tree_state: self,
+                current_tree: &self.current_tree()?,
+                matcher: &matcher,
+                start_tracking_matcher,
+                // Move tx sides so they'll be dropped at the end of the scope.
+                tree_entries_tx,
+                file_states_tx,
+                present_files_tx,
+                progress,
+                max_new_file_size,
+                conflict_marker_style,
+            };
             let directory_to_visit = DirectoryToVisit {
                 dir: RepoPathBuf::root(),
                 disk_dir: self.working_copy_path.clone(),
                 git_ignore: base_ignores.clone(),
                 file_states: self.file_states.all(),
             };
-            snapshotter.visit_directory(
-                &matcher,
-                start_tracking_matcher,
-                &current_tree,
-                tree_entries_tx,
-                file_states_tx,
-                present_files_tx,
-                directory_to_visit,
-                *progress,
-                *max_new_file_size,
-                *conflict_marker_style,
-            )
+            snapshotter.visit_directory(directory_to_visit)
         })?;
 
         let mut tree_builder = MergedTreeBuilder::new(self.tree_id.clone());
@@ -1026,23 +1026,19 @@ impl TreeState {
 /// Helper to scan local-disk directories and files in parallel.
 struct FileSnapshotter<'a> {
     tree_state: &'a TreeState,
+    current_tree: &'a MergedTree,
+    matcher: &'a dyn Matcher,
+    start_tracking_matcher: &'a dyn Matcher,
+    tree_entries_tx: Sender<(RepoPathBuf, MergedTreeValue)>,
+    file_states_tx: Sender<(RepoPathBuf, FileState)>,
+    present_files_tx: Sender<RepoPathBuf>,
+    progress: Option<&'a SnapshotProgress<'a>>,
+    max_new_file_size: u64,
+    conflict_marker_style: ConflictMarkerStyle,
 }
 
 impl FileSnapshotter<'_> {
-    #[allow(clippy::too_many_arguments)]
-    fn visit_directory(
-        &self,
-        matcher: &dyn Matcher,
-        start_tracking_matcher: &dyn Matcher,
-        current_tree: &MergedTree,
-        tree_entries_tx: Sender<(RepoPathBuf, MergedTreeValue)>,
-        file_states_tx: Sender<(RepoPathBuf, FileState)>,
-        present_files_tx: Sender<RepoPathBuf>,
-        directory_to_visit: DirectoryToVisit,
-        progress: Option<&SnapshotProgress>,
-        max_new_file_size: u64,
-        conflict_marker_style: ConflictMarkerStyle,
-    ) -> Result<(), SnapshotError> {
+    fn visit_directory(&self, directory_to_visit: DirectoryToVisit) -> Result<(), SnapshotError> {
         let DirectoryToVisit {
             dir,
             disk_dir,
@@ -1050,7 +1046,7 @@ impl FileSnapshotter<'_> {
             file_states,
         } = directory_to_visit;
 
-        if matcher.visit(&dir).is_nothing() {
+        if self.matcher.visit(&dir).is_nothing() {
             return Ok(());
         }
 
@@ -1065,9 +1061,9 @@ impl FileSnapshotter<'_> {
             })?;
         dir_entries.into_par_iter().try_for_each_with(
             (
-                tree_entries_tx.clone(),
-                file_states_tx.clone(),
-                present_files_tx.clone(),
+                self.tree_entries_tx.clone(),
+                self.file_states_tx.clone(),
+                self.present_files_tx.clone(),
             ),
             |(tree_entries_tx, file_states_tx, present_files_tx),
              entry|
@@ -1094,7 +1090,7 @@ impl FileSnapshotter<'_> {
                 if file_type.is_dir() {
                     let file_states = file_states.prefixed(&path);
                     if git_ignore.matches(&path.to_internal_dir_string())
-                        || start_tracking_matcher.visit(&path).is_nothing()
+                        || self.start_tracking_matcher.visit(&path).is_nothing()
                     {
                         // TODO: Report this directory to the caller if there are unignored paths we
                         // should not start tracking.
@@ -1102,7 +1098,7 @@ impl FileSnapshotter<'_> {
                         // If the whole directory is ignored, visit only paths we're already
                         // tracking.
                         for (tracked_path, current_file_state) in file_states {
-                            if !matcher.matches(tracked_path) {
+                            if !self.matcher.matches(tracked_path) {
                                 continue;
                             }
                             let disk_path =
@@ -1128,9 +1124,7 @@ impl FileSnapshotter<'_> {
                                     tracked_path,
                                     disk_path,
                                     Some(&current_file_state),
-                                    current_tree,
                                     &new_file_state,
-                                    conflict_marker_style,
                                 )?;
                                 if let Some(tree_value) = update {
                                     tree_entries_tx
@@ -1151,21 +1145,10 @@ impl FileSnapshotter<'_> {
                             git_ignore: git_ignore.clone(),
                             file_states,
                         };
-                        self.visit_directory(
-                            matcher,
-                            start_tracking_matcher,
-                            current_tree,
-                            tree_entries_tx.clone(),
-                            file_states_tx.clone(),
-                            present_files_tx.clone(),
-                            directory_to_visit,
-                            progress,
-                            max_new_file_size,
-                            conflict_marker_style,
-                        )?;
+                        self.visit_directory(directory_to_visit)?;
                     }
-                } else if matcher.matches(&path) {
-                    if let Some(progress) = progress {
+                } else if self.matcher.matches(&path) {
+                    if let Some(progress) = self.progress {
                         progress(&path);
                     }
                     if maybe_current_file_state.is_none()
@@ -1174,7 +1157,7 @@ impl FileSnapshotter<'_> {
                         // If it wasn't already tracked and it matches
                         // the ignored paths, then ignore it.
                     } else if maybe_current_file_state.is_none()
-                        && !start_tracking_matcher.matches(&path)
+                        && !self.start_tracking_matcher.matches(&path)
                     {
                         // Leave the file untracked
                         // TODO: Report this path to the caller
@@ -1183,13 +1166,14 @@ impl FileSnapshotter<'_> {
                             message: format!("Failed to stat file {}", entry.path().display()),
                             err: err.into(),
                         })?;
-                        if maybe_current_file_state.is_none() && metadata.len() > max_new_file_size
+                        if maybe_current_file_state.is_none()
+                            && metadata.len() > self.max_new_file_size
                         {
                             // TODO: Maybe leave the file untracked instead
                             return Err(SnapshotError::NewFileTooLarge {
                                 path: entry.path().clone(),
                                 size: HumanByteSize(metadata.len()),
-                                max_size: HumanByteSize(max_new_file_size),
+                                max_size: HumanByteSize(self.max_new_file_size),
                             });
                         }
                         if let Some(new_file_state) = file_state(&metadata) {
@@ -1198,9 +1182,7 @@ impl FileSnapshotter<'_> {
                                 &path,
                                 entry.path(),
                                 maybe_current_file_state.as_ref(),
-                                current_tree,
                                 &new_file_state,
-                                conflict_marker_style,
                             )?;
                             if let Some(tree_value) = update {
                                 tree_entries_tx.send((path.clone(), tree_value)).ok();
@@ -1222,9 +1204,7 @@ impl FileSnapshotter<'_> {
         repo_path: &RepoPath,
         disk_path: PathBuf,
         maybe_current_file_state: Option<&FileState>,
-        current_tree: &MergedTree,
         new_file_state: &FileState,
-        conflict_marker_style: ConflictMarkerStyle,
     ) -> Result<Option<MergedTreeValue>, SnapshotError> {
         let clean = match maybe_current_file_state {
             None => {
@@ -1241,7 +1221,7 @@ impl FileSnapshotter<'_> {
         if clean {
             Ok(None)
         } else {
-            let current_tree_values = current_tree.path_value(repo_path)?;
+            let current_tree_values = self.current_tree.path_value(repo_path)?;
             let new_file_type = if !self.tree_state.symlink_support {
                 let mut new_file_type = new_file_state.file_type.clone();
                 if matches!(new_file_type, FileType::Normal { .. })
@@ -1255,13 +1235,7 @@ impl FileSnapshotter<'_> {
             };
             let new_tree_values = match new_file_type {
                 FileType::Normal { executable } => self
-                    .write_path_to_store(
-                        repo_path,
-                        &disk_path,
-                        &current_tree_values,
-                        executable,
-                        conflict_marker_style,
-                    )
+                    .write_path_to_store(repo_path, &disk_path, &current_tree_values, executable)
                     .block_on()?,
                 FileType::Symlink => {
                     let id = self
@@ -1289,7 +1263,6 @@ impl FileSnapshotter<'_> {
         disk_path: &Path,
         current_tree_values: &MergedTreeValue,
         executable: FileExecutableFlag,
-        conflict_marker_style: ConflictMarkerStyle,
     ) -> Result<MergedTreeValue, SnapshotError> {
         if let Some(current_tree_value) = current_tree_values.as_resolved() {
             #[cfg(unix)]
@@ -1319,7 +1292,7 @@ impl FileSnapshotter<'_> {
                 self.store(),
                 repo_path,
                 &content,
-                conflict_marker_style,
+                self.conflict_marker_style,
             )
             .block_on()?;
             match new_file_ids.into_resolved() {
