@@ -971,12 +971,11 @@ impl TreeState {
                     .map(|(path, _state)| path.to_owned())
                     .collect()
             });
-        trace_span!("process tree entries").in_scope(|| -> Result<(), SnapshotError> {
+        trace_span!("process tree entries").in_scope(|| {
             while let Ok((path, tree_values)) = tree_entries_rx.recv() {
                 tree_builder.set_or_remove(path, tree_values);
             }
-            Ok(())
-        })?;
+        });
         trace_span!("process present files").in_scope(|| {
             while let Ok(path) = present_files_rx.recv() {
                 deleted_files.remove(&path);
