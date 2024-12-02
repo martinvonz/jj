@@ -751,6 +751,55 @@ fn test_checkout_discard() {
 }
 
 #[test]
+fn test_snapshot_file_directory_transition() {
+    let settings = testutils::user_settings();
+    let mut test_workspace = TestWorkspace::init(&settings);
+    let repo = test_workspace.repo.clone();
+    let workspace_root = test_workspace.workspace.workspace_root().to_owned();
+    let checkout_options = CheckoutOptions::empty_for_test();
+    let to_ws_path = |path: &RepoPath| path.to_fs_path(&workspace_root).unwrap();
+
+    // file <-> directory transition at root and sub directories
+    let file1_path = RepoPath::from_internal_string("foo/bar");
+    let file2_path = RepoPath::from_internal_string("sub/bar/baz");
+    let file1p_path = file1_path.parent().unwrap();
+    let file2p_path = file2_path.parent().unwrap();
+
+    let tree1 = create_tree(&repo, &[(file1p_path, "1p"), (file2p_path, "2p")]);
+    let tree2 = create_tree(&repo, &[(file1_path, "1"), (file2_path, "2")]);
+    let commit1 = commit_with_tree(repo.store(), tree1.id());
+    let commit2 = commit_with_tree(repo.store(), tree2.id());
+
+    let ws = &mut test_workspace.workspace;
+    ws.check_out(repo.op_id().clone(), None, &commit1, &checkout_options)
+        .unwrap();
+
+    // file -> directory
+    std::fs::remove_file(to_ws_path(file1p_path)).unwrap();
+    std::fs::remove_file(to_ws_path(file2p_path)).unwrap();
+    std::fs::create_dir(to_ws_path(file1p_path)).unwrap();
+    std::fs::create_dir(to_ws_path(file2p_path)).unwrap();
+    std::fs::write(to_ws_path(file1_path), "1").unwrap();
+    std::fs::write(to_ws_path(file2_path), "2").unwrap();
+    let new_tree = test_workspace.snapshot().unwrap();
+    assert_eq!(new_tree.id(), tree2.id());
+
+    let ws = &mut test_workspace.workspace;
+    ws.check_out(repo.op_id().clone(), None, &commit2, &checkout_options)
+        .unwrap();
+
+    // directory -> file
+    std::fs::remove_file(to_ws_path(file1_path)).unwrap();
+    std::fs::remove_file(to_ws_path(file2_path)).unwrap();
+    std::fs::remove_dir(to_ws_path(file1p_path)).unwrap();
+    std::fs::remove_dir(to_ws_path(file2p_path)).unwrap();
+    std::fs::write(to_ws_path(file1p_path), "1p").unwrap();
+    std::fs::write(to_ws_path(file2p_path), "2p").unwrap();
+    let new_tree = test_workspace.snapshot().unwrap();
+    assert_eq!(new_tree.id(), tree1.id());
+}
+
+#[test]
 fn test_materialize_snapshot_conflicted_files() {
     let settings = testutils::user_settings();
     let mut test_workspace = TestWorkspace::init(&settings);
