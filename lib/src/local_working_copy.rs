@@ -818,48 +818,6 @@ impl TreeState {
         self.store.get_root_tree(&self.tree_id)
     }
 
-    async fn write_file_to_store(
-        &self,
-        path: &RepoPath,
-        disk_path: &Path,
-    ) -> Result<FileId, SnapshotError> {
-        let mut file = File::open(disk_path).map_err(|err| SnapshotError::Other {
-            message: format!("Failed to open file {}", disk_path.display()),
-            err: err.into(),
-        })?;
-        Ok(self.store.write_file(path, &mut file).await?)
-    }
-
-    async fn write_symlink_to_store(
-        &self,
-        path: &RepoPath,
-        disk_path: &Path,
-    ) -> Result<SymlinkId, SnapshotError> {
-        if self.symlink_support {
-            let target = disk_path.read_link().map_err(|err| SnapshotError::Other {
-                message: format!("Failed to read symlink {}", disk_path.display()),
-                err: err.into(),
-            })?;
-            let str_target =
-                target
-                    .to_str()
-                    .ok_or_else(|| SnapshotError::InvalidUtf8SymlinkTarget {
-                        path: disk_path.to_path_buf(),
-                    })?;
-            Ok(self.store.write_symlink(path, str_target).await?)
-        } else {
-            let target = fs::read(disk_path).map_err(|err| SnapshotError::Other {
-                message: format!("Failed to read file {}", disk_path.display()),
-                err: err.into(),
-            })?;
-            let string_target =
-                String::from_utf8(target).map_err(|_| SnapshotError::InvalidUtf8SymlinkTarget {
-                    path: disk_path.to_path_buf(),
-                })?;
-            Ok(self.store.write_symlink(path, &string_target).await?)
-        }
-    }
-
     fn reset_watchman(&mut self) {
         self.watchman_clock.take();
     }
@@ -897,7 +855,10 @@ impl TreeState {
             .await
             .map_err(|err| TreeStateError::Fsmonitor(Box::new(err)))
     }
+}
 
+/// Functions to snapshot local-disk files to the store.
+impl TreeState {
     /// Look for changes to the working copy. If there are any changes, create
     /// a new tree from it.
     #[instrument(skip_all)]
@@ -1013,6 +974,51 @@ impl TreeState {
         }
         self.watchman_clock = watchman_clock;
         Ok(is_dirty)
+    }
+
+    #[instrument(skip_all)]
+    fn make_fsmonitor_matcher(
+        &self,
+        fsmonitor_settings: &FsmonitorSettings,
+    ) -> Result<FsmonitorMatcher, SnapshotError> {
+        let (watchman_clock, changed_files) = match fsmonitor_settings {
+            FsmonitorSettings::None => (None, None),
+            FsmonitorSettings::Test { changed_files } => (None, Some(changed_files.clone())),
+            #[cfg(feature = "watchman")]
+            FsmonitorSettings::Watchman(config) => match self.query_watchman(config) {
+                Ok((watchman_clock, changed_files)) => (Some(watchman_clock.into()), changed_files),
+                Err(err) => {
+                    tracing::warn!(?err, "Failed to query filesystem monitor");
+                    (None, None)
+                }
+            },
+            #[cfg(not(feature = "watchman"))]
+            FsmonitorSettings::Watchman(_) => {
+                return Err(SnapshotError::Other {
+                    message: "Failed to query the filesystem monitor".to_string(),
+                    err: "Cannot query Watchman because jj was not compiled with the `watchman` \
+                          feature (consider disabling `core.fsmonitor`)"
+                        .into(),
+                });
+            }
+        };
+        let matcher: Option<Box<dyn Matcher>> = match changed_files {
+            None => None,
+            Some(changed_files) => {
+                let repo_paths = trace_span!("processing fsmonitor paths").in_scope(|| {
+                    changed_files
+                        .into_iter()
+                        .filter_map(|path| RepoPathBuf::from_relative_path(path).ok())
+                        .collect_vec()
+                });
+
+                Some(Box::new(FilesMatcher::new(repo_paths)))
+            }
+        };
+        Ok(FsmonitorMatcher {
+            matcher,
+            watchman_clock,
+        })
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -1202,51 +1208,6 @@ impl TreeState {
         Ok(())
     }
 
-    #[instrument(skip_all)]
-    fn make_fsmonitor_matcher(
-        &self,
-        fsmonitor_settings: &FsmonitorSettings,
-    ) -> Result<FsmonitorMatcher, SnapshotError> {
-        let (watchman_clock, changed_files) = match fsmonitor_settings {
-            FsmonitorSettings::None => (None, None),
-            FsmonitorSettings::Test { changed_files } => (None, Some(changed_files.clone())),
-            #[cfg(feature = "watchman")]
-            FsmonitorSettings::Watchman(config) => match self.query_watchman(config) {
-                Ok((watchman_clock, changed_files)) => (Some(watchman_clock.into()), changed_files),
-                Err(err) => {
-                    tracing::warn!(?err, "Failed to query filesystem monitor");
-                    (None, None)
-                }
-            },
-            #[cfg(not(feature = "watchman"))]
-            FsmonitorSettings::Watchman(_) => {
-                return Err(SnapshotError::Other {
-                    message: "Failed to query the filesystem monitor".to_string(),
-                    err: "Cannot query Watchman because jj was not compiled with the `watchman` \
-                          feature (consider disabling `core.fsmonitor`)"
-                        .into(),
-                });
-            }
-        };
-        let matcher: Option<Box<dyn Matcher>> = match changed_files {
-            None => None,
-            Some(changed_files) => {
-                let repo_paths = trace_span!("processing fsmonitor paths").in_scope(|| {
-                    changed_files
-                        .into_iter()
-                        .filter_map(|path| RepoPathBuf::from_relative_path(path).ok())
-                        .collect_vec()
-                });
-
-                Some(Box::new(FilesMatcher::new(repo_paths)))
-            }
-        };
-        Ok(FsmonitorMatcher {
-            matcher,
-            watchman_clock,
-        })
-    }
-
     fn get_updated_tree_value(
         &self,
         repo_path: &RepoPath,
@@ -1377,6 +1338,51 @@ impl TreeState {
         }
     }
 
+    async fn write_file_to_store(
+        &self,
+        path: &RepoPath,
+        disk_path: &Path,
+    ) -> Result<FileId, SnapshotError> {
+        let mut file = File::open(disk_path).map_err(|err| SnapshotError::Other {
+            message: format!("Failed to open file {}", disk_path.display()),
+            err: err.into(),
+        })?;
+        Ok(self.store.write_file(path, &mut file).await?)
+    }
+
+    async fn write_symlink_to_store(
+        &self,
+        path: &RepoPath,
+        disk_path: &Path,
+    ) -> Result<SymlinkId, SnapshotError> {
+        if self.symlink_support {
+            let target = disk_path.read_link().map_err(|err| SnapshotError::Other {
+                message: format!("Failed to read symlink {}", disk_path.display()),
+                err: err.into(),
+            })?;
+            let str_target =
+                target
+                    .to_str()
+                    .ok_or_else(|| SnapshotError::InvalidUtf8SymlinkTarget {
+                        path: disk_path.to_path_buf(),
+                    })?;
+            Ok(self.store.write_symlink(path, str_target).await?)
+        } else {
+            let target = fs::read(disk_path).map_err(|err| SnapshotError::Other {
+                message: format!("Failed to read file {}", disk_path.display()),
+                err: err.into(),
+            })?;
+            let string_target =
+                String::from_utf8(target).map_err(|_| SnapshotError::InvalidUtf8SymlinkTarget {
+                    path: disk_path.to_path_buf(),
+                })?;
+            Ok(self.store.write_symlink(path, &string_target).await?)
+        }
+    }
+}
+
+/// Functions to update local-disk files from the store.
+impl TreeState {
     fn write_file(
         &self,
         disk_path: &Path,
