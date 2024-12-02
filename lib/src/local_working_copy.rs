@@ -40,6 +40,7 @@ use std::sync::Arc;
 use std::sync::OnceLock;
 use std::time::UNIX_EPOCH;
 
+use either::Either;
 use futures::StreamExt;
 use itertools::EitherOrBoth;
 use itertools::Itertools;
@@ -883,14 +884,14 @@ impl TreeState {
 
         let matcher = IntersectionMatcher::new(sparse_matcher.as_ref(), fsmonitor_matcher);
         if matcher.visit(RepoPath::root()).is_nothing() {
-            // No need to iterate file states to build empty deleted_files.
+            // No need to load the current tree, set up channels, etc.
             self.watchman_clock = watchman_clock;
             return Ok(is_dirty);
         }
 
         let (tree_entries_tx, tree_entries_rx) = channel();
         let (file_states_tx, file_states_rx) = channel();
-        let (present_files_tx, present_files_rx) = channel();
+        let (deleted_files_tx, deleted_files_rx) = channel();
 
         trace_span!("traverse filesystem").in_scope(|| -> Result<(), SnapshotError> {
             let snapshotter = FileSnapshotter {
@@ -901,7 +902,7 @@ impl TreeState {
                 // Move tx sides so they'll be dropped at the end of the scope.
                 tree_entries_tx,
                 file_states_tx,
-                present_files_tx,
+                deleted_files_tx,
                 error: OnceLock::new(),
                 progress,
                 max_new_file_size,
@@ -923,34 +924,18 @@ impl TreeState {
         })?;
 
         let mut tree_builder = MergedTreeBuilder::new(self.tree_id.clone());
-        let mut deleted_files: HashSet<_> =
-            trace_span!("collecting existing files").in_scope(|| {
-                // Since file_states shouldn't contain files excluded by the sparse patterns,
-                // fsmonitor_matcher here is identical to the intersected matcher.
-                let file_states = self.file_states.all();
-                file_states
-                    .iter()
-                    .filter(|(path, state)| {
-                        fsmonitor_matcher.matches(path) && state.file_type != FileType::GitSubmodule
-                    })
-                    .map(|(path, _state)| path.to_owned())
-                    .collect()
-            });
         trace_span!("process tree entries").in_scope(|| {
             for (path, tree_values) in &tree_entries_rx {
                 tree_builder.set_or_remove(path, tree_values);
             }
         });
-        trace_span!("process present files").in_scope(|| {
-            for path in &present_files_rx {
-                deleted_files.remove(&path);
-            }
-        });
-        trace_span!("process deleted tree entries").in_scope(|| {
+        let deleted_files = trace_span!("process deleted tree entries").in_scope(|| {
+            let deleted_files = HashSet::from_iter(deleted_files_rx);
             is_dirty |= !deleted_files.is_empty();
             for file in &deleted_files {
                 tree_builder.set_or_remove(file.clone(), Merge::absent());
             }
+            deleted_files
         });
         trace_span!("process file states").in_scope(|| {
             let changed_file_states = file_states_rx
@@ -1033,6 +1018,18 @@ struct DirectoryToVisit<'a> {
     file_states: FileStates<'a>,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum PresentDirEntryKind {
+    Dir,
+    File,
+}
+
+#[derive(Clone, Debug)]
+struct PresentDirEntries {
+    dirs: HashSet<String>,
+    files: HashSet<String>,
+}
+
 /// Helper to scan local-disk directories and files in parallel.
 struct FileSnapshotter<'a> {
     tree_state: &'a TreeState,
@@ -1041,7 +1038,7 @@ struct FileSnapshotter<'a> {
     start_tracking_matcher: &'a dyn Matcher,
     tree_entries_tx: Sender<(RepoPathBuf, MergedTreeValue)>,
     file_states_tx: Sender<(RepoPathBuf, FileState)>,
-    present_files_tx: Sender<RepoPathBuf>,
+    deleted_files_tx: Sender<RepoPathBuf>,
     error: OnceLock<SnapshotError>,
     progress: Option<&'a SnapshotProgress<'a>>,
     max_new_file_size: u64,
@@ -1095,14 +1092,23 @@ impl FileSnapshotter<'_> {
                 message: format!("Failed to read directory {}", disk_dir.display()),
                 err: err.into(),
             })?;
-        dir_entries
+        let (dirs, files) = dir_entries
             .into_par_iter()
             // Don't split into too many small jobs. For a small directory,
             // sequential scan should be fast enough.
             .with_min_len(100)
-            .try_for_each(|entry| {
+            .filter_map(|entry| {
                 self.process_dir_entry(&dir, &git_ignore, file_states, &entry, scope)
-            })?;
+                    .transpose()
+            })
+            .map(|item| match item {
+                Ok((PresentDirEntryKind::Dir, name)) => Ok(Either::Left(name)),
+                Ok((PresentDirEntryKind::File, name)) => Ok(Either::Right(name)),
+                Err(err) => Err(err),
+            })
+            .collect::<Result<_, _>>()?;
+        let present_entries = PresentDirEntries { dirs, files };
+        self.emit_deleted_files(&dir, file_states, &present_entries);
         Ok(())
     }
 
@@ -1113,23 +1119,21 @@ impl FileSnapshotter<'_> {
         file_states: FileStates<'scope>,
         entry: &DirEntry,
         scope: &rayon::Scope<'scope>,
-    ) -> Result<(), SnapshotError> {
+    ) -> Result<Option<(PresentDirEntryKind, String)>, SnapshotError> {
         let file_type = entry.file_type().unwrap();
         let file_name = entry.file_name();
         let name = file_name
-            .to_str()
-            .ok_or_else(|| SnapshotError::InvalidUtf8Path {
-                path: file_name.clone(),
-            })?;
+            .into_string()
+            .map_err(|path| SnapshotError::InvalidUtf8Path { path })?;
 
-        if RESERVED_DIR_NAMES.contains(&name) {
-            return Ok(());
+        if RESERVED_DIR_NAMES.contains(&name.as_str()) {
+            return Ok(None);
         }
-        let path = dir.join(RepoPathComponent::new(name));
+        let path = dir.join(RepoPathComponent::new(&name));
         let maybe_current_file_state = file_states.get(&path);
         if let Some(file_state) = &maybe_current_file_state {
             if file_state.file_type == FileType::GitSubmodule {
-                return Ok(());
+                return Ok(None);
             }
         }
 
@@ -1155,6 +1159,9 @@ impl FileSnapshotter<'_> {
                     self.visit_directory(directory_to_visit, scope)
                 });
             }
+            // Whether or not the directory path matches, any child file entries
+            // shouldn't be touched within the current recursion step.
+            Ok(Some((PresentDirEntryKind::Dir, name)))
         } else if self.matcher.matches(&path) {
             if let Some(progress) = self.progress {
                 progress(&path);
@@ -1164,11 +1171,13 @@ impl FileSnapshotter<'_> {
             {
                 // If it wasn't already tracked and it matches
                 // the ignored paths, then ignore it.
+                Ok(None)
             } else if maybe_current_file_state.is_none()
                 && !self.start_tracking_matcher.matches(&path)
             {
                 // Leave the file untracked
                 // TODO: Report this path to the caller
+                Ok(None)
             } else {
                 let metadata = entry.metadata().map_err(|err| SnapshotError::Other {
                     message: format!("Failed to stat file {}", entry.path().display()),
@@ -1189,10 +1198,15 @@ impl FileSnapshotter<'_> {
                         maybe_current_file_state.as_ref(),
                         new_file_state,
                     )?;
+                    Ok(Some((PresentDirEntryKind::File, name)))
+                } else {
+                    // Special file is not considered present
+                    Ok(None)
                 }
             }
+        } else {
+            Ok(None)
         }
-        Ok(())
     }
 
     /// Visits only paths we're already tracking.
@@ -1203,10 +1217,8 @@ impl FileSnapshotter<'_> {
             }
             let disk_path = tracked_path.to_fs_path(&self.tree_state.working_copy_path)?;
             let metadata = match disk_path.symlink_metadata() {
-                Ok(metadata) => metadata,
-                Err(err) if err.kind() == io::ErrorKind::NotFound => {
-                    continue;
-                }
+                Ok(metadata) => Some(metadata),
+                Err(err) if err.kind() == io::ErrorKind::NotFound => None,
                 Err(err) => {
                     return Err(SnapshotError::Other {
                         message: format!("Failed to stat file {}", disk_path.display()),
@@ -1214,13 +1226,15 @@ impl FileSnapshotter<'_> {
                     });
                 }
             };
-            if let Some(new_file_state) = file_state(&metadata) {
+            if let Some(new_file_state) = metadata.as_ref().and_then(file_state) {
                 self.process_present_file(
                     tracked_path.to_owned(),
                     &disk_path,
                     Some(&current_file_state),
                     new_file_state,
                 )?;
+            } else {
+                self.deleted_files_tx.send(tracked_path.to_owned()).ok();
             }
         }
         Ok(())
@@ -1233,7 +1247,6 @@ impl FileSnapshotter<'_> {
         maybe_current_file_state: Option<&FileState>,
         new_file_state: FileState,
     ) -> Result<(), SnapshotError> {
-        self.present_files_tx.send(path.clone()).ok();
         let update = self.get_updated_tree_value(
             &path,
             disk_path,
@@ -1247,6 +1260,39 @@ impl FileSnapshotter<'_> {
             self.file_states_tx.send((path, new_file_state)).ok();
         }
         Ok(())
+    }
+
+    /// Emits file paths that don't exist in the `present_entries`.
+    fn emit_deleted_files(
+        &self,
+        dir: &RepoPath,
+        file_states: FileStates<'_>,
+        present_entries: &PresentDirEntries,
+    ) {
+        let file_state_chunks = file_states.iter().chunk_by(|(path, _state)| {
+            // Extract <name> from <dir>, <dir>/<name>, or <dir>/<name>/**.
+            // (file_states may contain <dir> file on file->dir transition.)
+            debug_assert!(path.starts_with(dir));
+            let slash = !dir.is_root() as usize;
+            let len = dir.as_internal_file_string().len() + slash;
+            let tail = path.as_internal_file_string().get(len..).unwrap_or("");
+            match tail.split_once('/') {
+                Some((name, _)) => (PresentDirEntryKind::Dir, name),
+                None => (PresentDirEntryKind::File, tail),
+            }
+        });
+        file_state_chunks
+            .into_iter()
+            .filter(|&((kind, name), _)| match kind {
+                PresentDirEntryKind::Dir => !present_entries.dirs.contains(name),
+                PresentDirEntryKind::File => !present_entries.files.contains(name),
+            })
+            .flat_map(|(_, chunk)| chunk)
+            // Whether or not the entry exists, submodule should be ignored
+            .filter(|(_, state)| state.file_type != FileType::GitSubmodule)
+            .filter(|(path, _)| self.matcher.matches(path))
+            .try_for_each(|(path, _)| self.deleted_files_tx.send(path.to_owned()))
+            .ok();
     }
 
     fn get_updated_tree_value(
