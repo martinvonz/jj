@@ -67,7 +67,7 @@ glob = "0.3.1"
 hashbrown = { version = "0.15.2", default-features = false, features = ["inline-more"] }
 hex = "0.4.3"
 ignore = "0.4.23"
-indexmap = "2.6.0"
+indexmap = "2.7.0"
 indoc = "2.0.4"
 insta = { version = "1.41.1", features = ["filters"] }
 itertools = "0.13.0"
@@ -103,7 +103,7 @@ smallvec = { version = "1.13.2", features = [
     "union",
 ] }
 strsim = "0.11.1"
-syn = "2.0.89"
+syn = "2.0.90"
 tempfile = "3.14.0"
 test-case = "3.3.1"
 textwrap = "0.16.1"
@@ -113,7 +113,7 @@ tokio = { version = "1.41.1" }
 toml_edit = { version = "0.22.22", features = ["serde"] }
 tracing = "0.1.41"
 tracing-chrome = "0.7.2"
-tracing-subscriber = { version = "0.3.18", default-features = false, features = [
+tracing-subscriber = { version = "0.3.19", default-features = false, features = [
     "std",
     "ansi",
     "env-filter",
