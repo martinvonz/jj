@@ -338,6 +338,11 @@
                     "description": "Whether jj should abandon commits that became unreachable in Git.",
                     "default": true
                 },
+                "colocate": {
+                    "type": "boolean",
+                    "description": "Whether to colocate the git repository with the jj repository by default",
+                    "default": false
+                },
                 "push-bookmark-prefix": {
                     "type": "string",
                     "description": "Prefix used when pushing a bookmark based on a change ID",

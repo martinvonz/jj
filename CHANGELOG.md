@@ -79,6 +79,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
    `--source` or `--revisions` arguments are provided with the
    `revsets.simplify-parents` config.
 
+* A new configuration option `git.colocate` has been added to control whether
+  colocated repositories are created by default when using `jj git clone` or
+  `jj git init`.
+
 ### Fixed bugs
 
 * `jj config unset <TABLE-NAME>` no longer removes a table (such as `[ui]`.)

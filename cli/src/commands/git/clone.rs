@@ -58,9 +58,16 @@ pub struct GitCloneArgs {
     /// Name of the newly created remote
     #[arg(long = "remote", default_value = "origin")]
     remote_name: String,
-    /// Whether or not to colocate the Jujutsu repo with the git repo
-    #[arg(long)]
+    /// Colocate the new Jujutsu repo with the git repo
+    #[arg(long, conflicts_with = "no_colocate", default_value = "false")]
     colocate: bool,
+    /// Do not colocate the new Jujutsu repo with the git repo
+    #[arg(
+        long = "no-colocate",
+        conflicts_with = "colocate",
+        default_value = "true"
+    )]
+    no_colocate: bool,
     /// Create a shallow clone of the given depth
     #[arg(long)]
     depth: Option<NonZeroU32>,
@@ -127,6 +134,12 @@ pub fn cmd_git_clone(
     fs::create_dir_all(&wc_path)
         .map_err(|err| user_error_with_message(format!("Failed to create {wc_path_str}"), err))?;
 
+    let colocate = if command.settings().git_settings().colocate {
+        !args.no_colocate
+    } else {
+        args.colocate
+    };
+
     // Canonicalize because fs::remove_dir_all() doesn't seem to like e.g.
     // `/some/path/.`
     let canonical_wc_path: PathBuf = wc_path
@@ -135,7 +148,7 @@ pub fn cmd_git_clone(
     let clone_result = do_git_clone(
         ui,
         command,
-        args.colocate,
+        colocate,
         args.depth,
         remote_name,
         &source,
@@ -144,7 +157,7 @@ pub fn cmd_git_clone(
     if clone_result.is_err() {
         let clean_up_dirs = || -> io::Result<()> {
             fs::remove_dir_all(canonical_wc_path.join(".jj"))?;
-            if args.colocate {
+            if colocate {
                 fs::remove_dir_all(canonical_wc_path.join(".git"))?;
             }
             if !wc_path_existed {
