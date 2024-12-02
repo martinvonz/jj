@@ -898,13 +898,14 @@ impl TreeState {
 
         trace_span!("traverse filesystem").in_scope(|| -> Result<(), SnapshotError> {
             let current_tree = self.current_tree()?;
+            let snapshotter = FileSnapshotter { tree_state: self };
             let directory_to_visit = DirectoryToVisit {
                 dir: RepoPathBuf::root(),
                 disk_dir: self.working_copy_path.clone(),
                 git_ignore: base_ignores.clone(),
                 file_states: self.file_states.all(),
             };
-            self.visit_directory(
+            snapshotter.visit_directory(
                 &matcher,
                 start_tracking_matcher,
                 &current_tree,
@@ -1020,7 +1021,14 @@ impl TreeState {
             watchman_clock,
         })
     }
+}
 
+/// Helper to scan local-disk directories and files in parallel.
+struct FileSnapshotter<'a> {
+    tree_state: &'a TreeState,
+}
+
+impl FileSnapshotter<'_> {
     #[allow(clippy::too_many_arguments)]
     fn visit_directory(
         &self,
@@ -1097,7 +1105,8 @@ impl TreeState {
                             if !matcher.matches(tracked_path) {
                                 continue;
                             }
-                            let disk_path = tracked_path.to_fs_path(&self.working_copy_path)?;
+                            let disk_path =
+                                tracked_path.to_fs_path(&self.tree_state.working_copy_path)?;
                             let metadata = match disk_path.symlink_metadata() {
                                 Ok(metadata) => metadata,
                                 Err(err) if err.kind() == io::ErrorKind::NotFound => {
@@ -1225,14 +1234,15 @@ impl TreeState {
             Some(current_file_state) => {
                 // If the file's mtime was set at the same time as this state file's own mtime,
                 // then we don't know if the file was modified before or after this state file.
-                current_file_state == new_file_state && current_file_state.mtime < self.own_mtime
+                current_file_state == new_file_state
+                    && current_file_state.mtime < self.tree_state.own_mtime
             }
         };
         if clean {
             Ok(None)
         } else {
             let current_tree_values = current_tree.path_value(repo_path)?;
-            let new_file_type = if !self.symlink_support {
+            let new_file_type = if !self.tree_state.symlink_support {
                 let mut new_file_type = new_file_state.file_type.clone();
                 if matches!(new_file_type, FileType::Normal { .. })
                     && matches!(current_tree_values.as_normal(), Some(TreeValue::Symlink(_)))
@@ -1269,6 +1279,10 @@ impl TreeState {
         }
     }
 
+    fn store(&self) -> &Store {
+        &self.tree_state.store
+    }
+
     async fn write_path_to_store(
         &self,
         repo_path: &RepoPath,
@@ -1302,7 +1316,7 @@ impl TreeState {
             })?;
             let new_file_ids = conflicts::update_from_content(
                 &old_file_ids,
-                self.store.as_ref(),
+                self.store(),
                 repo_path,
                 &content,
                 conflict_marker_style,
@@ -1347,7 +1361,7 @@ impl TreeState {
             message: format!("Failed to open file {}", disk_path.display()),
             err: err.into(),
         })?;
-        Ok(self.store.write_file(path, &mut file).await?)
+        Ok(self.store().write_file(path, &mut file).await?)
     }
 
     async fn write_symlink_to_store(
@@ -1355,7 +1369,7 @@ impl TreeState {
         path: &RepoPath,
         disk_path: &Path,
     ) -> Result<SymlinkId, SnapshotError> {
-        if self.symlink_support {
+        if self.tree_state.symlink_support {
             let target = disk_path.read_link().map_err(|err| SnapshotError::Other {
                 message: format!("Failed to read symlink {}", disk_path.display()),
                 err: err.into(),
@@ -1366,7 +1380,7 @@ impl TreeState {
                     .ok_or_else(|| SnapshotError::InvalidUtf8SymlinkTarget {
                         path: disk_path.to_path_buf(),
                     })?;
-            Ok(self.store.write_symlink(path, str_target).await?)
+            Ok(self.store().write_symlink(path, str_target).await?)
         } else {
             let target = fs::read(disk_path).map_err(|err| SnapshotError::Other {
                 message: format!("Failed to read file {}", disk_path.display()),
@@ -1376,7 +1390,7 @@ impl TreeState {
                 String::from_utf8(target).map_err(|_| SnapshotError::InvalidUtf8SymlinkTarget {
                     path: disk_path.to_path_buf(),
                 })?;
-            Ok(self.store.write_symlink(path, &string_target).await?)
+            Ok(self.store().write_symlink(path, &string_target).await?)
         }
     }
 }
