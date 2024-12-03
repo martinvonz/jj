@@ -46,13 +46,23 @@ pub struct BookmarkMoveArgs {
     // We intentionally do not support the short `-f` for `--from` since it
     // could be confused with a shorthand for `--force`, and people might not
     // realize they need `-B`/`--allow-backwards` instead.
-    #[arg(long, group = "source", value_name = "REVISIONS")]
+    #[arg(
+        long,
+        group = "source",
+        value_name = "REVISIONS",
+        add = ArgValueCandidates::new(complete::all_revisions),
+    )]
     from: Vec<RevisionArg>,
 
     /// Move bookmarks to this revision
     // We intentionally do not support the short `-t` for `--to` since we don't
     // support `-f` for `--from`.
-    #[arg(long, default_value = "@", value_name = "REVISION")]
+    #[arg(
+        long,
+        default_value = "@",
+        value_name = "REVISION",
+        add = ArgValueCandidates::new(complete::all_revisions),
+    )]
     to: RevisionArg,
 
     /// Allow moving bookmarks backwards or sideways

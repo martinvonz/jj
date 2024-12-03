@@ -19,6 +19,7 @@ use std::ops::Range;
 use std::rc::Rc;
 
 use bstr::BString;
+use clap_complete::ArgValueCandidates;
 use futures::StreamExt as _;
 use itertools::Itertools as _;
 use jj_lib::annotate::get_annotation_with_file_content;
@@ -49,6 +50,7 @@ use tracing::instrument;
 use crate::cli_util::CommandHelper;
 use crate::cli_util::RevisionArg;
 use crate::command_error::CommandError;
+use crate::complete;
 use crate::ui::Ui;
 
 /// Move changes from a revision into the stack of mutable revisions
@@ -62,12 +64,20 @@ use crate::ui::Ui;
 #[derive(clap::Args, Clone, Debug)]
 pub(crate) struct AbsorbArgs {
     /// Source revision to absorb from
-    #[arg(long, short, default_value = "@")]
+    #[arg(
+        long, short,
+        default_value = "@",
+        add = ArgValueCandidates::new(complete::mutable_revisions),
+    )]
     from: RevisionArg,
     /// Destination revisions to absorb into
     ///
     /// Only ancestors of the source revision will be considered.
-    #[arg(long, short = 't', visible_alias = "to", default_value = "mutable()")]
+    #[arg(
+        long, short = 't', visible_alias = "to",
+        default_value = "mutable()",
+        add = ArgValueCandidates::new(complete::mutable_revisions),
+    )]
     into: Vec<RevisionArg>,
     /// Move only changes to these paths (instead of all paths)
     #[arg(value_hint = clap::ValueHint::AnyPath)]
