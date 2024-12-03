@@ -1119,23 +1119,12 @@ impl FileSnapshotter<'_> {
                                 }
                             };
                             if let Some(new_file_state) = file_state(&metadata) {
-                                present_files_tx.send(tracked_path.to_owned()).ok();
-                                let update = self.get_updated_tree_value(
-                                    tracked_path,
-                                    disk_path,
+                                self.process_present_file(
+                                    tracked_path.to_owned(),
+                                    &disk_path,
                                     Some(&current_file_state),
-                                    &new_file_state,
+                                    new_file_state,
                                 )?;
-                                if let Some(tree_value) = update {
-                                    tree_entries_tx
-                                        .send((tracked_path.to_owned(), tree_value))
-                                        .ok();
-                                }
-                                if new_file_state != current_file_state {
-                                    file_states_tx
-                                        .send((tracked_path.to_owned(), new_file_state))
-                                        .ok();
-                                }
                             }
                         }
                     } else {
@@ -1177,19 +1166,12 @@ impl FileSnapshotter<'_> {
                             });
                         }
                         if let Some(new_file_state) = file_state(&metadata) {
-                            present_files_tx.send(path.clone()).ok();
-                            let update = self.get_updated_tree_value(
-                                &path,
-                                entry.path(),
+                            self.process_present_file(
+                                path,
+                                &entry.path(),
                                 maybe_current_file_state.as_ref(),
-                                &new_file_state,
+                                new_file_state,
                             )?;
-                            if let Some(tree_value) = update {
-                                tree_entries_tx.send((path.clone(), tree_value)).ok();
-                            }
-                            if Some(&new_file_state) != maybe_current_file_state.as_ref() {
-                                file_states_tx.send((path, new_file_state)).ok();
-                            }
                         }
                     }
                 }
@@ -1199,10 +1181,33 @@ impl FileSnapshotter<'_> {
         Ok(())
     }
 
+    fn process_present_file(
+        &self,
+        path: RepoPathBuf,
+        disk_path: &Path,
+        maybe_current_file_state: Option<&FileState>,
+        new_file_state: FileState,
+    ) -> Result<(), SnapshotError> {
+        self.present_files_tx.send(path.clone()).ok();
+        let update = self.get_updated_tree_value(
+            &path,
+            disk_path,
+            maybe_current_file_state,
+            &new_file_state,
+        )?;
+        if let Some(tree_value) = update {
+            self.tree_entries_tx.send((path.clone(), tree_value)).ok();
+        }
+        if Some(&new_file_state) != maybe_current_file_state {
+            self.file_states_tx.send((path, new_file_state)).ok();
+        }
+        Ok(())
+    }
+
     fn get_updated_tree_value(
         &self,
         repo_path: &RepoPath,
-        disk_path: PathBuf,
+        disk_path: &Path,
         maybe_current_file_state: Option<&FileState>,
         new_file_state: &FileState,
     ) -> Result<Option<MergedTreeValue>, SnapshotError> {
@@ -1235,11 +1240,11 @@ impl FileSnapshotter<'_> {
             };
             let new_tree_values = match new_file_type {
                 FileType::Normal { executable } => self
-                    .write_path_to_store(repo_path, &disk_path, &current_tree_values, executable)
+                    .write_path_to_store(repo_path, disk_path, &current_tree_values, executable)
                     .block_on()?,
                 FileType::Symlink => {
                     let id = self
-                        .write_symlink_to_store(repo_path, &disk_path)
+                        .write_symlink_to_store(repo_path, disk_path)
                         .block_on()?;
                     Merge::normal(TreeValue::Symlink(id))
                 }
