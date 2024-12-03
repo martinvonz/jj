@@ -51,12 +51,11 @@ use crate::ui::Ui;
 /// specified commits.
 #[derive(clap::Args, Clone, Debug)]
 pub(crate) struct DuplicateArgs {
-    /// The revision(s) to duplicate
-    #[arg(default_value = "@", add = ArgValueCandidates::new(complete::all_revisions))]
-    revisions: Vec<RevisionArg>,
-    /// Ignored (but lets you pass `-r` for consistency with other commands)
-    #[arg(short = 'r', hide = true, action = clap::ArgAction::Count)]
-    unused_revision: u8,
+    /// The revision(s) to duplicate (default: @)
+    #[arg(value_name = "REVISIONS", add = ArgValueCandidates::new(complete::all_revisions))]
+    revisions_pos: Vec<RevisionArg>,
+    #[arg(short = 'r', hide = true)]
+    revisions_opt: Vec<RevisionArg>,
     /// The revision(s) to duplicate onto (can be repeated to create a merge
     /// commit)
     #[arg(long, short, add = ArgValueCandidates::new(complete::all_revisions))]
@@ -90,8 +89,13 @@ pub(crate) fn cmd_duplicate(
     args: &DuplicateArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let to_duplicate: Vec<CommitId> = workspace_command
-        .parse_union_revsets(ui, &args.revisions)?
+    let to_duplicate: Vec<CommitId> =
+        if !args.revisions_pos.is_empty() || !args.revisions_opt.is_empty() {
+            workspace_command
+                .parse_union_revsets(ui, &[&*args.revisions_pos, &*args.revisions_opt].concat())?
+        } else {
+            workspace_command.parse_revset(ui, &RevisionArg::AT)?
+        }
         .evaluate_to_commit_ids()?
         .try_collect()?; // in reverse topological order
     if to_duplicate.is_empty() {

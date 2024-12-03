@@ -755,9 +755,7 @@ When any of the `--destination`, `--insert-after`, or `--insert-before` argument
 
 ###### **Arguments:**
 
-* `<REVISIONS>` — The revision(s) to duplicate
-
-  Default value: `@`
+* `<REVISIONS>` — The revision(s) to duplicate (default: @)
 
 ###### **Options:**
 
