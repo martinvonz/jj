@@ -12,6 +12,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Deprecations
 
+* `jj duplicate REV` is deprecated in favor of `-r REV`.
+
 ### New features
 
 ### Fixed bugs

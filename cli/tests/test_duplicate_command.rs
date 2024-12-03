@@ -47,17 +47,17 @@ fn test_duplicate() {
     ◆  000000000000
     "###);
 
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["duplicate", "all()"]);
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["duplicate", "-rall()"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: Cannot duplicate the root commit
     "###);
 
-    let (_stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["duplicate", "none()"]);
+    let (_stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["duplicate", "-rnone()"]);
     insta::assert_snapshot!(stderr, @r###"
     No revisions to duplicate.
     "###);
 
-    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["duplicate", "a"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["duplicate", "-r=a"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Duplicated 2443ea76b0b1 as kpqxywon f5b1e687 a
@@ -75,9 +75,7 @@ fn test_duplicate() {
 
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["undo"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r#"
-    Undid operation: b5bdbb51ab28 (2001-02-03 08:05:17) duplicate 1 commit(s)
-    "#);
+    insta::assert_snapshot!(stderr, @"Undid operation: ec11d2deae86 (2001-02-03 08:05:17) duplicate 1 commit(s)");
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["duplicate" /* duplicates `c` */]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
@@ -93,6 +91,14 @@ fn test_duplicate() {
     ├─╯
     ◆  000000000000
     "#);
+
+    // -r with deprecated positional argument
+    let (_stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["duplicate", "-ra", "c"]);
+    insta::assert_snapshot!(stderr, @r"
+    Warning: Positional argument is deprecated. Use -r REVISION instead.
+    Duplicated 2443ea76b0b1 as nkmrtpmo 65df49b6 a
+    Duplicated 17a00fc21654 as ruktrxxu 0fa46a66 c
+    ");
 }
 
 #[test]
@@ -118,7 +124,7 @@ fn test_duplicate_many() {
     ◆  000000000000
     "###);
 
-    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["duplicate", "b::"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["duplicate", "-r=b::"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Duplicated 1394f625cbbd as wqnwkozp 3b74d969 b
@@ -141,7 +147,7 @@ fn test_duplicate_many() {
 
     // Try specifying the same commit twice directly
     test_env.jj_cmd_ok(&repo_path, &["undo"]);
-    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["duplicate", "b", "b"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["duplicate", "-r=b", "-r=b"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Duplicated 1394f625cbbd as nkmrtpmo 0276d3d7 b
@@ -161,7 +167,7 @@ fn test_duplicate_many() {
 
     // Try specifying the same commit twice indirectly
     test_env.jj_cmd_ok(&repo_path, &["undo"]);
-    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["duplicate", "b::", "d::"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["duplicate", "-r=b::", "-r=d::"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Duplicated 1394f625cbbd as xtnwkqum fa167d18 b
@@ -197,7 +203,7 @@ fn test_duplicate_many() {
     ○  2443ea76b0b1   a
     ◆  000000000000
     "###);
-    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["duplicate", "d::", "a"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["duplicate", "-r=d::", "-r=a"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Duplicated 2443ea76b0b1 as nlrtlrxv c6f7f8c4 a
@@ -223,7 +229,7 @@ fn test_duplicate_many() {
 
     // Check for BUG -- makes too many 'a'-s, etc.
     test_env.jj_cmd_ok(&repo_path, &["undo"]);
-    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["duplicate", "a::"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["duplicate", "-r=a::"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Duplicated 2443ea76b0b1 as uuuvxpvw 0fe67a05 a
@@ -281,7 +287,7 @@ fn test_duplicate_destination() {
     "#);
 
     // Duplicate a single commit onto a single destination.
-    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["duplicate", "a1", "-d", "c"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["duplicate", "-r=a1", "-d", "c"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @"Duplicated 9e85a474f005 as nkmrtpmo 2944a632 a1");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r"
@@ -301,7 +307,7 @@ fn test_duplicate_destination() {
 
     // Duplicate a single commit onto multiple destinations.
     let (stdout, stderr) =
-        test_env.jj_cmd_ok(&repo_path, &["duplicate", "a1", "-d", "c", "-d", "d"]);
+        test_env.jj_cmd_ok(&repo_path, &["duplicate", "-r=a1", "-d", "c", "-d", "d"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @"Duplicated 9e85a474f005 as xtnwkqum 155f6a01 a1");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r"
@@ -321,7 +327,7 @@ fn test_duplicate_destination() {
     test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
 
     // Duplicate a single commit onto its descendant.
-    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["duplicate", "a1", "-d", "a3"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["duplicate", "-r=a1", "-d", "a3"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r"
     Warning: Duplicating commit 9e85a474f005 as a descendant of itself
@@ -370,10 +376,8 @@ fn test_duplicate_destination() {
 
     // Duplicate multiple commits without a direct ancestry relationship onto
     // multiple destinations.
-    let (stdout, stderr) = test_env.jj_cmd_ok(
-        &repo_path,
-        &["duplicate", "-r=a1", "b", "-d", "c", "-d", "d"],
-    );
+    let (stdout, stderr) =
+        test_env.jj_cmd_ok(&repo_path, &["duplicate", "-r=a1|b", "-d", "c", "-d", "d"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r"
     Duplicated 9e85a474f005 as oupztwtk 2f519daa a1
@@ -399,7 +403,7 @@ fn test_duplicate_destination() {
 
     // Duplicate multiple commits with an ancestry relationship onto a
     // single destination.
-    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["duplicate", "a1", "a3", "-d", "c"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["duplicate", "-r=a1|a3", "-d", "c"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r"
     Duplicated 9e85a474f005 as wtszoswq 806f2b56 a1
@@ -424,7 +428,7 @@ fn test_duplicate_destination() {
     // Duplicate multiple commits with an ancestry relationship onto
     // multiple destinations.
     let (stdout, stderr) =
-        test_env.jj_cmd_ok(&repo_path, &["duplicate", "a1", "a3", "-d", "c", "-d", "d"]);
+        test_env.jj_cmd_ok(&repo_path, &["duplicate", "-r=a1|a3", "-d", "c", "-d", "d"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r"
     Duplicated 9e85a474f005 as rkoyqlrv 02cbff23 a1
@@ -484,7 +488,7 @@ fn test_duplicate_insert_after() {
     "#);
 
     // Duplicate a single commit after a single commit with no direct relationship.
-    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["duplicate", "a1", "--after", "b1"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["duplicate", "-r=a1", "--after", "b1"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r"
     Duplicated 9e85a474f005 as pzsxstzt b71e23da a1
@@ -510,7 +514,7 @@ fn test_duplicate_insert_after() {
     test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
 
     // Duplicate a single commit after a single ancestor commit.
-    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["duplicate", "a3", "--after", "a1"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["duplicate", "-r=a3", "--after", "a1"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r"
     Warning: Duplicating commit 17072aa2b823 as an ancestor of itself
@@ -537,7 +541,7 @@ fn test_duplicate_insert_after() {
     test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
 
     // Duplicate a single commit after a single descendant commit.
-    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["duplicate", "a1", "--after", "a3"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["duplicate", "-r=a1", "--after", "a3"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r"
     Warning: Duplicating commit 9e85a474f005 as a descendant of itself
@@ -567,7 +571,7 @@ fn test_duplicate_insert_after() {
     // relationship.
     let (stdout, stderr) = test_env.jj_cmd_ok(
         &repo_path,
-        &["duplicate", "a1", "--after", "b1", "--after", "c1"],
+        &["duplicate", "-r=a1", "--after", "b1", "--after", "c1"],
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r"
@@ -598,7 +602,7 @@ fn test_duplicate_insert_after() {
     // Duplicate a single commit after multiple commits including an ancestor.
     let (stdout, stderr) = test_env.jj_cmd_ok(
         &repo_path,
-        &["duplicate", "a3", "--after", "a2", "--after", "b2"],
+        &["duplicate", "-r=a3", "--after", "a2", "--after", "b2"],
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r"
@@ -629,7 +633,7 @@ fn test_duplicate_insert_after() {
     // Duplicate a single commit after multiple commits including a descendant.
     let (stdout, stderr) = test_env.jj_cmd_ok(
         &repo_path,
-        &["duplicate", "a1", "--after", "a3", "--after", "b2"],
+        &["duplicate", "-r=a1", "--after", "a3", "--after", "b2"],
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r"
@@ -660,7 +664,7 @@ fn test_duplicate_insert_after() {
     // Duplicate multiple commits without a direct ancestry relationship after a
     // single commit without a direct relationship.
     let (stdout, stderr) =
-        test_env.jj_cmd_ok(&repo_path, &["duplicate", "a1", "b1", "--after", "c1"]);
+        test_env.jj_cmd_ok(&repo_path, &["duplicate", "-r=a1|b1", "--after", "c1"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r"
     Duplicated 9e85a474f005 as sryyqqkq 44f57f24 a1
@@ -692,7 +696,7 @@ fn test_duplicate_insert_after() {
     // Duplicate multiple commits without a direct ancestry relationship after a
     // single commit which is an ancestor of one of the duplicated commits.
     let (stdout, stderr) =
-        test_env.jj_cmd_ok(&repo_path, &["duplicate", "a3", "b1", "--after", "a2"]);
+        test_env.jj_cmd_ok(&repo_path, &["duplicate", "-r=a3|b1", "--after", "a2"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r"
     Warning: Duplicating commit 17072aa2b823 as an ancestor of itself
@@ -725,7 +729,7 @@ fn test_duplicate_insert_after() {
     // Duplicate multiple commits without a direct ancestry relationship after a
     // single commit which is a descendant of one of the duplicated commits.
     let (stdout, stderr) =
-        test_env.jj_cmd_ok(&repo_path, &["duplicate", "a1", "b1", "--after", "a3"]);
+        test_env.jj_cmd_ok(&repo_path, &["duplicate", "-r=a1|b1", "--after", "a3"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r"
     Warning: Duplicating commit 9e85a474f005 as a descendant of itself
@@ -759,7 +763,7 @@ fn test_duplicate_insert_after() {
     // multiple commits without a direct relationship to the duplicated commits.
     let (stdout, stderr) = test_env.jj_cmd_ok(
         &repo_path,
-        &["duplicate", "a1", "b1", "--after", "c1", "--after", "d1"],
+        &["duplicate", "-r=a1|b1", "--after", "c1", "--after", "d1"],
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r"
@@ -799,7 +803,7 @@ fn test_duplicate_insert_after() {
     // multiple commits including an ancestor of one of the duplicated commits.
     let (stdout, stderr) = test_env.jj_cmd_ok(
         &repo_path,
-        &["duplicate", "a3", "b1", "--after", "a1", "--after", "c1"],
+        &["duplicate", "-r=a3|b1", "--after", "a1", "--after", "c1"],
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r"
@@ -836,7 +840,7 @@ fn test_duplicate_insert_after() {
     // multiple commits including a descendant of one of the duplicated commits.
     let (stdout, stderr) = test_env.jj_cmd_ok(
         &repo_path,
-        &["duplicate", "a1", "b1", "--after", "a3", "--after", "c2"],
+        &["duplicate", "-r=a1|b1", "--after", "a3", "--after", "c2"],
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r"
@@ -871,7 +875,7 @@ fn test_duplicate_insert_after() {
     // Duplicate multiple commits with an ancestry relationship after a single
     // commit without a direct relationship.
     let (stdout, stderr) =
-        test_env.jj_cmd_ok(&repo_path, &["duplicate", "a1", "a3", "--after", "c2"]);
+        test_env.jj_cmd_ok(&repo_path, &["duplicate", "-r=a1|a3", "--after", "c2"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r"
     Duplicated 9e85a474f005 as vvvtksvt b44d23b4 a1
@@ -900,7 +904,7 @@ fn test_duplicate_insert_after() {
     // Duplicate multiple commits with an ancestry relationship after a single
     // ancestor commit.
     let (stdout, stderr) =
-        test_env.jj_cmd_ok(&repo_path, &["duplicate", "a2", "a3", "--after", "a1"]);
+        test_env.jj_cmd_ok(&repo_path, &["duplicate", "-r=a2|a3", "--after", "a1"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r#"
     Warning: Duplicating commit 17072aa2b823 as an ancestor of itself
@@ -932,7 +936,7 @@ fn test_duplicate_insert_after() {
     // Duplicate multiple commits with an ancestry relationship after a single
     // descendant commit.
     let (stdout, stderr) =
-        test_env.jj_cmd_ok(&repo_path, &["duplicate", "a1", "a2", "--after", "a3"]);
+        test_env.jj_cmd_ok(&repo_path, &["duplicate", "-r=a1|a2", "--after", "a3"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r"
     Warning: Duplicating commit 47df67757a64 as a descendant of itself
@@ -965,7 +969,7 @@ fn test_duplicate_insert_after() {
     // commits without a direct relationship to the duplicated commits.
     let (stdout, stderr) = test_env.jj_cmd_ok(
         &repo_path,
-        &["duplicate", "a1", "a3", "--after", "c2", "--after", "d2"],
+        &["duplicate", "-r=a1|a3", "--after", "c2", "--after", "d2"],
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r"
@@ -997,7 +1001,7 @@ fn test_duplicate_insert_after() {
     // commits including an ancestor of one of the duplicated commits.
     let (stdout, stderr) = test_env.jj_cmd_ok(
         &repo_path,
-        &["duplicate", "a3", "a4", "--after", "a2", "--after", "c2"],
+        &["duplicate", "-r=a3|a4", "--after", "a2", "--after", "c2"],
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r"
@@ -1032,7 +1036,7 @@ fn test_duplicate_insert_after() {
     // commits including a descendant of one of the duplicated commits.
     let (stdout, stderr) = test_env.jj_cmd_ok(
         &repo_path,
-        &["duplicate", "a1", "a2", "--after", "a3", "--after", "c2"],
+        &["duplicate", "-r=a1|a2", "--after", "a3", "--after", "c2"],
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r"
@@ -1066,7 +1070,7 @@ fn test_duplicate_insert_after() {
     // Should error if a loop will be created.
     let stderr = test_env.jj_cmd_failure(
         &repo_path,
-        &["duplicate", "a1", "--after", "b1", "--after", "b2"],
+        &["duplicate", "-r=a1", "--after", "b1", "--after", "b2"],
     );
     insta::assert_snapshot!(stderr, @r#"
     Error: Refusing to create a loop: commit 7b44470918f4 would be both an ancestor and a descendant of the duplicated commits
@@ -1110,7 +1114,8 @@ fn test_duplicate_insert_before() {
     "#);
 
     // Duplicate a single commit before a single commit with no direct relationship.
-    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["duplicate", "a1", "--before", "b2"]);
+    let (stdout, stderr) =
+        test_env.jj_cmd_ok(&repo_path, &["duplicate", "-r=a1", "--before", "b2"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r"
     Duplicated 9e85a474f005 as pzsxstzt b71e23da a1
@@ -1136,7 +1141,8 @@ fn test_duplicate_insert_before() {
     test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
 
     // Duplicate a single commit before a single ancestor commit.
-    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["duplicate", "a3", "--before", "a1"]);
+    let (stdout, stderr) =
+        test_env.jj_cmd_ok(&repo_path, &["duplicate", "-r=a3", "--before", "a1"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r"
     Warning: Duplicating commit 17072aa2b823 as an ancestor of itself
@@ -1163,7 +1169,8 @@ fn test_duplicate_insert_before() {
     test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
 
     // Duplicate a single commit before a single descendant commit.
-    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["duplicate", "a1", "--before", "a3"]);
+    let (stdout, stderr) =
+        test_env.jj_cmd_ok(&repo_path, &["duplicate", "-r=a1", "--before", "a3"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r"
     Warning: Duplicating commit 9e85a474f005 as a descendant of itself
@@ -1193,7 +1200,7 @@ fn test_duplicate_insert_before() {
     // relationship.
     let (stdout, stderr) = test_env.jj_cmd_ok(
         &repo_path,
-        &["duplicate", "a1", "--before", "b2", "--before", "c2"],
+        &["duplicate", "-r=a1", "--before", "b2", "--before", "c2"],
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r"
@@ -1224,7 +1231,7 @@ fn test_duplicate_insert_before() {
     // Duplicate a single commit before multiple commits including an ancestor.
     let (stdout, stderr) = test_env.jj_cmd_ok(
         &repo_path,
-        &["duplicate", "a3", "--before", "a2", "--before", "b2"],
+        &["duplicate", "-r=a3", "--before", "a2", "--before", "b2"],
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r"
@@ -1256,7 +1263,7 @@ fn test_duplicate_insert_before() {
     // Duplicate a single commit before multiple commits including a descendant.
     let (stdout, stderr) = test_env.jj_cmd_ok(
         &repo_path,
-        &["duplicate", "a1", "--before", "a3", "--before", "b2"],
+        &["duplicate", "-r=a1", "--before", "a3", "--before", "b2"],
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r"
@@ -1288,7 +1295,7 @@ fn test_duplicate_insert_before() {
     // Duplicate multiple commits without a direct ancestry relationship before a
     // single commit without a direct relationship.
     let (stdout, stderr) =
-        test_env.jj_cmd_ok(&repo_path, &["duplicate", "a1", "b1", "--before", "c1"]);
+        test_env.jj_cmd_ok(&repo_path, &["duplicate", "-r=a1|b1", "--before", "c1"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r#"
     Duplicated 9e85a474f005 as sryyqqkq fa625d74 a1
@@ -1320,7 +1327,7 @@ fn test_duplicate_insert_before() {
     // Duplicate multiple commits without a direct ancestry relationship before a
     // single commit which is an ancestor of one of the duplicated commits.
     let (stdout, stderr) =
-        test_env.jj_cmd_ok(&repo_path, &["duplicate", "a3", "b1", "--before", "a2"]);
+        test_env.jj_cmd_ok(&repo_path, &["duplicate", "-r=a3|b1", "--before", "a2"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r"
     Warning: Duplicating commit 17072aa2b823 as an ancestor of itself
@@ -1353,7 +1360,7 @@ fn test_duplicate_insert_before() {
     // Duplicate multiple commits without a direct ancestry relationship before a
     // single commit which is a descendant of one of the duplicated commits.
     let (stdout, stderr) =
-        test_env.jj_cmd_ok(&repo_path, &["duplicate", "a1", "b1", "--before", "a3"]);
+        test_env.jj_cmd_ok(&repo_path, &["duplicate", "-r=a1|b1", "--before", "a3"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r"
     Warning: Duplicating commit 9e85a474f005 as a descendant of itself
@@ -1387,7 +1394,7 @@ fn test_duplicate_insert_before() {
     // multiple commits without a direct relationship to the duplicated commits.
     let (stdout, stderr) = test_env.jj_cmd_ok(
         &repo_path,
-        &["duplicate", "a1", "b1", "--before", "c1", "--before", "d1"],
+        &["duplicate", "-r=a1|b1", "--before", "c1", "--before", "d1"],
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r#"
@@ -1424,7 +1431,7 @@ fn test_duplicate_insert_before() {
     // multiple commits including an ancestor of one of the duplicated commits.
     let (stdout, stderr) = test_env.jj_cmd_ok(
         &repo_path,
-        &["duplicate", "a3", "b1", "--before", "a1", "--before", "c1"],
+        &["duplicate", "-r=a3|b1", "--before", "a1", "--before", "c1"],
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r"
@@ -1459,7 +1466,7 @@ fn test_duplicate_insert_before() {
     // multiple commits including a descendant of one of the duplicated commits.
     let (stdout, stderr) = test_env.jj_cmd_ok(
         &repo_path,
-        &["duplicate", "a1", "b1", "--before", "a3", "--before", "c2"],
+        &["duplicate", "-r=a1|b1", "--before", "a3", "--before", "c2"],
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r"
@@ -1495,7 +1502,7 @@ fn test_duplicate_insert_before() {
     // Duplicate multiple commits with an ancestry relationship before a single
     // commit without a direct relationship.
     let (stdout, stderr) =
-        test_env.jj_cmd_ok(&repo_path, &["duplicate", "a1", "a3", "--before", "c2"]);
+        test_env.jj_cmd_ok(&repo_path, &["duplicate", "-r=a1|a3", "--before", "c2"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r"
     Duplicated 9e85a474f005 as vvvtksvt baee09af a1
@@ -1525,7 +1532,7 @@ fn test_duplicate_insert_before() {
     // Duplicate multiple commits with an ancestry relationship before a single
     // ancestor commit.
     let (stdout, stderr) =
-        test_env.jj_cmd_ok(&repo_path, &["duplicate", "a1", "a3", "--before", "a1"]);
+        test_env.jj_cmd_ok(&repo_path, &["duplicate", "-r=a1|a3", "--before", "a1"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r"
     Warning: Duplicating commit 17072aa2b823 as an ancestor of itself
@@ -1557,7 +1564,7 @@ fn test_duplicate_insert_before() {
     // Duplicate multiple commits with an ancestry relationship before a single
     // descendant commit.
     let (stdout, stderr) =
-        test_env.jj_cmd_ok(&repo_path, &["duplicate", "a1", "a2", "--before", "a3"]);
+        test_env.jj_cmd_ok(&repo_path, &["duplicate", "-r=a1|a2", "--before", "a3"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r"
     Warning: Duplicating commit 47df67757a64 as a descendant of itself
@@ -1590,7 +1597,7 @@ fn test_duplicate_insert_before() {
     // commits without a direct relationship to the duplicated commits.
     let (stdout, stderr) = test_env.jj_cmd_ok(
         &repo_path,
-        &["duplicate", "a1", "a3", "--before", "c2", "--before", "d2"],
+        &["duplicate", "-r=a1|a3", "--before", "c2", "--before", "d2"],
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r"
@@ -1627,7 +1634,7 @@ fn test_duplicate_insert_before() {
     // commits including an ancestor of one of the duplicated commits.
     let (stdout, stderr) = test_env.jj_cmd_ok(
         &repo_path,
-        &["duplicate", "a3", "a4", "--before", "a2", "--before", "c2"],
+        &["duplicate", "-r=a3|a4", "--before", "a2", "--before", "c2"],
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r"
@@ -1663,7 +1670,7 @@ fn test_duplicate_insert_before() {
     // commits including a descendant of one of the duplicated commits.
     let (stdout, stderr) = test_env.jj_cmd_ok(
         &repo_path,
-        &["duplicate", "a1", "a2", "--before", "a3", "--before", "c2"],
+        &["duplicate", "-r=a1|a2", "--before", "a3", "--before", "c2"],
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r"
@@ -1698,7 +1705,7 @@ fn test_duplicate_insert_before() {
     // Should error if a loop will be created.
     let stderr = test_env.jj_cmd_failure(
         &repo_path,
-        &["duplicate", "a1", "--before", "b1", "--before", "b2"],
+        &["duplicate", "-r=a1", "--before", "b1", "--before", "b2"],
     );
     insta::assert_snapshot!(stderr, @r#"
     Error: Refusing to create a loop: commit dcc98bc8bbea would be both an ancestor and a descendant of the duplicated commits
@@ -1744,7 +1751,7 @@ fn test_duplicate_insert_after_before() {
     // Duplicate a single commit in between commits with no direct relationship.
     let (stdout, stderr) = test_env.jj_cmd_ok(
         &repo_path,
-        &["duplicate", "a1", "--before", "b2", "--after", "c2"],
+        &["duplicate", "-r=a1", "--before", "b2", "--after", "c2"],
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r"
@@ -1774,7 +1781,7 @@ fn test_duplicate_insert_after_before() {
     // Duplicate a single commit in between ancestor commits.
     let (stdout, stderr) = test_env.jj_cmd_ok(
         &repo_path,
-        &["duplicate", "a3", "--before", "a2", "--after", "a1"],
+        &["duplicate", "-r=a3", "--before", "a2", "--after", "a1"],
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r"
@@ -1805,7 +1812,7 @@ fn test_duplicate_insert_after_before() {
     // direct relationship.
     let (stdout, stderr) = test_env.jj_cmd_ok(
         &repo_path,
-        &["duplicate", "a3", "--before", "a2", "--after", "b2"],
+        &["duplicate", "-r=a3", "--before", "a2", "--after", "b2"],
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r"
@@ -1836,7 +1843,7 @@ fn test_duplicate_insert_after_before() {
     // Duplicate a single commit in between descendant commits.
     let (stdout, stderr) = test_env.jj_cmd_ok(
         &repo_path,
-        &["duplicate", "a1", "--after", "a3", "--before", "a4"],
+        &["duplicate", "-r=a1", "--after", "a3", "--before", "a4"],
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r"
@@ -1867,7 +1874,7 @@ fn test_duplicate_insert_after_before() {
     // direct relationship.
     let (stdout, stderr) = test_env.jj_cmd_ok(
         &repo_path,
-        &["duplicate", "a1", "--after", "a3", "--before", "b2"],
+        &["duplicate", "-r=a1", "--after", "a3", "--before", "b2"],
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r"
@@ -1900,7 +1907,7 @@ fn test_duplicate_insert_after_before() {
     // commit.
     let (stdout, stderr) = test_env.jj_cmd_ok(
         &repo_path,
-        &["duplicate", "a2", "--after", "a1", "--before", "a4"],
+        &["duplicate", "-r=a2", "--after", "a1", "--before", "a4"],
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r#"
@@ -1932,7 +1939,7 @@ fn test_duplicate_insert_after_before() {
     // commits without a direct relationship.
     let (stdout, stderr) = test_env.jj_cmd_ok(
         &repo_path,
-        &["duplicate", "a1", "b1", "--after", "c1", "--before", "d2"],
+        &["duplicate", "-r=a1|b1", "--after", "c1", "--before", "d2"],
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r"
@@ -1973,7 +1980,7 @@ fn test_duplicate_insert_after_before() {
     // with no direct relationship.
     let (stdout, stderr) = test_env.jj_cmd_ok(
         &repo_path,
-        &["duplicate", "a3", "b1", "--after", "a2", "--before", "c2"],
+        &["duplicate", "-r=a3|b1", "--after", "a2", "--before", "c2"],
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r"
@@ -2009,7 +2016,7 @@ fn test_duplicate_insert_after_before() {
     // commit with no direct relationship.
     let (stdout, stderr) = test_env.jj_cmd_ok(
         &repo_path,
-        &["duplicate", "a1", "b1", "--after", "a3", "--before", "c2"],
+        &["duplicate", "-r=a1|b1", "--after", "a3", "--before", "c2"],
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r"
@@ -2045,7 +2052,7 @@ fn test_duplicate_insert_after_before() {
     // commits without a direct relationship to the duplicated commits.
     let (stdout, stderr) = test_env.jj_cmd_ok(
         &repo_path,
-        &["duplicate", "a1", "b1", "--after", "c1", "--before", "d2"],
+        &["duplicate", "-r=a1|b1", "--after", "c1", "--before", "d2"],
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r"
@@ -2085,7 +2092,7 @@ fn test_duplicate_insert_after_before() {
     // commits without a direct relationship to the duplicated commits.
     let (stdout, stderr) = test_env.jj_cmd_ok(
         &repo_path,
-        &["duplicate", "a1", "a3", "--after", "c1", "--before", "d2"],
+        &["duplicate", "-r=a1|a3", "--after", "c1", "--before", "d2"],
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r"
@@ -2124,7 +2131,7 @@ fn test_duplicate_insert_after_before() {
     // without a direct relationship.
     let (stdout, stderr) = test_env.jj_cmd_ok(
         &repo_path,
-        &["duplicate", "a3", "a4", "--after", "a2", "--before", "c2"],
+        &["duplicate", "-r=a3|a4", "--after", "a2", "--before", "c2"],
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r#"
@@ -2159,7 +2166,7 @@ fn test_duplicate_insert_after_before() {
     // with no direct relationship.
     let (stdout, stderr) = test_env.jj_cmd_ok(
         &repo_path,
-        &["duplicate", "a1", "a2", "--before", "a3", "--after", "c2"],
+        &["duplicate", "-r=a1|a2", "--before", "a3", "--after", "c2"],
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r"
@@ -2192,7 +2199,7 @@ fn test_duplicate_insert_after_before() {
     // commits.
     let (stdout, stderr) = test_env.jj_cmd_ok(
         &repo_path,
-        &["duplicate", "a3", "a4", "--after", "a1", "--before", "a2"],
+        &["duplicate", "-r=a3|a4", "--after", "a1", "--before", "a2"],
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r"
@@ -2226,7 +2233,7 @@ fn test_duplicate_insert_after_before() {
     // commits.
     let (stdout, stderr) = test_env.jj_cmd_ok(
         &repo_path,
-        &["duplicate", "a1", "a2", "--after", "a3", "--before", "a4"],
+        &["duplicate", "-r=a1|a2", "--after", "a3", "--before", "a4"],
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r"
@@ -2260,7 +2267,7 @@ fn test_duplicate_insert_after_before() {
     // commit and a descendant commit.
     let (stdout, stderr) = test_env.jj_cmd_ok(
         &repo_path,
-        &["duplicate", "a2", "a3", "--after", "a1", "--before", "a4"],
+        &["duplicate", "-r=a2|a3", "--after", "a1", "--before", "a4"],
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r#"
@@ -2293,7 +2300,7 @@ fn test_duplicate_insert_after_before() {
     // Should error if a loop will be created.
     let stderr = test_env.jj_cmd_failure(
         &repo_path,
-        &["duplicate", "a1", "--after", "b2", "--before", "b1"],
+        &["duplicate", "-r=a1", "--after", "b2", "--before", "b1"],
     );
     insta::assert_snapshot!(stderr, @r#"
     Error: Refusing to create a loop: commit 7b44470918f4 would be both an ancestor and a descendant of the duplicated commits
@@ -2313,7 +2320,7 @@ fn test_undo_after_duplicate() {
     ◆  000000000000
     "###);
 
-    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["duplicate", "a"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["duplicate", "-r=a"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Duplicated 2443ea76b0b1 as mzvwutvl f5cefcbb a
@@ -2327,9 +2334,7 @@ fn test_undo_after_duplicate() {
 
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["undo"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r#"
-    Undid operation: e3dbefa46ed5 (2001-02-03 08:05:11) duplicate 1 commit(s)
-    "#);
+    insta::assert_snapshot!(stderr, @"Undid operation: 59b2818af9fe (2001-02-03 08:05:11) duplicate 1 commit(s)");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  2443ea76b0b1   a
     ◆  000000000000
@@ -2354,12 +2359,12 @@ fn test_rebase_duplicates() {
     ◆  000000000000    @ 1970-01-01 00:00:00.000 +00:00
     "###);
 
-    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["duplicate", "c"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["duplicate", "-r=c"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Duplicated 7e4fbf4f2759 as yostqsxw 0ac2063b c
     "###);
-    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["duplicate", "c"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["duplicate", "-r=c"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Duplicated 7e4fbf4f2759 as znkkpsqq ce5f4eeb c
