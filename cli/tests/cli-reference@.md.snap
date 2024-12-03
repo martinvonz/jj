@@ -127,7 +127,7 @@ To get started, see the tutorial at https://martinvonz.github.io/jj/latest/tutor
 * `bookmark` — Manage bookmarks [default alias: b]
 * `commit` — Update the description and create a new change on top
 * `config` — Manage config options
-* `describe` — Update the change description or other metadata [aliases: desc]
+* `describe` — Update the change description or other metadata
 * `diff` — Compare file contents between two revisions
 * `diffedit` — Touch up the content changes in a revision with a diff editor
 * `duplicate` — Create new changes with the same content as existing ones
@@ -154,7 +154,7 @@ To get started, see the tutorial at https://martinvonz.github.io/jj/latest/tutor
 * `sparse` — Manage which paths from the working-copy commit are present in the working copy
 * `split` — Split a revision in two
 * `squash` — Move changes from a revision into another revision
-* `status` — Show high-level repo status [aliases: st]
+* `status` — Show high-level repo status
 * `tag` — Manage tags
 * `util` — Infrequently used commands such as for generating shell completions
 * `undo` — Undo an operation (shortcut for `jj op undo`)
@@ -635,7 +635,7 @@ Update config file to unset the given option
 
 ## `jj describe`
 
-Update the change description or other metadata [aliases: desc]
+Update the change description or other metadata
 
 Starts an editor to let you edit the description of changes. The editor will be $EDITOR, or `pico` if that's not defined (`Notepad` on Windows).
 
@@ -2107,7 +2107,7 @@ If a working-copy commit gets abandoned, it will be given a new, empty commit. T
 
 ## `jj status`
 
-Show high-level repo status [aliases: st]
+Show high-level repo status
 
 This includes:
 
