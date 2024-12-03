@@ -344,7 +344,8 @@ fn test_duplicate_destination() {
     test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
     // Duplicate multiple commits without a direct ancestry relationship onto a
     // single destination.
-    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["duplicate", "a1", "b", "-d", "c"]);
+    let (stdout, stderr) =
+        test_env.jj_cmd_ok(&repo_path, &["duplicate", "-r=a1", "-r=b", "-d", "c"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r"
     Duplicated 9e85a474f005 as xlzxqlsl da0996fd a1
@@ -369,8 +370,10 @@ fn test_duplicate_destination() {
 
     // Duplicate multiple commits without a direct ancestry relationship onto
     // multiple destinations.
-    let (stdout, stderr) =
-        test_env.jj_cmd_ok(&repo_path, &["duplicate", "a1", "b", "-d", "c", "-d", "d"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(
+        &repo_path,
+        &["duplicate", "-r=a1", "b", "-d", "c", "-d", "d"],
+    );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r"
     Duplicated 9e85a474f005 as oupztwtk 2f519daa a1
