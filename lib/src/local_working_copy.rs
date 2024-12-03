@@ -1059,15 +1059,9 @@ impl FileSnapshotter<'_> {
                 message: format!("Failed to read directory {}", disk_dir.display()),
                 err: err.into(),
             })?;
-        dir_entries.into_par_iter().try_for_each_with(
-            (
-                self.tree_entries_tx.clone(),
-                self.file_states_tx.clone(),
-                self.present_files_tx.clone(),
-            ),
-            |(tree_entries_tx, file_states_tx, present_files_tx),
-             entry|
-             -> Result<(), SnapshotError> {
+        dir_entries
+            .into_par_iter()
+            .try_for_each(|entry| -> Result<(), SnapshotError> {
                 let file_type = entry.file_type().unwrap();
                 let file_name = entry.file_name();
                 let name = file_name
@@ -1097,36 +1091,7 @@ impl FileSnapshotter<'_> {
 
                         // If the whole directory is ignored, visit only paths we're already
                         // tracking.
-                        for (tracked_path, current_file_state) in file_states {
-                            if !self.matcher.matches(tracked_path) {
-                                continue;
-                            }
-                            let disk_path =
-                                tracked_path.to_fs_path(&self.tree_state.working_copy_path)?;
-                            let metadata = match disk_path.symlink_metadata() {
-                                Ok(metadata) => metadata,
-                                Err(err) if err.kind() == io::ErrorKind::NotFound => {
-                                    continue;
-                                }
-                                Err(err) => {
-                                    return Err(SnapshotError::Other {
-                                        message: format!(
-                                            "Failed to stat file {}",
-                                            disk_path.display()
-                                        ),
-                                        err: err.into(),
-                                    });
-                                }
-                            };
-                            if let Some(new_file_state) = file_state(&metadata) {
-                                self.process_present_file(
-                                    tracked_path.to_owned(),
-                                    &disk_path,
-                                    Some(&current_file_state),
-                                    new_file_state,
-                                )?;
-                            }
-                        }
+                        self.visit_tracked_files(file_states)?;
                     } else {
                         let directory_to_visit = DirectoryToVisit {
                             dir: path,
@@ -1176,8 +1141,38 @@ impl FileSnapshotter<'_> {
                     }
                 }
                 Ok(())
-            },
-        )?;
+            })?;
+        Ok(())
+    }
+
+    /// Visits only paths we're already tracking.
+    fn visit_tracked_files(&self, file_states: FileStates<'_>) -> Result<(), SnapshotError> {
+        for (tracked_path, current_file_state) in file_states {
+            if !self.matcher.matches(tracked_path) {
+                continue;
+            }
+            let disk_path = tracked_path.to_fs_path(&self.tree_state.working_copy_path)?;
+            let metadata = match disk_path.symlink_metadata() {
+                Ok(metadata) => metadata,
+                Err(err) if err.kind() == io::ErrorKind::NotFound => {
+                    continue;
+                }
+                Err(err) => {
+                    return Err(SnapshotError::Other {
+                        message: format!("Failed to stat file {}", disk_path.display()),
+                        err: err.into(),
+                    });
+                }
+            };
+            if let Some(new_file_state) = file_state(&metadata) {
+                self.process_present_file(
+                    tracked_path.to_owned(),
+                    &disk_path,
+                    Some(&current_file_state),
+                    new_file_state,
+                )?;
+            }
+        }
         Ok(())
     }
 
