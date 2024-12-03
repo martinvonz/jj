@@ -27,9 +27,6 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * Templates now support the `==` and `!=` logical operators for `Boolean`,
   `Integer`, and `String` types.
 
-* The `jj desc` and `jj st` aliases are now hidden to not interfere with shell
-  completion. They remain available.
-
 * New command `jj absorb` that moves changes to stack of mutable revisions.
 
 * New command `jj util exec` that can be used for arbitrary aliases.
