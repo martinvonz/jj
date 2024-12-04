@@ -1898,6 +1898,73 @@ fn test_bookmark_list_conflicted() {
     "###);
 }
 
+#[test]
+fn test_bookmark_create_onto_hidden_unhides() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    std::fs::write(repo_path.join("a.txt"), "AA").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "A"]);
+    // Emulate a simple commit change, where we want to recover the initial version.
+    std::fs::write(repo_path.join("b.txt"), "BB").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["debug", "snapshot"]);
+    std::fs::write(repo_path.join("b.txt"), "Art").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "B"]);
+    // Create our bookmark onto the hidden commit.
+    let (stdout, _) = test_env.jj_cmd_ok(&repo_path, &["bookmark", "create", "back"]);
+    insta::assert_snapshot!(stdout, r#""#);
+}
+
+#[test]
+fn test_bookmark_move_onto_hidden_unhides() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    std::fs::write(repo_path.join("a.txt"), "AA").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "A"]);
+    // Create our bookmark on the first commit. It will be moved to a predecessor of
+    // the second one.
+    test_env.jj_cmd_ok(&repo_path, &["bookmark", "create", "back"]);
+    // Emulate a simple commit change, where we want to recover the initial version.
+    std::fs::write(repo_path.join("b.txt"), "BB").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["debug", "snapshot"]);
+    std::fs::write(repo_path.join("b.txt"), "Art").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "B"]);
+
+    insta::assert_snapshot!(get_evolog_output(&test_env, &repo_path), r#""#);
+
+    let (stdout, _) =
+        test_env.jj_cmd_ok(&repo_path, &["bookmark", "move", "back", "-r", "<old-id>"]);
+    insta::assert_snapshot!(stdout, r#""#);
+}
+
+#[test]
+fn test_bookmark_set_onto_hidden_unhides() {
+    // TODO: write
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    std::fs::write(repo_path.join("a.txt"), "AA").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "A"]);
+    // Emulate a simple commit change, where we want to recover the initial version.
+    std::fs::write(repo_path.join("b.txt"), "BB").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["debug", "snapshot"]);
+    std::fs::write(repo_path.join("b.txt"), "Art").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "B"]);
+    insta::assert_snapshot!(get_evolog_output(&test_env, &repo_path), r#""#);
+    let (stdout, _) =
+        test_env.jj_cmd_ok(&repo_path, &["bookmark", "set", "back", "-r", "<old-id>"]);
+    insta::assert_snapshot!(stdout, r#""#);
+}
+
+fn get_evolog_output(test_env: &TestEnvironment, cwd: &Path) -> String {
+    let template = r#"change_id ++ " " ++ commit_id"#;
+    test_env.jj_cmd_success(cwd, &["evolog", "-T", template])
+}
+
 fn get_log_output(test_env: &TestEnvironment, cwd: &Path) -> String {
     let template = r#"bookmarks ++ " " ++ commit_id.short()"#;
     test_env.jj_cmd_success(cwd, &["log", "-T", template])

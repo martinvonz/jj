@@ -53,7 +53,9 @@ pub fn cmd_bookmark_create(
     let mut workspace_command = command.workspace_helper(ui)?;
     let target_commit = workspace_command
         .resolve_single_rev(ui, args.revision.as_ref().unwrap_or(&RevisionArg::AT))?;
+    let repo = workspace_command.repo();
     let view = workspace_command.repo().view();
+    let is_hidden = target_commit.is_hidden(repo.as_ref())?;
     let bookmark_names = &args.names;
     for name in bookmark_names {
         if view.get_local_bookmark(name).is_present() {
@@ -92,6 +94,11 @@ pub fn cmd_bookmark_create(
     }
     if bookmark_names.len() > 1 && args.revision.is_none() {
         writeln!(ui.hint_default(), "Use -r to specify the target revision.")?;
+    }
+
+    // The commit was hidden, so make it visible again.
+    if is_hidden {
+        tx.repo_mut().add_head(&target_commit)?;
     }
 
     tx.finish(
