@@ -28,7 +28,7 @@ where
 {
     let description = lines
         .into_iter()
-        .filter(|line| !line.as_ref().starts_with("JJ: "))
+        .filter(|line| !line.as_ref().starts_with("JJ:"))
         .fold(String::new(), |acc, line| acc + line.as_ref() + "\n");
     text_util::complete_newline(description.trim_matches('\n'))
 }
@@ -40,7 +40,7 @@ pub fn edit_description(
 ) -> Result<String, CommandError> {
     let description = format!(
         r#"{description}
-JJ: Lines starting with "JJ: " (like this one) will be removed.
+JJ: Lines starting with "JJ:" (like this one) will be removed.
 "#
     );
 
@@ -138,7 +138,7 @@ where
             lines.push(line);
         }
         // Do not allow lines without a commit header, except for empty lines or comments.
-        else if !line.trim().is_empty() && !line.starts_with("JJ: ") {
+        else if !line.trim().is_empty() && !line.starts_with("JJ:") {
             return Err(ParseBulkEditMessageError::LineWithoutCommitHeader(
                 line.to_owned(),
             ));
@@ -237,7 +237,7 @@ pub fn description_template(
     // commit to be backed out, and the generated description could be set
     // without spawning editor.
 
-    // Named as "draft" because the output can contain "JJ: " comment lines.
+    // Named as "draft" because the output can contain "JJ:" comment lines.
     let template_key = "templates.draft_commit_description";
     let template_text = tx.settings().get_string(template_key)?;
     let template = tx.parse_commit_template(ui, &template_text)?;
