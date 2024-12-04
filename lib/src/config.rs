@@ -474,7 +474,9 @@ impl StackedConfig {
     }
 
     /// Looks up sub table from all layers, merges fields as needed.
-    // TODO: redesign this to attach better error indication?
+    ///
+    /// Use `table_keys(prefix)` and `get([prefix, key])` instead if table
+    /// values have to be converted to non-generic value type.
     pub fn get_table(&self, name: impl ToConfigNamePath) -> Result<ConfigTable, ConfigGetError> {
         self.get(name)
     }
@@ -500,6 +502,20 @@ impl StackedConfig {
             error: err.into(),
             source_path: self.layers[layer_index].path.clone(),
         })
+    }
+
+    /// Returns iterator over sub table keys in order of layer precedence.
+    /// Duplicated keys are omitted.
+    pub fn table_keys(&self, name: impl ToConfigNamePath) -> impl Iterator<Item = &str> {
+        let name = name.into_name_path();
+        let name = name.borrow();
+        let to_merge = get_tables_to_merge(&self.layers, name);
+        to_merge
+            .into_iter()
+            .rev()
+            // TODO: remove sorting after migrating to toml_edit
+            .flat_map(|table| table.keys().sorted_unstable().map(|k| k.as_ref()))
+            .unique()
     }
 }
 
@@ -535,6 +551,22 @@ fn get_merged_item(
         top_index = index;
     }
     Some((merged, top_index))
+}
+
+/// Looks up tables to be merged from `layers`, returns in reverse order.
+fn get_tables_to_merge<'a>(
+    layers: &'a [ConfigLayer],
+    name: &ConfigNamePathBuf,
+) -> Vec<&'a ConfigTable> {
+    let mut to_merge = Vec::new();
+    for layer in layers.iter().rev() {
+        match layer.look_up_table(name) {
+            Ok(Some(table)) => to_merge.push(table),
+            Ok(None) => {}   // parent is a table, but no value found
+            Err(_) => break, // parent/leaf is not a table, shadows lower layers
+        }
+    }
+    to_merge
 }
 
 /// Merges `upper_item` fields into `lower_item` recursively.
@@ -751,6 +783,10 @@ mod tests {
             c = 'a.c #1'
         "});
         assert_eq!(config.get_table("a").unwrap(), expected);
+        assert_eq!(config.table_keys("a").collect_vec(), vec!["a", "b", "c"]);
+        assert_eq!(config.table_keys("a.a").collect_vec(), vec!["a", "b", "c"]);
+        assert_eq!(config.table_keys("a.b").collect_vec(), vec![""; 0]);
+        assert_eq!(config.table_keys("a.missing").collect_vec(), vec![""; 0]);
     }
 
     #[test]
@@ -772,6 +808,8 @@ mod tests {
             a.b = 'a.a.b #2'
         "});
         assert_eq!(config.get_table("a").unwrap(), expected);
+        assert_eq!(config.table_keys("a").collect_vec(), vec!["a"]);
+        assert_eq!(config.table_keys("a.a").collect_vec(), vec!["b"]);
     }
 
     #[test]
@@ -794,6 +832,8 @@ mod tests {
             b = 'a.b #0'
         "});
         assert_eq!(config.get_table("a").unwrap(), expected);
+        assert_eq!(config.table_keys("a").collect_vec(), vec!["a", "b"]);
+        assert_eq!(config.table_keys("a.a").collect_vec(), vec!["b"]);
     }
 
     #[test]
@@ -815,5 +855,6 @@ mod tests {
         "});
         // a is not under a.a, but it should still shadow lower layers
         assert_eq!(config.get_table("a.a").unwrap(), expected);
+        assert_eq!(config.table_keys("a.a").collect_vec(), vec!["b"]);
     }
 }
