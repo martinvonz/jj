@@ -10,6 +10,16 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Breaking changes
 
+### Deprecations
+
+### New features
+
+### Fixed bugs
+
+## [0.24.0] - 2024-12-04
+
+### Breaking changes
+
 * `jj move` has been removed. It was deprecated in 0.16.0.
 
 * `jj checkout` and the built-in alias `jj co` have been removed.
@@ -87,6 +97,31 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Fixed bugs
 
 * `jj config unset <TABLE-NAME>` no longer removes a table (such as `[ui]`.)
+
+
+### Contributors
+
+Thanks to the people who made this release happen!
+
+* Austin Seipp (@thoughtpolice)
+* Benjamin Tan (@bnjmnt4n)
+* Daniel Ploch (@torquestomp)
+* Emily (@neongreen)
+* Essien Ita Essien (@essiene)
+* Herman J. Radtke III (@hjr3)
+* Ilya Grigoriev (@ilyagr)
+* Joaquín Triñanes (@JoaquinTrinanes)
+* Lars Francke (@lfrancke)
+* Luke Randall (@lukerandall)
+* Martin von Zweigbergk (@martinvonz)
+* Nathanael Huffman (@nathanaelhuffman)
+* Philip Metzger (@PhilipMetzger)
+* Remo Senekowitsch (@senekor)
+* Robin Stocker (@robinst)
+* Scott Taylor (@scott2000)
+* Shane Sveller (@shanesveller)
+* Tim Janik (@tim-janik)
+* Yuya Nishihara (@yuja)
 
 ## [0.23.0] - 2024-11-06
 
