@@ -295,6 +295,15 @@ impl UserSettings {
         self.config.get_value(name)
     }
 
+    /// Looks up value by `name`, converts it by using the given function.
+    pub fn get_value_with<T, E: Into<Box<dyn std::error::Error + Send + Sync>>>(
+        &self,
+        name: impl ToConfigNamePath,
+        convert: impl FnOnce(ConfigValue) -> Result<T, E>,
+    ) -> Result<T, ConfigGetError> {
+        self.config.get_value_with(name, convert)
+    }
+
     /// Looks up sub table by `name`.
     pub fn get_table(&self, name: impl ToConfigNamePath) -> Result<ConfigTable, ConfigGetError> {
         self.config.get_table(name)
