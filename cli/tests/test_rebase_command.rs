@@ -116,6 +116,29 @@ fn test_rebase_invalid() {
 }
 
 #[test]
+fn test_rebase_empty_sets() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    create_commit(&test_env, &repo_path, "a", &[]);
+    create_commit(&test_env, &repo_path, "b", &["a"]);
+
+    // TODO: Make all of these say "Nothing changed"?
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-r=none()", "-d=b"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @"");
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["rebase", "-s=none()", "-d=b"]);
+    insta::assert_snapshot!(stderr, @r###"Error: Revset "none()" didn't resolve to any revisions"###);
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["rebase", "-b=none()", "-d=b"]);
+    insta::assert_snapshot!(stderr, @r###"Error: Revset "none()" didn't resolve to any revisions"###);
+    // Empty because "b..a" is empty
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-b=a", "-d=b"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @"");
+}
+
+#[test]
 fn test_rebase_bookmark() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
