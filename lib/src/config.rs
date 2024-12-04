@@ -462,6 +462,17 @@ impl StackedConfig {
         self.get_item_with::<_, Infallible>(name, Ok)
     }
 
+    /// Looks up value from all layers, merges sub fields as needed, then
+    /// converts the value by using the given function.
+    pub fn get_value_with<T, E: Into<Box<dyn std::error::Error + Send + Sync>>>(
+        &self,
+        name: impl ToConfigNamePath,
+        convert: impl FnOnce(ConfigValue) -> Result<T, E>,
+    ) -> Result<T, ConfigGetError> {
+        // TODO: Item will be a different type than Value
+        self.get_item_with(name, convert)
+    }
+
     /// Looks up sub table from all layers, merges fields as needed.
     // TODO: redesign this to attach better error indication?
     pub fn get_table(&self, name: impl ToConfigNamePath) -> Result<ConfigTable, ConfigGetError> {
