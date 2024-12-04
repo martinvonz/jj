@@ -67,7 +67,7 @@ fn test_split_by_paths() {
     JJ: This commit contains the following changes:
     JJ:     A file2
 
-    JJ: Lines starting with "JJ: " (like this one) will be removed.
+    JJ: Lines starting with "JJ:" (like this one) will be removed.
     "###);
     assert!(!test_env.env_root().join("editor1").exists());
 
@@ -192,7 +192,7 @@ fn test_split_with_non_empty_description() {
     JJ: This commit contains the following changes:
     JJ:     A file1
 
-    JJ: Lines starting with "JJ: " (like this one) will be removed.
+    JJ: Lines starting with "JJ:" (like this one) will be removed.
     "###);
     insta::assert_snapshot!(
         std::fs::read_to_string(test_env.env_root().join("editor2")).unwrap(), @r###"
@@ -202,7 +202,7 @@ fn test_split_with_non_empty_description() {
     JJ: This commit contains the following changes:
     JJ:     A file2
 
-    JJ: Lines starting with "JJ: " (like this one) will be removed.
+    JJ: Lines starting with "JJ:" (like this one) will be removed.
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
     @  kkmpptxzrspx false part 2
@@ -254,7 +254,7 @@ fn test_split_with_default_description() {
     JJ: This commit contains the following changes:
     JJ:     A file1
 
-    JJ: Lines starting with "JJ: " (like this one) will be removed.
+    JJ: Lines starting with "JJ:" (like this one) will be removed.
     "###);
     assert!(!test_env.env_root().join("editor2").exists());
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
@@ -373,7 +373,7 @@ fn test_split_siblings_no_descendants() {
     JJ: This commit contains the following changes:
     JJ:     A file1
 
-    JJ: Lines starting with "JJ: " (like this one) will be removed.
+    JJ: Lines starting with "JJ:" (like this one) will be removed.
     "###);
     assert!(!test_env.env_root().join("editor2").exists());
 }
@@ -451,7 +451,7 @@ fn test_split_siblings_with_descendants() {
     JJ: This commit contains the following changes:
     JJ:     A file1
 
-    JJ: Lines starting with "JJ: " (like this one) will be removed.
+    JJ: Lines starting with "JJ:" (like this one) will be removed.
     "###);
     insta::assert_snapshot!(
         std::fs::read_to_string(test_env.env_root().join("editor2")).unwrap(), @r###"
@@ -461,7 +461,7 @@ fn test_split_siblings_with_descendants() {
     JJ: This commit contains the following changes:
     JJ:     A file2
 
-    JJ: Lines starting with "JJ: " (like this one) will be removed.
+    JJ: Lines starting with "JJ:" (like this one) will be removed.
     "###);
 }
 
@@ -593,7 +593,7 @@ fn test_split_interactive() {
     JJ: This commit contains the following changes:
     JJ:     A file1
 
-    JJ: Lines starting with "JJ: " (like this one) will be removed.
+    JJ: Lines starting with "JJ:" (like this one) will be removed.
     "###);
 
     insta::assert_snapshot!(stdout, @"");

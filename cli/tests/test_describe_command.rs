@@ -57,7 +57,7 @@ fn test_describe() {
         std::fs::read_to_string(test_env.env_root().join("editor0")).unwrap(), @r###"
     description from CLI
 
-    JJ: Lines starting with "JJ: " (like this one) will be removed.
+    JJ: Lines starting with "JJ:" (like this one) will be removed.
     "###);
 
     // Set a description in editor
@@ -475,15 +475,13 @@ fn test_describe_default_description() {
     "###);
     insta::assert_snapshot!(
         std::fs::read_to_string(test_env.env_root().join("editor")).unwrap(), @r###"
-
-
     TESTED=TODO
 
     JJ: This commit contains the following changes:
     JJ:     A file1
     JJ:     A file2
 
-    JJ: Lines starting with "JJ: " (like this one) will be removed.
+    JJ: Lines starting with "JJ:" (like this one) will be removed.
     "###);
 }
 
@@ -566,15 +564,14 @@ fn test_describe_author() {
     ~
     "#);
     insta::assert_snapshot!(
-        std::fs::read_to_string(test_env.env_root().join("editor")).unwrap(), @r#"
-
+        std::fs::read_to_string(test_env.env_root().join("editor")).unwrap(), @r###"
     JJ: Author: Super Seeder <super.seeder@example.com> (2001-02-03 08:05:12)
     JJ: Committer: Test User <test.user@example.com> (2001-02-03 08:05:12)
 
     JJ: 0 files changed, 0 insertions(+), 0 deletions(-)
 
-    JJ: Lines starting with "JJ: " (like this one) will be removed.
-    "#);
+    JJ: Lines starting with "JJ:" (like this one) will be removed.
+    "###);
 
     // Change the author for multiple commits (the committer is always reset)
     test_env.jj_cmd_ok(

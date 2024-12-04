@@ -195,7 +195,7 @@ fn edit_sparse(
 
     content
         .lines()
-        .filter(|line| !line.starts_with("JJ: "))
+        .filter(|line| !line.starts_with("JJ:"))
         .map(|line| line.trim())
         .filter(|line| !line.is_empty())
         .map(|line| {

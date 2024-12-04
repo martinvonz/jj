@@ -1074,7 +1074,7 @@ fn test_squash_description() {
     JJ: Description from source commit:
     source
 
-    JJ: Lines starting with "JJ: " (like this one) will be removed.
+    JJ: Lines starting with "JJ:" (like this one) will be removed.
     "###);
 
     // An explicit description on the command-line overrides prevents launching an

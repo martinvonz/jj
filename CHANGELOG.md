@@ -20,6 +20,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * `jj git push` no longer pushes new bookmarks by default. Use `--allow-new` to
   bypass this restriction.
 
+* Lines prefixed with "JJ:" in commit descriptions and in sparse patterns (from
+  `jj sparse edit`) are now stripped even if they are not immediately followed
+  by a space. [#5004](https://github.com/martinvonz/jj/issues/5004)
+
 ### Deprecations
 
 ### New features
