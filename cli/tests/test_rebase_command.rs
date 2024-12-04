@@ -124,20 +124,19 @@ fn test_rebase_empty_sets() {
     create_commit(&test_env, &repo_path, "a", &[]);
     create_commit(&test_env, &repo_path, "b", &["a"]);
 
-    // TODO: Make all of these say "Nothing changed" instead?
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-r=none()", "-d=b"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(stderr, @"Nothing changed.");
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-s=none()", "-d=b"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(stderr, @"Nothing changed.");
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-b=none()", "-d=b"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(stderr, @"Nothing changed.");
     // Empty because "b..a" is empty
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-b=a", "-d=b"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(stderr, @"Nothing changed.");
 }
 
 #[test]
