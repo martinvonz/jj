@@ -389,6 +389,7 @@ fn rebase_descendants_transaction(
     rebase_options: &RebaseOptions,
 ) -> Result<(), CommandError> {
     if target_roots.is_empty() {
+        writeln!(ui.status(), "Nothing changed.")?;
         return Ok(());
     }
 
@@ -496,6 +497,7 @@ fn rebase_revisions_transaction(
     rebase_options: &RebaseOptions,
 ) -> Result<(), CommandError> {
     if target_commits.is_empty() {
+        writeln!(ui.status(), "Nothing changed.")?;
         return Ok(());
     }
 
