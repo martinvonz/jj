@@ -3149,18 +3149,6 @@ fn resolve_aliases(
     mut string_args: Vec<String>,
 ) -> Result<Vec<String>, CommandError> {
     let mut aliases_map = config.get_table("aliases")?;
-    if let Ok(alias_map) = config.get_table("alias") {
-        for (alias, definition) in alias_map {
-            if aliases_map.insert(alias.clone(), definition).is_some() {
-                return Err(user_error_with_hint(
-                    format!(r#"Alias "{alias}" is defined in both [aliases] and [alias]"#),
-                    "[aliases] is the preferred section for aliases. Please remove the alias from \
-                     [alias].",
-                ));
-            }
-        }
-    }
-
     let mut resolved_aliases = HashSet::new();
     let mut real_commands = HashSet::new();
     for command in app.get_subcommands() {
