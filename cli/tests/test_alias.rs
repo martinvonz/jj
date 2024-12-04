@@ -35,31 +35,6 @@ fn test_alias_basic() {
 }
 
 #[test]
-fn test_alias_legacy_section() {
-    let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
-    let repo_path = test_env.env_root().join("repo");
-
-    // Can define aliases in [alias] section
-    test_env.add_config(r#"alias.bk = ["log", "-r", "@", "-T", "bookmarks"]"#);
-    test_env.jj_cmd_ok(&repo_path, &["bookmark", "create", "my-bookmark"]);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["bk"]);
-    insta::assert_snapshot!(stdout, @r###"
-    @  my-bookmark
-    │
-    ~
-    "###);
-
-    // The same alias (name) in both [alias] and [aliases] sections is an error
-    test_env.add_config(r#"aliases.bk = ["bookmark", "list"]"#);
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["bk"]);
-    insta::assert_snapshot!(stderr, @r###"
-    Error: Alias "bk" is defined in both [aliases] and [alias]
-    Hint: [aliases] is the preferred section for aliases. Please remove the alias from [alias].
-    "###);
-}
-
-#[test]
 fn test_alias_bad_name() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
