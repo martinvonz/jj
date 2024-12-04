@@ -31,6 +31,9 @@ use crossterm::style::SetForegroundColor;
 use itertools::Itertools;
 use jj_lib::config::ConfigGetError;
 use jj_lib::config::StackedConfig;
+use serde::de::Deserialize as _;
+use serde::de::Error as _;
+use serde::de::IntoDeserializer as _;
 
 // Lets the caller label strings and translates the labels to colors
 pub trait Formatter: Write {
@@ -253,9 +256,12 @@ impl<W: Write> Formatter for SanitizingFormatter<W> {
     }
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Deserialize)]
+#[serde(default, rename_all = "kebab-case")]
 pub struct Style {
+    #[serde(deserialize_with = "deserialize_color_opt")]
     pub fg: Option<Color>,
+    #[serde(deserialize_with = "deserialize_color_opt")]
     pub bg: Option<Color>,
     pub bold: Option<bool>,
     pub underline: Option<bool>,
@@ -406,53 +412,48 @@ impl<W: Write> ColorFormatter<W> {
 }
 
 fn rules_from_config(config: &StackedConfig) -> Result<Rules, ConfigGetError> {
-    let mut result = vec![];
-    for key in config.table_keys("colors") {
-        let to_config_err = |message: String| ConfigGetError::Type {
-            name: format!("colors.'{key}'"),
-            error: message.into(),
-            source_path: None,
-        };
-        let labels = key
-            .split_whitespace()
-            .map(ToString::to_string)
-            .collect_vec();
-        // TODO: report invalid type?
-        let value = config.get_value(["colors", key])?;
-        if let Some(color_name) = value.as_str() {
-            let style = Style {
-                fg: Some(color_for_name_or_hex(color_name).map_err(to_config_err)?),
-                bg: None,
-                bold: None,
-                underline: None,
-            };
-            result.push((labels, style));
-        } else if let Some(style_table) = value.as_inline_table() {
-            let mut style = Style::default();
-            if let Some(item) = style_table.get("fg") {
-                if let Some(color_name) = item.as_str() {
-                    style.fg = Some(color_for_name_or_hex(color_name).map_err(to_config_err)?);
+    config
+        .table_keys("colors")
+        .map(|key| {
+            let labels = key
+                .split_whitespace()
+                .map(ToString::to_string)
+                .collect_vec();
+            let style = config.get_value_with(["colors", key], |value| {
+                if value.is_str() {
+                    Ok(Style {
+                        fg: Some(deserialize_color(value.into_deserializer())?),
+                        bg: None,
+                        bold: None,
+                        underline: None,
+                    })
+                } else if value.is_inline_table() {
+                    Style::deserialize(value.into_deserializer())
+                } else {
+                    Err(toml_edit::de::Error::custom(format!(
+                        "invalid type: {}, expected a color name or a table of styles",
+                        value.type_name()
+                    )))
                 }
-            }
-            if let Some(item) = style_table.get("bg") {
-                if let Some(color_name) = item.as_str() {
-                    style.bg = Some(color_for_name_or_hex(color_name).map_err(to_config_err)?);
-                }
-            }
-            if let Some(item) = style_table.get("bold") {
-                if let Some(value) = item.as_bool() {
-                    style.bold = Some(value);
-                }
-            }
-            if let Some(item) = style_table.get("underline") {
-                if let Some(value) = item.as_bool() {
-                    style.underline = Some(value);
-                }
-            }
-            result.push((labels, style));
-        }
-    }
-    Ok(result)
+            })?;
+            Ok((labels, style))
+        })
+        .collect()
+}
+
+fn deserialize_color<'de, D>(deserializer: D) -> Result<Color, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let name_or_hex = String::deserialize(deserializer)?;
+    color_for_name_or_hex(&name_or_hex).map_err(D::Error::custom)
+}
+
+fn deserialize_color_opt<'de, D>(deserializer: D) -> Result<Option<Color>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    deserialize_color(deserializer).map(Some)
 }
 
 fn color_for_name_or_hex(name_or_hex: &str) -> Result<Color, String> {
@@ -1024,7 +1025,7 @@ mod tests {
         );
         let mut output: Vec<u8> = vec![];
         let err = ColorFormatter::for_config(&mut output, &config, false).unwrap_err();
-        insta::assert_snapshot!(err, @"Invalid type or value for colors.'outer inner'");
+        insta::assert_snapshot!(err, @r#"Invalid type or value for colors."outer inner""#);
         insta::assert_snapshot!(err.source().unwrap(), @"Invalid color: bloo");
     }
 
@@ -1039,8 +1040,29 @@ mod tests {
         );
         let mut output: Vec<u8> = vec![];
         let err = ColorFormatter::for_config(&mut output, &config, false).unwrap_err();
-        insta::assert_snapshot!(err, @"Invalid type or value for colors.'outer inner'");
+        insta::assert_snapshot!(err, @r#"Invalid type or value for colors."outer inner""#);
         insta::assert_snapshot!(err.source().unwrap(), @"Invalid color: #ffgggg");
+    }
+
+    #[test]
+    fn test_color_formatter_invalid_type_of_color() {
+        let config = config_from_string("colors.foo = []");
+        let err = ColorFormatter::for_config(&mut Vec::new(), &config, false).unwrap_err();
+        insta::assert_snapshot!(err, @"Invalid type or value for colors.foo");
+        insta::assert_snapshot!(
+            err.source().unwrap(),
+            @"invalid type: array, expected a color name or a table of styles");
+    }
+
+    #[test]
+    fn test_color_formatter_invalid_type_of_style() {
+        let config = config_from_string("colors.foo = { bold = 1 }");
+        let err = ColorFormatter::for_config(&mut Vec::new(), &config, false).unwrap_err();
+        insta::assert_snapshot!(err, @"Invalid type or value for colors.foo");
+        insta::assert_snapshot!(err.source().unwrap(), @r"
+        invalid type: integer `1`, expected a boolean
+        in `bold`
+        ");
     }
 
     #[test]
