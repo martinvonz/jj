@@ -305,10 +305,10 @@ fn rebase_source(
     rebase_destination: &RebaseDestinationArgs,
     rebase_options: &RebaseOptions,
 ) -> Result<(), CommandError> {
-    let source_commits = workspace_command
-        .resolve_some_revsets_default_single(ui, source)?
-        .into_iter()
-        .collect_vec();
+    let source_commits: Vec<_> = workspace_command
+        .parse_union_revsets(ui, source)?
+        .evaluate_to_commits()?
+        .try_collect()?; // in reverse topological order
     workspace_command.check_rewritable(source_commits.iter().ids())?;
 
     let (new_parents, new_children) =
@@ -342,10 +342,9 @@ fn rebase_branch(
         vec![workspace_command.resolve_single_rev(ui, &RevisionArg::AT)?]
     } else {
         workspace_command
-            .resolve_some_revsets_default_single(ui, branch)?
-            .iter()
-            .cloned()
-            .collect_vec()
+            .parse_union_revsets(ui, branch)?
+            .evaluate_to_commits()?
+            .try_collect()? // in reverse topological order
     };
 
     let (new_parents, new_children) =

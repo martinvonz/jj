@@ -128,10 +128,12 @@ fn test_rebase_empty_sets() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-r=none()", "-d=b"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @"");
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["rebase", "-s=none()", "-d=b"]);
-    insta::assert_snapshot!(stderr, @r###"Error: Revset "none()" didn't resolve to any revisions"###);
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["rebase", "-b=none()", "-d=b"]);
-    insta::assert_snapshot!(stderr, @r###"Error: Revset "none()" didn't resolve to any revisions"###);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-s=none()", "-d=b"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @"");
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-b=none()", "-d=b"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @"");
     // Empty because "b..a" is empty
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-b=a", "-d=b"]);
     insta::assert_snapshot!(stdout, @"");
@@ -198,23 +200,15 @@ fn test_rebase_bookmark() {
 
     // Same test but with more than one revision per argument
     test_env.jj_cmd_ok(&repo_path, &["undo"]);
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["rebase", "-b=e|d", "-d=b"]);
-    insta::assert_snapshot!(stderr, @r###"
-    Error: Revset "e|d" resolved to more than one revision
-    Hint: The revset "e|d" resolved to these revisions:
-      znkkpsqq e52756c8 e | e
-      vruxwmqv 514fa6b2 d | d
-    Hint: Prefix the expression with 'all:' to allow any number of revisions (i.e. 'all:e|d').
-    "###);
-    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-b=all:e|d", "-d=b"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-b=e|d", "-d=b"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r#"
+    insta::assert_snapshot!(stderr, @r###"
     Skipped rebase of 1 commits that were already in place
     Rebased 1 commits onto destination
-    Working copy now at: znkkpsqq 817e3fb0 e | e
+    Working copy now at: znkkpsqq f027e4e7 e | e
     Parent commit      : zsuskuln 1394f625 b | b
     Added 1 files, modified 0 files, removed 0 files
-    "#);
+    "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  e: b
     │ ○  d: b
@@ -872,22 +866,14 @@ fn test_rebase_with_descendants() {
 
     // Same test as above, but with multiple commits per argument
     test_env.jj_cmd_ok(&repo_path, &["undo"]);
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["rebase", "-s=b|d", "-d=a"]);
-    insta::assert_snapshot!(stderr, @r###"
-    Error: Revset "b|d" resolved to more than one revision
-    Hint: The revset "b|d" resolved to these revisions:
-      vruxwmqv df54a9fd d | d
-      zsuskuln d370aee1 b | b
-    Hint: Prefix the expression with 'all:' to allow any number of revisions (i.e. 'all:b|d').
-    "###);
-    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-s=all:b|d", "-d=a"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-s=b|d", "-d=a"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r#"
+    insta::assert_snapshot!(stderr, @r###"
     Rebased 3 commits onto destination
-    Working copy now at: vruxwmqv d17539f7 d | d
+    Working copy now at: vruxwmqv 1fa4ba97 d | d
     Parent commit      : rlvkpnrz 2443ea76 a | a
     Added 0 files, modified 0 files, removed 2 files
-    "#);
+    "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r#"
     @  d: a
     │ ○  c: a b
