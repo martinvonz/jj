@@ -407,8 +407,7 @@ impl<W: Write> ColorFormatter<W> {
 
 fn rules_from_config(config: &StackedConfig) -> Result<Rules, ConfigGetError> {
     let mut result = vec![];
-    let table = config.get_table("colors")?;
-    for (key, value) in table {
+    for key in config.table_keys("colors") {
         let to_config_err = |message: String| ConfigGetError::Type {
             name: format!("colors.'{key}'"),
             error: message.into(),
@@ -418,6 +417,7 @@ fn rules_from_config(config: &StackedConfig) -> Result<Rules, ConfigGetError> {
             .split_whitespace()
             .map(ToString::to_string)
             .collect_vec();
+        let value = config.get_value(["colors", key])?;
         match value.kind {
             config::ValueKind::String(color_name) => {
                 let style = Style {

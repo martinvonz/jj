@@ -3148,22 +3148,20 @@ fn resolve_aliases(
     app: &Command,
     mut string_args: Vec<String>,
 ) -> Result<Vec<String>, CommandError> {
-    let mut aliases_map = config.get_table("aliases")?;
+    let defined_aliases: HashSet<_> = config.table_keys("aliases").collect();
     let mut resolved_aliases = HashSet::new();
     let mut real_commands = HashSet::new();
     for command in app.get_subcommands() {
-        real_commands.insert(command.get_name().to_string());
+        real_commands.insert(command.get_name());
         for alias in command.get_all_aliases() {
-            real_commands.insert(alias.to_string());
+            real_commands.insert(alias);
         }
     }
-    for alias in aliases_map.keys() {
-        if real_commands.contains(alias) {
-            writeln!(
-                ui.warning_default(),
-                "Cannot define an alias that overrides the built-in command '{alias}'"
-            )?;
-        }
+    for alias in defined_aliases.intersection(&real_commands).sorted() {
+        writeln!(
+            ui.warning_default(),
+            "Cannot define an alias that overrides the built-in command '{alias}'"
+        )?;
     }
 
     loop {
@@ -3177,24 +3175,19 @@ fn resolve_aliases(
                     .unwrap_or_default()
                     .map(|arg| arg.to_str().unwrap().to_string())
                     .collect_vec();
-                if resolved_aliases.contains(&alias_name) {
+                if resolved_aliases.contains(&*alias_name) {
                     return Err(user_error(format!(
                         r#"Recursive alias definition involving "{alias_name}""#
                     )));
                 }
-                if let Some(value) = aliases_map.remove(&alias_name) {
-                    if let Ok(alias_definition) = value.try_deserialize::<Vec<String>>() {
-                        assert!(string_args.ends_with(&alias_args));
-                        string_args.truncate(string_args.len() - 1 - alias_args.len());
-                        string_args.extend(alias_definition);
-                        string_args.extend_from_slice(&alias_args);
-                        resolved_aliases.insert(alias_name.clone());
-                        continue;
-                    } else {
-                        return Err(user_error(format!(
-                            r#"Alias definition for "{alias_name}" must be a string list"#
-                        )));
-                    }
+                if let Some(&alias_name) = defined_aliases.get(&*alias_name) {
+                    let alias_definition: Vec<String> = config.get(["aliases", alias_name])?;
+                    assert!(string_args.ends_with(&alias_args));
+                    string_args.truncate(string_args.len() - 1 - alias_args.len());
+                    string_args.extend(alias_definition);
+                    string_args.extend_from_slice(&alias_args);
+                    resolved_aliases.insert(alias_name);
+                    continue;
                 } else {
                     // Not a real command and not an alias, so return what we've resolved so far
                     return Ok(string_args);

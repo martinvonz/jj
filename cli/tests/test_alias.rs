@@ -234,13 +234,19 @@ fn test_alias_invalid_definition() {
     "#,
     );
     let stderr = test_env.jj_cmd_failure(test_env.env_root(), &["non-list"]);
-    insta::assert_snapshot!(stderr, @r###"
-    Error: Alias definition for "non-list" must be a string list
-    "###);
+    insta::assert_snapshot!(stderr.replace('\\', "/"), @r"
+    Config error: Invalid type or value for aliases.non-list
+    Caused by: invalid type: integer `5`, expected a sequence
+    Hint: Check the config file: $TEST_ENV/config/config0002.toml
+    For help, see https://martinvonz.github.io/jj/latest/config/.
+    ");
     let stderr = test_env.jj_cmd_failure(test_env.env_root(), &["non-string-list"]);
-    insta::assert_snapshot!(stderr, @r###"
-    Error: Alias definition for "non-string-list" must be a string list
-    "###);
+    insta::assert_snapshot!(stderr.replace('\\', "/"), @r"
+    Config error: Invalid type or value for aliases.non-string-list
+    Caused by: invalid type: sequence, expected a string for key `[0]` in config/config0002.toml
+    Hint: Check the config file: $TEST_ENV/config/config0002.toml
+    For help, see https://martinvonz.github.io/jj/latest/config/.
+    ");
 }
 
 #[test]
