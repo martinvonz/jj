@@ -17,13 +17,13 @@ categories = ["version-control", "development-tools"]
 keywords = ["VCS", "DVCS", "SCM", "Git", "Mercurial"]
 
 [workspace.dependencies]
-anyhow = "1.0.93"
+anyhow = "1.0.94"
 assert_cmd = "2.0.8"
 assert_matches = "1.5.0"
 async-trait = "0.1.83"
 blake2 = "0.10.6"
 bstr = "1.11.0"
-clap = { version = "4.5.20", features = [
+clap = { version = "4.5.22", features = [
     "derive",
     "deprecated",
     "wrap_help",
@@ -107,9 +107,9 @@ syn = "2.0.90"
 tempfile = "3.14.0"
 test-case = "3.3.1"
 textwrap = "0.16.1"
-thiserror = "2.0.3"
+thiserror = "2.0.4"
 timeago = { version = "0.4.2", default-features = false }
-tokio = { version = "1.41.1" }
+tokio = { version = "1.42.0" }
 toml_edit = { version = "0.22.22", features = ["serde"] }
 tracing = "0.1.41"
 tracing-chrome = "0.7.2"
