@@ -16,6 +16,7 @@
 #![allow(clippy::let_unit_value)]
 
 use std::any::Any;
+use std::cmp::Ordering;
 use std::collections::HashSet;
 use std::error::Error;
 use std::fs;
@@ -272,6 +273,13 @@ impl<'a> FileStates<'a> {
         Self::from_sorted(&self.data[range])
     }
 
+    /// Faster version of `prefixed("<dir>/<base>")`. Requires that all entries
+    /// share the same prefix `dir`.
+    fn prefixed_at(&self, dir: &RepoPath, base: &RepoPathComponent) -> Self {
+        let range = self.prefixed_range_at(dir, base);
+        Self::from_sorted(&self.data[range])
+    }
+
     /// Returns true if this contains no entries.
     pub fn is_empty(&self) -> bool {
         self.data.is_empty()
@@ -289,9 +297,33 @@ impl<'a> FileStates<'a> {
         Some(state)
     }
 
+    /// Faster version of `get("<dir>/<name>")`. Requires that all entries share
+    /// the same prefix `dir`.
+    fn get_at(&self, dir: &RepoPath, name: &RepoPathComponent) -> Option<FileState> {
+        let pos = self.exact_position_at(dir, name)?;
+        let (_, state) = file_state_entry_from_proto(&self.data[pos]);
+        Some(state)
+    }
+
     fn exact_position(&self, path: &RepoPath) -> Option<usize> {
         self.data
             .binary_search_by(|entry| RepoPath::from_internal_string(&entry.path).cmp(path))
+            .ok()
+    }
+
+    fn exact_position_at(&self, dir: &RepoPath, name: &RepoPathComponent) -> Option<usize> {
+        debug_assert!(self.paths().all(|path| path.starts_with(dir)));
+        let slash_len = !dir.is_root() as usize;
+        let prefix_len = dir.as_internal_file_string().len() + slash_len;
+        self.data
+            .binary_search_by(|entry| {
+                let tail = entry.path.get(prefix_len..).unwrap_or("");
+                match tail.split_once('/') {
+                    // "<name>/*" > "<name>"
+                    Some((pre, _)) => pre.cmp(name.as_internal_str()).then(Ordering::Greater),
+                    None => tail.cmp(name.as_internal_str()),
+                }
+            })
             .ok()
     }
 
@@ -301,6 +333,23 @@ impl<'a> FileStates<'a> {
             .partition_point(|entry| RepoPath::from_internal_string(&entry.path) < base);
         let len = self.data[start..]
             .partition_point(|entry| RepoPath::from_internal_string(&entry.path).starts_with(base));
+        start..(start + len)
+    }
+
+    fn prefixed_range_at(&self, dir: &RepoPath, base: &RepoPathComponent) -> Range<usize> {
+        debug_assert!(self.paths().all(|path| path.starts_with(dir)));
+        let slash_len = !dir.is_root() as usize;
+        let prefix_len = dir.as_internal_file_string().len() + slash_len;
+        let start = self.data.partition_point(|entry| {
+            let tail = entry.path.get(prefix_len..).unwrap_or("");
+            let entry_name = tail.split_once('/').map_or(tail, |(name, _)| name);
+            entry_name < base.as_internal_str()
+        });
+        let len = self.data[start..].partition_point(|entry| {
+            let tail = entry.path.get(prefix_len..).unwrap_or("");
+            let entry_name = tail.split_once('/').map_or(tail, |(name, _)| name);
+            entry_name == base.as_internal_str()
+        });
         start..(start + len)
     }
 
@@ -1122,15 +1171,16 @@ impl FileSnapshotter<'_> {
     ) -> Result<Option<(PresentDirEntryKind, String)>, SnapshotError> {
         let file_type = entry.file_type().unwrap();
         let file_name = entry.file_name();
-        let name = file_name
+        let name_string = file_name
             .into_string()
             .map_err(|path| SnapshotError::InvalidUtf8Path { path })?;
 
-        if RESERVED_DIR_NAMES.contains(&name.as_str()) {
+        if RESERVED_DIR_NAMES.contains(&name_string.as_str()) {
             return Ok(None);
         }
-        let path = dir.join(RepoPathComponent::new(&name));
-        let maybe_current_file_state = file_states.get(&path);
+        let name = RepoPathComponent::new(&name_string);
+        let path = dir.join(name);
+        let maybe_current_file_state = file_states.get_at(dir, name);
         if let Some(file_state) = &maybe_current_file_state {
             if file_state.file_type == FileType::GitSubmodule {
                 return Ok(None);
@@ -1138,7 +1188,7 @@ impl FileSnapshotter<'_> {
         }
 
         if file_type.is_dir() {
-            let file_states = file_states.prefixed(&path);
+            let file_states = file_states.prefixed_at(dir, name);
             if git_ignore.matches(&path.to_internal_dir_string())
                 || self.start_tracking_matcher.visit(&path).is_nothing()
             {
@@ -1161,7 +1211,7 @@ impl FileSnapshotter<'_> {
             }
             // Whether or not the directory path matches, any child file entries
             // shouldn't be touched within the current recursion step.
-            Ok(Some((PresentDirEntryKind::Dir, name)))
+            Ok(Some((PresentDirEntryKind::Dir, name_string)))
         } else if self.matcher.matches(&path) {
             if let Some(progress) = self.progress {
                 progress(&path);
@@ -1198,7 +1248,7 @@ impl FileSnapshotter<'_> {
                         maybe_current_file_state.as_ref(),
                         new_file_state,
                     )?;
-                    Ok(Some((PresentDirEntryKind::File, name)))
+                    Ok(Some((PresentDirEntryKind::File, name_string)))
                 } else {
                     // Special file is not considered present
                     Ok(None)
@@ -2348,5 +2398,82 @@ mod tests {
         assert_eq!(file_states.get(repo_path("b/d/e")), Some(new_state(2)));
         assert_eq!(file_states.get(repo_path("bc")), Some(new_state(5)));
         assert_eq!(file_states.get(repo_path("z")), None);
+    }
+
+    #[test]
+    fn test_file_states_lookup_at() {
+        let new_state = |size| FileState {
+            file_type: FileType::Normal {
+                executable: FileExecutableFlag::default(),
+            },
+            mtime: MillisSinceEpoch(0),
+            size,
+        };
+        let new_proto_entry = |path: &str, size| {
+            file_state_entry_to_proto(repo_path(path).to_owned(), &new_state(size))
+        };
+        let data = vec![
+            new_proto_entry("b/c", 0),
+            new_proto_entry("b/d/e", 1),
+            new_proto_entry("b/d#", 2), // '#' < '/'
+            new_proto_entry("b/e", 3),
+            new_proto_entry("b#", 4), // '#' < '/'
+        ];
+        let file_states = FileStates::from_sorted(&data);
+
+        // At root
+        assert_eq!(
+            file_states.get_at(RepoPath::root(), RepoPathComponent::new("b")),
+            None
+        );
+        assert_eq!(
+            file_states.get_at(RepoPath::root(), RepoPathComponent::new("b#")),
+            Some(new_state(4))
+        );
+
+        // At prefixed dir
+        let prefixed_states =
+            file_states.prefixed_at(RepoPath::root(), RepoPathComponent::new("b"));
+        assert_eq!(
+            prefixed_states.paths().collect_vec(),
+            ["b/c", "b/d/e", "b/d#", "b/e"].map(repo_path)
+        );
+        assert_eq!(
+            prefixed_states.get_at(repo_path("b"), RepoPathComponent::new("c")),
+            Some(new_state(0))
+        );
+        assert_eq!(
+            prefixed_states.get_at(repo_path("b"), RepoPathComponent::new("d")),
+            None
+        );
+        assert_eq!(
+            prefixed_states.get_at(repo_path("b"), RepoPathComponent::new("d#")),
+            Some(new_state(2))
+        );
+
+        // At nested prefixed dir
+        let prefixed_states =
+            prefixed_states.prefixed_at(repo_path("b"), RepoPathComponent::new("d"));
+        assert_eq!(
+            prefixed_states.paths().collect_vec(),
+            ["b/d/e"].map(repo_path)
+        );
+        assert_eq!(
+            prefixed_states.get_at(repo_path("b/d"), RepoPathComponent::new("e")),
+            Some(new_state(1))
+        );
+        assert_eq!(
+            prefixed_states.get_at(repo_path("b/d"), RepoPathComponent::new("#")),
+            None
+        );
+
+        // At prefixed file
+        let prefixed_states =
+            file_states.prefixed_at(RepoPath::root(), RepoPathComponent::new("b#"));
+        assert_eq!(prefixed_states.paths().collect_vec(), ["b#"].map(repo_path));
+        assert_eq!(
+            prefixed_states.get_at(repo_path("b#"), RepoPathComponent::new("#")),
+            None
+        );
     }
 }
