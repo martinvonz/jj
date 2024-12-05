@@ -5,6 +5,8 @@
     # For listing and iterating nix systems
     flake-utils.url = "github:numtide/flake-utils";
 
+    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+
     # For installing non-standard rustc versions
     rust-overlay.url = "github:oxalica/rust-overlay";
     rust-overlay.inputs.nixpkgs.follows = "nixpkgs";
