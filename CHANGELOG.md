@@ -8,6 +8,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Release highlights
+
 ### Breaking changes
 
 ### Deprecations
@@ -17,6 +19,16 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Fixed bugs
 
 ## [0.24.0] - 2024-12-04
+
+### Release highlights
+
+* New [`jj absorb`](https://martinvonz.github.io/jj/latest/cli-reference/#jj-absorb) command automatically squashes changes from the current commit into relevant ancestor commits.
+
+* Experimental dynamic shell completions have been added; see [the docs](https://martinvonz.github.io/jj/latest/install-and-setup/#command-line-completion) for configuration.
+
+* [`jj duplicate`](https://martinvonz.github.io/jj/latest/cli-reference/#jj-duplicate) now accepts `--destination`/`--insert-before`/`--insert-after`.
+
+* Some deprecated commands have been removed (`jj move`, `jj checkout`, `jj merge`).
 
 ### Breaking changes
 
