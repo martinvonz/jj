@@ -19,6 +19,7 @@ use std::any::Any;
 use std::collections::HashSet;
 use std::error::Error;
 use std::fs;
+use std::fs::DirEntry;
 use std::fs::File;
 use std::fs::Metadata;
 use std::fs::OpenOptions;
@@ -1061,87 +1062,93 @@ impl FileSnapshotter<'_> {
             })?;
         dir_entries
             .into_par_iter()
-            .try_for_each(|entry| -> Result<(), SnapshotError> {
-                let file_type = entry.file_type().unwrap();
-                let file_name = entry.file_name();
-                let name = file_name
-                    .to_str()
-                    .ok_or_else(|| SnapshotError::InvalidUtf8Path {
-                        path: file_name.clone(),
-                    })?;
+            .try_for_each(|entry| self.process_dir_entry(&dir, &git_ignore, file_states, &entry))?;
+        Ok(())
+    }
 
-                if RESERVED_DIR_NAMES.contains(&name) {
-                    return Ok(());
-                }
-                let path = dir.join(RepoPathComponent::new(name));
-                let maybe_current_file_state = file_states.get(&path);
-                if let Some(file_state) = &maybe_current_file_state {
-                    if file_state.file_type == FileType::GitSubmodule {
-                        return Ok(());
-                    }
-                }
-
-                if file_type.is_dir() {
-                    let file_states = file_states.prefixed(&path);
-                    if git_ignore.matches(&path.to_internal_dir_string())
-                        || self.start_tracking_matcher.visit(&path).is_nothing()
-                    {
-                        // TODO: Report this directory to the caller if there are unignored paths we
-                        // should not start tracking.
-
-                        // If the whole directory is ignored, visit only paths we're already
-                        // tracking.
-                        self.visit_tracked_files(file_states)?;
-                    } else {
-                        let directory_to_visit = DirectoryToVisit {
-                            dir: path,
-                            disk_dir: entry.path(),
-                            git_ignore: git_ignore.clone(),
-                            file_states,
-                        };
-                        self.visit_directory(directory_to_visit)?;
-                    }
-                } else if self.matcher.matches(&path) {
-                    if let Some(progress) = self.progress {
-                        progress(&path);
-                    }
-                    if maybe_current_file_state.is_none()
-                        && git_ignore.matches(path.as_internal_file_string())
-                    {
-                        // If it wasn't already tracked and it matches
-                        // the ignored paths, then ignore it.
-                    } else if maybe_current_file_state.is_none()
-                        && !self.start_tracking_matcher.matches(&path)
-                    {
-                        // Leave the file untracked
-                        // TODO: Report this path to the caller
-                    } else {
-                        let metadata = entry.metadata().map_err(|err| SnapshotError::Other {
-                            message: format!("Failed to stat file {}", entry.path().display()),
-                            err: err.into(),
-                        })?;
-                        if maybe_current_file_state.is_none()
-                            && metadata.len() > self.max_new_file_size
-                        {
-                            // TODO: Maybe leave the file untracked instead
-                            return Err(SnapshotError::NewFileTooLarge {
-                                path: entry.path().clone(),
-                                size: HumanByteSize(metadata.len()),
-                                max_size: HumanByteSize(self.max_new_file_size),
-                            });
-                        }
-                        if let Some(new_file_state) = file_state(&metadata) {
-                            self.process_present_file(
-                                path,
-                                &entry.path(),
-                                maybe_current_file_state.as_ref(),
-                                new_file_state,
-                            )?;
-                        }
-                    }
-                }
-                Ok(())
+    fn process_dir_entry(
+        &self,
+        dir: &RepoPath,
+        git_ignore: &Arc<GitIgnoreFile>,
+        file_states: FileStates<'_>,
+        entry: &DirEntry,
+    ) -> Result<(), SnapshotError> {
+        let file_type = entry.file_type().unwrap();
+        let file_name = entry.file_name();
+        let name = file_name
+            .to_str()
+            .ok_or_else(|| SnapshotError::InvalidUtf8Path {
+                path: file_name.clone(),
             })?;
+
+        if RESERVED_DIR_NAMES.contains(&name) {
+            return Ok(());
+        }
+        let path = dir.join(RepoPathComponent::new(name));
+        let maybe_current_file_state = file_states.get(&path);
+        if let Some(file_state) = &maybe_current_file_state {
+            if file_state.file_type == FileType::GitSubmodule {
+                return Ok(());
+            }
+        }
+
+        if file_type.is_dir() {
+            let file_states = file_states.prefixed(&path);
+            if git_ignore.matches(&path.to_internal_dir_string())
+                || self.start_tracking_matcher.visit(&path).is_nothing()
+            {
+                // TODO: Report this directory to the caller if there are unignored paths we
+                // should not start tracking.
+
+                // If the whole directory is ignored, visit only paths we're already
+                // tracking.
+                self.visit_tracked_files(file_states)?;
+            } else {
+                let directory_to_visit = DirectoryToVisit {
+                    dir: path,
+                    disk_dir: entry.path(),
+                    git_ignore: git_ignore.clone(),
+                    file_states,
+                };
+                self.visit_directory(directory_to_visit)?;
+            }
+        } else if self.matcher.matches(&path) {
+            if let Some(progress) = self.progress {
+                progress(&path);
+            }
+            if maybe_current_file_state.is_none()
+                && git_ignore.matches(path.as_internal_file_string())
+            {
+                // If it wasn't already tracked and it matches
+                // the ignored paths, then ignore it.
+            } else if maybe_current_file_state.is_none()
+                && !self.start_tracking_matcher.matches(&path)
+            {
+                // Leave the file untracked
+                // TODO: Report this path to the caller
+            } else {
+                let metadata = entry.metadata().map_err(|err| SnapshotError::Other {
+                    message: format!("Failed to stat file {}", entry.path().display()),
+                    err: err.into(),
+                })?;
+                if maybe_current_file_state.is_none() && metadata.len() > self.max_new_file_size {
+                    // TODO: Maybe leave the file untracked instead
+                    return Err(SnapshotError::NewFileTooLarge {
+                        path: entry.path().clone(),
+                        size: HumanByteSize(metadata.len()),
+                        max_size: HumanByteSize(self.max_new_file_size),
+                    });
+                }
+                if let Some(new_file_state) = file_state(&metadata) {
+                    self.process_present_file(
+                        path,
+                        &entry.path(),
+                        maybe_current_file_state.as_ref(),
+                        new_file_state,
+                    )?;
+                }
+            }
+        }
         Ok(())
     }
 
