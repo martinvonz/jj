@@ -147,10 +147,12 @@ During development (adapt according to your preference):
     cargo nextest run --workspace # Occasionally
     cargo insta test --workspace --test-runner nextest # Occasionally
 
-WARNING: Build artifacts from debug builds and especially from repeated
-invocations of `cargo test` can quickly take up 10s of GB of disk space.
-Cargo will happily use up your entire hard drive. If this happens, run
-`cargo clean`.
+!!! warning
+
+    Build artifacts from debug builds and especially from repeated
+    invocations of `cargo test` can quickly take up 10s of GB of disk space.
+    Cargo will happily use up your entire hard drive. If this happens, run
+    `cargo clean`.
 
 ### Explanation
 
