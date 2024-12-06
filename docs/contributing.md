@@ -133,9 +133,7 @@ recommended steps.
 One-time setup:
 
     rustup toolchain add nightly  # wanted for 'rustfmt'
-    cargo install cargo-insta
-    cargo install cargo-watch
-    cargo install cargo-nextest
+    cargo install cargo-insta cargo-watch cargo-nextest
 
 During development (adapt according to your preference):
 
