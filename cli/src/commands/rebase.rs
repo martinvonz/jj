@@ -420,7 +420,7 @@ fn rebase_descendants_transaction(
 
 /// Computes the new parents and children for the given
 /// [`RebaseDestinationArgs`].
-fn compute_rebase_destination(
+pub(crate) fn compute_rebase_destination(
     ui: &mut Ui,
     workspace_command: &mut WorkspaceCommandHelper,
     rebase_destination: &RebaseDestinationArgs,

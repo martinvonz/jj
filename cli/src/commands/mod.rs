@@ -44,6 +44,7 @@ mod resolve;
 mod restore;
 mod root;
 mod run;
+mod serialize;
 mod show;
 mod simplify_parents;
 mod sparse;
@@ -136,6 +137,7 @@ enum Command {
     #[command(hide = true)]
     // TODO: Flesh out.
     Run(run::RunArgs),
+    Serialize(serialize::SerializeArgs),
     Show(show::ShowArgs),
     SimplifyParents(simplify_parents::SimplifyParentsArgs),
     #[command(subcommand)]
@@ -224,6 +226,7 @@ pub fn run_command(ui: &mut Ui, command_helper: &CommandHelper) -> Result<(), Co
         Command::Revert(_args) => revert(),
         Command::Root(args) => root::cmd_root(ui, command_helper, args),
         Command::Run(args) => run::cmd_run(ui, command_helper, args),
+        Command::Serialize(args) => serialize::cmd_serialize(ui, command_helper, args),
         Command::SimplifyParents(args) => {
             simplify_parents::cmd_simplify_parents(ui, command_helper, args)
         }

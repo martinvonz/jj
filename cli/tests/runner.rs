@@ -61,6 +61,7 @@ mod test_resolve_command;
 mod test_restore_command;
 mod test_revset_output;
 mod test_root;
+mod test_serialize_command;
 mod test_shell_completion;
 mod test_show_command;
 mod test_simplify_parents_command;

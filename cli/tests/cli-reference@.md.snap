@@ -79,6 +79,7 @@ This document contains the help content for the `jj` command-line program.
 * [`jj resolve`↴](#jj-resolve)
 * [`jj restore`↴](#jj-restore)
 * [`jj root`↴](#jj-root)
+* [`jj serialize`↴](#jj-serialize)
 * [`jj show`↴](#jj-show)
 * [`jj simplify-parents`↴](#jj-simplify-parents)
 * [`jj sparse`↴](#jj-sparse)
@@ -149,6 +150,7 @@ To get started, see the tutorial at https://martinvonz.github.io/jj/latest/tutor
 * `resolve` — Resolve a conflicted file with an external merge tool
 * `restore` — Restore paths from another revision
 * `root` — Show the current workspace root directory
+* `serialize` — 
 * `show` — Show commit description and changes in a revision
 * `simplify-parents` — Simplify parent edges for the specified revision(s)
 * `sparse` — Manage which paths from the working-copy commit are present in the working copy
@@ -1929,6 +1931,22 @@ See `jj diffedit` if you'd like to restore portions of files rather than entire 
 Show the current workspace root directory
 
 **Usage:** `jj root`
+
+
+
+## `jj serialize`
+
+**Usage:** `jj serialize <--destination <DESTINATION>|--insert-after <INSERT_AFTER>|--insert-before <INSERT_BEFORE>> [REVISIONS]...`
+
+###### **Arguments:**
+
+* `<REVISIONS>` — Revisions to serialize
+
+###### **Options:**
+
+* `-d`, `--destination <DESTINATION>` — The revision(s) to rebase onto (can be repeated to create a merge commit)
+* `-A`, `--insert-after <INSERT_AFTER>` — The revision(s) to insert after (can be repeated to create a merge commit)
+* `-B`, `--insert-before <INSERT_BEFORE>` — The revision(s) to insert before (can be repeated to create a merge commit)
 
 
 
