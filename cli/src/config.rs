@@ -359,7 +359,7 @@ pub fn config_from_environment(default: config::Config) -> StackedConfig {
 /// Environment variables that should be overridden by config values
 fn env_base() -> config::Config {
     let mut builder = config::Config::builder();
-    if env::var("NO_COLOR").is_ok() {
+    if !env::var("NO_COLOR").unwrap_or_default().is_empty() {
         // "User-level configuration files and per-instance command-line arguments
         // should override $NO_COLOR." https://no-color.org/
         builder = builder.set_override("ui.color", "never").unwrap();
