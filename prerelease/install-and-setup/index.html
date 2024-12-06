@@ -1858,10 +1858,10 @@ cargo<span class="w"> </span>binstall<span class="w"> </span>--strategies<span c
 be compiled from the same source code.</p>
 <h3 id="linux">Linux<a class="headerlink" href="#linux" title="Permanent link">&para;</a></h3>
 <h4 id="from-source">From Source<a class="headerlink" href="#from-source" title="Permanent link">&para;</a></h4>
-<p>First make sure that you have a Rust version &gt;= 1.76 and that the <code>libssl-dev</code>,
-<code>openssl</code>, <code>pkg-config</code>, and <code>build-essential</code> packages are installed by running
-something like this:</p>
-<div class="highlight"><pre><span></span><code>sudo<span class="w"> </span>apt-get<span class="w"> </span>install<span class="w"> </span>libssl-dev<span class="w"> </span>openssl<span class="w"> </span>pkg-config<span class="w"> </span>build-essential
+<p>First make sure that you have a Rust version &gt;= 1.76 and that the <code>cmake</code>,
+<code>libssl-dev</code>, <code>openssl</code>, <code>pkg-config</code>, and <code>build-essential</code> packages are
+installed by running something like this:</p>
+<div class="highlight"><pre><span></span><code>sudo<span class="w"> </span>apt-get<span class="w"> </span>install<span class="w"> </span>cmake<span class="w"> </span>libssl-dev<span class="w"> </span>openssl<span class="w"> </span>pkg-config<span class="w"> </span>build-essential
 </code></pre></div>
 <p>Now run either:</p>
 <div class="highlight"><pre><span></span><code><span class="c1"># To install the *prerelease* version from the main branch</span>
@@ -1920,6 +1920,7 @@ cargo<span class="w"> </span>install<span class="w"> </span>--features<span clas
 <a href="https://brew.sh/">Homebrew</a> installed. You may then need to run some or all of
 these:</p>
 <div class="highlight"><pre><span></span><code>xcode-select<span class="w"> </span>--install
+brew<span class="w"> </span>install<span class="w"> </span>cmake
 brew<span class="w"> </span>install<span class="w"> </span>openssl
 brew<span class="w"> </span>install<span class="w"> </span>pkg-config
 <span class="nb">export</span><span class="w"> </span><span class="nv">PKG_CONFIG_PATH</span><span class="o">=</span><span class="s2">&quot;</span><span class="k">$(</span>brew<span class="w"> </span>--prefix<span class="k">)</span><span class="s2">/opt/openssl@3/lib/pkgconfig&quot;</span>
@@ -1944,7 +1945,11 @@ port</a>:</p>
 sudo<span class="w"> </span>port<span class="w"> </span>install<span class="w"> </span>jujutsu
 </code></pre></div>
 <h3 id="windows">Windows<a class="headerlink" href="#windows" title="Permanent link">&para;</a></h3>
-<p>First make sure that you have a Rust version &gt;= 1.76. Now run either:</p>
+<p>First make sure that you have a Rust version &gt;= 1.76. You will also need
+<code>cmake</code>, which you can install by running this:</p>
+<div class="highlight"><pre><span></span><code>winget<span class="w"> </span>install<span class="w"> </span>cmake
+</code></pre></div>
+<p>Now run either:</p>
 <div class="highlight"><pre><span></span><code><span class="c1"># To install the *prerelease* version from the main branch</span>
 cargo<span class="w"> </span>install<span class="w"> </span>--git<span class="w"> </span>https://github.com/martinvonz/jj.git<span class="w"> </span>--locked<span class="w"> </span>--bin<span class="w"> </span>jj<span class="w"> </span>jj-cli<span class="w"> </span>--features<span class="w"> </span>vendored-openssl
 </code></pre></div>
