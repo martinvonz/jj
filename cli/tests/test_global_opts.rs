@@ -439,10 +439,9 @@ fn test_color_config() {
     // Test that NO_COLOR does NOT override the request for color in the config file
     test_env.add_env_var("NO_COLOR", "1");
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "commit_id"]);
-    // TODO: Should have color
     insta::assert_snapshot!(stdout, @r###"
-    [1m[m@[0m  [m230dd059e1b059aefc0da06a2e5a7dbf22362f22[m
-    [1m[m◆[0m  [m0000000000000000000000000000000000000000[m
+    [1m[38;5;2m@[0m  [38;5;4m230dd059e1b059aefc0da06a2e5a7dbf22362f22[39m
+    [1m[38;5;14m◆[0m  [38;5;4m0000000000000000000000000000000000000000[39m
     "###);
 
     // Test that per-repo config overrides the user config.

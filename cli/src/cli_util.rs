@@ -3627,6 +3627,8 @@ impl CliRunner {
             .fold(builder, |builder, config| builder.add_source(config))
             .build()
             .unwrap();
+        // Tell crossterm to ignore NO_COLOR (we check it ourselves)
+        crossterm::style::force_color_output(true);
         let stacked_config = config_from_environment(config);
         let mut ui = Ui::with_config(&stacked_config)
             .expect("default config should be valid, env vars are stringly typed");
