@@ -18,6 +18,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed bugs
 
+* The `$NO_COLOR` environment variable must now be non-empty to be respected.
+
 ## [0.24.0] - 2024-12-04
 
 ### Release highlights
