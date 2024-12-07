@@ -1940,10 +1940,13 @@ cargo nextest run --workspace # Occasionally
 cargo insta test --workspace --test-runner nextest # Occasionally
 </code></pre></div>
 
-<p>WARNING: Build artifacts from debug builds and especially from repeated
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Build artifacts from debug builds and especially from repeated
 invocations of <code>cargo test</code> can quickly take up 10s of GB of disk space.
 Cargo will happily use up your entire hard drive. If this happens, run
 <code>cargo clean</code>.</p>
+</div>
 <h3 id="explanation">Explanation<a class="headerlink" href="#explanation" title="Permanent link">&para;</a></h3>
 <p>These are listed roughly in order of decreasing importance.</p>
 <ol>
