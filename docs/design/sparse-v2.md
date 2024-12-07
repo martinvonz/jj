@@ -180,7 +180,8 @@ form of a `WorkingCopyPatterns` is defined as the form such that:
 
 ### Working Copy Map
 
-WARNING: This section is intentionally lacking, more research is needed.
+!!! warning
+    This section is intentionally lacking, more research is needed.
 
 All `WorkingCopyPatterns` will come equipped with a default no-op mapping.
 These mappings are inspired by and similar to [Perforce client views](https://www.perforce.com/manuals/cmdref/Content/CmdRef/views.html).
