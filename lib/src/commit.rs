@@ -162,6 +162,12 @@ impl Commit {
         &self.data.committer
     }
 
+    ///  A commit is hidden, if its commit id is not in the predecessor set.
+    pub fn is_hidden(&self, repo: &dyn Repo) -> BackendResult<bool> {
+        let maybe_entries = repo.resolve_change_id(self.change_id());
+        Ok(maybe_entries.map_or(true, |entries| !entries.contains(&self.id)))
+    }
+
     /// A commit is discardable if it has no change from its parent, and an
     /// empty description.
     pub fn is_discardable(&self, repo: &dyn Repo) -> BackendResult<bool> {
