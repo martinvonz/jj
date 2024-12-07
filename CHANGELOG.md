@@ -19,6 +19,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### New features
 
+* The `--stat` option for `jj log`, `jj show` and `jj diff` now has a
+  short alias `-S`
+
 ### Fixed bugs
 
 * The `$NO_COLOR` environment variable must now be non-empty to be respected.
