@@ -133,7 +133,6 @@ recommended steps.
 One-time setup:
 
     rustup toolchain add nightly  # wanted for 'rustfmt'
-    rustup toolchain add 1.76     # also specified in Cargo.toml
     cargo install cargo-insta
     cargo install cargo-watch
     cargo install cargo-nextest
@@ -142,7 +141,7 @@ During development (adapt according to your preference):
 
     cargo watch --ignore '.jj/**' -s \
       'cargo clippy --workspace --all-targets \
-       && cargo +1.76 check --workspace --all-targets'
+       && cargo check --workspace --all-targets'
     cargo +nightly fmt # Occasionally
     cargo nextest run --workspace # Occasionally
     cargo insta test --workspace --test-runner nextest # Occasionally
@@ -188,6 +187,17 @@ These are listed roughly in order of decreasing importance.
 
    On Linux, you may be able to speed up `nextest` even further by using
    the `mold` linker, as explained below.
+
+### Using an alternative Rust compiler version
+
+To use a different version of the Rust compiler/toolchain for development, you
+can run:
+
+    rustup override set 1.80  # or any other version
+
+Or manually set it in individual `cargo` commands:
+
+    cargo +1.80 clippy --workspace --all-targets  # or any other version
 
 ### Using `mold` for faster tests on Linux
 
