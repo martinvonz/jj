@@ -2086,10 +2086,10 @@ fn test_diff_external_tool() {
     "###);
 
     insta::assert_snapshot!(
-        test_env.jj_cmd_success(&repo_path, &["show", "--tool=fake-diff-editor"]), @r###"
+        test_env.jj_cmd_success(&repo_path, &["show", "--tool=fake-diff-editor"]), @r#"
     Commit ID: 39d9055d70873099fd924b9af218289d5663eac8
     Change ID: rlvkpnrzqnoowoytxnquwvuryrwnrmlp
-    Author: Test User <test.user@example.com> (2001-02-03 08:05:09)
+    Author   : Test User <test.user@example.com> (2001-02-03 08:05:09)
     Committer: Test User <test.user@example.com> (2001-02-03 08:05:09)
 
         (no description set)
@@ -2099,7 +2099,7 @@ fn test_diff_external_tool() {
     --
     file2
     file3
-    "###);
+    "#);
 
     // Enabled by default, looks up the merge-tools table
     let config = "--config-toml=ui.diff.tool='fake-diff-editor'";
@@ -2133,16 +2133,16 @@ fn test_diff_external_tool() {
     // Non-zero exit code isn't an error
     std::fs::write(&edit_script, "print diff\0fail").unwrap();
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["show", "--tool=fake-diff-editor"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @r#"
     Commit ID: 39d9055d70873099fd924b9af218289d5663eac8
     Change ID: rlvkpnrzqnoowoytxnquwvuryrwnrmlp
-    Author: Test User <test.user@example.com> (2001-02-03 08:05:09)
+    Author   : Test User <test.user@example.com> (2001-02-03 08:05:09)
     Committer: Test User <test.user@example.com> (2001-02-03 08:05:09)
 
         (no description set)
 
     diff
-    "###);
+    "#);
     insta::assert_snapshot!(stderr.replace("exit code:", "exit status:"), @r###"
     Warning: Tool exited with exit status: 1 (run with --debug to see the exact invocation)
     "###);
@@ -2237,10 +2237,10 @@ fn test_diff_external_file_by_file_tool() {
     "###);
 
     insta::assert_snapshot!(
-        test_env.jj_cmd_success(&repo_path, &["show", config]), @r###"
+        test_env.jj_cmd_success(&repo_path, &["show", config]), @r#"
     Commit ID: 7b01704a670bc77d11ed117d362855cff1d4513b
     Change ID: rlvkpnrzqnoowoytxnquwvuryrwnrmlp
-    Author: Test User <test.user@example.com> (2001-02-03 08:05:09)
+    Author   : Test User <test.user@example.com> (2001-02-03 08:05:09)
     Committer: Test User <test.user@example.com> (2001-02-03 08:05:09)
 
         (no description set)
@@ -2257,7 +2257,7 @@ fn test_diff_external_file_by_file_tool() {
     file1
     --
     file4
-    "###);
+    "#);
 }
 
 #[cfg(unix)]

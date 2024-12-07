@@ -26,12 +26,12 @@ fn test_show() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["show"]);
     let stdout = stdout.lines().skip(2).join("\n");
 
-    insta::assert_snapshot!(stdout, @r###"
-    Author: Test User <test.user@example.com> (2001-02-03 08:05:07)
+    insta::assert_snapshot!(stdout, @r#"
+    Author   : Test User <test.user@example.com> (2001-02-03 08:05:07)
     Committer: Test User <test.user@example.com> (2001-02-03 08:05:07)
 
         (no description set)
-    "###);
+    "#);
 }
 
 #[test]
@@ -48,10 +48,10 @@ fn test_show_basic() {
     std::fs::write(repo_path.join("file3"), "foo\n").unwrap();
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["show"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @r#"
     Commit ID: e34f04317a81edc6ba41fef239c0d0180f10656f
     Change ID: rlvkpnrzqnoowoytxnquwvuryrwnrmlp
-    Author: Test User <test.user@example.com> (2001-02-03 08:05:09)
+    Author   : Test User <test.user@example.com> (2001-02-03 08:05:09)
     Committer: Test User <test.user@example.com> (2001-02-03 08:05:09)
 
         (no description set)
@@ -61,13 +61,13 @@ fn test_show_basic() {
             2: bar
        2    3: baz quxquux
     Modified regular file file3 (file1 => file3):
-    "###);
+    "#);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["show", "--context=0"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @r#"
     Commit ID: e34f04317a81edc6ba41fef239c0d0180f10656f
     Change ID: rlvkpnrzqnoowoytxnquwvuryrwnrmlp
-    Author: Test User <test.user@example.com> (2001-02-03 08:05:09)
+    Author   : Test User <test.user@example.com> (2001-02-03 08:05:09)
     Committer: Test User <test.user@example.com> (2001-02-03 08:05:09)
 
         (no description set)
@@ -77,13 +77,13 @@ fn test_show_basic() {
             2: bar
        2    3: baz quxquux
     Modified regular file file3 (file1 => file3):
-    "###);
+    "#);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["show", "--color=debug"]);
     insta::assert_snapshot!(stdout, @r#"
     Commit ID: [38;5;4m<<commit_id::e34f04317a81edc6ba41fef239c0d0180f10656f>>[39m
     Change ID: [38;5;5m<<change_id::rlvkpnrzqnoowoytxnquwvuryrwnrmlp>>[39m
-    Author: [38;5;3m<<author name::Test User>>[39m <[38;5;3m<<author email::test.user@example.com>>[39m> ([38;5;6m<<author timestamp local format::2001-02-03 08:05:09>>[39m)
+    Author   : [38;5;3m<<author name::Test User>>[39m <[38;5;3m<<author email::test.user@example.com>>[39m> ([38;5;6m<<author timestamp local format::2001-02-03 08:05:09>>[39m)
     Committer: [38;5;3m<<committer name::Test User>>[39m <[38;5;3m<<committer email::test.user@example.com>>[39m> ([38;5;6m<<committer timestamp local format::2001-02-03 08:05:09>>[39m)
 
     [38;5;3m<<description placeholder::    (no description set)>>[39m
@@ -96,36 +96,36 @@ fn test_show_basic() {
     "#);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["show", "-s"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @r#"
     Commit ID: e34f04317a81edc6ba41fef239c0d0180f10656f
     Change ID: rlvkpnrzqnoowoytxnquwvuryrwnrmlp
-    Author: Test User <test.user@example.com> (2001-02-03 08:05:09)
+    Author   : Test User <test.user@example.com> (2001-02-03 08:05:09)
     Committer: Test User <test.user@example.com> (2001-02-03 08:05:09)
 
         (no description set)
 
     M file2
     R {file1 => file3}
-    "###);
+    "#);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["show", "--types"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @r#"
     Commit ID: e34f04317a81edc6ba41fef239c0d0180f10656f
     Change ID: rlvkpnrzqnoowoytxnquwvuryrwnrmlp
-    Author: Test User <test.user@example.com> (2001-02-03 08:05:09)
+    Author   : Test User <test.user@example.com> (2001-02-03 08:05:09)
     Committer: Test User <test.user@example.com> (2001-02-03 08:05:09)
 
         (no description set)
 
     FF file2
     FF {file1 => file3}
-    "###);
+    "#);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["show", "--git"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @r#"
     Commit ID: e34f04317a81edc6ba41fef239c0d0180f10656f
     Change ID: rlvkpnrzqnoowoytxnquwvuryrwnrmlp
-    Author: Test User <test.user@example.com> (2001-02-03 08:05:09)
+    Author   : Test User <test.user@example.com> (2001-02-03 08:05:09)
     Committer: Test User <test.user@example.com> (2001-02-03 08:05:09)
 
         (no description set)
@@ -142,13 +142,13 @@ fn test_show_basic() {
     diff --git a/file1 b/file3
     rename from file1
     rename to file3
-    "###);
+    "#);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["show", "--git", "--context=0"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @r#"
     Commit ID: e34f04317a81edc6ba41fef239c0d0180f10656f
     Change ID: rlvkpnrzqnoowoytxnquwvuryrwnrmlp
-    Author: Test User <test.user@example.com> (2001-02-03 08:05:09)
+    Author   : Test User <test.user@example.com> (2001-02-03 08:05:09)
     Committer: Test User <test.user@example.com> (2001-02-03 08:05:09)
 
         (no description set)
@@ -164,13 +164,13 @@ fn test_show_basic() {
     diff --git a/file1 b/file3
     rename from file1
     rename to file3
-    "###);
+    "#);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["show", "--git", "--color=debug"]);
     insta::assert_snapshot!(stdout, @r#"
     Commit ID: [38;5;4m<<commit_id::e34f04317a81edc6ba41fef239c0d0180f10656f>>[39m
     Change ID: [38;5;5m<<change_id::rlvkpnrzqnoowoytxnquwvuryrwnrmlp>>[39m
-    Author: [38;5;3m<<author name::Test User>>[39m <[38;5;3m<<author email::test.user@example.com>>[39m> ([38;5;6m<<author timestamp local format::2001-02-03 08:05:09>>[39m)
+    Author   : [38;5;3m<<author name::Test User>>[39m <[38;5;3m<<author email::test.user@example.com>>[39m> ([38;5;6m<<author timestamp local format::2001-02-03 08:05:09>>[39m)
     Committer: [38;5;3m<<committer name::Test User>>[39m <[38;5;3m<<committer email::test.user@example.com>>[39m> ([38;5;6m<<committer timestamp local format::2001-02-03 08:05:09>>[39m)
 
     [38;5;3m<<description placeholder::    (no description set)>>[39m
@@ -190,10 +190,10 @@ fn test_show_basic() {
     "#);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["show", "-s", "--git"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @r#"
     Commit ID: e34f04317a81edc6ba41fef239c0d0180f10656f
     Change ID: rlvkpnrzqnoowoytxnquwvuryrwnrmlp
-    Author: Test User <test.user@example.com> (2001-02-03 08:05:09)
+    Author   : Test User <test.user@example.com> (2001-02-03 08:05:09)
     Committer: Test User <test.user@example.com> (2001-02-03 08:05:09)
 
         (no description set)
@@ -212,13 +212,13 @@ fn test_show_basic() {
     diff --git a/file1 b/file3
     rename from file1
     rename to file3
-    "###);
+    "#);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["show", "--stat"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @r#"
     Commit ID: e34f04317a81edc6ba41fef239c0d0180f10656f
     Change ID: rlvkpnrzqnoowoytxnquwvuryrwnrmlp
-    Author: Test User <test.user@example.com> (2001-02-03 08:05:09)
+    Author   : Test User <test.user@example.com> (2001-02-03 08:05:09)
     Committer: Test User <test.user@example.com> (2001-02-03 08:05:09)
 
         (no description set)
@@ -226,7 +226,7 @@ fn test_show_basic() {
     file2            | 3 ++-
     {file1 => file3} | 0
     2 files changed, 2 insertions(+), 1 deletion(-)
-    "###);
+    "#);
 }
 
 #[test]
@@ -294,10 +294,10 @@ fn test_show_relative_timestamps() {
         .map(|x| timestamp_re.replace_all(x, "(...timestamp...)"))
         .join("\n");
 
-    insta::assert_snapshot!(stdout, @r###"
-    Author: Test User <test.user@example.com> (...timestamp...)
+    insta::assert_snapshot!(stdout, @r#"
+    Author   : Test User <test.user@example.com> (...timestamp...)
     Committer: Test User <test.user@example.com> (...timestamp...)
 
         (no description set)
-    "###);
+    "#);
 }

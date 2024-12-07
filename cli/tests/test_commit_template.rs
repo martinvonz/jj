@@ -316,31 +316,31 @@ fn test_log_builtin_templates() {
     [EOF]
     "###);
 
-    insta::assert_snapshot!(render(r#"builtin_log_detailed"#), @r###"
+    insta::assert_snapshot!(render(r#"builtin_log_detailed"#), @r#"
     Commit ID: dc31539712c7294d1d712cec63cef4504b94ca74
     Change ID: rlvkpnrzqnoowoytxnquwvuryrwnrmlp
     Bookmarks: my-bookmark
-    Author: (no name set) <(no email set)> (2001-02-03 08:05:08)
+    Author   : (no name set) <(no email set)> (2001-02-03 08:05:08)
     Committer: (no name set) <(no email set)> (2001-02-03 08:05:08)
 
         (no description set)
 
     Commit ID: 230dd059e1b059aefc0da06a2e5a7dbf22362f22
     Change ID: qpvuntsmwlqtpsluzzsnyyzlmlwvmlnu
-    Author: Test User <test.user@example.com> (2001-02-03 08:05:07)
+    Author   : Test User <test.user@example.com> (2001-02-03 08:05:07)
     Committer: Test User <test.user@example.com> (2001-02-03 08:05:07)
 
         (no description set)
 
     Commit ID: 0000000000000000000000000000000000000000
     Change ID: zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz
-    Author: (no name set) <(no email set)> (1970-01-01 11:00:00)
+    Author   : (no name set) <(no email set)> (1970-01-01 11:00:00)
     Committer: (no name set) <(no email set)> (1970-01-01 11:00:00)
 
         (no description set)
 
     [EOF]
-    "###);
+    "#);
 }
 
 #[test]
@@ -386,30 +386,29 @@ fn test_log_builtin_templates_colored() {
 
     "#);
 
-    insta::assert_snapshot!(render(r#"builtin_log_detailed"#), @r###"
+    insta::assert_snapshot!(render(r#"builtin_log_detailed"#), @r#"
     [1m[38;5;2m@[0m  Commit ID: [38;5;4mdc31539712c7294d1d712cec63cef4504b94ca74[39m
     │  Change ID: [38;5;5mrlvkpnrzqnoowoytxnquwvuryrwnrmlp[39m
     │  Bookmarks: [38;5;5mmy-bookmark[39m
-    │  Author: [38;5;1m(no name set)[39m <[38;5;1m(no email set)[39m> ([38;5;6m2001-02-03 08:05:08[39m)
+    │  Author   : [38;5;1m(no name set)[39m <[38;5;1m(no email set)[39m> ([38;5;6m2001-02-03 08:05:08[39m)
     │  Committer: [38;5;1m(no name set)[39m <[38;5;1m(no email set)[39m> ([38;5;6m2001-02-03 08:05:08[39m)
     │
     │  [38;5;2m    (no description set)[39m
     │
     ○  Commit ID: [38;5;4m230dd059e1b059aefc0da06a2e5a7dbf22362f22[39m
     │  Change ID: [38;5;5mqpvuntsmwlqtpsluzzsnyyzlmlwvmlnu[39m
-    │  Author: [38;5;3mTest User[39m <[38;5;3mtest.user@example.com[39m> ([38;5;6m2001-02-03 08:05:07[39m)
+    │  Author   : [38;5;3mTest User[39m <[38;5;3mtest.user@example.com[39m> ([38;5;6m2001-02-03 08:05:07[39m)
     │  Committer: [38;5;3mTest User[39m <[38;5;3mtest.user@example.com[39m> ([38;5;6m2001-02-03 08:05:07[39m)
     │
     │  [38;5;2m    (no description set)[39m
     │
     [1m[38;5;14m◆[0m  Commit ID: [38;5;4m0000000000000000000000000000000000000000[39m
        Change ID: [38;5;5mzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz[39m
-       Author: [38;5;1m(no name set)[39m <[38;5;1m(no email set)[39m> ([38;5;6m1970-01-01 11:00:00[39m)
+       Author   : [38;5;1m(no name set)[39m <[38;5;1m(no email set)[39m> ([38;5;6m1970-01-01 11:00:00[39m)
        Committer: [38;5;1m(no name set)[39m <[38;5;1m(no email set)[39m> ([38;5;6m1970-01-01 11:00:00[39m)
 
        [38;5;2m    (no description set)[39m
-
-    "###);
+    "#);
 }
 
 #[test]
@@ -455,30 +454,30 @@ fn test_log_builtin_templates_colored_debug() {
        <<log::>>
     "#);
 
-    insta::assert_snapshot!(render(r#"builtin_log_detailed"#), @r###"
+    insta::assert_snapshot!(render(r#"builtin_log_detailed"#), @r#"
     [1m[38;5;2m<<node working_copy::@>>[0m  <<log::Commit ID: >>[38;5;4m<<log commit_id::dc31539712c7294d1d712cec63cef4504b94ca74>>[39m<<log::>>
     │  <<log::Change ID: >>[38;5;5m<<log change_id::rlvkpnrzqnoowoytxnquwvuryrwnrmlp>>[39m<<log::>>
     │  <<log::Bookmarks: >>[38;5;5m<<log local_bookmarks name::my-bookmark>>[39m<<log::>>
-    │  <<log::Author: >>[38;5;1m<<log name placeholder::(no name set)>>[39m<<log:: <>>[38;5;1m<<log email placeholder::(no email set)>>[39m<<log::> (>>[38;5;6m<<log author timestamp local format::2001-02-03 08:05:08>>[39m<<log::)>>
+    │  <<log::Author   : >>[38;5;1m<<log name placeholder::(no name set)>>[39m<<log:: <>>[38;5;1m<<log email placeholder::(no email set)>>[39m<<log::> (>>[38;5;6m<<log author timestamp local format::2001-02-03 08:05:08>>[39m<<log::)>>
     │  <<log::Committer: >>[38;5;1m<<log name placeholder::(no name set)>>[39m<<log:: <>>[38;5;1m<<log email placeholder::(no email set)>>[39m<<log::> (>>[38;5;6m<<log committer timestamp local format::2001-02-03 08:05:08>>[39m<<log::)>>
     │  <<log::>>
     │  [38;5;2m<<log empty description placeholder::    (no description set)>>[39m<<log::>>
     │  <<log::>>
     <<node::○>>  <<log::Commit ID: >>[38;5;4m<<log commit_id::230dd059e1b059aefc0da06a2e5a7dbf22362f22>>[39m<<log::>>
     │  <<log::Change ID: >>[38;5;5m<<log change_id::qpvuntsmwlqtpsluzzsnyyzlmlwvmlnu>>[39m<<log::>>
-    │  <<log::Author: >>[38;5;3m<<log author name::Test User>>[39m<<log:: <>>[38;5;3m<<log author email::test.user@example.com>>[39m<<log::> (>>[38;5;6m<<log author timestamp local format::2001-02-03 08:05:07>>[39m<<log::)>>
+    │  <<log::Author   : >>[38;5;3m<<log author name::Test User>>[39m<<log:: <>>[38;5;3m<<log author email::test.user@example.com>>[39m<<log::> (>>[38;5;6m<<log author timestamp local format::2001-02-03 08:05:07>>[39m<<log::)>>
     │  <<log::Committer: >>[38;5;3m<<log committer name::Test User>>[39m<<log:: <>>[38;5;3m<<log committer email::test.user@example.com>>[39m<<log::> (>>[38;5;6m<<log committer timestamp local format::2001-02-03 08:05:07>>[39m<<log::)>>
     │  <<log::>>
     │  [38;5;2m<<log empty description placeholder::    (no description set)>>[39m<<log::>>
     │  <<log::>>
     [1m[38;5;14m<<node immutable::◆>>[0m  <<log::Commit ID: >>[38;5;4m<<log commit_id::0000000000000000000000000000000000000000>>[39m<<log::>>
        <<log::Change ID: >>[38;5;5m<<log change_id::zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz>>[39m<<log::>>
-       <<log::Author: >>[38;5;1m<<log name placeholder::(no name set)>>[39m<<log:: <>>[38;5;1m<<log email placeholder::(no email set)>>[39m<<log::> (>>[38;5;6m<<log author timestamp local format::1970-01-01 11:00:00>>[39m<<log::)>>
+       <<log::Author   : >>[38;5;1m<<log name placeholder::(no name set)>>[39m<<log:: <>>[38;5;1m<<log email placeholder::(no email set)>>[39m<<log::> (>>[38;5;6m<<log author timestamp local format::1970-01-01 11:00:00>>[39m<<log::)>>
        <<log::Committer: >>[38;5;1m<<log name placeholder::(no name set)>>[39m<<log:: <>>[38;5;1m<<log email placeholder::(no email set)>>[39m<<log::> (>>[38;5;6m<<log committer timestamp local format::1970-01-01 11:00:00>>[39m<<log::)>>
        <<log::>>
        [38;5;2m<<log empty description placeholder::    (no description set)>>[39m<<log::>>
        <<log::>>
-    "###);
+    "#);
 }
 
 #[test]
