@@ -22,8 +22,8 @@ use std::path::PathBuf;
 use std::process::Command;
 
 use itertools::Itertools;
-use jj_lib::config::ConfigError;
 use jj_lib::config::ConfigLayer;
+use jj_lib::config::ConfigLoadError;
 use jj_lib::config::ConfigNamePathBuf;
 use jj_lib::config::ConfigSource;
 use jj_lib::config::ConfigValue;
@@ -263,7 +263,7 @@ impl ConfigEnv {
     /// Loads user-specific config files into the given `config`. The old
     /// user-config layers will be replaced if any.
     #[instrument]
-    pub fn reload_user_config(&self, config: &mut StackedConfig) -> Result<(), ConfigError> {
+    pub fn reload_user_config(&self, config: &mut StackedConfig) -> Result<(), ConfigLoadError> {
         config.remove_layers(ConfigSource::User);
         if let Some(path) = self.existing_user_config_path() {
             if path.is_dir() {
@@ -301,7 +301,7 @@ impl ConfigEnv {
     /// Loads repo-specific config file into the given `config`. The old
     /// repo-config layer will be replaced if any.
     #[instrument]
-    pub fn reload_repo_config(&self, config: &mut StackedConfig) -> Result<(), ConfigError> {
+    pub fn reload_repo_config(&self, config: &mut StackedConfig) -> Result<(), ConfigLoadError> {
         config.remove_layers(ConfigSource::Repo);
         if let Some(path) = self.existing_repo_config_path() {
             config.load_file(ConfigSource::Repo, path)?;
@@ -403,7 +403,7 @@ fn env_overrides_layer() -> ConfigLayer {
 }
 
 /// Parses `--config-toml` arguments.
-pub fn parse_config_args(toml_strs: &[String]) -> Result<Vec<ConfigLayer>, ConfigError> {
+pub fn parse_config_args(toml_strs: &[String]) -> Result<Vec<ConfigLayer>, ConfigLoadError> {
     // It might look silly that a layer is constructed per argument, but
     // --config-toml argument can contain a full TOML document, and it makes
     // sense to preserve line numbers within the doc. If we add

@@ -171,13 +171,15 @@ fn test_config_multiple_tools_with_same_name() {
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["fix"]);
     insta::assert_snapshot!(stderr, @r"
-    Config error: TOML parse error at line 6, column 9
+    Config error: Configuration cannot be parsed as TOML document
+    Caused by: TOML parse error at line 6, column 9
       |
     6 |         [fix.tools.my-tool]
       |         ^
     invalid table header
     duplicate key `my-tool` in table `fix.tools`
-     in $TEST_ENV/config/config0002.toml
+
+    Hint: Check the config file: $TEST_ENV/config/config0002.toml
     For help, see https://martinvonz.github.io/jj/latest/config/.
     ");
 

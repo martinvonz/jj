@@ -32,6 +32,7 @@ use toml_edit::DocumentMut;
 use toml_edit::ImDocument;
 
 use crate::file_util::IoResultExt as _;
+use crate::file_util::PathError;
 
 /// Config value or table node.
 pub type ConfigItem = toml_edit::Item;
@@ -40,9 +41,22 @@ pub type ConfigTable = toml_edit::Table;
 /// Generic config value.
 pub type ConfigValue = toml_edit::Value;
 
-/// Error that can occur when accessing configuration.
-// TODO: will be replaced with our custom error type
-pub type ConfigError = config::ConfigError;
+/// Error that can occur when parsing or loading config variables.
+#[derive(Debug, Error)]
+pub enum ConfigLoadError {
+    /// Config file or directory cannot be read.
+    #[error("Failed to read configuration file")]
+    Read(#[source] PathError),
+    /// TOML file or text cannot be parsed.
+    #[error("Configuration cannot be parsed as TOML document")]
+    Parse {
+        /// Source error.
+        #[source]
+        error: toml_edit::TomlError,
+        /// Source file path.
+        source_path: Option<PathBuf>,
+    },
+}
 
 /// Error that can occur when looking up config variable.
 #[derive(Debug, Error)]
@@ -270,22 +284,21 @@ impl ConfigLayer {
     }
 
     /// Parses TOML document `text` into new layer.
-    pub fn parse(source: ConfigSource, text: &str) -> Result<Self, ConfigError> {
-        let data = ImDocument::parse(text).map_err(|err| ConfigError::FileParse {
-            uri: None,
-            cause: err.into(),
+    pub fn parse(source: ConfigSource, text: &str) -> Result<Self, ConfigLoadError> {
+        let data = ImDocument::parse(text).map_err(|error| ConfigLoadError::Parse {
+            error,
+            source_path: None,
         })?;
         Ok(Self::with_data(source, data.into_mut()))
     }
 
-    fn load_from_file(source: ConfigSource, path: PathBuf) -> Result<Self, ConfigError> {
-        let text = fs::read_to_string(&path).map_err(|err| ConfigError::FileParse {
-            uri: Some(path.to_string_lossy().into_owned()),
-            cause: err.into(),
-        })?;
-        let data = ImDocument::parse(text).map_err(|err| ConfigError::FileParse {
-            uri: Some(path.to_string_lossy().into_owned()),
-            cause: err.into(),
+    fn load_from_file(source: ConfigSource, path: PathBuf) -> Result<Self, ConfigLoadError> {
+        let text = fs::read_to_string(&path)
+            .context(&path)
+            .map_err(ConfigLoadError::Read)?;
+        let data = ImDocument::parse(text).map_err(|error| ConfigLoadError::Parse {
+            error,
+            source_path: Some(path.clone()),
         })?;
         Ok(ConfigLayer {
             source,
@@ -294,7 +307,7 @@ impl ConfigLayer {
         })
     }
 
-    fn load_from_dir(source: ConfigSource, path: &Path) -> Result<Vec<Self>, ConfigError> {
+    fn load_from_dir(source: ConfigSource, path: &Path) -> Result<Vec<Self>, ConfigLoadError> {
         // TODO: Walk the directory recursively?
         let mut file_paths: Vec<_> = path
             .read_dir()
@@ -306,7 +319,7 @@ impl ConfigLayer {
                     .try_collect()
             })
             .context(path)
-            .map_err(|err| ConfigError::Foreign(err.into()))?;
+            .map_err(ConfigLoadError::Read)?;
         file_paths.sort_unstable();
         file_paths
             .into_iter()
@@ -431,7 +444,7 @@ impl StackedConfig {
         &mut self,
         source: ConfigSource,
         path: impl Into<PathBuf>,
-    ) -> Result<(), ConfigError> {
+    ) -> Result<(), ConfigLoadError> {
         let layer = ConfigLayer::load_from_file(source, path.into())?;
         self.add_layer(layer);
         Ok(())
@@ -443,7 +456,7 @@ impl StackedConfig {
         &mut self,
         source: ConfigSource,
         path: impl AsRef<Path>,
-    ) -> Result<(), ConfigError> {
+    ) -> Result<(), ConfigLoadError> {
         let layers = ConfigLayer::load_from_dir(source, path.as_ref())?;
         self.extend_layers(layers);
         Ok(())
