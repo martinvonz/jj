@@ -100,7 +100,7 @@ fn test_absorb_simple() {
     │  index e69de29bb2..ed237b5112 100644
     │  --- a/file1
     │  +++ b/file1
-    │  @@ -1,0 +1,3 @@
+    │  @@ -0,0 +1,3 @@
     │  +1X
     │  +1A
     │  +1b
@@ -195,7 +195,7 @@ fn test_absorb_replace_single_line_hunk() {
        index 0000000000..0000000000
        --- /dev/null
        +++ b/file1
-       @@ -1,0 +1,10 @@
+       @@ -0,0 +1,10 @@
        +<<<<<<< Conflict 1 of 1
        +%%%%%%% Changes from base to side #1
        +-2a
@@ -271,7 +271,7 @@ fn test_absorb_merge() {
     │ │  index 0000000000..44442d2d7b
     │ │  --- /dev/null
     │ │  +++ b/file2
-    │ │  @@ -1,0 +1,1 @@
+    │ │  @@ -0,0 +1,1 @@
     │ │  +3A
     │ ○  zsuskuln 71d1ee56 2
     │ │  diff --git a/file1 b/file1
@@ -297,7 +297,7 @@ fn test_absorb_merge() {
        index 0000000000..eb6e8821f1
        --- /dev/null
        +++ b/file1
-       @@ -1,0 +1,1 @@
+       @@ -0,0 +1,1 @@
        +0a
     ");
 }
@@ -396,7 +396,7 @@ fn test_absorb_file_mode() {
        index 0000000000..268de3f3ec
        --- /dev/null
        +++ b/file1
-       @@ -1,0 +1,1 @@
+       @@ -0,0 +1,1 @@
        +1A
     ");
 }
@@ -488,7 +488,7 @@ fn test_absorb_from_into() {
     │  index 0000000000..faf62af049
     │  --- /dev/null
     │  +++ b/file1
-    │  @@ -1,0 +1,7 @@
+    │  @@ -0,0 +1,7 @@
     │  +1a
     │  +X
     │  +2a
@@ -544,14 +544,14 @@ fn test_absorb_paths() {
        index 0000000000..268de3f3ec
        --- /dev/null
        +++ b/file1
-       @@ -1,0 +1,1 @@
+       @@ -0,0 +1,1 @@
        +1A
        diff --git a/file2 b/file2
        new file mode 100644
        index 0000000000..a8994dc188
        --- /dev/null
        +++ b/file2
-       @@ -1,0 +1,1 @@
+       @@ -0,0 +1,1 @@
        +1a
     ");
 }
@@ -619,7 +619,7 @@ fn test_absorb_immutable() {
        index 0000000000..8c5268f893
        --- /dev/null
        +++ b/file1
-       @@ -1,0 +1,2 @@
+       @@ -0,0 +1,2 @@
        +1a
        +1b
     ");

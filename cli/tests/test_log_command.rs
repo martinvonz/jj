@@ -112,7 +112,7 @@ fn test_log_with_or_without_diff() {
 
     // `-s` for summary, `--git` for git diff (which implies `-p`)
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "description", "-s", "--git"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @r"
     @  a new commit
     │  M file1
     │  diff --git a/file1 b/file1
@@ -129,10 +129,10 @@ fn test_log_with_or_without_diff() {
     │  index 0000000000..257cc5642c
     │  --- /dev/null
     │  +++ b/file1
-    │  @@ -1,0 +1,1 @@
+    │  @@ -0,0 +1,1 @@
     │  +foo
     ◆
-    "###);
+    ");
 
     // `-p` enables default "summary" output, so `-s` is noop
     let stdout = test_env.jj_cmd_success(
@@ -175,7 +175,7 @@ fn test_log_with_or_without_diff() {
         &repo_path,
         &["log", "-T", "description", "--no-graph", "-p", "--git"],
     );
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @r"
     a new commit
     diff --git a/file1 b/file1
     index 257cc5642c..3bd1f0e297 100644
@@ -190,9 +190,9 @@ fn test_log_with_or_without_diff() {
     index 0000000000..257cc5642c
     --- /dev/null
     +++ b/file1
-    @@ -1,0 +1,1 @@
+    @@ -0,0 +1,1 @@
     +foo
-    "###);
+    ");
 
     // Cannot use both `--git` and `--color-words`
     let stderr = test_env.jj_cmd_cli_error(

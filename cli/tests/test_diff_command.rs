@@ -87,15 +87,15 @@ fn test_diff_basic() {
     "###);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "--git", "file1"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @r"
     diff --git a/file1 b/file1
     deleted file mode 100644
     index 257cc5642c..0000000000
     --- a/file1
     +++ /dev/null
-    @@ -1,1 +1,0 @@
+    @@ -1,1 +0,0 @@
     -foo
-    "###);
+    ");
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "--git"]);
     insta::assert_snapshot!(stdout, @r###"
@@ -118,7 +118,7 @@ fn test_diff_basic() {
     "###);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "--git", "--context=0"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @r"
     diff --git a/file2 b/file2
     index 94ebaf9001..1ffc51b472 100644
     --- a/file2
@@ -126,7 +126,7 @@ fn test_diff_basic() {
     @@ -2,1 +2,1 @@
     -2
     +5
-    @@ -4,1 +4,0 @@
+    @@ -4,1 +3,0 @@
     -4
     diff --git a/file1 b/file3
     rename from file1
@@ -134,7 +134,7 @@ fn test_diff_basic() {
     diff --git a/file2 b/file4
     copy from file2
     copy to file4
-    "###);
+    ");
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "--git", "--color=debug"]);
     insta::assert_snapshot!(stdout, @r###"
@@ -313,7 +313,7 @@ fn test_diff_file_mode() {
     "###);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-r@--", "--git"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @r"
     diff --git a/file1 b/file1
     new file mode 100755
     index 0000000000..e69de29bb2
@@ -322,28 +322,28 @@ fn test_diff_file_mode() {
     index 0000000000..d00491fd7e
     --- /dev/null
     +++ b/file2
-    @@ -1,0 +1,1 @@
+    @@ -0,0 +1,1 @@
     +1
     diff --git a/file3 b/file3
     new file mode 100644
     index 0000000000..d00491fd7e
     --- /dev/null
     +++ b/file3
-    @@ -1,0 +1,1 @@
+    @@ -0,0 +1,1 @@
     +1
     diff --git a/file4 b/file4
     new file mode 100644
     index 0000000000..e69de29bb2
-    "###);
+    ");
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-r@-", "--git"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @r"
     diff --git a/file1 b/file1
     old mode 100755
     new mode 100644
     index e69de29bb2..0cfbf08886
     --- a/file1
     +++ b/file1
-    @@ -1,0 +1,1 @@
+    @@ -0,0 +1,1 @@
     +2
     diff --git a/file2 b/file2
     old mode 100755
@@ -360,34 +360,34 @@ fn test_diff_file_mode() {
     diff --git a/file4 b/file4
     old mode 100644
     new mode 100755
-    "###);
+    ");
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-r@", "--git"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @r"
     diff --git a/file1 b/file1
     deleted file mode 100644
     index 0cfbf08886..0000000000
     --- a/file1
     +++ /dev/null
-    @@ -1,1 +1,0 @@
+    @@ -1,1 +0,0 @@
     -2
     diff --git a/file2 b/file2
     deleted file mode 100644
     index d00491fd7e..0000000000
     --- a/file2
     +++ /dev/null
-    @@ -1,1 +1,0 @@
+    @@ -1,1 +0,0 @@
     -1
     diff --git a/file3 b/file3
     deleted file mode 100755
     index 0cfbf08886..0000000000
     --- a/file3
     +++ /dev/null
-    @@ -1,1 +1,0 @@
+    @@ -1,1 +0,0 @@
     -2
     diff --git a/file4 b/file4
     deleted file mode 100755
     index e69de29bb2..0000000000
-    "###);
+    ");
 }
 
 #[test]
@@ -686,18 +686,18 @@ fn test_diff_hunks() {
     "###);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "--git"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @r"
     diff --git a/file1 b/file1
     index e69de29bb2..257cc5642c 100644
     --- a/file1
     +++ b/file1
-    @@ -1,0 +1,1 @@
+    @@ -0,0 +1,1 @@
     +foo
     diff --git a/file2 b/file2
     index 257cc5642c..e69de29bb2 100644
     --- a/file2
     +++ b/file2
-    @@ -1,1 +1,0 @@
+    @@ -1,1 +0,0 @@
     -foo
     diff --git a/file3 b/file3
     index 221a95a095..a543ef3892 100644
@@ -708,21 +708,21 @@ fn test_diff_hunks() {
     -baz qux blah blah
     +bar
     +baz quux blah blah
-    "###);
+    ");
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "--git", "--color=debug"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @r"
     [1m<<diff file_header::diff --git a/file1 b/file1>>[0m
     [1m<<diff file_header::index e69de29bb2..257cc5642c 100644>>[0m
     [1m<<diff file_header::--- a/file1>>[0m
     [1m<<diff file_header::+++ b/file1>>[0m
-    [38;5;6m<<diff hunk_header::@@ -1,0 +1,1 @@>>[39m
+    [38;5;6m<<diff hunk_header::@@ -0,0 +1,1 @@>>[39m
     [38;5;2m<<diff added::+>>[4m<<diff added token::foo>>[24m[39m
     [1m<<diff file_header::diff --git a/file2 b/file2>>[0m
     [1m<<diff file_header::index 257cc5642c..e69de29bb2 100644>>[0m
     [1m<<diff file_header::--- a/file2>>[0m
     [1m<<diff file_header::+++ b/file2>>[0m
-    [38;5;6m<<diff hunk_header::@@ -1,1 +1,0 @@>>[39m
+    [38;5;6m<<diff hunk_header::@@ -1,1 +0,0 @@>>[39m
     [38;5;1m<<diff removed::->>[4m<<diff removed token::foo>>[24m[39m
     [1m<<diff file_header::diff --git a/file3 b/file3>>[0m
     [1m<<diff file_header::index 221a95a095..a543ef3892 100644>>[0m
@@ -733,7 +733,7 @@ fn test_diff_hunks() {
     [38;5;1m<<diff removed::-baz >>[4m<<diff removed token::qux>>[24m<<diff removed:: blah blah>>[39m
     [38;5;2m<<diff added::+>>[4m<<diff added token::bar>>[24m[39m
     [38;5;2m<<diff added::+baz >>[4m<<diff added token::quux>>[24m<<diff added:: blah blah>>[39m
-    "###);
+    ");
 }
 
 #[test]
@@ -1805,14 +1805,14 @@ context = 0
             "--reversed",
         ],
     );
-    insta::assert_snapshot!(stdout, @r#"
+    insta::assert_snapshot!(stdout, @r"
     === First commit
     diff --git a/file1 b/file1
     new file mode 100644
     index 0000000000..0fec236860
     --- /dev/null
     +++ b/file1
-    @@ -1,0 +1,5 @@
+    @@ -0,0 +1,5 @@
     +a
     +b
     +c
@@ -1827,7 +1827,7 @@ context = 0
     @@ -3,1 +3,1 @@
     -c
     +C
-    "#);
+    ");
 }
 
 #[test]

@@ -104,7 +104,7 @@ fn test_evolog_with_or_without_diff() {
 
     // Test `--git` format, and that it implies `-p`
     let stdout = test_env.jj_cmd_success(&repo_path, &["evolog", "--no-graph", "--git"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @r"
     rlvkpnrz test.user@example.com 2001-02-03 08:05:10 66b42ad3
     my description
     diff --git a/file1 b/file1
@@ -136,11 +136,11 @@ fn test_evolog_with_or_without_diff() {
     index 0000000000..257cc5642c
     --- /dev/null
     +++ b/file2
-    @@ -1,0 +1,1 @@
+    @@ -0,0 +1,1 @@
     +foo
     rlvkpnrz hidden test.user@example.com 2001-02-03 08:05:08 2b023b5f
     (empty) my description
-    "###);
+    ");
 }
 
 #[test]
