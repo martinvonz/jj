@@ -154,6 +154,7 @@ fn test_op_log_with_no_template() {
     - builtin_log_compact
     - builtin_log_compact_full_description
     - builtin_log_detailed
+    - builtin_log_detailed_with_sig
     - builtin_log_node
     - builtin_log_node_ascii
     - builtin_log_oneline
@@ -161,6 +162,8 @@ fn test_op_log_with_no_template() {
     - builtin_op_log_compact
     - builtin_op_log_node
     - builtin_op_log_node_ascii
+    - builtin_sig_detailed
+    - builtin_sig_status
     - commit_summary_separator
     - description_placeholder
     - email_placeholder
