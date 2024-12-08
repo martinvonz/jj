@@ -22,13 +22,13 @@ use crate::ui::Ui;
 ///
 /// This is useful for arbitrary aliases.
 ///
-/// !!! warning
+/// !! WARNING !!
 ///
-///     The following technique just provides a convenient syntax for running
-///     arbitrary code on your system. Using it irresponsibly may cause damage
-///     ranging from breaking the behavior of `jj undo` to wiping your file
-///     system.  Exercise the same amount of caution while writing these aliases
-///     as you would when typing commands into the terminal!
+/// The following technique just provides a convenient syntax for running
+/// arbitrary code on your system. Using it irresponsibly may cause damage
+/// ranging from breaking the behavior of `jj undo` to wiping your file system.
+/// Exercise the same amount of caution while writing these aliases as you would
+/// when typing commands into the terminal!
 ///
 /// This feature may be removed or replaced by an embedded scripting language in
 /// the future.
