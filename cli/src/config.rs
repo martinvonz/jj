@@ -53,12 +53,10 @@ pub fn parse_toml_value_or_bare_string(value_str: &str) -> toml_edit::Value {
 
 #[derive(Error, Debug)]
 pub enum ConfigEnvError {
-    #[error(transparent)]
-    ConfigReadError(#[from] ConfigError),
     #[error("Both {0} and {1} exist. Please consolidate your configs in one of them.")]
     AmbiguousSource(PathBuf, PathBuf),
     #[error(transparent)]
-    ConfigCreateError(#[from] std::io::Error),
+    CreateFile(std::io::Error),
 }
 
 /// Configuration variable with its source information.
@@ -255,7 +253,7 @@ impl ConfigEnv {
                 // to create an empty file to be overwritten. Since it's unclear
                 // who and when to update ConfigPath::New(_) to ::Existing(_),
                 // it's probably better to not cache the path existence.
-                create_config_file(path)?;
+                create_config_file(path).map_err(ConfigEnvError::CreateFile)?;
                 Ok(Some(path))
             }
             ConfigPath::Unavailable => Ok(None),
