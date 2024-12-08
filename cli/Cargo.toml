@@ -19,8 +19,6 @@ include = [
     "/examples/",
     "/src/",
     "/docs/**",
-    "/testing/",
-    "/tests/",
     "!*.pending-snap",
     "!*.snap*",
     "/tests/cli-reference@.md.snap"
@@ -29,24 +27,6 @@ include = [
 [[bin]]
 name = "jj"
 path = "src/main.rs"
-
-[[bin]]
-name = "fake-editor"
-path = "testing/fake-editor.rs"
-required-features = ["test-fakes"]
-
-[[bin]]
-name = "fake-diff-editor"
-path = "testing/fake-diff-editor.rs"
-required-features = ["test-fakes"]
-
-[[bin]]
-name = "fake-formatter"
-path = "testing/fake-formatter.rs"
-required-features = ["test-fakes"]
-
-[[test]]
-name = "runner"
 
 [dependencies]
 bstr = { workspace = true }
@@ -99,20 +79,15 @@ libc = { workspace = true }
 
 [dev-dependencies]
 anyhow = { workspace = true }
-assert_cmd = { workspace = true }
 assert_matches = { workspace = true }
 async-trait = { workspace = true }
 insta = { workspace = true }
-test-case = { workspace = true }
 testutils = { workspace = true }
-# https://github.com/rust-lang/cargo/issues/2911#issuecomment-1483256987
-jj-cli = { path = ".", features = ["test-fakes"], default-features = false }
 
 [features]
 default = ["watchman"]
 bench = ["dep:criterion"]
 packaging = []
-test-fakes = ["jj-lib/testing"]
 vendored-openssl = ["git2/vendored-openssl", "jj-lib/vendored-openssl"]
 watchman = ["jj-lib/watchman"]
 

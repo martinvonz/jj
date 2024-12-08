@@ -1,0 +1,60 @@
+[package]
+name = "jj-cli-tests"
+description = "Integration tests for the jj-cli crate"
+autotests = false
+publish = false
+
+version = { workspace = true }
+edition = { workspace = true }
+rust-version = { workspace = true }
+license = { workspace = true }
+homepage = { workspace = true }
+repository = { workspace = true }
+documentation = { workspace = true }
+readme = { workspace = true }
+
+# FIXME: switch to custom main.rs and remove build.rs
+build = "../build.rs"
+
+[[bin]]
+name = "jj"
+path = "../src/main.rs"
+
+# FIXME: move ../testing under .?
+[[bin]]
+name = "fake-diff-editor"
+path = "../testing/fake-diff-editor.rs"
+
+[[bin]]
+name = "fake-editor"
+path = "../testing/fake-editor.rs"
+
+[[bin]]
+name = "fake-formatter"
+path = "../testing/fake-formatter.rs"
+
+[[test]]
+name = "runner"
+path = "runner.rs"
+
+[dependencies]
+clap = { workspace = true }
+itertools = { workspace = true }
+jj-cli = { workspace = true }
+
+[dev-dependencies]
+assert_cmd = { workspace = true }
+chrono = { workspace = true }
+dunce = { workspace = true }
+futures = { workspace = true }
+git2 = { workspace = true }
+indoc = { workspace = true }
+insta = { workspace = true }
+jj-lib = { workspace = true, features = ["testing"] }
+regex = { workspace = true }
+tempfile = { workspace = true }
+test-case = { workspace = true }
+testutils = { workspace = true }
+
+[lints]
+workspace = true
