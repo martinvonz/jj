@@ -219,6 +219,8 @@ Thanks to the people who made this release happen!
 * Timestamp objects in templates now have `after(date) -> Boolean` and
   `before(date) -> Boolean` methods for comparing timestamps to other dates.
 
+* Signature objects in templates now have a `email_domain() -> String` method.
+
 * New template functions `pad_start()`, `pad_end()`, `truncate_start()`, and
   `truncate_end()` are added.
 
