@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! This module implements a UnionFind<T> type which can be used to
+//! This module implements a [`UnionFind<T>`] type which can be used to
 //! efficiently calculate disjoint sets for any data type.
 
 use std::collections::HashMap;
@@ -25,7 +25,7 @@ struct Node<T> {
 }
 
 /// Implementation of the union-find algorithm:
-/// https://en.wikipedia.org/wiki/Disjoint-set_data_structure
+/// <https://en.wikipedia.org/wiki/Disjoint-set_data_structure>
 ///
 /// Joins disjoint sets by size to amortize cost.
 #[derive(Clone)]
