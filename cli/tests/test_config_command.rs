@@ -613,10 +613,7 @@ fn test_config_unset_non_existent_key() {
     let repo_path = test_env.env_root().join("repo");
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["config", "unset", "--user", "nonexistent"]);
-    insta::assert_snapshot!(stderr, @r###"
-    Config error: configuration property "nonexistent" not found
-    For help, see https://martinvonz.github.io/jj/latest/config/.
-    "###);
+    insta::assert_snapshot!(stderr, @r#"Error: "nonexistent" doesn't exist"#);
 }
 
 #[test]
@@ -637,10 +634,7 @@ fn test_config_unset_inline_table_key() {
         &["config", "unset", "--user", "inline-table.foo"],
     );
 
-    insta::assert_snapshot!(stderr, @r###"
-    Config error: "inline-table" is not a table
-    For help, see https://martinvonz.github.io/jj/latest/config/.
-    "###);
+    insta::assert_snapshot!(stderr, @r#"Error: "inline-table" is not a table"#);
 }
 
 #[test]

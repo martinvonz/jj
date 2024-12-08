@@ -493,11 +493,11 @@ pub fn remove_config_value_from_file(
     let target_table = key_iter.try_fold(doc.as_table_mut(), |table, key| {
         table
             .get_mut(key)
-            .ok_or_else(|| ConfigError::NotFound(key.to_string()))
+            .ok_or_else(|| user_error(format!(r#""{key}" doesn't exist"#)))
             .and_then(|table| {
                 table
                     .as_table_mut()
-                    .ok_or_else(|| ConfigError::Message(format!(r#""{key}" is not a table"#)))
+                    .ok_or_else(|| user_error(format!(r#""{key}" is not a table"#)))
             })
     })?;
 
@@ -510,7 +510,7 @@ pub fn remove_config_value_from_file(
             entry.remove();
         }
         toml_edit::Entry::Vacant(_) => {
-            return Err(ConfigError::NotFound(key.to_string()).into());
+            return Err(user_error(format!(r#""{key}" doesn't exist"#)));
         }
     }
 
