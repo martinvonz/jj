@@ -587,13 +587,15 @@ fn test_invalid_config() {
     test_env.add_config("[section]key = value-missing-quotes");
     let stderr = test_env.jj_cmd_failure(test_env.env_root(), &["init", "repo"]);
     insta::assert_snapshot!(stderr, @r"
-    Config error: TOML parse error at line 1, column 10
+    Config error: Configuration cannot be parsed as TOML document
+    Caused by: TOML parse error at line 1, column 10
       |
     1 | [section]key = value-missing-quotes
       |          ^
     invalid table header
     expected newline, `#`
-     in $TEST_ENV/config/config0002.toml
+
+    Hint: Check the config file: $TEST_ENV/config/config0002.toml
     For help, see https://martinvonz.github.io/jj/latest/config/.
     ");
 }
