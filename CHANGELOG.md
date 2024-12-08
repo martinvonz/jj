@@ -23,6 +23,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 * The `$NO_COLOR` environment variable must now be non-empty to be respected.
 
+* Fixed incompatible rendering of empty hunks in git/unified diffs.
+  [#5049](https://github.com/martinvonz/jj/issues/5049)
+
 ## [0.24.0] - 2024-12-04
 
 ### Release highlights

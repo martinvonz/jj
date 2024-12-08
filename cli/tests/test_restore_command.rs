@@ -315,7 +315,7 @@ fn test_restore_restore_descendants() {
 
     // Check that "a", "b", and "ab" have their expected content by diffing them.
     // "ab" must have kept its content.
-    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff", "--from=a", "--to=ab", "--git"]), @r#"
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff", "--from=a", "--to=ab", "--git"]), @r"
     diff --git a/file b/file
     index 7898192261..81bf396956 100644
     --- a/file
@@ -328,9 +328,9 @@ fn test_restore_restore_descendants() {
     index 0000000000..6178079822
     --- /dev/null
     +++ b/file2
-    @@ -1,0 +1,1 @@
+    @@ -0,0 +1,1 @@
     +b
-    "#);
+    ");
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff", "--from=b", "--to=ab", "--git"]), @r#"
     diff --git a/file b/file
     index df967b96a5..81bf396956 100644

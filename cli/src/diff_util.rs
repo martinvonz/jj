@@ -1322,8 +1322,8 @@ fn unified_diff_hunks<'content>(
 ) -> Vec<UnifiedDiffHunk<'content>> {
     let mut hunks = vec![];
     let mut current_hunk = UnifiedDiffHunk {
-        left_line_range: 1..1,
-        right_line_range: 1..1,
+        left_line_range: 0..0,
+        right_line_range: 0..0,
         lines: vec![],
     };
     let diff = diff_by_line([left_content, right_content], &options.line_diff);
@@ -1438,13 +1438,28 @@ fn show_unified_diff_hunks(
     right_content: &[u8],
     options: &UnifiedDiffOptions,
 ) -> io::Result<()> {
+    // "If the chunk size is 0, the first number is one lower than one would
+    // expect." - https://www.artima.com/weblogs/viewpost.jsp?thread=164293
+    //
+    // The POSIX spec also states that "the ending line number of an empty range
+    // shall be the number of the preceding line, or 0 if the range is at the
+    // start of the file."
+    // - https://pubs.opengroup.org/onlinepubs/9799919799/utilities/diff.html
+    fn to_line_number(range: Range<usize>) -> usize {
+        if range.is_empty() {
+            range.start
+        } else {
+            range.start + 1
+        }
+    }
+
     for hunk in unified_diff_hunks(left_content, right_content, options) {
         writeln!(
             formatter.labeled("hunk_header"),
             "@@ -{},{} +{},{} @@",
-            hunk.left_line_range.start,
+            to_line_number(hunk.left_line_range.clone()),
             hunk.left_line_range.len(),
-            hunk.right_line_range.start,
+            to_line_number(hunk.right_line_range.clone()),
             hunk.right_line_range.len()
         )?;
         for (line_type, tokens) in &hunk.lines {

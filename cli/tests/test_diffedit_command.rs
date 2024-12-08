@@ -675,13 +675,13 @@ fn test_diffedit_old_restore_interactive_tests() {
     Added 0 files, modified 1 files, removed 0 files
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "--git"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @r"
     diff --git a/file1 b/file1
     deleted file mode 100644
     index 7898192261..0000000000
     --- a/file1
     +++ /dev/null
-    @@ -1,1 +1,0 @@
+    @@ -1,1 +0,0 @@
     -a
     diff --git a/file2 b/file2
     index 7898192261..6178079822 100644
@@ -695,9 +695,9 @@ fn test_diffedit_old_restore_interactive_tests() {
     index 0000000000..c21c9352f7
     --- /dev/null
     +++ b/file3
-    @@ -1,0 +1,1 @@
+    @@ -0,0 +1,1 @@
     +unrelated
-    "###);
+    ");
 }
 
 #[test]
