@@ -23,6 +23,7 @@ use jj_lib::backend::MillisSinceEpoch;
 use jj_lib::backend::Signature;
 use jj_lib::backend::Timestamp;
 use jj_lib::commit::Commit;
+use jj_lib::fileset::FilesetAliasesMap;
 use jj_lib::fileset::FilesetExpression;
 use jj_lib::git;
 use jj_lib::git_backend::GitBackend;
@@ -68,9 +69,16 @@ fn resolve_symbol_with_extensions(
     symbol: &str,
 ) -> Result<Vec<CommitId>, RevsetResolutionError> {
     let aliases_map = RevsetAliasesMap::default();
+    let fileset_aliases_map = FilesetAliasesMap::default();
     let now = chrono::Local::now();
-    let context =
-        RevsetParseContext::new(&aliases_map, String::new(), now.into(), extensions, None);
+    let context = RevsetParseContext::new(
+        &aliases_map,
+        String::new(),
+        now.into(),
+        extensions,
+        None,
+        &fileset_aliases_map,
+    );
     let expression = parse(&mut RevsetDiagnostics::new(), symbol, &context).unwrap();
     assert_matches!(*expression, RevsetExpression::CommitRef(_));
     let symbol_resolver = DefaultSymbolResolver::new(repo, extensions.symbol_resolvers());
@@ -206,6 +214,7 @@ fn test_resolve_symbol_commit_id() {
         &([] as [&Box<dyn SymbolResolverExtension>; 0]),
     );
     let aliases_map = RevsetAliasesMap::default();
+    let fileset_aliases_map = FilesetAliasesMap::default();
     let extensions = RevsetExtensions::default();
     let context = RevsetParseContext::new(
         &aliases_map,
@@ -213,6 +222,7 @@ fn test_resolve_symbol_commit_id() {
         chrono::Utc::now().fixed_offset().into(),
         &extensions,
         None,
+        &fileset_aliases_map,
     );
     assert_matches!(
         parse(&mut RevsetDiagnostics::new(), "present(04)", &context).unwrap()
@@ -921,6 +931,7 @@ fn try_resolve_commit_ids(
 ) -> Result<Vec<CommitId>, RevsetResolutionError> {
     let settings = testutils::user_settings();
     let aliases_map = RevsetAliasesMap::default();
+    let fileset_aliases_map = FilesetAliasesMap::default();
     let revset_extensions = RevsetExtensions::default();
     let context = RevsetParseContext::new(
         &aliases_map,
@@ -928,6 +939,7 @@ fn try_resolve_commit_ids(
         chrono::Utc::now().fixed_offset().into(),
         &revset_extensions,
         None,
+        &fileset_aliases_map,
     );
     let expression = parse(&mut RevsetDiagnostics::new(), revset_str, &context).unwrap();
     let symbol_resolver = DefaultSymbolResolver::new(repo, revset_extensions.symbol_resolvers());
@@ -956,6 +968,7 @@ fn resolve_commit_ids_in_workspace(
         workspace_id: workspace.workspace_id(),
     };
     let aliases_map = RevsetAliasesMap::default();
+    let fileset_aliases_map = FilesetAliasesMap::default();
     let extensions = RevsetExtensions::default();
     let context = RevsetParseContext::new(
         &aliases_map,
@@ -963,6 +976,7 @@ fn resolve_commit_ids_in_workspace(
         chrono::Utc::now().fixed_offset().into(),
         &extensions,
         Some(workspace_ctx),
+        &fileset_aliases_map,
     );
     let expression = parse(&mut RevsetDiagnostics::new(), revset_str, &context).unwrap();
     let symbol_resolver =

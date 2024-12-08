@@ -35,6 +35,7 @@ use crate::dsl_util;
 use crate::dsl_util::collect_similar;
 use crate::dsl_util::AliasExpandError as _;
 use crate::fileset;
+use crate::fileset::FilesetAliasesMap;
 use crate::fileset::FilesetDiagnostics;
 use crate::fileset::FilesetExpression;
 use crate::graph::GraphNode;
@@ -894,7 +895,14 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
             ));
         }
         let file_expressions = itertools::chain([arg], args)
-            .map(|arg| expect_fileset_expression(diagnostics, arg, ctx.path_converter))
+            .map(|arg| {
+                expect_fileset_expression(
+                    diagnostics,
+                    arg,
+                    ctx.path_converter,
+                    context.fileset_aliases_map,
+                )
+            })
             .try_collect()?;
         let expr = FilesetExpression::union_all(file_expressions);
         Ok(RevsetExpression::filter(RevsetFilterPredicate::File(expr)))
@@ -911,7 +919,12 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
                     files_arg.span,
                 )
             })?;
-            expect_fileset_expression(diagnostics, files_arg, ctx.path_converter)?
+            expect_fileset_expression(
+                diagnostics,
+                files_arg,
+                ctx.path_converter,
+                context.fileset_aliases_map,
+            )?
         } else {
             // TODO: defaults to CLI path arguments?
             // https://github.com/martinvonz/jj/issues/2933#issuecomment-1925870731
@@ -968,16 +981,22 @@ pub fn expect_fileset_expression(
     diagnostics: &mut RevsetDiagnostics,
     node: &ExpressionNode,
     path_converter: &RepoPathUiConverter,
+    aliases_map: &FilesetAliasesMap,
 ) -> Result<FilesetExpression, RevsetParseError> {
     // Alias handling is a bit tricky. The outermost expression `alias` is
     // substituted, but inner expressions `x & alias` aren't. If this seemed
     // weird, we can either transform AST or turn off revset aliases completely.
     revset_parser::expect_expression_with(diagnostics, node, |diagnostics, node| {
         let mut inner_diagnostics = FilesetDiagnostics::new();
-        let expression = fileset::parse(&mut inner_diagnostics, node.span.as_str(), path_converter)
-            .map_err(|err| {
-                RevsetParseError::expression("In fileset expression", node.span).with_source(err)
-            })?;
+        let expression = fileset::parse(
+            &mut inner_diagnostics,
+            node.span.as_str(),
+            path_converter,
+            aliases_map,
+        )
+        .map_err(|err| {
+            RevsetParseError::expression("In fileset expression", node.span).with_source(err)
+        })?;
         diagnostics.extend_with(inner_diagnostics, |diag| {
             RevsetParseError::expression("In fileset expression", node.span).with_source(diag)
         });
@@ -2633,6 +2652,7 @@ pub struct RevsetParseContext<'a> {
     date_pattern_context: DatePatternContext,
     extensions: &'a RevsetExtensions,
     workspace: Option<RevsetWorkspaceContext<'a>>,
+    fileset_aliases_map: &'a FilesetAliasesMap,
 }
 
 impl<'a> RevsetParseContext<'a> {
@@ -2642,6 +2662,7 @@ impl<'a> RevsetParseContext<'a> {
         date_pattern_context: DatePatternContext,
         extensions: &'a RevsetExtensions,
         workspace: Option<RevsetWorkspaceContext<'a>>,
+        fileset_aliases_map: &'a FilesetAliasesMap,
     ) -> Self {
         Self {
             aliases_map,
@@ -2649,11 +2670,16 @@ impl<'a> RevsetParseContext<'a> {
             date_pattern_context,
             extensions,
             workspace,
+            fileset_aliases_map,
         }
     }
 
     pub fn aliases_map(&self) -> &'a RevsetAliasesMap {
         self.aliases_map
+    }
+
+    pub fn fileset_aliases_map(&self) -> &'a FilesetAliasesMap {
+        self.fileset_aliases_map
     }
 
     pub fn user_email(&self) -> &str {
@@ -2681,28 +2707,43 @@ mod tests {
     use std::path::PathBuf;
 
     use assert_matches::assert_matches;
+    use dsl_util::AliasesMap;
 
     use super::*;
 
+    const EMPTY: [(&str, &str); 0] = [];
+
+    fn get_alias_map<T>(
+        aliases: impl IntoIterator<Item = (impl AsRef<str>, impl Into<String>)>,
+    ) -> AliasesMap<T, String>
+    where
+        T: dsl_util::AliasDeclarationParser + Default,
+        T::Error: std::fmt::Debug,
+    {
+        let mut aliases_map = AliasesMap::new();
+        for (decl, defn) in aliases {
+            aliases_map.insert(decl, defn).unwrap();
+        }
+        aliases_map
+    }
+
     fn parse(revset_str: &str) -> Result<Rc<UserRevsetExpression>, RevsetParseError> {
-        parse_with_aliases(revset_str, [] as [(&str, &str); 0])
+        parse_with_aliases(revset_str, EMPTY)
     }
 
     fn parse_with_workspace(
         revset_str: &str,
         workspace_id: &WorkspaceId,
     ) -> Result<Rc<UserRevsetExpression>, RevsetParseError> {
-        parse_with_aliases_and_workspace(revset_str, [] as [(&str, &str); 0], workspace_id)
+        parse_with_aliases_and_workspace(revset_str, EMPTY, workspace_id)
     }
 
     fn parse_with_aliases(
         revset_str: &str,
         aliases: impl IntoIterator<Item = (impl AsRef<str>, impl Into<String>)>,
     ) -> Result<Rc<UserRevsetExpression>, RevsetParseError> {
-        let mut aliases_map = RevsetAliasesMap::new();
-        for (decl, defn) in aliases {
-            aliases_map.insert(decl, defn).unwrap();
-        }
+        let aliases_map = get_alias_map(aliases);
+        let fileset_aliases_map = get_alias_map(EMPTY);
         let extensions = RevsetExtensions::default();
         let context = RevsetParseContext::new(
             &aliases_map,
@@ -2710,6 +2751,7 @@ mod tests {
             chrono::Utc::now().fixed_offset().into(),
             &extensions,
             None,
+            &fileset_aliases_map,
         );
         super::parse(&mut RevsetDiagnostics::new(), revset_str, &context)
     }
@@ -2728,10 +2770,8 @@ mod tests {
             path_converter: &path_converter,
             workspace_id,
         };
-        let mut aliases_map = RevsetAliasesMap::new();
-        for (decl, defn) in aliases {
-            aliases_map.insert(decl, defn).unwrap();
-        }
+        let aliases_map = get_alias_map(aliases);
+        let fileset_aliases_map = get_alias_map(EMPTY);
         let extensions = RevsetExtensions::default();
         let context = RevsetParseContext::new(
             &aliases_map,
@@ -2739,6 +2779,7 @@ mod tests {
             chrono::Utc::now().fixed_offset().into(),
             &extensions,
             Some(workspace_ctx),
+            &fileset_aliases_map,
         );
         super::parse(&mut RevsetDiagnostics::new(), revset_str, &context)
     }
@@ -2746,17 +2787,15 @@ mod tests {
     fn parse_with_modifier(
         revset_str: &str,
     ) -> Result<(Rc<UserRevsetExpression>, Option<RevsetModifier>), RevsetParseError> {
-        parse_with_aliases_and_modifier(revset_str, [] as [(&str, &str); 0])
+        parse_with_aliases_and_modifier(revset_str, EMPTY)
     }
 
     fn parse_with_aliases_and_modifier(
         revset_str: &str,
         aliases: impl IntoIterator<Item = (impl AsRef<str>, impl Into<String>)>,
     ) -> Result<(Rc<UserRevsetExpression>, Option<RevsetModifier>), RevsetParseError> {
-        let mut aliases_map = RevsetAliasesMap::new();
-        for (decl, defn) in aliases {
-            aliases_map.insert(decl, defn).unwrap();
-        }
+        let aliases_map = get_alias_map(aliases);
+        let fileset_aliases_map = get_alias_map(EMPTY);
         let extensions = RevsetExtensions::default();
         let context = RevsetParseContext::new(
             &aliases_map,
@@ -2764,6 +2803,7 @@ mod tests {
             chrono::Utc::now().fixed_offset().into(),
             &extensions,
             None,
+            &fileset_aliases_map,
         );
         super::parse_with_modifier(&mut RevsetDiagnostics::new(), revset_str, &context)
     }

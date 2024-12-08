@@ -29,6 +29,7 @@ use jj_lib::copies::CopiesTreeDiffEntry;
 use jj_lib::copies::CopyRecords;
 use jj_lib::extensions_map::ExtensionsMap;
 use jj_lib::fileset;
+use jj_lib::fileset::FilesetAliasesMap;
 use jj_lib::fileset::FilesetDiagnostics;
 use jj_lib::fileset::FilesetExpression;
 use jj_lib::id_prefix::IdPrefixContext;
@@ -806,7 +807,12 @@ fn builtin_commit_methods<'repo>() -> CommitTemplateBuildMethodFnMap<'repo, Comm
         |language, diagnostics, _build_ctx, self_property, function| {
             let ([], [files_node]) = function.expect_arguments()?;
             let files = if let Some(node) = files_node {
-                expect_fileset_literal(diagnostics, node, language.path_converter)?
+                expect_fileset_literal(
+                    diagnostics,
+                    node,
+                    language.path_converter,
+                    language.revset_parse_context.fileset_aliases_map(),
+                )?
             } else {
                 // TODO: defaults to CLI path arguments?
                 // https://github.com/martinvonz/jj/issues/2933#issuecomment-1925870731
@@ -851,11 +857,12 @@ fn expect_fileset_literal(
     diagnostics: &mut TemplateDiagnostics,
     node: &ExpressionNode,
     path_converter: &RepoPathUiConverter,
+    aliases_map: &FilesetAliasesMap,
 ) -> Result<FilesetExpression, TemplateParseError> {
     template_parser::expect_string_literal_with(node, |text, span| {
         let mut inner_diagnostics = FilesetDiagnostics::new();
-        let expression =
-            fileset::parse(&mut inner_diagnostics, text, path_converter).map_err(|err| {
+        let expression = fileset::parse(&mut inner_diagnostics, text, path_converter, aliases_map)
+            .map_err(|err| {
                 TemplateParseError::expression("In fileset expression", span).with_source(err)
             })?;
         diagnostics.extend_with(inner_diagnostics, |diag| {

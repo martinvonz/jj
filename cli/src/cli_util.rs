@@ -64,8 +64,11 @@ use jj_lib::config::ConfigNamePathBuf;
 use jj_lib::config::ConfigSource;
 use jj_lib::config::StackedConfig;
 use jj_lib::conflicts::ConflictMarkerStyle;
+use jj_lib::dsl_util::AliasDeclarationParser;
+use jj_lib::dsl_util::AliasesMap;
 use jj_lib::file_util;
 use jj_lib::fileset;
+use jj_lib::fileset::FilesetAliasesMap;
 use jj_lib::fileset::FilesetDiagnostics;
 use jj_lib::fileset::FilesetExpression;
 use jj_lib::git;
@@ -706,6 +709,7 @@ pub struct WorkspaceCommandEnvironment {
     command: CommandHelper,
     revset_aliases_map: RevsetAliasesMap,
     template_aliases_map: TemplateAliasesMap,
+    fileset_aliases_map: FilesetAliasesMap,
     path_converter: RepoPathUiConverter,
     workspace_id: WorkspaceId,
     immutable_heads_expression: Rc<UserRevsetExpression>,
@@ -718,6 +722,7 @@ impl WorkspaceCommandEnvironment {
     fn new(ui: &Ui, command: &CommandHelper, workspace: &Workspace) -> Result<Self, CommandError> {
         let revset_aliases_map = revset_util::load_revset_aliases(ui, command.settings().config())?;
         let template_aliases_map = command.load_template_aliases(ui)?;
+        let fileset_aliases_map = load_fileset_aliases(ui, command.settings().config())?;
         let path_converter = RepoPathUiConverter::Fs {
             cwd: command.cwd().to_owned(),
             base: workspace.workspace_root().to_owned(),
@@ -726,6 +731,7 @@ impl WorkspaceCommandEnvironment {
             command: command.clone(),
             revset_aliases_map,
             template_aliases_map,
+            fileset_aliases_map,
             path_converter,
             workspace_id: workspace.workspace_id().to_owned(),
             immutable_heads_expression: RevsetExpression::root(),
@@ -767,6 +773,7 @@ impl WorkspaceCommandEnvironment {
             now.into(),
             self.command.revset_extensions(),
             Some(workspace_context),
+            &self.fileset_aliases_map,
         )
     }
 
@@ -1265,7 +1272,14 @@ to the current parents may contain changes from multiple commits.
         let mut diagnostics = FilesetDiagnostics::new();
         let expressions: Vec<_> = file_args
             .iter()
-            .map(|arg| fileset::parse_maybe_bare(&mut diagnostics, arg, self.path_converter()))
+            .map(|arg| {
+                fileset::parse_maybe_bare(
+                    &mut diagnostics,
+                    arg,
+                    self.path_converter(),
+                    self.fileset_aliases_map(),
+                )
+            })
             .try_collect()?;
         print_parse_diagnostics(ui, "In fileset expression", &diagnostics)?;
         Ok(FilesetExpression::union_all(expressions))
@@ -1281,6 +1295,7 @@ to the current parents may contain changes from multiple commits.
                 cwd: "".into(),
                 base: "".into(),
             },
+            self.fileset_aliases_map(),
         )?;
         print_parse_diagnostics(ui, "In `snapshot.auto-track`", &diagnostics)?;
         Ok(expression.to_matcher())
@@ -1554,6 +1569,10 @@ to the current parents may contain changes from multiple commits.
 
     pub fn template_aliases_map(&self) -> &TemplateAliasesMap {
         &self.env.template_aliases_map
+    }
+
+    pub fn fileset_aliases_map(&self) -> &FilesetAliasesMap {
+        &self.env.fileset_aliases_map
     }
 
     /// Parses template of the given language into evaluation tree.
@@ -2686,11 +2705,31 @@ fn load_template_aliases(
     stacked_config: &StackedConfig,
 ) -> Result<TemplateAliasesMap, CommandError> {
     let table_name = ConfigNamePathBuf::from_iter(["template-aliases"]);
-    let mut aliases_map = TemplateAliasesMap::new();
+    load_aliases(ui, stacked_config, &table_name)
+}
+
+fn load_fileset_aliases(
+    ui: &Ui,
+    stacked_config: &StackedConfig,
+) -> Result<FilesetAliasesMap, CommandError> {
+    let table_name = ConfigNamePathBuf::from_iter(["fileset-aliases"]);
+    load_aliases(ui, stacked_config, &table_name)
+}
+
+fn load_aliases<P>(
+    ui: &Ui,
+    stacked_config: &StackedConfig,
+    table_name: &ConfigNamePathBuf,
+) -> Result<AliasesMap<P, String>, CommandError>
+where
+    P: Default + AliasDeclarationParser,
+    P::Error: ToString,
+{
+    let mut aliases_map = AliasesMap::new();
     // Load from all config layers in order. 'f(x)' in default layer should be
     // overridden by 'f(a)' in user.
     for layer in stacked_config.layers() {
-        let table = match layer.look_up_table(&table_name) {
+        let table = match layer.look_up_table(table_name) {
             Ok(Some(table)) => table,
             Ok(None) => continue,
             Err(item) => {
@@ -2710,7 +2749,11 @@ fn load_template_aliases(
                 .clone()
                 .into_string()
                 .map_err(|e| e.to_string())
-                .and_then(|v| aliases_map.insert(decl, v).map_err(|e| e.to_string()));
+                .and_then(|v| {
+                    aliases_map
+                        .insert(decl, v)
+                        .map_err(|e: P::Error| e.to_string())
+                });
             if let Err(s) = r {
                 writeln!(
                     ui.warning_default(),

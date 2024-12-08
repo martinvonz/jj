@@ -48,6 +48,7 @@ use tracing::instrument;
 
 use crate::cli_util::CommandHelper;
 use crate::cli_util::RevisionArg;
+use crate::cli_util::WorkspaceCommandHelper;
 use crate::command_error::config_error;
 use crate::command_error::print_parse_diagnostics;
 use crate::command_error::CommandError;
@@ -145,7 +146,7 @@ pub(crate) fn cmd_fix(
     args: &FixArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let tools_config = get_tools_config(ui, command.settings())?;
+    let tools_config = get_tools_config(ui, &workspace_command, command.settings())?;
     let root_commits: Vec<CommitId> = if args.source.is_empty() {
         let revs = command.settings().get_string("revsets.fix")?;
         workspace_command.parse_revset(ui, &RevisionArg::from(revs))?
@@ -446,7 +447,11 @@ struct RawToolConfig {
 /// Fails if any of the commands or patterns are obviously unusable, but does
 /// not check for issues that might still occur later like missing executables.
 /// This is a place where we could fail earlier in some cases, though.
-fn get_tools_config(ui: &mut Ui, settings: &UserSettings) -> Result<ToolsConfig, CommandError> {
+fn get_tools_config(
+    ui: &mut Ui,
+    workspace_command: &WorkspaceCommandHelper,
+    settings: &UserSettings,
+) -> Result<ToolsConfig, CommandError> {
     let mut tools_config = ToolsConfig { tools: Vec::new() };
     // TODO: Remove this block of code and associated documentation after at least
     // one release where the feature is marked deprecated.
@@ -475,6 +480,7 @@ fn get_tools_config(ui: &mut Ui, settings: &UserSettings) -> Result<ToolsConfig,
     }
     if let Ok(tools_table) = settings.get_table("fix.tools") {
         // Convert the map into a sorted vector early so errors are deterministic.
+        let fileset_aliases_map = workspace_command.fileset_aliases_map();
         let mut tools: Vec<ToolConfig> = tools_table
             .into_iter()
             .sorted_by(|a, b| a.0.cmp(&b.0))
@@ -492,6 +498,7 @@ fn get_tools_config(ui: &mut Ui, settings: &UserSettings) -> Result<ToolsConfig,
                                     cwd: "".into(),
                                     base: "".into(),
                                 },
+                                fileset_aliases_map,
                             )
                         })
                         .try_collect()?,

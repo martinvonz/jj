@@ -89,3 +89,5 @@ program_or_bare_string = _{
         | bare_string_pattern ~ EOI
         | bare_string ~ EOI )
 }
+
+alias_declaration = _{ SOI ~ strict_identifier ~ EOI }
