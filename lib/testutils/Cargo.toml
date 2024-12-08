@@ -16,7 +16,6 @@ readme = { workspace = true }
 
 [dependencies]
 async-trait = { workspace = true }
-config = { workspace = true }
 futures = { workspace = true }
 git2 = { workspace = true }
 hex = { workspace = true }
