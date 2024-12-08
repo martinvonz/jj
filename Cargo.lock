@@ -1866,6 +1866,7 @@ dependencies = [
  "textwrap",
  "thiserror 2.0.4",
  "timeago",
+ "tokio",
  "toml_edit",
  "tracing",
  "tracing-chrome",
