@@ -21,6 +21,7 @@ use std::path::PathBuf;
 
 use jj_lib::config::ConfigNamePathBuf;
 use jj_lib::git;
+use jj_lib::git::GitFetch;
 use jj_lib::git::GitFetchError;
 use jj_lib::git::GitFetchStats;
 use jj_lib::repo::Repo;
@@ -221,27 +222,34 @@ fn do_git_clone(
     git_repo.remote(remote_name, source).unwrap();
     let mut fetch_tx = workspace_command.start_transaction();
 
-    let stats = with_remote_git_callbacks(ui, None, |cb| {
-        git::fetch(
+    let stats = with_remote_git_callbacks(ui, None, |cb| -> Result<GitFetchStats, CommandError> {
+        let git_settings = command.settings().git_settings();
+        let mut git_fetch = GitFetch::new(
             fetch_tx.repo_mut(),
             &git_repo,
-            remote_name,
-            &[StringPattern::everything()],
-            cb,
-            &command.settings().git_settings(),
-            depth,
-        )
-    })
-    .map_err(|err| match err {
-        GitFetchError::NoSuchRemote(_) => {
-            panic!("shouldn't happen as we just created the git remote")
-        }
-        GitFetchError::GitImportError(err) => CommandError::from(err),
-        GitFetchError::InternalGitError(err) => map_git_error(err),
-        GitFetchError::InvalidBranchPattern => {
-            unreachable!("we didn't provide any globs")
-        }
+            &git_settings,
+            git::fetch_options(cb, depth),
+        );
+
+        let default_branch = git_fetch
+            .fetch(remote_name, &[StringPattern::everything()])
+            .map_err(|err| match err {
+                GitFetchError::NoSuchRemote(_) => {
+                    panic!("shouldn't happen as we just created the git remote")
+                }
+                GitFetchError::GitImportError(err) => CommandError::from(err),
+                GitFetchError::InternalGitError(err) => map_git_error(err),
+                GitFetchError::InvalidBranchPattern => {
+                    unreachable!("we didn't provide any globs")
+                }
+            })?;
+        let import_stats = git_fetch.import_refs()?;
+        Ok(GitFetchStats {
+            default_branch,
+            import_stats,
+        })
     })?;
+
     print_git_import_stats(ui, fetch_tx.repo(), &stats.import_stats, true)?;
     fetch_tx.finish(ui, "fetch from git remote into empty repo")?;
     Ok((workspace_command, stats))

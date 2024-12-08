@@ -1229,7 +1229,7 @@ pub enum GitFetchError {
     InternalGitError(#[from] git2::Error),
 }
 
-fn fetch_options(
+pub fn fetch_options(
     callbacks: RemoteCallbacks<'_>,
     depth: Option<NonZeroU32>,
 ) -> git2::FetchOptions<'_> {
@@ -1247,11 +1247,11 @@ fn fetch_options(
 }
 
 struct FetchedBranches {
-    branches: Vec<StringPattern>,
     remote: String,
+    branches: Vec<StringPattern>,
 }
 
-struct GitFetch<'a> {
+pub struct GitFetch<'a> {
     mut_repo: &'a mut MutableRepo,
     git_repo: &'a git2::Repository,
     git_settings: &'a GitSettings,
@@ -1260,7 +1260,7 @@ struct GitFetch<'a> {
 }
 
 impl<'a> GitFetch<'a> {
-    fn new(
+    pub fn new(
         mut_repo: &'a mut MutableRepo,
         git_repo: &'a git2::Repository,
         git_settings: &'a GitSettings,
@@ -1280,10 +1280,10 @@ impl<'a> GitFetch<'a> {
     ///
     /// Keeps track of the {branch_names, remote_name} pair the refs can be
     /// subsequently imported into the `jj` repo by calling `import_refs()`.
-    fn fetch(
+    pub fn fetch(
         &mut self,
-        branch_names: &[StringPattern],
         remote_name: &str,
+        branch_names: &[StringPattern],
     ) -> Result<Option<String>, GitFetchError> {
         let mut remote = self.git_repo.find_remote(remote_name).map_err(|err| {
             if is_remote_not_found_err(&err) {
@@ -1326,8 +1326,8 @@ impl<'a> GitFetch<'a> {
         )?;
 
         self.fetched.push(FetchedBranches {
-            branches: branch_names.to_vec(),
             remote: remote_name.to_string(),
+            branches: branch_names.to_vec(),
         });
 
         // TODO: We could make it optional to get the default branch since we only care
@@ -1392,31 +1392,6 @@ pub struct GitFetchStats {
     pub default_branch: Option<String>,
     /// Changes made by the import.
     pub import_stats: GitImportStats,
-}
-
-#[tracing::instrument(skip(mut_repo, git_repo, callbacks))]
-pub fn fetch(
-    mut_repo: &mut MutableRepo,
-    git_repo: &git2::Repository,
-    remote_name: &str,
-    branch_names: &[StringPattern],
-    callbacks: RemoteCallbacks<'_>,
-    git_settings: &GitSettings,
-    depth: Option<NonZeroU32>,
-) -> Result<GitFetchStats, GitFetchError> {
-    let mut git_fetch = GitFetch::new(
-        mut_repo,
-        git_repo,
-        git_settings,
-        fetch_options(callbacks, depth),
-    );
-    let default_branch = git_fetch.fetch(branch_names, remote_name)?;
-    let import_stats = git_fetch.import_refs()?;
-    let stats = GitFetchStats {
-        default_branch,
-        import_stats,
-    };
-    Ok(stats)
 }
 
 #[derive(Error, Debug, PartialEq)]
