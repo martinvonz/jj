@@ -95,3 +95,17 @@ pub mod union_find;
 pub mod view;
 pub mod working_copy;
 pub mod workspace;
+
+#[cfg(test)]
+mod tests {
+    use tempfile::TempDir;
+
+    /// Unlike `testutils::new_temp_dir()`, this function doesn't set up
+    /// hermetic libgit2 environment.
+    pub fn new_temp_dir() -> TempDir {
+        tempfile::Builder::new()
+            .prefix("jj-test-")
+            .tempdir()
+            .unwrap()
+    }
+}
