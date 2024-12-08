@@ -94,11 +94,3 @@ pub fn maybe_add_gitignore(workspace_command: &WorkspaceCommandHelper) -> Result
         Ok(())
     }
 }
-
-fn get_single_remote(git_repo: &git2::Repository) -> Result<Option<String>, CommandError> {
-    let git_remotes = git_repo.remotes()?;
-    Ok(match git_remotes.len() {
-        1 => git_remotes.get(0).map(ToOwned::to_owned),
-        _ => None,
-    })
-}
