@@ -120,6 +120,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Fixed bugs
 
 * `jj config unset <TABLE-NAME>` no longer removes a table (such as `[ui]`.)
+* Formatters called by `jj fix` now always run from the repo root
+  ([#4616](https://github.com/martinvonz/jj/issues/4616))
 
 
 ### Contributors
