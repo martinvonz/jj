@@ -454,10 +454,9 @@ impl Ui {
         }
     }
 
-    pub fn progress_output(&self) -> Option<ProgressOutput> {
-        self.use_progress_indicator().then(|| ProgressOutput {
-            output: io::stderr(),
-        })
+    pub fn progress_output(&self) -> Option<ProgressOutput<std::io::Stderr>> {
+        self.use_progress_indicator()
+            .then(ProgressOutput::for_stderr)
     }
 
     /// Writer to print an update that's not part of the command's main output.
@@ -633,22 +632,31 @@ impl Ui {
 }
 
 #[derive(Debug)]
-pub struct ProgressOutput {
-    output: Stderr,
+pub struct ProgressOutput<W> {
+    output: W,
+    term_width: Option<u16>,
 }
 
-impl ProgressOutput {
-    pub fn write_fmt(&mut self, fmt: fmt::Arguments<'_>) -> io::Result<()> {
-        self.output.write_fmt(fmt)
+impl ProgressOutput<io::Stderr> {
+    pub fn for_stderr() -> ProgressOutput<io::Stderr> {
+        ProgressOutput {
+            output: io::stderr(),
+            term_width: None,
+        }
     }
+}
 
-    pub fn flush(&mut self) -> io::Result<()> {
-        self.output.flush()
+impl<W> ProgressOutput<W> {
+    pub fn for_test(output: W, term_width: u16) -> Self {
+        Self {
+            output,
+            term_width: Some(term_width),
+        }
     }
 
     pub fn term_width(&self) -> Option<u16> {
         // Terminal can be resized while progress is displayed, so don't cache it.
-        term_width()
+        self.term_width.or_else(term_width)
     }
 
     /// Construct a guard object which writes `text` when dropped. Useful for
@@ -658,6 +666,16 @@ impl ProgressOutput {
             text,
             output: io::stderr(),
         }
+    }
+}
+
+impl<W: Write> ProgressOutput<W> {
+    pub fn write_fmt(&mut self, fmt: fmt::Arguments<'_>) -> io::Result<()> {
+        self.output.write_fmt(fmt)
+    }
+
+    pub fn flush(&mut self) -> io::Result<()> {
+        self.output.flush()
     }
 }
 

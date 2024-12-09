@@ -33,11 +33,11 @@ impl Progress {
         }
     }
 
-    pub fn update(
+    pub fn update<W: std::io::Write>(
         &mut self,
         now: Instant,
         progress: &git::Progress,
-        output: &mut ProgressOutput,
+        output: &mut ProgressOutput<W>,
     ) -> io::Result<()> {
         use std::fmt::Write as _;
 
@@ -166,7 +166,7 @@ impl RateEstimateState {
 pub fn snapshot_progress(ui: &Ui) -> Option<impl Fn(&RepoPath) + '_> {
     struct State {
         guard: Option<OutputGuard>,
-        output: ProgressOutput,
+        output: ProgressOutput<std::io::Stderr>,
         next_display_time: Instant,
     }
 
@@ -215,6 +215,8 @@ pub fn snapshot_progress(ui: &Ui) -> Option<impl Fn(&RepoPath) + '_> {
 
 #[cfg(test)]
 mod tests {
+    use insta::assert_snapshot;
+
     use super::*;
 
     #[test]
@@ -232,5 +234,40 @@ mod tests {
         draw_progress(0.54, &mut buf, 10);
         assert_eq!(buf, "█████▍    ");
         buf.clear();
+    }
+
+    #[test]
+    fn test_update() {
+        let start = Instant::now();
+        let mut progress = Progress::new(start);
+        let mut current_time = start;
+        let mut update = |duration, overall| -> String {
+            current_time += duration;
+            let mut buf = vec![];
+            let mut output = ProgressOutput::for_test(&mut buf, 25);
+            progress
+                .update(
+                    current_time,
+                    &jj_lib::git::Progress {
+                        bytes_downloaded: None,
+                        overall,
+                    },
+                    &mut output,
+                )
+                .unwrap();
+            String::from_utf8(buf).unwrap()
+        };
+        // First output is after the initial delay
+        assert_snapshot!(update(INITIAL_DELAY - Duration::from_millis(1), 0.1), @"");
+        assert_snapshot!(update(Duration::from_millis(1), 0.10), @"[?25l\r 10% [█▊                ][K");
+        // TODO: No updates for the next 30 milliseconds
+        assert_snapshot!(update(Duration::from_millis(10), 0.11), @" 11% [██                ][K");
+        assert_snapshot!(update(Duration::from_millis(10), 0.12), @" 12% [██▏               ][K");
+        assert_snapshot!(update(Duration::from_millis(10), 0.13), @" 13% [██▍               ][K");
+        // We get an update now that we go over the threshold
+        assert_snapshot!(update(Duration::from_millis(100), 0.30), @" 30% [█████▍            ][K");
+        // TODO: Even though we went over by quite a bit, the new threshold is relative
+        // to the previous output, so we don't get an update here
+        assert_snapshot!(update(Duration::from_millis(30), 0.40), @" 40% [███████▎          ][K");
     }
 }
