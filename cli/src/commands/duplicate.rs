@@ -52,10 +52,11 @@ use crate::ui::Ui;
 #[derive(clap::Args, Clone, Debug)]
 pub(crate) struct DuplicateArgs {
     /// The revision(s) to duplicate (default: @)
-    #[arg(value_name = "REVISIONS", add = ArgValueCandidates::new(complete::all_revisions))]
+    #[arg(short = 'r', long, add = ArgValueCandidates::new(complete::all_revisions))]
+    revisions: Vec<RevisionArg>,
+    // TODO: Delete revisions_pos in jj 0.30+
+    #[arg(hide = true, value_name = "REVISIONS")]
     revisions_pos: Vec<RevisionArg>,
-    #[arg(short = 'r', hide = true)]
-    revisions_opt: Vec<RevisionArg>,
     /// The revision(s) to duplicate onto (can be repeated to create a merge
     /// commit)
     #[arg(long, short, add = ArgValueCandidates::new(complete::all_revisions))]
@@ -89,10 +90,16 @@ pub(crate) fn cmd_duplicate(
     args: &DuplicateArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
+    if !args.revisions_pos.is_empty() {
+        writeln!(
+            ui.warning_default(),
+            "Positional argument is deprecated. Use -r REVISION instead."
+        )?;
+    }
     let to_duplicate: Vec<CommitId> =
-        if !args.revisions_pos.is_empty() || !args.revisions_opt.is_empty() {
+        if !args.revisions.is_empty() || !args.revisions_pos.is_empty() {
             workspace_command
-                .parse_union_revsets(ui, &[&*args.revisions_pos, &*args.revisions_opt].concat())?
+                .parse_union_revsets(ui, &[&*args.revisions, &*args.revisions_pos].concat())?
         } else {
             workspace_command.parse_revset(ui, &RevisionArg::AT)?
         }
