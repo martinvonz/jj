@@ -306,8 +306,16 @@ impl UserSettings {
     }
 
     /// Looks up sub table by `name`.
+    ///
+    /// Use `table_keys(prefix)` and `get([prefix, key])` instead if table
+    /// values have to be converted to non-generic value type.
     pub fn get_table(&self, name: impl ToConfigNamePath) -> Result<ConfigTable, ConfigGetError> {
         self.config.get_table(name)
+    }
+
+    /// Returns iterator over sub table keys at `name`.
+    pub fn table_keys(&self, name: impl ToConfigNamePath) -> impl Iterator<Item = &str> {
+        self.config.table_keys(name)
     }
 }
 

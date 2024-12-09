@@ -15,6 +15,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * The following configuration variables are now parsed strictly:
   `ui.progress-indicator`, `ui.quiet`
 
+* The deprecated `[alias]` config section is no longer respected. Move command
+  aliases to the `[aliases]` section.
+
 ### Deprecations
 
 ### New features

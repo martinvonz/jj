@@ -206,8 +206,7 @@ pub fn git_remotes() -> Vec<CompletionCandidate> {
 pub fn aliases() -> Vec<CompletionCandidate> {
     with_jj(|_, settings| {
         Ok(settings
-            .get_table("aliases")?
-            .into_keys()
+            .table_keys("aliases")
             // This is opinionated, but many people probably have several
             // single- or two-letter aliases they use all the time. These
             // aliases don't need to be completed and they would only clutter

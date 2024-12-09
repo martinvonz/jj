@@ -256,10 +256,12 @@ fn test_config_tables_all_commands_missing() {
     std::fs::write(repo_path.join("foo"), "foo\n").unwrap();
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["fix"]);
-    insta::assert_snapshot!(stderr, @r###"
-    Config error: missing field `command`
+    insta::assert_snapshot!(stderr.replace('\\', "/"), @r"
+    Config error: Invalid type or value for fix.tools.my-tool-missing-command-1
+    Caused by: missing field `command`
+    Hint: Check the config file: $TEST_ENV/config/config0002.toml
     For help, see https://martinvonz.github.io/jj/latest/config/.
-    "###);
+    ");
 
     let content = test_env.jj_cmd_success(&repo_path, &["file", "show", "foo", "-r", "@"]);
     insta::assert_snapshot!(content, @"foo\n");
@@ -288,10 +290,12 @@ fn test_config_tables_some_commands_missing() {
     std::fs::write(repo_path.join("foo"), "foo\n").unwrap();
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["fix"]);
-    insta::assert_snapshot!(stderr, @r###"
-    Config error: missing field `command`
+    insta::assert_snapshot!(stderr.replace('\\', "/"), @r"
+    Config error: Invalid type or value for fix.tools.my-tool-missing-command
+    Caused by: missing field `command`
+    Hint: Check the config file: $TEST_ENV/config/config0002.toml
     For help, see https://martinvonz.github.io/jj/latest/config/.
-    "###);
+    ");
 
     let content = test_env.jj_cmd_success(&repo_path, &["file", "show", "foo", "-r", "@"]);
     insta::assert_snapshot!(content, @"foo\n");
