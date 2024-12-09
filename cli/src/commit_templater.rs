@@ -48,6 +48,9 @@ use jj_lib::revset::RevsetDiagnostics;
 use jj_lib::revset::RevsetModifier;
 use jj_lib::revset::RevsetParseContext;
 use jj_lib::revset::UserRevsetExpression;
+use jj_lib::signing::SigStatus;
+use jj_lib::signing::SignError;
+use jj_lib::signing::Verification;
 use jj_lib::store::Store;
 use once_cell::unsync::OnceCell;
 
@@ -73,6 +76,7 @@ use crate::templater::PlainTextFormattedProperty;
 use crate::templater::SizeHint;
 use crate::templater::Template;
 use crate::templater::TemplateFormatter;
+use crate::templater::TemplateFunction;
 use crate::templater::TemplateProperty;
 use crate::templater::TemplatePropertyError;
 use crate::templater::TemplatePropertyExt as _;
@@ -242,6 +246,11 @@ impl<'repo> TemplateLanguage<'repo> for CommitTemplateLanguage<'repo> {
                 let build = template_parser::lookup_method(type_name, table, function)?;
                 build(self, diagnostics, build_ctx, property, function)
             }
+            CommitTemplatePropertyKind::CommitSignature(property) => {
+                let table = &self.build_fn_table.build_commit_signature_method;
+                let build = template_parser::lookup_method("CommitSignature", table, function)?;
+                build(self, diagnostics, build_ctx, property, function)
+            }
         }
     }
 }
@@ -318,6 +327,13 @@ impl<'repo> CommitTemplateLanguage<'repo> {
     ) -> CommitTemplatePropertyKind<'repo> {
         CommitTemplatePropertyKind::TreeDiff(Box::new(property))
     }
+
+    fn wrap_commit_signature(
+        &self,
+        property: impl TemplateProperty<Output = CommitSignature> + 'repo,
+    ) -> CommitTemplatePropertyKind<'repo> {
+        CommitTemplatePropertyKind::CommitSignature(Box::new(property))
+    }
 }
 
 pub enum CommitTemplatePropertyKind<'repo> {
@@ -331,6 +347,7 @@ pub enum CommitTemplatePropertyKind<'repo> {
     CommitOrChangeId(Box<dyn TemplateProperty<Output = CommitOrChangeId> + 'repo>),
     ShortestIdPrefix(Box<dyn TemplateProperty<Output = ShortestIdPrefix> + 'repo>),
     TreeDiff(Box<dyn TemplateProperty<Output = TreeDiff> + 'repo>),
+    CommitSignature(Box<dyn TemplateProperty<Output = CommitSignature> + 'repo>),
 }
 
 impl<'repo> IntoTemplateProperty<'repo> for CommitTemplatePropertyKind<'repo> {
@@ -346,6 +363,7 @@ impl<'repo> IntoTemplateProperty<'repo> for CommitTemplatePropertyKind<'repo> {
             CommitTemplatePropertyKind::CommitOrChangeId(_) => "CommitOrChangeId",
             CommitTemplatePropertyKind::ShortestIdPrefix(_) => "ShortestIdPrefix",
             CommitTemplatePropertyKind::TreeDiff(_) => "TreeDiff",
+            CommitTemplatePropertyKind::CommitSignature(_) => "CommitSignature",
         }
     }
 
@@ -371,6 +389,7 @@ impl<'repo> IntoTemplateProperty<'repo> for CommitTemplatePropertyKind<'repo> {
             // TODO: boolean cast could be implemented, but explicit
             // diff.empty() method might be better.
             CommitTemplatePropertyKind::TreeDiff(_) => None,
+            CommitTemplatePropertyKind::CommitSignature(_) => None,
         }
     }
 
@@ -407,6 +426,7 @@ impl<'repo> IntoTemplateProperty<'repo> for CommitTemplatePropertyKind<'repo> {
                 Some(property.into_template())
             }
             CommitTemplatePropertyKind::TreeDiff(_) => None,
+            CommitTemplatePropertyKind::CommitSignature(_) => None,
         }
     }
 
@@ -425,6 +445,7 @@ impl<'repo> IntoTemplateProperty<'repo> for CommitTemplatePropertyKind<'repo> {
             (CommitTemplatePropertyKind::CommitOrChangeId(_), _) => None,
             (CommitTemplatePropertyKind::ShortestIdPrefix(_), _) => None,
             (CommitTemplatePropertyKind::TreeDiff(_), _) => None,
+            (CommitTemplatePropertyKind::CommitSignature(_), _) => None,
         }
     }
 }
@@ -441,6 +462,7 @@ pub struct CommitTemplateBuildFnTable<'repo> {
     pub commit_or_change_id_methods: CommitTemplateBuildMethodFnMap<'repo, CommitOrChangeId>,
     pub shortest_id_prefix_methods: CommitTemplateBuildMethodFnMap<'repo, ShortestIdPrefix>,
     pub tree_diff_methods: CommitTemplateBuildMethodFnMap<'repo, TreeDiff>,
+    pub build_commit_signature_method: CommitTemplateBuildMethodFnMap<'repo, CommitSignature>,
 }
 
 impl<'repo> CommitTemplateBuildFnTable<'repo> {
@@ -453,6 +475,7 @@ impl<'repo> CommitTemplateBuildFnTable<'repo> {
             commit_or_change_id_methods: builtin_commit_or_change_id_methods(),
             shortest_id_prefix_methods: builtin_shortest_id_prefix_methods(),
             tree_diff_methods: builtin_tree_diff_methods(),
+            build_commit_signature_method: build_commit_signature_method(),
         }
     }
 
@@ -464,6 +487,7 @@ impl<'repo> CommitTemplateBuildFnTable<'repo> {
             commit_or_change_id_methods: HashMap::new(),
             shortest_id_prefix_methods: HashMap::new(),
             tree_diff_methods: HashMap::new(),
+            build_commit_signature_method: HashMap::new(),
         }
     }
 
@@ -475,6 +499,7 @@ impl<'repo> CommitTemplateBuildFnTable<'repo> {
             commit_or_change_id_methods,
             shortest_id_prefix_methods,
             tree_diff_methods,
+            build_commit_signature_method,
         } = extension;
 
         self.core.merge(core);
@@ -489,6 +514,10 @@ impl<'repo> CommitTemplateBuildFnTable<'repo> {
             shortest_id_prefix_methods,
         );
         merge_fn_map(&mut self.tree_diff_methods, tree_diff_methods);
+        merge_fn_map(
+            &mut self.build_commit_signature_method,
+            build_commit_signature_method,
+        );
     }
 }
 
@@ -597,6 +626,22 @@ fn builtin_commit_methods<'repo>() -> CommitTemplateBuildMethodFnMap<'repo, Comm
             let user_email = language.revset_parse_context.user_email().to_owned();
             let out_property = self_property.map(move |commit| commit.author().email == user_email);
             Ok(L::wrap_boolean(out_property))
+        },
+    );
+    map.insert(
+        "signature",
+        |language, _diagnostics, _build_ctx, self_property, function| {
+            function.expect_no_arguments()?;
+            Ok(
+                language.wrap_commit_signature(TemplateFunction::new(self_property, |commit| {
+                    match commit.verification() {
+                        Ok(Some(v)) => Ok(CommitSignature::Present(v)),
+                        Err(SignError::InvalidSignatureFormat) => Ok(CommitSignature::Invalid),
+                        Ok(None) => Ok(CommitSignature::Absent),
+                        Err(e) => Err(e.into()),
+                    }
+                })),
+            )
         },
     );
     map.insert(
@@ -1647,5 +1692,126 @@ fn builtin_tree_diff_methods<'repo>() -> CommitTemplateBuildMethodFnMap<'repo, T
     // TODO: add types() and name_only()? or let users write their own template?
     // TODO: add support for external tools
     // TODO: add files() or map() to support custom summary-like formatting?
+    map
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum CommitSignature {
+    Present(Verification),
+    Absent,
+    Invalid,
+}
+
+impl CommitSignature {
+    pub fn is_present(&self) -> bool {
+        matches!(self, CommitSignature::Present(_))
+    }
+
+    pub fn is_invalid(&self) -> bool {
+        matches!(self, CommitSignature::Invalid)
+    }
+
+    pub fn is(&self, status: SigStatus) -> bool {
+        match self {
+            CommitSignature::Present(v) => v.status == status,
+            _ => false,
+        }
+    }
+
+    pub fn key(self) -> String {
+        match self {
+            CommitSignature::Present(v) => v.key.unwrap_or_default(),
+            _ => Default::default(),
+        }
+    }
+
+    pub fn display(self) -> String {
+        match self {
+            CommitSignature::Present(v) => v.display.unwrap_or_default(),
+            _ => Default::default(),
+        }
+    }
+
+    pub fn backend(self) -> String {
+        match self {
+            CommitSignature::Present(v) => v.backend().unwrap_or_default().to_owned(),
+            _ => Default::default(),
+        }
+    }
+}
+
+fn build_commit_signature_method<'repo>() -> CommitTemplateBuildMethodFnMap<'repo, CommitSignature>
+{
+    type L<'repo> = CommitTemplateLanguage<'repo>;
+    // Not using maplit::hashmap!{} or custom declarative macro here because
+    // code completion inside macro is quite restricted.
+    let mut map = CommitTemplateBuildMethodFnMap::<CommitSignature>::new();
+    map.insert(
+        "present",
+        |_language, _diagnostics, _build_ctx, self_property, function| {
+            function.expect_no_arguments()?;
+            let out_property = TemplateFunction::new(self_property, |sig| Ok(sig.is_present()));
+            Ok(L::wrap_boolean(out_property))
+        },
+    );
+    map.insert(
+        "good",
+        |_language, _diagnostics, _build_ctx, self_property, function| {
+            function.expect_no_arguments()?;
+            let out_property =
+                TemplateFunction::new(self_property, |sig| Ok(sig.is(SigStatus::Good)));
+            Ok(L::wrap_boolean(out_property))
+        },
+    );
+    map.insert(
+        "unknown",
+        |_language, _diagnostics, _build_ctx, self_property, function| {
+            function.expect_no_arguments()?;
+            let out_property =
+                TemplateFunction::new(self_property, |sig| Ok(sig.is(SigStatus::Unknown)));
+            Ok(L::wrap_boolean(out_property))
+        },
+    );
+    map.insert(
+        "bad",
+        |_language, _diagnostics, _build_ctx, self_property, function| {
+            function.expect_no_arguments()?;
+            let out_property =
+                TemplateFunction::new(self_property, |sig| Ok(sig.is(SigStatus::Bad)));
+            Ok(L::wrap_boolean(out_property))
+        },
+    );
+    map.insert(
+        "invalid",
+        |_language, _diagnostics, _build_ctx, self_property, function| {
+            function.expect_no_arguments()?;
+            let out_property = TemplateFunction::new(self_property, |sig| Ok(sig.is_invalid()));
+            Ok(L::wrap_boolean(out_property))
+        },
+    );
+    map.insert(
+        "key",
+        |_language, _diagnostics, _build_ctx, self_property, function| {
+            function.expect_no_arguments()?;
+            let out_property = TemplateFunction::new(self_property, |sig| Ok(sig.key()));
+            Ok(L::wrap_string(out_property))
+        },
+    );
+    map.insert(
+        "display",
+        |_language, _diagnostics, _build_ctx, self_property, function| {
+            function.expect_no_arguments()?;
+            let out_property = TemplateFunction::new(self_property, |sig| Ok(sig.display()));
+            Ok(L::wrap_string(out_property))
+        },
+    );
+    map.insert(
+        "backend",
+        |_language, _diagnostics, _build_ctx, self_property, function| {
+            function.expect_no_arguments()?;
+            let out_property = TemplateFunction::new(self_property, |sig| Ok(sig.backend()));
+            Ok(L::wrap_string(out_property))
+        },
+    );
     map
 }
