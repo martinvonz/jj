@@ -1898,6 +1898,21 @@ fn test_bookmark_list_conflicted() {
     "###);
 }
 
+#[test]
+fn test_bookmark_create_onto_hidden_warning() {
+    // TODO: write
+}
+
+#[test]
+fn test_bookmark_move_onto_hidden_warning() {
+    // TODO: write
+}
+
+#[test]
+fn test_bookmark_set_onto_hidden_warning() {
+    // TODO: write
+}
+
 fn get_log_output(test_env: &TestEnvironment, cwd: &Path) -> String {
     let template = r#"bookmarks ++ " " ++ commit_id.short()"#;
     test_env.jj_cmd_success(cwd, &["log", "-T", template])
