@@ -72,7 +72,7 @@ if(root,
     concat(
       separate(" ",
         format_short_change_id_with_hidden_and_divergent_info(self),
-        if(author.email(), author.username(), email_placeholder),
+        format_short_signature(author),
         format_timestamp(committer.timestamp()),
         bookmarks,
         tags,
