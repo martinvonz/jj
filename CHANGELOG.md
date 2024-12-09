@@ -29,6 +29,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * Fixed incompatible rendering of empty hunks in git/unified diffs.
   [#5049](https://github.com/martinvonz/jj/issues/5049)
 
+* Fixed performance of progress bar rendering when fetching from Git remote.
+  [#5057](https://github.com/martinvonz/jj/issues/5057)
+
 ## [0.24.0] - 2024-12-04
 
 ### Release highlights

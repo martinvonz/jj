@@ -53,6 +53,7 @@ impl Progress {
         if now < self.next_print {
             return Ok(());
         }
+        self.next_print = now + Duration::from_secs(1) / UPDATE_HZ;
         if self.guard.is_none() {
             let guard = output.output_guard(crossterm::cursor::Show.to_string());
             let guard = CleanupGuard::new(move || {
@@ -61,7 +62,6 @@ impl Progress {
             _ = write!(output, "{}", crossterm::cursor::Hide);
             self.guard = Some(guard);
         }
-        self.next_print = now.min(self.next_print + Duration::from_secs(1) / UPDATE_HZ);
 
         self.buffer.clear();
         write!(self.buffer, "\r").unwrap();
@@ -260,14 +260,14 @@ mod tests {
         // First output is after the initial delay
         assert_snapshot!(update(INITIAL_DELAY - Duration::from_millis(1), 0.1), @"");
         assert_snapshot!(update(Duration::from_millis(1), 0.10), @"[?25l\r 10% [█▊                ][K");
-        // TODO: No updates for the next 30 milliseconds
-        assert_snapshot!(update(Duration::from_millis(10), 0.11), @" 11% [██                ][K");
-        assert_snapshot!(update(Duration::from_millis(10), 0.12), @" 12% [██▏               ][K");
-        assert_snapshot!(update(Duration::from_millis(10), 0.13), @" 13% [██▍               ][K");
+        // No updates for the next 30 milliseconds
+        assert_snapshot!(update(Duration::from_millis(10), 0.11), @"");
+        assert_snapshot!(update(Duration::from_millis(10), 0.12), @"");
+        assert_snapshot!(update(Duration::from_millis(10), 0.13), @"");
         // We get an update now that we go over the threshold
         assert_snapshot!(update(Duration::from_millis(100), 0.30), @" 30% [█████▍            ][K");
-        // TODO: Even though we went over by quite a bit, the new threshold is relative
-        // to the previous output, so we don't get an update here
-        assert_snapshot!(update(Duration::from_millis(30), 0.40), @" 40% [███████▎          ][K");
+        // Even though we went over by quite a bit, the new threshold is relative to the
+        // previous output, so we don't get an update here
+        assert_snapshot!(update(Duration::from_millis(30), 0.40), @"");
     }
 }
