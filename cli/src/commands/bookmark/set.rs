@@ -56,6 +56,7 @@ pub fn cmd_bookmark_set(
         .resolve_single_rev(ui, args.revision.as_ref().unwrap_or(&RevisionArg::AT))?;
     let repo = workspace_command.repo().as_ref();
     let bookmark_names = &args.names;
+    let is_hidden = target_commit.is_hidden(repo)?;
     let mut new_bookmark_count = 0;
     let mut moved_bookmark_count = 0;
     for name in bookmark_names {
@@ -100,6 +101,14 @@ pub fn cmd_bookmark_set(
     }
     if bookmark_names.len() > 1 && args.revision.is_none() {
         writeln!(ui.hint_default(), "Use -r to specify the target revision.")?;
+    }
+    // TODO: Emit a warning here to `jj new -r <old>` to revive the commmit if it
+    // was hidden.
+    if is_hidden {
+        writeln!(
+            ui.hint_default(),
+            "Moved a bookmark onto a hidden commit, use `jj new` to unhide it."
+        )?;
     }
     if new_bookmark_count > 0 {
         // TODO: delete this hint in jj 0.25+

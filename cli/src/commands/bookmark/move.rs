@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::ops::Deref;
+
 use clap_complete::ArgValueCandidates;
 use itertools::Itertools as _;
 use jj_lib::object_id::ObjectId as _;
@@ -91,6 +93,7 @@ pub fn cmd_bookmark_move(
     let repo = workspace_command.repo().clone();
 
     let target_commit = workspace_command.resolve_single_rev(ui, &args.to)?;
+    let is_hidden = target_commit.is_hidden(repo.deref())?;
     let matched_bookmarks = {
         let is_source_ref: Box<dyn Fn(&RefTarget) -> _> = if !args.from.is_empty() {
             let is_source_commit = workspace_command
@@ -165,6 +168,13 @@ pub fn cmd_bookmark_move(
         writeln!(
             ui.hint_default(),
             "Specify bookmark by name to update just one of the bookmarks."
+        )?;
+    }
+
+    if is_hidden {
+        writeln!(
+            ui.hint_default(),
+            "Moved a bookmark onto a hidden commit, use `jj new` to unhide it"
         )?;
     }
 
