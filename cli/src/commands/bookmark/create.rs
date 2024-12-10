@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::ops::Deref;
+
 use clap::builder::NonEmptyStringValueParser;
 use jj_lib::object_id::ObjectId as _;
 use jj_lib::op_store::RefTarget;
@@ -46,7 +48,9 @@ pub fn cmd_bookmark_create(
     let mut workspace_command = command.workspace_helper(ui)?;
     let target_commit = workspace_command
         .resolve_single_rev(ui, args.revision.as_ref().unwrap_or(&RevisionArg::AT))?;
+    let repo = workspace_command.repo();
     let view = workspace_command.repo().view();
+    let is_hidden = target_commit.is_hidden(repo.deref())?;
     let bookmark_names = &args.names;
     for name in bookmark_names {
         if view.get_local_bookmark(name).is_present() {
@@ -85,6 +89,14 @@ pub fn cmd_bookmark_create(
     }
     if bookmark_names.len() > 1 && args.revision.is_none() {
         writeln!(ui.hint_default(), "Use -r to specify the target revision.")?;
+    }
+
+    if is_hidden {
+        writeln!(
+            ui.status(),
+            "Created {} bookmarks onto a hidden commit, use `jj new` to unhide it.",
+            bookmark_names.len()
+        )?;
     }
 
     tx.finish(
