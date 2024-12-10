@@ -364,7 +364,7 @@ fn test_log_shortest_accessors() {
     }
     // Create 2^3 duplicates of the chain
     for _ in 0..3 {
-        test_env.jj_cmd_ok(&repo_path, &["duplicate", "description(commit)"]);
+        test_env.jj_cmd_ok(&repo_path, &["duplicate", "-rdescription(commit)"]);
     }
 
     insta::assert_snapshot!(
@@ -532,7 +532,7 @@ fn test_log_prefix_highlight_styled() {
     }
     // Create 2^3 duplicates of the chain
     for _ in 0..3 {
-        test_env.jj_cmd_ok(&repo_path, &["duplicate", "description(commit)"]);
+        test_env.jj_cmd_ok(&repo_path, &["duplicate", "-rdescription(commit)"]);
     }
 
     insta::assert_snapshot!(
@@ -661,7 +661,7 @@ fn test_log_prefix_highlight_counts_hidden_commits() {
     // Create 2^7 hidden commits
     test_env.jj_cmd_ok(&repo_path, &["new", "root()", "-m", "extra"]);
     for _ in 0..7 {
-        test_env.jj_cmd_ok(&repo_path, &["duplicate", "description(extra)"]);
+        test_env.jj_cmd_ok(&repo_path, &["duplicate", "-rdescription(extra)"]);
     }
     test_env.jj_cmd_ok(&repo_path, &["abandon", "description(extra)"]);
 
