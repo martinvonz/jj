@@ -118,6 +118,26 @@ jobs:
           components: rustfmt
       - run: cargo +nightly fmt --all -- --check
 
+  check-doctests:
+    name: Run doctests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: dtolnay/rust-toolchain@1482605bfc5719782e1267fd0c0cc350fe7646b8
+        with:
+          toolchain: 1.76
+      # NOTE: We need to run `cargo test --doc` separately from normal tests:
+      # - `cargo build --all-targets` specifies: "Build all targets"
+      # - `cargo test --all-targets` specifies: "Test all targets (does not include doctests)"
+      - name: Run doctests
+        run: cargo test --workspace --doc
+        env:
+          RUST_BACKTRACE: 1
+      - name: Check `cargo doc` for lint issues
+        env:
+          RUSTDOCFLAGS: "--deny warnings"
+        run: cargo doc --workspace --no-deps
+
   mkdocs:
     name: Check that MkDocs can build the docs
     runs-on: ubuntu-latest
