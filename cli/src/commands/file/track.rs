@@ -52,7 +52,8 @@ pub(crate) fn cmd_file_track(
     let mut tx = workspace_command.start_transaction().into_inner();
     let base_ignores = workspace_command.base_ignores()?;
     let (mut locked_ws, _wc_commit) = workspace_command.start_working_copy_mutation()?;
-    locked_ws.locked_wc().snapshot(&SnapshotOptions {
+    // TODO: print stats
+    let (_tree_id, _stats) = locked_ws.locked_wc().snapshot(&SnapshotOptions {
         base_ignores,
         fsmonitor_settings: command.settings().fsmonitor_settings()?,
         progress: None,
