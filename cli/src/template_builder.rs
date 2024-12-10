@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::io;
 
@@ -165,6 +166,10 @@ pub trait IntoTemplateProperty<'a> {
 
     /// Transforms into a property that will evaluate to `self == other`.
     fn try_into_eq(self, other: Self) -> Option<Box<dyn TemplateProperty<Output = bool> + 'a>>;
+
+    /// Transforms into a property that will evaluate to an [`Ordering`].
+    fn try_into_cmp(self, other: Self)
+        -> Option<Box<dyn TemplateProperty<Output = Ordering> + 'a>>;
 }
 
 pub enum CoreTemplatePropertyKind<'a> {
@@ -280,6 +285,28 @@ impl<'a> IntoTemplateProperty<'a> for CoreTemplatePropertyKind<'a> {
             }
             (CoreTemplatePropertyKind::Integer(lhs), CoreTemplatePropertyKind::Integer(rhs)) => {
                 Some(Box::new((lhs, rhs).map(|(l, r)| l == r)))
+            }
+            (CoreTemplatePropertyKind::String(_), _) => None,
+            (CoreTemplatePropertyKind::StringList(_), _) => None,
+            (CoreTemplatePropertyKind::Boolean(_), _) => None,
+            (CoreTemplatePropertyKind::Integer(_), _) => None,
+            (CoreTemplatePropertyKind::IntegerOpt(_), _) => None,
+            (CoreTemplatePropertyKind::Signature(_), _) => None,
+            (CoreTemplatePropertyKind::SizeHint(_), _) => None,
+            (CoreTemplatePropertyKind::Timestamp(_), _) => None,
+            (CoreTemplatePropertyKind::TimestampRange(_), _) => None,
+            (CoreTemplatePropertyKind::Template(_), _) => None,
+            (CoreTemplatePropertyKind::ListTemplate(_), _) => None,
+        }
+    }
+
+    fn try_into_cmp(
+        self,
+        other: Self,
+    ) -> Option<Box<dyn TemplateProperty<Output = Ordering> + 'a>> {
+        match (self, other) {
+            (CoreTemplatePropertyKind::Integer(lhs), CoreTemplatePropertyKind::Integer(rhs)) => {
+                Some(Box::new((lhs, rhs).map(|(l, r)| l.cmp(&r))))
             }
             (CoreTemplatePropertyKind::String(_), _) => None,
             (CoreTemplatePropertyKind::StringList(_), _) => None,
@@ -539,6 +566,13 @@ impl<'a, P: IntoTemplateProperty<'a>> Expression<P> {
 
     pub fn try_into_eq(self, other: Self) -> Option<Box<dyn TemplateProperty<Output = bool> + 'a>> {
         self.property.try_into_eq(other.property)
+    }
+
+    pub fn try_into_cmp(
+        self,
+        other: Self,
+    ) -> Option<Box<dyn TemplateProperty<Output = Ordering> + 'a>> {
+        self.property.try_into_cmp(other.property)
     }
 }
 
