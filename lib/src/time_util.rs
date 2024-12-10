@@ -89,7 +89,7 @@ impl DatePattern {
     /// * `kind` must be either "after" or "before". This determines whether the
     ///   pattern will match dates after or before the parsed date.
     ///
-    /// * `now` is the user's current time. This is a DateTime<Tz> because
+    /// * `now` is the user's current time. This is a [`DateTime<Tz>`] because
     ///   knowledge of offset changes is needed to correctly process relative
     ///   times like "today". For example, California entered DST on March 10,
     ///   2024, shifting clocks from UTC-8 to UTC-7 at 2:00 AM. If the pattern
