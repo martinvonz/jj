@@ -1643,10 +1643,10 @@ mod tests {
             self.aliases_map.insert(decl, defn).unwrap();
         }
 
-        fn add_color(&mut self, label: &str, fg_color: crossterm::style::Color) {
+        fn add_color(&mut self, label: &str, fg: crossterm::style::Color) {
             let labels = label.split_whitespace().map(|s| s.to_owned()).collect();
             let style = formatter::Style {
-                fg_color: Some(fg_color),
+                fg: Some(fg),
                 ..Default::default()
             };
             self.color_rules.push((labels, style));
