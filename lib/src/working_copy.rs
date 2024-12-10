@@ -46,7 +46,6 @@ use crate::repo::RewriteRootCommit;
 use crate::repo_path::InvalidRepoPathError;
 use crate::repo_path::RepoPath;
 use crate::repo_path::RepoPathBuf;
-use crate::settings::HumanByteSize;
 use crate::settings::UserSettings;
 use crate::store::Store;
 
@@ -182,17 +181,6 @@ pub enum SnapshotError {
     /// Reading or writing from the commit backend failed.
     #[error(transparent)]
     BackendError(#[from] BackendError),
-    /// A file was larger than the specified maximum file size for new
-    /// (previously untracked) files.
-    #[error("New file {path} of size ~{size} exceeds snapshot.max-new-file-size ({max_size})")]
-    NewFileTooLarge {
-        /// The path of the large file.
-        path: PathBuf,
-        /// The size of the large file.
-        size: HumanByteSize,
-        /// The maximum allowed size.
-        max_size: HumanByteSize,
-    },
     /// Checking path with ignore patterns failed.
     #[error(transparent)]
     GitIgnoreError(#[from] GitIgnoreError),

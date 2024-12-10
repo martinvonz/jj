@@ -50,6 +50,7 @@ use clap::FromArgMatches;
 use clap_complete::ArgValueCandidates;
 use indexmap::IndexMap;
 use indexmap::IndexSet;
+use indoc::writedoc;
 use itertools::Itertools;
 use jj_lib::backend::BackendResult;
 use jj_lib::backend::ChangeId;
@@ -113,6 +114,7 @@ use jj_lib::revset::RevsetWorkspaceContext;
 use jj_lib::revset::SymbolResolverExtension;
 use jj_lib::revset::UserRevsetExpression;
 use jj_lib::rewrite::restore_tree;
+use jj_lib::settings::HumanByteSize;
 use jj_lib::settings::UserSettings;
 use jj_lib::str_util::StringPattern;
 use jj_lib::transaction::Transaction;
@@ -121,6 +123,8 @@ use jj_lib::working_copy;
 use jj_lib::working_copy::CheckoutOptions;
 use jj_lib::working_copy::CheckoutStats;
 use jj_lib::working_copy::SnapshotOptions;
+use jj_lib::working_copy::SnapshotStats;
+use jj_lib::working_copy::UntrackedReason;
 use jj_lib::working_copy::WorkingCopy;
 use jj_lib::working_copy::WorkingCopyFactory;
 use jj_lib::working_copy::WorkingCopyFreshness;
@@ -1806,8 +1810,7 @@ See https://martinvonz.github.io/jj/latest/working-copy/#stale-working-copy \
             };
         self.user_repo = ReadonlyUserRepo::new(repo);
         let progress = crate::progress::snapshot_progress(ui);
-        // TODO: print stats
-        let (new_tree_id, _stats) = locked_ws
+        let (new_tree_id, stats) = locked_ws
             .locked_wc()
             .snapshot(&SnapshotOptions {
                 base_ignores,
@@ -1860,6 +1863,8 @@ See https://martinvonz.github.io/jj/latest/working-copy/#stale-working-copy \
         }
         locked_ws
             .finish(self.user_repo.repo.op_id().clone())
+            .map_err(snapshot_command_error)?;
+        print_snapshot_stats(ui, &stats, &self.env.path_converter)
             .map_err(snapshot_command_error)?;
         Ok(())
     }
@@ -2551,6 +2556,68 @@ pub fn print_conflicted_paths(
             io::Result::Ok(())
         })?;
         writeln!(formatter)?;
+    }
+    Ok(())
+}
+
+pub fn print_snapshot_stats(
+    ui: &Ui,
+    stats: &SnapshotStats,
+    path_converter: &RepoPathUiConverter,
+) -> io::Result<()> {
+    // It might make sense to add files excluded by snapshot.auto-track to the
+    // untracked_paths, but they shouldn't be warned every time we do snapshot.
+    // These paths will have to be printed by "jj status" instead.
+    if !stats.untracked_paths.is_empty() {
+        writeln!(ui.warning_default(), "Refused to snapshot some files:")?;
+        let mut formatter = ui.stderr_formatter();
+        for (path, reason) in &stats.untracked_paths {
+            let ui_path = path_converter.format_file_path(path);
+            let message = match reason {
+                UntrackedReason::FileTooLarge { size, max_size } => {
+                    // if the size difference is < 1KiB, then show exact bytes.
+                    // otherwise, show in human-readable form; this avoids weird cases
+                    // where a file is 400 bytes too large but the error says something
+                    // like '1.0MiB, maximum size allowed is ~1.0MiB'
+                    let size_diff = size - max_size;
+                    if size_diff <= 1024 {
+                        format!(
+                            "{size_diff} bytes too large; the maximum size allowed is {max_size} \
+                             bytes ({max_size_approx})",
+                            max_size_approx = HumanByteSize(*max_size)
+                        )
+                    } else {
+                        format!(
+                            "{size}; the maximum size allowed is ~{max_size}",
+                            size = HumanByteSize(*size),
+                            max_size = HumanByteSize(*max_size)
+                        )
+                    }
+                }
+            };
+            writeln!(formatter, "  {ui_path}: {message}")?;
+        }
+    }
+
+    if let Some(size) = stats
+        .untracked_paths
+        .values()
+        .map(|reason| match reason {
+            UntrackedReason::FileTooLarge { size, .. } => *size,
+        })
+        .max()
+    {
+        writedoc!(
+            ui.hint_default(),
+            r"
+            This is to prevent large files from being added by accident. You can fix this by:
+              - Adding the file to `.gitignore`
+              - Run `jj config set --repo snapshot.max-new-file-size {size}`
+                This will increase the maximum file size allowed for new files, in this repository only.
+              - Run `jj --config-toml 'snapshot.max-new-file-size={size}' st`
+                This will increase the maximum file size allowed for new files, for this command only.
+            "
+        )?;
     }
     Ok(())
 }

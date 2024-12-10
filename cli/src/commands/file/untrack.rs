@@ -22,6 +22,7 @@ use jj_lib::repo::Repo;
 use jj_lib::working_copy::SnapshotOptions;
 use tracing::instrument;
 
+use crate::cli_util::print_snapshot_stats;
 use crate::cli_util::CommandHelper;
 use crate::command_error::user_error_with_hint;
 use crate::command_error::CommandError;
@@ -76,8 +77,7 @@ pub(crate) fn cmd_file_untrack(
     locked_ws.locked_wc().reset(&new_commit)?;
     // Commit the working copy again so we can inform the user if paths couldn't be
     // untracked because they're not ignored.
-    // TODO: print stats
-    let (wc_tree_id, _stats) = locked_ws.locked_wc().snapshot(&SnapshotOptions {
+    let (wc_tree_id, stats) = locked_ws.locked_wc().snapshot(&SnapshotOptions {
         base_ignores,
         fsmonitor_settings: command.settings().fsmonitor_settings()?,
         progress: None,
@@ -118,5 +118,6 @@ Make sure they're ignored, then try again.",
     }
     let repo = tx.commit("untrack paths")?;
     locked_ws.finish(repo.op_id().clone())?;
+    print_snapshot_stats(ui, &stats, workspace_command.env().path_converter())?;
     Ok(())
 }
