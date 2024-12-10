@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use std::any::Any;
+use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::io;
 
@@ -195,6 +196,18 @@ impl IntoTemplateProperty<'static> for OperationTemplatePropertyKind {
                 OperationTemplatePropertyKind::Core(lhs),
                 OperationTemplatePropertyKind::Core(rhs),
             ) => lhs.try_into_eq(rhs),
+            (OperationTemplatePropertyKind::Core(_), _) => None,
+            (OperationTemplatePropertyKind::Operation(_), _) => None,
+            (OperationTemplatePropertyKind::OperationId(_), _) => None,
+        }
+    }
+
+    fn try_into_cmp(self, other: Self) -> Option<Box<dyn TemplateProperty<Output = Ordering>>> {
+        match (self, other) {
+            (
+                OperationTemplatePropertyKind::Core(lhs),
+                OperationTemplatePropertyKind::Core(rhs),
+            ) => lhs.try_into_cmp(rhs),
             (OperationTemplatePropertyKind::Core(_), _) => None,
             (OperationTemplatePropertyKind::Operation(_), _) => None,
             (OperationTemplatePropertyKind::OperationId(_), _) => None,
