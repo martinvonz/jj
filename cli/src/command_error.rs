@@ -370,45 +370,7 @@ impl From<OpsetEvaluationError> for CommandError {
 
 impl From<SnapshotError> for CommandError {
     fn from(err: SnapshotError) -> Self {
-        match err {
-            SnapshotError::NewFileTooLarge {
-                path,
-                size,
-                max_size,
-            } => {
-                // if the size difference is < 1KiB, then show exact bytes.
-                // otherwise, show in human-readable form; this avoids weird cases
-                // where a file is 400 bytes too large but the error says something
-                // like '1.0MiB, maximum size allowed is ~1.0MiB'
-                let size_diff = size.0 - max_size.0;
-                let err_str = if size_diff <= 1024 {
-                    format!(
-                        "it is {} bytes too large; the maximum size allowed is {} bytes ({}).",
-                        size_diff, max_size.0, max_size,
-                    )
-                } else {
-                    format!("it is {size}; the maximum size allowed is ~{max_size}.")
-                };
-
-                user_error(format!(
-                    "Failed to snapshot the working copy\nThe file '{}' is too large to be \
-                     snapshotted: {}",
-                    path.display(),
-                    err_str,
-                ))
-                .hinted(format!(
-                    "This is to prevent large files from being added by accident. You can fix \
-                     this error by:
-  - Adding the file to `.gitignore`
-  - Run `jj config set --repo snapshot.max-new-file-size {}`
-    This will increase the maximum file size allowed for new files, in this repository only.
-  - Run `jj --config-toml 'snapshot.max-new-file-size={}' st`
-    This will increase the maximum file size allowed for new files, for this command only.",
-                    size.0, size.0
-                ))
-            }
-            err => internal_error_with_message("Failed to snapshot the working copy", err),
-        }
+        internal_error_with_message("Failed to snapshot the working copy", err)
     }
 }
 

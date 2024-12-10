@@ -25,34 +25,37 @@ fn test_snapshot_large_file() {
     // test a small file using raw-integer-literal syntax, which is interpreted
     // in bytes
     test_env.add_config(r#"snapshot.max-new-file-size = 10"#);
+    std::fs::write(repo_path.join("empty"), "").unwrap();
     std::fs::write(repo_path.join("large"), "a lot of text").unwrap();
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["file", "list"]);
-    insta::assert_snapshot!(stderr, @r###"
-    Error: Failed to snapshot the working copy
-    The file '$TEST_ENV/repo/large' is too large to be snapshotted: it is 3 bytes too large; the maximum size allowed is 10 bytes (10.0B).
-    Hint: This is to prevent large files from being added by accident. You can fix this error by:
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["file", "list"]);
+    insta::assert_snapshot!(stdout, @"empty");
+    insta::assert_snapshot!(stderr, @r"
+    Warning: Refused to snapshot some files:
+      large: 3 bytes too large; the maximum size allowed is 10 bytes (10.0B)
+    Hint: This is to prevent large files from being added by accident. You can fix this by:
       - Adding the file to `.gitignore`
       - Run `jj config set --repo snapshot.max-new-file-size 13`
         This will increase the maximum file size allowed for new files, in this repository only.
       - Run `jj --config-toml 'snapshot.max-new-file-size=13' st`
         This will increase the maximum file size allowed for new files, for this command only.
-    "###);
+    ");
 
     // test with a larger file using 'KB' human-readable syntax
     test_env.add_config(r#"snapshot.max-new-file-size = "10KB""#);
     let big_string = vec![0; 1024 * 11];
     std::fs::write(repo_path.join("large"), big_string).unwrap();
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["file", "list"]);
-    insta::assert_snapshot!(stderr, @r###"
-    Error: Failed to snapshot the working copy
-    The file '$TEST_ENV/repo/large' is too large to be snapshotted: it is 1024 bytes too large; the maximum size allowed is 10240 bytes (10.0KiB).
-    Hint: This is to prevent large files from being added by accident. You can fix this error by:
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["file", "list"]);
+    insta::assert_snapshot!(stdout, @"empty");
+    insta::assert_snapshot!(stderr, @r"
+    Warning: Refused to snapshot some files:
+      large: 1024 bytes too large; the maximum size allowed is 10240 bytes (10.0KiB)
+    Hint: This is to prevent large files from being added by accident. You can fix this by:
       - Adding the file to `.gitignore`
       - Run `jj config set --repo snapshot.max-new-file-size 11264`
         This will increase the maximum file size allowed for new files, in this repository only.
       - Run `jj --config-toml 'snapshot.max-new-file-size=11264' st`
         This will increase the maximum file size allowed for new files, for this command only.
-    "###);
+    ");
 
     // test invalid configuration
     let stderr = test_env.jj_cmd_failure(
@@ -71,8 +74,58 @@ fn test_snapshot_large_file() {
 
     // No error if we disable auto-tracking of the path
     test_env.add_config(r#"snapshot.auto-track = 'none()'"#);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["file", "list"]);
-    insta::assert_snapshot!(stdout, @"");
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["file", "list"]);
+    insta::assert_snapshot!(stdout, @"empty");
+    insta::assert_snapshot!(stderr, @"");
+}
+
+#[test]
+fn test_snapshot_large_file_restore() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+    test_env.add_config("snapshot.max-new-file-size = 10");
+
+    test_env.jj_cmd_ok(&repo_path, &["describe", "-mcommitted"]);
+    std::fs::write(repo_path.join("file"), "small").unwrap();
+
+    // Write a large file in the working copy, restore it from a commit. The
+    // working-copy content shouldn't be overwritten.
+    test_env.jj_cmd_ok(&repo_path, &["new", "root()"]);
+    std::fs::write(repo_path.join("file"), "a lot of text").unwrap();
+    let (_stdout, stderr) =
+        test_env.jj_cmd_ok(&repo_path, &["restore", "--from=description(committed)"]);
+    insta::assert_snapshot!(stderr, @r"
+    Warning: Refused to snapshot some files:
+      file: 3 bytes too large; the maximum size allowed is 10 bytes (10.0B)
+    Hint: This is to prevent large files from being added by accident. You can fix this by:
+      - Adding the file to `.gitignore`
+      - Run `jj config set --repo snapshot.max-new-file-size 13`
+        This will increase the maximum file size allowed for new files, in this repository only.
+      - Run `jj --config-toml 'snapshot.max-new-file-size=13' st`
+        This will increase the maximum file size allowed for new files, for this command only.
+    Created kkmpptxz e3eb7e81 (no description set)
+    Working copy now at: kkmpptxz e3eb7e81 (no description set)
+    Parent commit      : zzzzzzzz 00000000 (empty) (no description set)
+    Added 1 files, modified 0 files, removed 0 files
+    Warning: 1 of those updates were skipped because there were conflicting changes in the working copy.
+    Hint: Inspect the changes compared to the intended target with `jj diff --from e3eb7e819de5`.
+    Discard the conflicting changes with `jj restore --from e3eb7e819de5`.
+    ");
+    insta::assert_snapshot!(
+        std::fs::read_to_string(repo_path.join("file")).unwrap(),
+        @"a lot of text");
+
+    // However, the next command will snapshot the large file because it is now
+    // tracked. TODO: Should we remember the untracked state?
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["status"]);
+    insta::assert_snapshot!(stdout, @r"
+    Working copy changes:
+    A file
+    Working copy : kkmpptxz b75eed09 (no description set)
+    Parent commit: zzzzzzzz 00000000 (empty) (no description set)
+    ");
+    insta::assert_snapshot!(stderr, @"");
 }
 
 #[test]

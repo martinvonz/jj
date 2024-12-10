@@ -25,6 +25,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### New features
 
+* `jj` command no longer fails due to new working-copy files larger than the
+  `snapshot.max-new-file-size` config option. It will print a warning and large
+  files will be left untracked.
+
 ### Fixed bugs
 
 * The `$NO_COLOR` environment variable must now be non-empty to be respected.

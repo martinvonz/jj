@@ -17,6 +17,7 @@ use std::io::Write;
 use jj_lib::working_copy::SnapshotOptions;
 use tracing::instrument;
 
+use crate::cli_util::print_snapshot_stats;
 use crate::cli_util::CommandHelper;
 use crate::command_error::CommandError;
 use crate::ui::Ui;
@@ -52,8 +53,7 @@ pub(crate) fn cmd_file_track(
     let mut tx = workspace_command.start_transaction().into_inner();
     let base_ignores = workspace_command.base_ignores()?;
     let (mut locked_ws, _wc_commit) = workspace_command.start_working_copy_mutation()?;
-    // TODO: print stats
-    let (_tree_id, _stats) = locked_ws.locked_wc().snapshot(&SnapshotOptions {
+    let (_tree_id, stats) = locked_ws.locked_wc().snapshot(&SnapshotOptions {
         base_ignores,
         fsmonitor_settings: command.settings().fsmonitor_settings()?,
         progress: None,
@@ -67,5 +67,6 @@ pub(crate) fn cmd_file_track(
     }
     let repo = tx.commit("track paths")?;
     locked_ws.finish(repo.op_id().clone())?;
+    print_snapshot_stats(ui, &stats, workspace_command.env().path_converter())?;
     Ok(())
 }
