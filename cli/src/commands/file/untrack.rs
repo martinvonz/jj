@@ -76,7 +76,8 @@ pub(crate) fn cmd_file_untrack(
     locked_ws.locked_wc().reset(&new_commit)?;
     // Commit the working copy again so we can inform the user if paths couldn't be
     // untracked because they're not ignored.
-    let wc_tree_id = locked_ws.locked_wc().snapshot(&SnapshotOptions {
+    // TODO: print stats
+    let (wc_tree_id, _stats) = locked_ws.locked_wc().snapshot(&SnapshotOptions {
         base_ignores,
         fsmonitor_settings: command.settings().fsmonitor_settings()?,
         progress: None,
