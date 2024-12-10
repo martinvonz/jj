@@ -169,7 +169,7 @@ fn test_checkout_parallel() {
                 // &CheckoutOptions::empty_for_test()) should never produce a
                 // different tree.
                 let mut locked_ws = workspace.start_working_copy_mutation().unwrap();
-                let new_tree_id = locked_ws
+                let (new_tree_id, _stats) = locked_ws
                     .locked_wc()
                     .snapshot(&SnapshotOptions::empty_for_test())
                     .unwrap();

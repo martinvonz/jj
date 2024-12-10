@@ -41,6 +41,7 @@ use jj_lib::working_copy::LockedWorkingCopy;
 use jj_lib::working_copy::ResetError;
 use jj_lib::working_copy::SnapshotError;
 use jj_lib::working_copy::SnapshotOptions;
+use jj_lib::working_copy::SnapshotStats;
 use jj_lib::working_copy::WorkingCopy;
 use jj_lib::working_copy::WorkingCopyFactory;
 use jj_lib::working_copy::WorkingCopyStateError;
@@ -233,7 +234,10 @@ impl LockedWorkingCopy for LockedConflictsWorkingCopy {
         self.inner.old_tree_id()
     }
 
-    fn snapshot(&mut self, options: &SnapshotOptions) -> Result<MergedTreeId, SnapshotError> {
+    fn snapshot(
+        &mut self,
+        options: &SnapshotOptions,
+    ) -> Result<(MergedTreeId, SnapshotStats), SnapshotError> {
         let options = SnapshotOptions {
             base_ignores: options.base_ignores.chain("", "/.conflicts".as_bytes())?,
             ..options.clone()

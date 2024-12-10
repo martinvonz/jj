@@ -939,7 +939,7 @@ fn test_snapshot_racy_timestamps() {
             .workspace
             .start_working_copy_mutation()
             .unwrap();
-        let new_tree_id = locked_ws
+        let (new_tree_id, _stats) = locked_ws
             .locked_wc()
             .snapshot(&SnapshotOptions::empty_for_test())
             .unwrap();
@@ -973,7 +973,7 @@ fn test_snapshot_special_file() {
 
     // Snapshot the working copy with the socket file
     let mut locked_ws = ws.start_working_copy_mutation().unwrap();
-    let tree_id = locked_ws
+    let (tree_id, _stats) = locked_ws
         .locked_wc()
         .snapshot(&SnapshotOptions::empty_for_test())
         .unwrap();
@@ -2052,7 +2052,7 @@ fn test_fsmonitor() {
             .iter()
             .map(|p| p.to_fs_path_unchecked(Path::new("")))
             .collect();
-        locked_ws
+        let (tree_id, _stats) = locked_ws
             .locked_wc()
             .snapshot(&SnapshotOptions {
                 fsmonitor_settings: FsmonitorSettings::Test {
@@ -2060,7 +2060,8 @@ fn test_fsmonitor() {
                 },
                 ..SnapshotOptions::empty_for_test()
             })
-            .unwrap()
+            .unwrap();
+        tree_id
     };
 
     {
