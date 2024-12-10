@@ -255,18 +255,18 @@ impl<W: Write> Formatter for SanitizingFormatter<W> {
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Style {
-    pub fg_color: Option<Color>,
-    pub bg_color: Option<Color>,
+    pub fg: Option<Color>,
+    pub bg: Option<Color>,
     pub bold: Option<bool>,
-    pub underlined: Option<bool>,
+    pub underline: Option<bool>,
 }
 
 impl Style {
     fn merge(&mut self, other: &Style) {
-        self.fg_color = other.fg_color.or(self.fg_color);
-        self.bg_color = other.bg_color.or(self.bg_color);
+        self.fg = other.fg.or(self.fg);
+        self.bg = other.bg.or(self.bg);
         self.bold = other.bold.or(self.bold);
-        self.underlined = other.underlined.or(self.underlined);
+        self.underline = other.underline.or(self.underline);
     }
 }
 
@@ -374,23 +374,23 @@ impl<W: Write> ColorFormatter<W> {
                     self.current_style = Style::default();
                 }
             }
-            if new_style.underlined != self.current_style.underlined {
-                if new_style.underlined.unwrap_or_default() {
+            if new_style.underline != self.current_style.underline {
+                if new_style.underline.unwrap_or_default() {
                     queue!(self.output, SetAttribute(Attribute::Underlined))?;
                 } else {
                     queue!(self.output, SetAttribute(Attribute::NoUnderline))?;
                 }
             }
-            if new_style.fg_color != self.current_style.fg_color {
+            if new_style.fg != self.current_style.fg {
                 queue!(
                     self.output,
-                    SetForegroundColor(new_style.fg_color.unwrap_or(Color::Reset))
+                    SetForegroundColor(new_style.fg.unwrap_or(Color::Reset))
                 )?;
             }
-            if new_style.bg_color != self.current_style.bg_color {
+            if new_style.bg != self.current_style.bg {
                 queue!(
                     self.output,
-                    SetBackgroundColor(new_style.bg_color.unwrap_or(Color::Reset))
+                    SetBackgroundColor(new_style.bg.unwrap_or(Color::Reset))
                 )?;
             }
             self.current_style = new_style;
@@ -421,24 +421,22 @@ fn rules_from_config(config: &StackedConfig) -> Result<Rules, ConfigGetError> {
         let value = config.get_value(["colors", key])?;
         if let Some(color_name) = value.as_str() {
             let style = Style {
-                fg_color: Some(color_for_name_or_hex(color_name).map_err(to_config_err)?),
-                bg_color: None,
+                fg: Some(color_for_name_or_hex(color_name).map_err(to_config_err)?),
+                bg: None,
                 bold: None,
-                underlined: None,
+                underline: None,
             };
             result.push((labels, style));
         } else if let Some(style_table) = value.as_inline_table() {
             let mut style = Style::default();
             if let Some(item) = style_table.get("fg") {
                 if let Some(color_name) = item.as_str() {
-                    style.fg_color =
-                        Some(color_for_name_or_hex(color_name).map_err(to_config_err)?);
+                    style.fg = Some(color_for_name_or_hex(color_name).map_err(to_config_err)?);
                 }
             }
             if let Some(item) = style_table.get("bg") {
                 if let Some(color_name) = item.as_str() {
-                    style.bg_color =
-                        Some(color_for_name_or_hex(color_name).map_err(to_config_err)?);
+                    style.bg = Some(color_for_name_or_hex(color_name).map_err(to_config_err)?);
                 }
             }
             if let Some(item) = style_table.get("bold") {
@@ -448,7 +446,7 @@ fn rules_from_config(config: &StackedConfig) -> Result<Rules, ConfigGetError> {
             }
             if let Some(item) = style_table.get("underline") {
                 if let Some(value) = item.as_bool() {
-                    style.underlined = Some(value);
+                    style.underline = Some(value);
                 }
             }
             result.push((labels, style));
