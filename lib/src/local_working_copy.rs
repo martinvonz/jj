@@ -97,7 +97,6 @@ use crate::op_store::WorkspaceId;
 use crate::repo_path::RepoPath;
 use crate::repo_path::RepoPathBuf;
 use crate::repo_path::RepoPathComponent;
-use crate::settings::HumanByteSize;
 use crate::store::Store;
 use crate::tree::Tree;
 use crate::working_copy::CheckoutError;
@@ -1097,7 +1096,6 @@ struct FileSnapshotter<'a> {
     start_tracking_matcher: &'a dyn Matcher,
     tree_entries_tx: Sender<(RepoPathBuf, MergedTreeValue)>,
     file_states_tx: Sender<(RepoPathBuf, FileState)>,
-    #[allow(unused)] // TODO
     untracked_paths_tx: Sender<(RepoPathBuf, UntrackedReason)>,
     deleted_files_tx: Sender<RepoPathBuf>,
     error: OnceLock<SnapshotError>,
@@ -1246,14 +1244,14 @@ impl FileSnapshotter<'_> {
                     err: err.into(),
                 })?;
                 if maybe_current_file_state.is_none() && metadata.len() > self.max_new_file_size {
-                    // TODO: Maybe leave the file untracked instead
-                    return Err(SnapshotError::NewFileTooLarge {
-                        path: entry.path().clone(),
-                        size: HumanByteSize(metadata.len()),
-                        max_size: HumanByteSize(self.max_new_file_size),
-                    });
-                }
-                if let Some(new_file_state) = file_state(&metadata) {
+                    // Leave the large file untracked
+                    let reason = UntrackedReason::FileTooLarge {
+                        size: metadata.len(),
+                        max_size: self.max_new_file_size,
+                    };
+                    self.untracked_paths_tx.send((path, reason)).ok();
+                    Ok(None)
+                } else if let Some(new_file_state) = file_state(&metadata) {
                     self.process_present_file(
                         path,
                         &entry.path(),
