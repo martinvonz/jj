@@ -5,7 +5,7 @@
 If you're familiar with Git, you might expect the current bookmark to move forward
 when you commit. However, Jujutsu does not have a concept of a "current bookmark".
 
-To move bookmarks, use `jj bookmark set`.
+To move bookmarks, use `jj bookmark move`.
 
 ### I made a commit and `jj git push --all` says "Nothing changed" instead of pushing it. What do I do?
 
@@ -317,7 +317,7 @@ of them before abandoning it.
 A [conflicted bookmark][bookmarks_conflicts] is a bookmark that refers to multiple
 different commits because jj couldn't fully resolve its desired position.
 Resolving conflicted bookmarks is usually done by setting the bookmark to the
-correct commit using `jj bookmark set <commit ID>`.
+correct commit using `jj bookmark move <name> --to <commit ID>`.
 
 Usually, the different commits associated with the conflicted bookmark should all
 appear in the log, but if they don't you can use `jj bookmark list`to show all the
