@@ -183,7 +183,7 @@ makes several safety checks.
    if the unexpected location is identical to the local position of the bookmark.
 
 2. The local bookmark must not be [conflicted](#conflicts). If it is, you would
-   need to use `jj bookmark set`, for example, to resolve the conflict.
+   need to use `jj bookmark move`, for example, to resolve the conflict.
 
    This makes `jj git push` safe even if `jj git fetch` is performed on a timer
    in the background (this situation is a known issue[^known-issue] with some

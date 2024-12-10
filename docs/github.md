@@ -116,7 +116,7 @@ $ jj diff
 $ # Give the fix a description and create a new working-copy on top.
 $ jj commit -m 'address pr comments'
 $ # Update the bookmark to point to the new commit.
-$ jj bookmark set your-feature -r @-
+$ jj bookmark move your-feature --to @-
 $ # Push it to your remote
 $ jj git push
 ```
@@ -136,7 +136,7 @@ $ jj diff
 $ # Give the fix a description.
 $ jj describe -m 'address pr comments'
 $ # Update the bookmark to point to the current commit.
-$ jj bookmark set your-feature -r @
+$ jj bookmark move your-feature --to @
 $ # Push it to your remote
 $ jj git push
 ```
