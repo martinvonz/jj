@@ -31,7 +31,7 @@ fn test_snapshot_large_file() {
     insta::assert_snapshot!(stdout, @"empty");
     insta::assert_snapshot!(stderr, @r"
     Warning: Refused to snapshot some files:
-      large: 3 bytes too large; the maximum size allowed is 10 bytes (10.0B)
+      large: 13.0B (13 bytes); the maximum size allowed is 10.0B (10 bytes)
     Hint: This is to prevent large files from being added by accident. You can fix this by:
       - Adding the file to `.gitignore`
       - Run `jj config set --repo snapshot.max-new-file-size 13`
@@ -48,7 +48,7 @@ fn test_snapshot_large_file() {
     insta::assert_snapshot!(stdout, @"empty");
     insta::assert_snapshot!(stderr, @r"
     Warning: Refused to snapshot some files:
-      large: 1024 bytes too large; the maximum size allowed is 10240 bytes (10.0KiB)
+      large: 11.0KiB (11264 bytes); the maximum size allowed is 10.0KiB (10240 bytes)
     Hint: This is to prevent large files from being added by accident. You can fix this by:
       - Adding the file to `.gitignore`
       - Run `jj config set --repo snapshot.max-new-file-size 11264`
@@ -97,7 +97,7 @@ fn test_snapshot_large_file_restore() {
         test_env.jj_cmd_ok(&repo_path, &["restore", "--from=description(committed)"]);
     insta::assert_snapshot!(stderr, @r"
     Warning: Refused to snapshot some files:
-      file: 3 bytes too large; the maximum size allowed is 10 bytes (10.0B)
+      file: 13.0B (13 bytes); the maximum size allowed is 10.0B (10 bytes)
     Hint: This is to prevent large files from being added by accident. You can fix this by:
       - Adding the file to `.gitignore`
       - Run `jj config set --repo snapshot.max-new-file-size 13`

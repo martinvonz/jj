@@ -2575,24 +2575,14 @@ pub fn print_snapshot_stats(
             let ui_path = path_converter.format_file_path(path);
             let message = match reason {
                 UntrackedReason::FileTooLarge { size, max_size } => {
-                    // if the size difference is < 1KiB, then show exact bytes.
-                    // otherwise, show in human-readable form; this avoids weird cases
-                    // where a file is 400 bytes too large but the error says something
+                    // Show both exact and human bytes sizes to avoid something
                     // like '1.0MiB, maximum size allowed is ~1.0MiB'
-                    let size_diff = size - max_size;
-                    if size_diff <= 1024 {
-                        format!(
-                            "{size_diff} bytes too large; the maximum size allowed is {max_size} \
-                             bytes ({max_size_approx})",
-                            max_size_approx = HumanByteSize(*max_size)
-                        )
-                    } else {
-                        format!(
-                            "{size}; the maximum size allowed is ~{max_size}",
-                            size = HumanByteSize(*size),
-                            max_size = HumanByteSize(*max_size)
-                        )
-                    }
+                    let size_approx = HumanByteSize(*size);
+                    let max_size_approx = HumanByteSize(*max_size);
+                    format!(
+                        "{size_approx} ({size} bytes); the maximum size allowed is \
+                         {max_size_approx} ({max_size} bytes)",
+                    )
                 }
             };
             writeln!(formatter, "  {ui_path}: {message}")?;
