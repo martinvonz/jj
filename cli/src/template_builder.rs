@@ -687,6 +687,23 @@ fn build_binary_operation<'a, L: TemplateLanguage<'a> + ?Sized>(
                 _ => unreachable!(),
             }
         }
+        BinaryOp::Ge | BinaryOp::Gt | BinaryOp::Le | BinaryOp::Lt => {
+            let lhs = build_expression(language, diagnostics, build_ctx, lhs_node)?;
+            let rhs = build_expression(language, diagnostics, build_ctx, rhs_node)?;
+            let lty = lhs.type_name();
+            let rty = rhs.type_name();
+            let out = lhs.try_into_cmp(rhs).ok_or_else(|| {
+                let message = format!(r#"Cannot compare expressions of type "{lty}" and "{rty}""#);
+                TemplateParseError::expression(message, span)
+            })?;
+            match op {
+                BinaryOp::Ge => Ok(L::wrap_boolean(out.map(|ordering| ordering.is_ge()))),
+                BinaryOp::Gt => Ok(L::wrap_boolean(out.map(|ordering| ordering.is_gt()))),
+                BinaryOp::Le => Ok(L::wrap_boolean(out.map(|ordering| ordering.is_le()))),
+                BinaryOp::Lt => Ok(L::wrap_boolean(out.map(|ordering| ordering.is_lt()))),
+                _ => unreachable!(),
+            }
+        }
     }
 }
 
@@ -1766,14 +1783,14 @@ mod tests {
         env.add_keyword("description", || L::wrap_string(Literal("".to_owned())));
         env.add_keyword("empty", || L::wrap_boolean(Literal(true)));
 
-        insta::assert_snapshot!(env.parse_err(r#"description ()"#), @r"
+        insta::assert_snapshot!(env.parse_err(r#"description ()"#), @r#"
          --> 1:13
           |
         1 | description ()
           |             ^---
           |
-          = expected <EOI>, `++`, `||`, `&&`, `==`, or `!=`
-        ");
+          = expected <EOI>, `++`, `||`, `&&`, `==`, `!=`, `>=`, `>`, `<=`, or `<`
+        "#);
 
         insta::assert_snapshot!(env.parse_err(r#"foo"#), @r###"
          --> 1:1
@@ -1872,6 +1889,14 @@ mod tests {
           | ^------------------^
           |
           = Cannot compare expressions of type "String" and "Template"
+        "#);
+        insta::assert_snapshot!(env.parse_err(r#"'a' > 1"#), @r#"
+         --> 1:1
+          |
+        1 | 'a' > 1
+          | ^-----^
+          |
+          = Cannot compare expressions of type "String" and "Integer"
         "#);
 
         insta::assert_snapshot!(env.parse_err(r#"description.first_line().foo()"#), @r###"
@@ -2081,6 +2106,20 @@ mod tests {
         insta::assert_snapshot!(
             env.render_ok(r#"-i64_min"#),
             @"<Error: Attempt to negate with overflow>");
+    }
+
+    #[test]
+    fn test_relational_operation() {
+        let env = TestTemplateEnv::new();
+
+        insta::assert_snapshot!(env.render_ok(r#"1 >= 1"#), @"true");
+        insta::assert_snapshot!(env.render_ok(r#"0 >= 1"#), @"false");
+        insta::assert_snapshot!(env.render_ok(r#"2 > 1"#), @"true");
+        insta::assert_snapshot!(env.render_ok(r#"1 > 1"#), @"false");
+        insta::assert_snapshot!(env.render_ok(r#"1 <= 1"#), @"true");
+        insta::assert_snapshot!(env.render_ok(r#"2 <= 1"#), @"false");
+        insta::assert_snapshot!(env.render_ok(r#"0 < 1"#), @"true");
+        insta::assert_snapshot!(env.render_ok(r#"1 < 1"#), @"false");
     }
 
     #[test]

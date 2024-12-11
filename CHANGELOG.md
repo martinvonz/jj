@@ -35,6 +35,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `snapshot.max-new-file-size` config option. It will print a warning and large
   files will be left untracked.
 
+* Templates now support the `>=`, `>`, `<=`, and `<` relational operators for
+  `Integer` types.
+
 ### Fixed bugs
 
 * The `$NO_COLOR` environment variable must now be non-empty to be respected.

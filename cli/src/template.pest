@@ -42,10 +42,23 @@ logical_or_op = { "||" }
 logical_and_op = { "&&" }
 logical_eq_op = { "==" }
 logical_ne_op = { "!=" }
+ge_op = { ">=" }
+gt_op = { ">" }
+le_op = { "<=" }
+lt_op = { "<" }
 logical_not_op = { "!" }
 negate_op = { "-" }
 prefix_ops = _{ logical_not_op | negate_op }
-infix_ops = _{ logical_or_op | logical_and_op | logical_eq_op | logical_ne_op }
+infix_ops = _{
+  logical_or_op
+  | logical_and_op
+  | logical_eq_op
+  | logical_ne_op
+  | ge_op
+  | gt_op
+  | le_op
+  | lt_op
+}
 
 function = { identifier ~ "(" ~ whitespace* ~ function_arguments ~ whitespace* ~ ")" }
 keyword_argument = { identifier ~ whitespace* ~ "=" ~ whitespace* ~ template }

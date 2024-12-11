@@ -25,15 +25,15 @@ fn test_templater_parse_error() {
     let repo_path = test_env.env_root().join("repo");
     let render_err = |template| test_env.jj_cmd_failure(&repo_path, &["log", "-T", template]);
 
-    insta::assert_snapshot!(render_err(r#"description ()"#), @r"
+    insta::assert_snapshot!(render_err(r#"description ()"#), @r#"
     Error: Failed to parse template: Syntax error
     Caused by:  --> 1:13
       |
     1 | description ()
       |             ^---
       |
-      = expected <EOI>, `++`, `||`, `&&`, `==`, or `!=`
-    ");
+      = expected <EOI>, `++`, `||`, `&&`, `==`, `!=`, `>=`, `>`, `<=`, or `<`
+    "#);
 
     // Typo
     test_env.add_config(
