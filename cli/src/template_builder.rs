@@ -38,6 +38,7 @@ use crate::template_parser::UnaryOp;
 use crate::templater::CoalesceTemplate;
 use crate::templater::ConcatTemplate;
 use crate::templater::ConditionalTemplate;
+use crate::templater::Email;
 use crate::templater::LabelTemplate;
 use crate::templater::ListPropertyTemplate;
 use crate::templater::ListTemplate;
@@ -71,6 +72,7 @@ pub trait TemplateLanguage<'a> {
         property: impl TemplateProperty<Output = Option<i64>> + 'a,
     ) -> Self::Property;
     fn wrap_signature(property: impl TemplateProperty<Output = Signature> + 'a) -> Self::Property;
+    fn wrap_email(property: impl TemplateProperty<Output = Email> + 'a) -> Self::Property;
     fn wrap_size_hint(property: impl TemplateProperty<Output = SizeHint> + 'a) -> Self::Property;
     fn wrap_timestamp(property: impl TemplateProperty<Output = Timestamp> + 'a) -> Self::Property;
     fn wrap_timestamp_range(
@@ -117,6 +119,7 @@ macro_rules! impl_core_wrap_property_fns {
                 wrap_integer(i64) => Integer,
                 wrap_integer_opt(Option<i64>) => IntegerOpt,
                 wrap_signature(jj_lib::backend::Signature) => Signature,
+                wrap_email($crate::templater::Email) => Email,
                 wrap_size_hint($crate::templater::SizeHint) => SizeHint,
                 wrap_timestamp(jj_lib::backend::Timestamp) => Timestamp,
                 wrap_timestamp_range($crate::templater::TimestampRange) => TimestampRange,
@@ -179,6 +182,7 @@ pub enum CoreTemplatePropertyKind<'a> {
     Integer(Box<dyn TemplateProperty<Output = i64> + 'a>),
     IntegerOpt(Box<dyn TemplateProperty<Output = Option<i64>> + 'a>),
     Signature(Box<dyn TemplateProperty<Output = Signature> + 'a>),
+    Email(Box<dyn TemplateProperty<Output = Email> + 'a>),
     SizeHint(Box<dyn TemplateProperty<Output = SizeHint> + 'a>),
     Timestamp(Box<dyn TemplateProperty<Output = Timestamp> + 'a>),
     TimestampRange(Box<dyn TemplateProperty<Output = TimestampRange> + 'a>),
@@ -206,6 +210,7 @@ impl<'a> IntoTemplateProperty<'a> for CoreTemplatePropertyKind<'a> {
             CoreTemplatePropertyKind::Integer(_) => "Integer",
             CoreTemplatePropertyKind::IntegerOpt(_) => "Option<Integer>",
             CoreTemplatePropertyKind::Signature(_) => "Signature",
+            CoreTemplatePropertyKind::Email(_) => "Email",
             CoreTemplatePropertyKind::SizeHint(_) => "SizeHint",
             CoreTemplatePropertyKind::Timestamp(_) => "Timestamp",
             CoreTemplatePropertyKind::TimestampRange(_) => "TimestampRange",
@@ -228,6 +233,9 @@ impl<'a> IntoTemplateProperty<'a> for CoreTemplatePropertyKind<'a> {
                 Some(Box::new(property.map(|opt| opt.is_some())))
             }
             CoreTemplatePropertyKind::Signature(_) => None,
+            CoreTemplatePropertyKind::Email(property) => {
+                Some(Box::new(property.map(|e| !e.0.is_empty())))
+            }
             CoreTemplatePropertyKind::SizeHint(_) => None,
             CoreTemplatePropertyKind::Timestamp(_) => None,
             CoreTemplatePropertyKind::TimestampRange(_) => None,
@@ -267,6 +275,7 @@ impl<'a> IntoTemplateProperty<'a> for CoreTemplatePropertyKind<'a> {
             CoreTemplatePropertyKind::Integer(property) => Some(property.into_template()),
             CoreTemplatePropertyKind::IntegerOpt(property) => Some(property.into_template()),
             CoreTemplatePropertyKind::Signature(property) => Some(property.into_template()),
+            CoreTemplatePropertyKind::Email(property) => Some(property.into_template()),
             CoreTemplatePropertyKind::SizeHint(_) => None,
             CoreTemplatePropertyKind::Timestamp(property) => Some(property.into_template()),
             CoreTemplatePropertyKind::TimestampRange(property) => Some(property.into_template()),
@@ -280,11 +289,20 @@ impl<'a> IntoTemplateProperty<'a> for CoreTemplatePropertyKind<'a> {
             (CoreTemplatePropertyKind::String(lhs), CoreTemplatePropertyKind::String(rhs)) => {
                 Some(Box::new((lhs, rhs).map(|(l, r)| l == r)))
             }
+            (CoreTemplatePropertyKind::String(lhs), CoreTemplatePropertyKind::Email(rhs)) => {
+                Some(Box::new((lhs, rhs).map(|(l, r)| l == r.0)))
+            }
             (CoreTemplatePropertyKind::Boolean(lhs), CoreTemplatePropertyKind::Boolean(rhs)) => {
                 Some(Box::new((lhs, rhs).map(|(l, r)| l == r)))
             }
             (CoreTemplatePropertyKind::Integer(lhs), CoreTemplatePropertyKind::Integer(rhs)) => {
                 Some(Box::new((lhs, rhs).map(|(l, r)| l == r)))
+            }
+            (CoreTemplatePropertyKind::Email(lhs), CoreTemplatePropertyKind::Email(rhs)) => {
+                Some(Box::new((lhs, rhs).map(|(l, r)| l == r)))
+            }
+            (CoreTemplatePropertyKind::Email(lhs), CoreTemplatePropertyKind::String(rhs)) => {
+                Some(Box::new((lhs, rhs).map(|(l, r)| l.0 == r)))
             }
             (CoreTemplatePropertyKind::String(_), _) => None,
             (CoreTemplatePropertyKind::StringList(_), _) => None,
@@ -292,6 +310,7 @@ impl<'a> IntoTemplateProperty<'a> for CoreTemplatePropertyKind<'a> {
             (CoreTemplatePropertyKind::Integer(_), _) => None,
             (CoreTemplatePropertyKind::IntegerOpt(_), _) => None,
             (CoreTemplatePropertyKind::Signature(_), _) => None,
+            (CoreTemplatePropertyKind::Email(_), _) => None,
             (CoreTemplatePropertyKind::SizeHint(_), _) => None,
             (CoreTemplatePropertyKind::Timestamp(_), _) => None,
             (CoreTemplatePropertyKind::TimestampRange(_), _) => None,
@@ -314,6 +333,7 @@ impl<'a> IntoTemplateProperty<'a> for CoreTemplatePropertyKind<'a> {
             (CoreTemplatePropertyKind::Integer(_), _) => None,
             (CoreTemplatePropertyKind::IntegerOpt(_), _) => None,
             (CoreTemplatePropertyKind::Signature(_), _) => None,
+            (CoreTemplatePropertyKind::Email(_), _) => None,
             (CoreTemplatePropertyKind::SizeHint(_), _) => None,
             (CoreTemplatePropertyKind::Timestamp(_), _) => None,
             (CoreTemplatePropertyKind::TimestampRange(_), _) => None,
@@ -360,6 +380,7 @@ pub struct CoreTemplateBuildFnTable<'a, L: TemplateLanguage<'a> + ?Sized> {
     pub string_methods: TemplateBuildMethodFnMap<'a, L, String>,
     pub boolean_methods: TemplateBuildMethodFnMap<'a, L, bool>,
     pub integer_methods: TemplateBuildMethodFnMap<'a, L, i64>,
+    pub email_methods: TemplateBuildMethodFnMap<'a, L, Email>,
     pub signature_methods: TemplateBuildMethodFnMap<'a, L, Signature>,
     pub size_hint_methods: TemplateBuildMethodFnMap<'a, L, SizeHint>,
     pub timestamp_methods: TemplateBuildMethodFnMap<'a, L, Timestamp>,
@@ -383,6 +404,7 @@ impl<'a, L: TemplateLanguage<'a> + ?Sized> CoreTemplateBuildFnTable<'a, L> {
             boolean_methods: HashMap::new(),
             integer_methods: HashMap::new(),
             signature_methods: builtin_signature_methods(),
+            email_methods: builtin_email_methods(),
             size_hint_methods: builtin_size_hint_methods(),
             timestamp_methods: builtin_timestamp_methods(),
             timestamp_range_methods: builtin_timestamp_range_methods(),
@@ -396,6 +418,7 @@ impl<'a, L: TemplateLanguage<'a> + ?Sized> CoreTemplateBuildFnTable<'a, L> {
             boolean_methods: HashMap::new(),
             integer_methods: HashMap::new(),
             signature_methods: HashMap::new(),
+            email_methods: HashMap::new(),
             size_hint_methods: HashMap::new(),
             timestamp_methods: HashMap::new(),
             timestamp_range_methods: HashMap::new(),
@@ -409,6 +432,7 @@ impl<'a, L: TemplateLanguage<'a> + ?Sized> CoreTemplateBuildFnTable<'a, L> {
             boolean_methods,
             integer_methods,
             signature_methods,
+            email_methods,
             size_hint_methods,
             timestamp_methods,
             timestamp_range_methods,
@@ -419,6 +443,7 @@ impl<'a, L: TemplateLanguage<'a> + ?Sized> CoreTemplateBuildFnTable<'a, L> {
         merge_fn_map(&mut self.boolean_methods, boolean_methods);
         merge_fn_map(&mut self.integer_methods, integer_methods);
         merge_fn_map(&mut self.signature_methods, signature_methods);
+        merge_fn_map(&mut self.email_methods, email_methods);
         merge_fn_map(&mut self.size_hint_methods, size_hint_methods);
         merge_fn_map(&mut self.timestamp_methods, timestamp_methods);
         merge_fn_map(&mut self.timestamp_range_methods, timestamp_range_methods);
@@ -490,6 +515,11 @@ impl<'a, L: TemplateLanguage<'a> + ?Sized> CoreTemplateBuildFnTable<'a, L> {
             }
             CoreTemplatePropertyKind::Signature(property) => {
                 let table = &self.signature_methods;
+                let build = template_parser::lookup_method(type_name, table, function)?;
+                build(language, diagnostics, build_ctx, property, function)
+            }
+            CoreTemplatePropertyKind::Email(property) => {
+                let table = &self.email_methods;
                 let build = template_parser::lookup_method(type_name, table, function)?;
                 build(language, diagnostics, build_ctx, property, function)
             }
@@ -871,14 +901,19 @@ fn builtin_signature_methods<'a, L: TemplateLanguage<'a> + ?Sized>(
         "email",
         |_language, _diagnostics, _build_ctx, self_property, function| {
             function.expect_no_arguments()?;
-            let out_property = self_property.map(|signature| signature.email);
-            Ok(L::wrap_string(out_property))
+            let out_property = self_property.map(|signature| signature.email.into());
+            Ok(L::wrap_email(out_property))
         },
     );
     map.insert(
         "username",
-        |_language, _diagnostics, _build_ctx, self_property, function| {
+        |_language, diagnostics, _build_ctx, self_property, function| {
             function.expect_no_arguments()?;
+            // TODO: Remove in jj 0.30+
+            diagnostics.add_warning(TemplateParseError::expression(
+                "username() is deprecated; use email().local() instead",
+                function.name_span,
+            ));
             let out_property = self_property.map(|signature| {
                 let (username, _) = text_util::split_email(&signature.email);
                 username.to_owned()
@@ -892,6 +927,36 @@ fn builtin_signature_methods<'a, L: TemplateLanguage<'a> + ?Sized>(
             function.expect_no_arguments()?;
             let out_property = self_property.map(|signature| signature.timestamp);
             Ok(L::wrap_timestamp(out_property))
+        },
+    );
+    map
+}
+
+fn builtin_email_methods<'a, L: TemplateLanguage<'a> + ?Sized>(
+) -> TemplateBuildMethodFnMap<'a, L, Email> {
+    // Not using maplit::hashmap!{} or custom declarative macro here because
+    // code completion inside macro is quite restricted.
+    let mut map = TemplateBuildMethodFnMap::<L, Email>::new();
+    map.insert(
+        "local",
+        |_language, _diagnostics, _build_ctx, self_property, function| {
+            function.expect_no_arguments()?;
+            let out_property = self_property.map(|email| {
+                let (local, _) = text_util::split_email(&email.0);
+                local.to_owned()
+            });
+            Ok(L::wrap_string(out_property))
+        },
+    );
+    map.insert(
+        "domain",
+        |_language, _diagnostics, _build_ctx, self_property, function| {
+            function.expect_no_arguments()?;
+            let out_property = self_property.map(|email| {
+                let (_, domain) = text_util::split_email(&email.0);
+                domain.unwrap_or_default().to_owned()
+            });
+            Ok(L::wrap_string(out_property))
         },
     );
     map
@@ -2084,6 +2149,15 @@ mod tests {
           |
           = Expected expression of type "Boolean", but actual type is "ListTemplate"
         "###);
+
+        env.add_keyword("empty_email", || {
+            L::wrap_email(Literal(Email("".to_owned())))
+        });
+        env.add_keyword("nonempty_email", || {
+            L::wrap_email(Literal(Email("local@domain".to_owned())))
+        });
+        insta::assert_snapshot!(env.render_ok(r#"if(empty_email, true, false)"#), @"false");
+        insta::assert_snapshot!(env.render_ok(r#"if(nonempty_email, true, false)"#), @"true");
     }
 
     #[test]
@@ -2125,6 +2199,12 @@ mod tests {
     #[test]
     fn test_logical_operation() {
         let mut env = TestTemplateEnv::new();
+        env.add_keyword("email1", || {
+            L::wrap_email(Literal(Email("local-1@domain".to_owned())))
+        });
+        env.add_keyword("email2", || {
+            L::wrap_email(Literal(Email("local-2@domain".to_owned())))
+        });
 
         insta::assert_snapshot!(env.render_ok(r#"!false"#), @"true");
         insta::assert_snapshot!(env.render_ok(r#"false || !false"#), @"true");
@@ -2141,6 +2221,12 @@ mod tests {
         insta::assert_snapshot!(env.render_ok(r#"'a' == 'b'"#), @"false");
         insta::assert_snapshot!(env.render_ok(r#"'a' != 'a'"#), @"false");
         insta::assert_snapshot!(env.render_ok(r#"'a' != 'b'"#), @"true");
+        insta::assert_snapshot!(env.render_ok(r#"email1 == email1"#), @"true");
+        insta::assert_snapshot!(env.render_ok(r#"email1 == email2"#), @"false");
+        insta::assert_snapshot!(env.render_ok(r#"email1 == 'local-1@domain'"#), @"true");
+        insta::assert_snapshot!(env.render_ok(r#"email1 != 'local-2@domain'"#), @"true");
+        insta::assert_snapshot!(env.render_ok(r#"'local-1@domain' == email1"#), @"true");
+        insta::assert_snapshot!(env.render_ok(r#"'local-2@domain' != email1"#), @"true");
 
         insta::assert_snapshot!(env.render_ok(r#" !"" "#), @"true");
         insta::assert_snapshot!(env.render_ok(r#" "" || "a".lines() "#), @"true");

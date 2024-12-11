@@ -83,8 +83,8 @@ fn test_show_basic() {
     insta::assert_snapshot!(stdout, @r#"
     Commit ID: [38;5;4m<<commit_id::e34f04317a81edc6ba41fef239c0d0180f10656f>>[39m
     Change ID: [38;5;5m<<change_id::rlvkpnrzqnoowoytxnquwvuryrwnrmlp>>[39m
-    Author   : [38;5;3m<<author name::Test User>>[39m <[38;5;3m<<author email::test.user@example.com>>[39m> ([38;5;6m<<author timestamp local format::2001-02-03 08:05:09>>[39m)
-    Committer: [38;5;3m<<committer name::Test User>>[39m <[38;5;3m<<committer email::test.user@example.com>>[39m> ([38;5;6m<<committer timestamp local format::2001-02-03 08:05:09>>[39m)
+    Author   : [38;5;3m<<author name::Test User>>[39m <[38;5;3m<<author email local::test.user>><<author email::@>><<author email domain::example.com>>[39m> ([38;5;6m<<author timestamp local format::2001-02-03 08:05:09>>[39m)
+    Committer: [38;5;3m<<committer name::Test User>>[39m <[38;5;3m<<committer email local::test.user>><<committer email::@>><<committer email domain::example.com>>[39m> ([38;5;6m<<committer timestamp local format::2001-02-03 08:05:09>>[39m)
 
     [38;5;3m<<description placeholder::    (no description set)>>[39m
 
@@ -170,8 +170,8 @@ fn test_show_basic() {
     insta::assert_snapshot!(stdout, @r#"
     Commit ID: [38;5;4m<<commit_id::e34f04317a81edc6ba41fef239c0d0180f10656f>>[39m
     Change ID: [38;5;5m<<change_id::rlvkpnrzqnoowoytxnquwvuryrwnrmlp>>[39m
-    Author   : [38;5;3m<<author name::Test User>>[39m <[38;5;3m<<author email::test.user@example.com>>[39m> ([38;5;6m<<author timestamp local format::2001-02-03 08:05:09>>[39m)
-    Committer: [38;5;3m<<committer name::Test User>>[39m <[38;5;3m<<committer email::test.user@example.com>>[39m> ([38;5;6m<<committer timestamp local format::2001-02-03 08:05:09>>[39m)
+    Author   : [38;5;3m<<author name::Test User>>[39m <[38;5;3m<<author email local::test.user>><<author email::@>><<author email domain::example.com>>[39m> ([38;5;6m<<author timestamp local format::2001-02-03 08:05:09>>[39m)
+    Committer: [38;5;3m<<committer name::Test User>>[39m <[38;5;3m<<committer email local::test.user>><<committer email::@>><<committer email domain::example.com>>[39m> ([38;5;6m<<committer timestamp local format::2001-02-03 08:05:09>>[39m)
 
     [38;5;3m<<description placeholder::    (no description set)>>[39m
 

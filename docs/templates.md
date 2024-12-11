@@ -129,6 +129,13 @@ The following methods are defined.
 * `.short([len: Integer]) -> String`
 * `.shortest([min_len: Integer]) -> ShortestIdPrefix`: Shortest unique prefix.
 
+### Email type
+
+The following methods are defined.
+
+* `.local() -> String`
+* `.domain() -> String`
+
 ### Integer type
 
 No methods are defined.
@@ -212,8 +219,7 @@ The following methods are defined.
 The following methods are defined.
 
 * `.name() -> String`
-* `.email() -> String`
-* `.username() -> String`
+* `.email() -> Email`
 * `.timestamp() -> Timestamp`
 
 ### SizeHint type

@@ -741,7 +741,7 @@ fn test_log_author_format() {
             &repo_path,
             &[
                 "--config-toml",
-                &format!("{decl}='signature.username()'"),
+                &format!("{decl}='signature.email().local()'"),
                 "log",
                 "--revisions=@",
             ],
