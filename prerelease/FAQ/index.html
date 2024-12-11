@@ -1728,7 +1728,7 @@
 <h3 id="why-does-my-bookmark-not-move-to-the-new-commit-after-jj-newcommit">Why does my bookmark not move to the new commit after <code>jj new/commit</code>?<a class="headerlink" href="#why-does-my-bookmark-not-move-to-the-new-commit-after-jj-newcommit" title="Permanent link">&para;</a></h3>
 <p>If you're familiar with Git, you might expect the current bookmark to move forward
 when you commit. However, Jujutsu does not have a concept of a "current bookmark".</p>
-<p>To move bookmarks, use <code>jj bookmark set</code>.</p>
+<p>To move bookmarks, use <code>jj bookmark move</code>.</p>
 <h3 id="i-made-a-commit-and-jj-git-push-all-says-nothing-changed-instead-of-pushing-it-what-do-i-do">I made a commit and <code>jj git push --all</code> says "Nothing changed" instead of pushing it. What do I do?<a class="headerlink" href="#i-made-a-commit-and-jj-git-push-all-says-nothing-changed-instead-of-pushing-it-what-do-i-do" title="Permanent link">&para;</a></h3>
 <p><code>jj git push --all</code> pushes all <em>bookmarks</em>, not all revisions. You have two
 options:</p>
@@ -1975,7 +1975,7 @@ of them before abandoning it.</p>
 <p>A <a href="../bookmarks/#conflicts">conflicted bookmark</a> is a bookmark that refers to multiple
 different commits because jj couldn't fully resolve its desired position.
 Resolving conflicted bookmarks is usually done by setting the bookmark to the
-correct commit using <code>jj bookmark set &lt;commit ID&gt;</code>.</p>
+correct commit using <code>jj bookmark move &lt;name&gt; --to &lt;commit ID&gt;</code>.</p>
 <p>Usually, the different commits associated with the conflicted bookmark should all
 appear in the log, but if they don't you can use <code>jj bookmark list</code>to show all the
 commits associated with it.</p>

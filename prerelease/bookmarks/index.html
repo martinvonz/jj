@@ -1763,7 +1763,7 @@ makes several safety checks.</p>
 </li>
 <li>
 <p>The local bookmark must not be <a href="#conflicts">conflicted</a>. If it is, you would
-   need to use <code>jj bookmark set</code>, for example, to resolve the conflict.</p>
+   need to use <code>jj bookmark move</code>, for example, to resolve the conflict.</p>
 <p>This makes <code>jj git push</code> safe even if <code>jj git fetch</code> is performed on a timer
  in the background (this situation is a known issue<sup id="fnref:known-issue"><a class="footnote-ref" href="#fn:known-issue">1</a></sup> with some
  forms of <code>git push --force-with-lease</code>). If the bookmark moves on a remote in a

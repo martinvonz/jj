@@ -1764,7 +1764,7 @@ $<span class="w"> </span>jj<span class="w"> </span>diff
 $<span class="w"> </span><span class="c1"># Give the fix a description and create a new working-copy on top.</span>
 $<span class="w"> </span>jj<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s1">&#39;address pr comments&#39;</span>
 $<span class="w"> </span><span class="c1"># Update the bookmark to point to the new commit.</span>
-$<span class="w"> </span>jj<span class="w"> </span>bookmark<span class="w"> </span><span class="nb">set</span><span class="w"> </span>your-feature<span class="w"> </span>-r<span class="w"> </span>@-
+$<span class="w"> </span>jj<span class="w"> </span>bookmark<span class="w"> </span>move<span class="w"> </span>your-feature<span class="w"> </span>--to<span class="w"> </span>@-
 $<span class="w"> </span><span class="c1"># Push it to your remote</span>
 $<span class="w"> </span>jj<span class="w"> </span>git<span class="w"> </span>push
 </code></pre></div>
@@ -1782,7 +1782,7 @@ $<span class="w"> </span>jj<span class="w"> </span>diff
 $<span class="w"> </span><span class="c1"># Give the fix a description.</span>
 $<span class="w"> </span>jj<span class="w"> </span>describe<span class="w"> </span>-m<span class="w"> </span><span class="s1">&#39;address pr comments&#39;</span>
 $<span class="w"> </span><span class="c1"># Update the bookmark to point to the current commit.</span>
-$<span class="w"> </span>jj<span class="w"> </span>bookmark<span class="w"> </span><span class="nb">set</span><span class="w"> </span>your-feature<span class="w"> </span>-r<span class="w"> </span>@
+$<span class="w"> </span>jj<span class="w"> </span>bookmark<span class="w"> </span>move<span class="w"> </span>your-feature<span class="w"> </span>--to<span class="w"> </span>@
 $<span class="w"> </span><span class="c1"># Push it to your remote</span>
 $<span class="w"> </span>jj<span class="w"> </span>git<span class="w"> </span>push
 </code></pre></div>
