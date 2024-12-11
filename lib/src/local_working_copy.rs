@@ -66,10 +66,12 @@ use crate::backend::TreeId;
 use crate::backend::TreeValue;
 use crate::commit::Commit;
 use crate::conflicts;
-use crate::conflicts::materialize_merge_result_to_bytes;
+use crate::conflicts::choose_materialized_conflict_marker_len;
+use crate::conflicts::materialize_merge_result_to_bytes_with_marker_len;
 use crate::conflicts::materialize_tree_value;
 use crate::conflicts::ConflictMarkerStyle;
 use crate::conflicts::MaterializedTreeValue;
+use crate::conflicts::MIN_CONFLICT_MARKER_LEN;
 use crate::file_util::check_symlink_support;
 use crate::file_util::try_symlink;
 #[cfg(feature = "watchman")]
@@ -124,11 +126,17 @@ pub enum FileType {
     GitSubmodule,
 }
 
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub struct MaterializedConflictData {
+    pub conflict_marker_len: u32,
+}
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct FileState {
     pub file_type: FileType,
     pub mtime: MillisSinceEpoch,
     pub size: u64,
+    pub materialized_conflict_data: Option<MaterializedConflictData>,
     /* TODO: What else do we need here? Git stores a lot of fields.
      * TODO: Could possibly handle case-insensitive file systems keeping an
      *       Option<PathBuf> with the actual path here. */
@@ -146,10 +154,16 @@ impl FileState {
             file_type: FileType::Normal { executable },
             mtime: MillisSinceEpoch(0),
             size: 0,
+            materialized_conflict_data: None,
         }
     }
 
-    fn for_file(executable: bool, size: u64, metadata: &Metadata) -> Self {
+    fn for_file(
+        executable: bool,
+        size: u64,
+        metadata: &Metadata,
+        materialized_conflict_data: Option<MaterializedConflictData>,
+    ) -> Self {
         #[cfg(windows)]
         let executable = {
             // Windows doesn't support executable bit.
@@ -159,6 +173,7 @@ impl FileState {
             file_type: FileType::Normal { executable },
             mtime: mtime_from_metadata(metadata),
             size,
+            materialized_conflict_data,
         }
     }
 
@@ -170,6 +185,7 @@ impl FileState {
             file_type: FileType::Symlink,
             mtime: mtime_from_metadata(metadata),
             size: metadata.len(),
+            materialized_conflict_data: None,
         }
     }
 
@@ -178,6 +194,7 @@ impl FileState {
             file_type: FileType::GitSubmodule,
             mtime: MillisSinceEpoch(0),
             size: 0,
+            materialized_conflict_data: None,
         }
     }
 }
@@ -417,6 +434,11 @@ fn file_state_from_proto(proto: &crate::protos::working_copy::FileState) -> File
         file_type,
         mtime: MillisSinceEpoch(proto.mtime_millis_since_epoch),
         size: proto.size,
+        materialized_conflict_data: proto.materialized_conflict_data.as_ref().map(|data| {
+            MaterializedConflictData {
+                conflict_marker_len: data.conflict_marker_len,
+            }
+        }),
     }
 }
 
@@ -435,6 +457,11 @@ fn file_state_to_proto(file_state: &FileState) -> crate::protos::working_copy::F
     proto.file_type = file_type as i32;
     proto.mtime_millis_since_epoch = file_state.mtime.0;
     proto.size = file_state.size;
+    proto.materialized_conflict_data = file_state.materialized_conflict_data.map(|data| {
+        crate::protos::working_copy::MaterializedConflictData {
+            conflict_marker_len: data.conflict_marker_len,
+        }
+    });
     proto
 }
 
@@ -650,7 +677,10 @@ fn mtime_from_metadata(metadata: &Metadata) -> MillisSinceEpoch {
     )
 }
 
-fn file_state(metadata: &Metadata) -> Option<FileState> {
+fn file_state(
+    metadata: &Metadata,
+    materialized_conflict_data: Option<MaterializedConflictData>,
+) -> Option<FileState> {
     let metadata_file_type = metadata.file_type();
     let file_type = if metadata_file_type.is_dir() {
         None
@@ -675,6 +705,7 @@ fn file_state(metadata: &Metadata) -> Option<FileState> {
             file_type,
             mtime,
             size,
+            materialized_conflict_data,
         }
     })
 }
@@ -1241,7 +1272,10 @@ impl FileSnapshotter<'_> {
                         max_size: HumanByteSize(self.max_new_file_size),
                     });
                 }
-                if let Some(new_file_state) = file_state(&metadata) {
+                let materialized_conflict_data = maybe_current_file_state
+                    .as_ref()
+                    .and_then(|state| state.materialized_conflict_data);
+                if let Some(new_file_state) = file_state(&metadata, materialized_conflict_data) {
                     self.process_present_file(
                         path,
                         &entry.path(),
@@ -1276,7 +1310,9 @@ impl FileSnapshotter<'_> {
                     });
                 }
             };
-            if let Some(new_file_state) = metadata.as_ref().and_then(file_state) {
+            if let Some(new_file_state) = metadata.as_ref().and_then(|metadata| {
+                file_state(metadata, current_file_state.materialized_conflict_data)
+            }) {
                 self.process_present_file(
                     tracked_path.to_owned(),
                     &disk_path,
@@ -1295,13 +1331,13 @@ impl FileSnapshotter<'_> {
         path: RepoPathBuf,
         disk_path: &Path,
         maybe_current_file_state: Option<&FileState>,
-        new_file_state: FileState,
+        mut new_file_state: FileState,
     ) -> Result<(), SnapshotError> {
         let update = self.get_updated_tree_value(
             &path,
             disk_path,
             maybe_current_file_state,
-            &new_file_state,
+            &mut new_file_state,
         )?;
         if let Some(tree_value) = update {
             self.tree_entries_tx.send((path.clone(), tree_value)).ok();
@@ -1350,7 +1386,7 @@ impl FileSnapshotter<'_> {
         repo_path: &RepoPath,
         disk_path: &Path,
         maybe_current_file_state: Option<&FileState>,
-        new_file_state: &FileState,
+        new_file_state: &mut FileState,
     ) -> Result<Option<MergedTreeValue>, SnapshotError> {
         let clean = match maybe_current_file_state {
             None => {
@@ -1381,7 +1417,13 @@ impl FileSnapshotter<'_> {
             };
             let new_tree_values = match new_file_type {
                 FileType::Normal { executable } => self
-                    .write_path_to_store(repo_path, disk_path, &current_tree_values, executable)
+                    .write_path_to_store(
+                        repo_path,
+                        disk_path,
+                        &current_tree_values,
+                        new_file_state,
+                        executable,
+                    )
                     .block_on()?,
                 FileType::Symlink => {
                     let id = self
@@ -1408,6 +1450,7 @@ impl FileSnapshotter<'_> {
         repo_path: &RepoPath,
         disk_path: &Path,
         current_tree_values: &MergedTreeValue,
+        new_file_state: &mut FileState,
         executable: FileExecutableFlag,
     ) -> Result<MergedTreeValue, SnapshotError> {
         if let Some(current_tree_value) = current_tree_values.as_resolved() {
@@ -1439,6 +1482,11 @@ impl FileSnapshotter<'_> {
                 repo_path,
                 &content,
                 self.conflict_marker_style,
+                new_file_state
+                    .materialized_conflict_data
+                    .map_or(MIN_CONFLICT_MARKER_LEN, |data| {
+                        data.conflict_marker_len as usize
+                    }),
             )
             .block_on()?;
             match new_file_ids.into_resolved() {
@@ -1453,6 +1501,8 @@ impl FileSnapshotter<'_> {
                             false
                         }
                     };
+                    // Clear materialized conflict data if the file was resolved
+                    new_file_state.materialized_conflict_data = None;
                     Ok(Merge::normal(TreeValue::File {
                         id: file_id.unwrap(),
                         executable,
@@ -1542,7 +1592,7 @@ impl TreeState {
         let metadata = file
             .metadata()
             .map_err(|err| checkout_error_for_stat_error(err, disk_path))?;
-        Ok(FileState::for_file(executable, size, &metadata))
+        Ok(FileState::for_file(executable, size, &metadata, None))
     }
 
     fn write_symlink(&self, disk_path: &Path, target: String) -> Result<FileState, CheckoutError> {
@@ -1566,6 +1616,7 @@ impl TreeState {
         disk_path: &Path,
         conflict_data: Vec<u8>,
         executable: bool,
+        materialized_conflict_data: Option<MaterializedConflictData>,
     ) -> Result<FileState, CheckoutError> {
         let mut file = OpenOptions::new()
             .write(true)
@@ -1585,7 +1636,12 @@ impl TreeState {
         let metadata = file
             .metadata()
             .map_err(|err| checkout_error_for_stat_error(err, disk_path))?;
-        Ok(FileState::for_file(executable, size, &metadata))
+        Ok(FileState::for_file(
+            executable,
+            size,
+            &metadata,
+            materialized_conflict_data,
+        ))
     }
 
     #[cfg_attr(windows, allow(unused_variables))]
@@ -1776,16 +1832,29 @@ impl TreeState {
                     contents,
                     executable,
                 } => {
-                    let data =
-                        materialize_merge_result_to_bytes(&contents, conflict_marker_style).into();
-                    self.write_conflict(&disk_path, data, executable)?
+                    let conflict_marker_len = choose_materialized_conflict_marker_len(&contents);
+                    let data = materialize_merge_result_to_bytes_with_marker_len(
+                        &contents,
+                        conflict_marker_style,
+                        conflict_marker_len,
+                    )
+                    .into();
+                    let materialized_conflict_data = MaterializedConflictData {
+                        conflict_marker_len: conflict_marker_len.try_into().unwrap_or(u32::MAX),
+                    };
+                    self.write_conflict(
+                        &disk_path,
+                        data,
+                        executable,
+                        Some(materialized_conflict_data),
+                    )?
                 }
                 MaterializedTreeValue::OtherConflict { id } => {
                     // Unless all terms are regular files, we can't do much
                     // better than trying to describe the merge.
                     let data = id.describe().into_bytes();
                     let executable = false;
-                    self.write_conflict(&disk_path, data, executable)?
+                    self.write_conflict(&disk_path, data, executable, None)?
                 }
             };
             changed_file_states.push((path, file_state));
@@ -1841,6 +1910,7 @@ impl TreeState {
                     file_type,
                     mtime: MillisSinceEpoch(0),
                     size: 0,
+                    materialized_conflict_data: None,
                 };
                 changed_file_states.push((path, file_state));
             }
@@ -2296,6 +2366,7 @@ mod tests {
             },
             mtime: MillisSinceEpoch(0),
             size,
+            materialized_conflict_data: None,
         };
         let new_static_entry = |path: &'static str, size| (repo_path(path), new_state(size));
         let new_owned_entry = |path: &str, size| (repo_path(path).to_owned(), new_state(size));
@@ -2344,6 +2415,7 @@ mod tests {
             },
             mtime: MillisSinceEpoch(0),
             size,
+            materialized_conflict_data: None,
         };
         let new_proto_entry = |path: &str, size| {
             file_state_entry_to_proto(repo_path(path).to_owned(), &new_state(size))
@@ -2408,6 +2480,7 @@ mod tests {
             },
             mtime: MillisSinceEpoch(0),
             size,
+            materialized_conflict_data: None,
         };
         let new_proto_entry = |path: &str, size| {
             file_state_entry_to_proto(repo_path(path).to_owned(), &new_state(size))
