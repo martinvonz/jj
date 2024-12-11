@@ -3276,19 +3276,28 @@ fn handle_early_args(
         )
         .ignore_errors(true)
         .try_get_matches_from(args)?;
-    let mut args: EarlyArgs = EarlyArgs::from_arg_matches(&early_matches).unwrap();
+    let args = EarlyArgs::from_arg_matches(&early_matches).unwrap();
 
+    let old_layers_len = config.layers().len();
+    config.extend_layers(parse_config_args(&args.config_toml)?);
+
+    // Command arguments overrides any other configuration including the
+    // variables loaded from --config* arguments.
+    let mut layer = ConfigLayer::empty(ConfigSource::CommandArg);
     if let Some(choice) = args.color {
-        args.config_toml.push(format!(r#"ui.color="{choice}""#));
+        layer.set_value("ui.color", choice.to_string()).unwrap();
     }
     if args.quiet.unwrap_or_default() {
-        args.config_toml.push(r#"ui.quiet=true"#.to_string());
+        layer.set_value("ui.quiet", true).unwrap();
     }
     if args.no_pager.unwrap_or_default() {
-        args.config_toml.push(r#"ui.paginate="never""#.to_owned());
+        layer.set_value("ui.paginate", "never").unwrap();
     }
-    if !args.config_toml.is_empty() {
-        config.extend_layers(parse_config_args(&args.config_toml)?);
+    if !layer.is_empty() {
+        config.add_layer(layer);
+    }
+
+    if config.layers().len() != old_layers_len {
         ui.reset(config)?;
     }
     Ok(())

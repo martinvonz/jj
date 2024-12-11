@@ -327,6 +327,11 @@ impl ConfigLayer {
             .try_collect()
     }
 
+    /// Returns true if the table has no configuration variables.
+    pub fn is_empty(&self) -> bool {
+        self.data.is_empty()
+    }
+
     // Add .get_value(name) if needed. look_up_*() are low-level API.
 
     /// Looks up sub non-inline table by the `name` path. Returns `Some(table)`
