@@ -14,6 +14,8 @@
 
 use std::ffi::OsString;
 
+use indoc::indoc;
+
 use crate::common::get_stderr_string;
 use crate::common::strip_last_line;
 use crate::common::TestEnvironment;
@@ -596,6 +598,72 @@ fn test_early_args() {
 }
 
 #[test]
+fn test_config_args() {
+    let test_env = TestEnvironment::default();
+    let list_config = |args: &[&str]| {
+        test_env.jj_cmd_success(
+            test_env.env_root(),
+            &[&["config", "list", "--include-overridden", "test"], args].concat(),
+        )
+    };
+
+    std::fs::write(
+        test_env.env_root().join("file1.toml"),
+        indoc! {"
+            test.key1 = 'file1'
+            test.key2 = 'file1'
+        "},
+    )
+    .unwrap();
+    std::fs::write(
+        test_env.env_root().join("file2.toml"),
+        indoc! {"
+            test.key3 = 'file2'
+        "},
+    )
+    .unwrap();
+
+    let stdout = list_config(&["--config-toml=test.key1='arg1'"]);
+    insta::assert_snapshot!(stdout, @"test.key1 = 'arg1'");
+    let stdout = list_config(&["--config-file=file1.toml"]);
+    insta::assert_snapshot!(stdout, @r"
+    test.key1 = 'file1'
+    test.key2 = 'file1'
+    ");
+
+    // --config* arguments are processed in order of appearance
+    let stdout = list_config(&[
+        "--config-toml=test.key1='arg1'",
+        "--config-file=file1.toml",
+        "--config-toml=test.key2='arg3'",
+        "--config-file=file2.toml",
+    ]);
+    insta::assert_snapshot!(stdout, @r"
+    # test.key1 = 'arg1'
+    test.key1 = 'file1'
+    # test.key2 = 'file1'
+    test.key2 = 'arg3'
+    test.key3 = 'file2'
+    ");
+
+    let stderr = test_env.jj_cmd_failure(
+        test_env.env_root(),
+        &["config", "list", "--config-file=unknown.toml"],
+    );
+    insta::with_settings!({
+        filters => [("(?m)^([2-9]): .*", "$1: <redacted>")],
+    }, {
+        insta::assert_snapshot!(stderr, @r"
+        Config error: Failed to read configuration file
+        Caused by:
+        1: Cannot access unknown.toml
+        2: <redacted>
+        For help, see https://martinvonz.github.io/jj/latest/config/.
+        ");
+    });
+}
+
+#[test]
 fn test_invalid_config() {
     // Test that we get a reasonable error if the config is invalid (#55)
     let test_env = TestEnvironment::default();
@@ -708,6 +776,7 @@ fn test_help() {
           --quiet                        Silence non-primary command output
           --no-pager                     Disable the pager
           --config-toml <TOML>           Additional configuration options (can be repeated)
+          --config-file <PATH>           Additional configuration files (can be repeated)
     ");
 }
 

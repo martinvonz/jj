@@ -319,7 +319,7 @@ impl ConfigEnv {
 /// 4. Repo config `.jj/repo/config.toml`
 /// 5. TODO: Workspace config `.jj/config.toml`
 /// 6. Override environment variables
-/// 7. Command-line arguments `--config-toml`
+/// 7. Command-line arguments `--config-toml`, `--config-file`
 ///
 /// This function sets up 1, 2, and 6.
 pub fn config_from_environment(
@@ -401,15 +401,28 @@ fn env_overrides_layer() -> ConfigLayer {
     layer
 }
 
+/// Configuration source/data provided as command-line argument.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ConfigArg {
+    /// `--config-toml=TOML`
+    Toml(String),
+    /// `--config-file=PATH`
+    File(String),
+}
+
 /// Parses `--config-toml` arguments.
-pub fn parse_config_args(toml_strs: &[String]) -> Result<Vec<ConfigLayer>, ConfigLoadError> {
+pub fn parse_config_args(toml_strs: &[ConfigArg]) -> Result<Vec<ConfigLayer>, ConfigLoadError> {
     // It might look silly that a layer is constructed per argument, but
     // --config-toml argument can contain a full TOML document, and it makes
     // sense to preserve line numbers within the doc. If we add
     // --config=KEY=VALUE, multiple values might be loaded into one layer.
+    let source = ConfigSource::CommandArg;
     toml_strs
         .iter()
-        .map(|text| ConfigLayer::parse(ConfigSource::CommandArg, text))
+        .map(|arg| match arg {
+            ConfigArg::Toml(text) => ConfigLayer::parse(source, text),
+            ConfigArg::File(path) => ConfigLayer::load_from_file(source, path.into()),
+        })
         .try_collect()
 }
 
