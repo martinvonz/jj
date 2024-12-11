@@ -7,17 +7,13 @@ on:
   push:
     branches: [ main ]
 
-# Declare default permissions as read only.
-permissions: read-all
+# No default permissions; 
+permissions: {}
 
 jobs:
   analysis:
     name: Scorecards analysis
     runs-on: ubuntu-latest
-    permissions:
-      # Needed to upload the results to code-scanning dashboard.
-      security-events: write
-      id-token: write
 
     steps:
       - name: "Checkout code"
@@ -49,3 +45,7 @@ jobs:
         uses: github/codeql-action/upload-sarif@babb554ede22fd5605947329c4d04d8e7a0b8155
         with:
           sarif_file: results.sarif
+        permissions:
+          # Needed to upload the results to code-scanning dashboard.
+          security-events: write
+          id-token: write
