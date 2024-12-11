@@ -31,6 +31,8 @@ The following operators are supported.
 * `x.f()`: Method call.
 * `-x`: Negate integer value.
 * `!x`: Logical not.
+* `x >= y`, `x > y`, `x <= y`, `x < y`: Greater than or equal/greater than/
+  lesser than or equal/lesser than. Operands must be `Integer`s.
 * `x == y`, `x != y`: Logical equal/not equal. Operands must be either
   `Boolean`, `Integer`, or `String`.
 * `x && y`: Logical and, short-circuiting.
