@@ -196,6 +196,7 @@ To get started, see the tutorial at https://martinvonz.github.io/jj/latest/tutor
    Warnings and errors will still be printed.
 * `--no-pager` — Disable the pager
 * `--config-toml <TOML>` — Additional configuration options (can be repeated)
+* `--config-file <PATH>` — Additional configuration files (can be repeated)
 
 
 

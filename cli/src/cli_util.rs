@@ -157,6 +157,7 @@ use crate::complete;
 use crate::config::config_from_environment;
 use crate::config::parse_config_args;
 use crate::config::CommandNameAndArgs;
+use crate::config::ConfigArg;
 use crate::config::ConfigEnv;
 use crate::diff_util;
 use crate::diff_util::DiffFormat;
@@ -3102,6 +3103,26 @@ pub struct EarlyArgs {
     //  cases, designed so that `--config ui.color=auto` works
     #[arg(long, value_name = "TOML", global = true)]
     pub config_toml: Vec<String>,
+    /// Additional configuration files (can be repeated)
+    #[arg(long, value_name = "PATH", global = true, value_hint = clap::ValueHint::FilePath)]
+    pub config_file: Vec<String>,
+}
+
+impl EarlyArgs {
+    fn merged_config_args(&self, matches: &ArgMatches) -> Vec<ConfigArg> {
+        merge_args_with(
+            matches,
+            &[
+                ("config_toml", &self.config_toml),
+                ("config_file", &self.config_file),
+            ],
+            |id, value| match id {
+                "config_toml" => ConfigArg::Toml(value.clone()),
+                "config_file" => ConfigArg::File(value.clone()),
+                _ => unreachable!("unexpected id {id:?}"),
+            },
+        )
+    }
 }
 
 /// Wrapper around revset expression argument.
@@ -3141,6 +3162,29 @@ impl ValueParserFactory for RevisionArg {
     fn value_parser() -> Self::Parser {
         NonEmptyStringValueParser::new().map(RevisionArg::from)
     }
+}
+
+/// Merges multiple clap args in order of appearance.
+///
+/// The `id_values` is a list of `(id, values)` pairs, where `id` is the name of
+/// the clap `Arg`, and `values` are the parsed values for that arg. The
+/// `convert` function transforms each `(id, value)` pair to e.g. an enum.
+///
+/// This is a workaround for <https://github.com/clap-rs/clap/issues/3146>.
+pub fn merge_args_with<'k, 'v, T, U>(
+    matches: &ArgMatches,
+    id_values: &[(&'k str, &'v [T])],
+    mut convert: impl FnMut(&'k str, &'v T) -> U,
+) -> Vec<U> {
+    let mut pos_values: Vec<(usize, U)> = Vec::new();
+    for (id, values) in id_values {
+        pos_values.extend(itertools::zip_eq(
+            matches.indices_of(id).into_iter().flatten(),
+            values.iter().map(|v| convert(id, v)),
+        ));
+    }
+    pos_values.sort_unstable_by_key(|&(pos, _)| pos);
+    pos_values.into_iter().map(|(_, value)| value).collect()
 }
 
 fn get_string_or_array(
@@ -3279,7 +3323,7 @@ fn handle_early_args(
     let args = EarlyArgs::from_arg_matches(&early_matches).unwrap();
 
     let old_layers_len = config.layers().len();
-    config.extend_layers(parse_config_args(&args.config_toml)?);
+    config.extend_layers(parse_config_args(&args.merged_config_args(&early_matches))?);
 
     // Command arguments overrides any other configuration including the
     // variables loaded from --config* arguments.
@@ -3710,4 +3754,46 @@ fn format_template_aliases_hint(template_aliases: &TemplateAliasesMap) -> String
             .join("\n"),
     );
     hint
+}
+
+#[cfg(test)]
+mod tests {
+    use clap::CommandFactory as _;
+
+    use super::*;
+
+    #[derive(clap::Parser, Clone, Debug)]
+    pub struct TestArgs {
+        #[arg(long)]
+        pub foo: Vec<u32>,
+        #[arg(long)]
+        pub bar: Vec<u32>,
+        #[arg(long)]
+        pub baz: bool,
+    }
+
+    #[test]
+    fn test_merge_args_with() {
+        let command = TestArgs::command();
+        let parse = |args: &[&str]| -> Vec<(&'static str, u32)> {
+            let matches = command.clone().try_get_matches_from(args).unwrap();
+            let args = TestArgs::from_arg_matches(&matches).unwrap();
+            merge_args_with(
+                &matches,
+                &[("foo", &args.foo), ("bar", &args.bar)],
+                |id, value| (id, *value),
+            )
+        };
+
+        assert_eq!(parse(&["jj"]), vec![]);
+        assert_eq!(parse(&["jj", "--foo=1"]), vec![("foo", 1)]);
+        assert_eq!(
+            parse(&["jj", "--foo=1", "--bar=2"]),
+            vec![("foo", 1), ("bar", 2)]
+        );
+        assert_eq!(
+            parse(&["jj", "--foo=1", "--baz", "--bar=2", "--foo", "3"]),
+            vec![("foo", 1), ("bar", 2), ("foo", 3)]
+        );
+    }
 }

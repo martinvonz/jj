@@ -292,7 +292,8 @@ impl ConfigLayer {
         Ok(Self::with_data(source, data.into_mut()))
     }
 
-    fn load_from_file(source: ConfigSource, path: PathBuf) -> Result<Self, ConfigLoadError> {
+    /// Loads TOML file from the specified `path`.
+    pub fn load_from_file(source: ConfigSource, path: PathBuf) -> Result<Self, ConfigLoadError> {
         let text = fs::read_to_string(&path)
             .context(&path)
             .map_err(ConfigLoadError::Read)?;

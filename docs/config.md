@@ -1203,9 +1203,9 @@ env JJ_CONFIG=/dev/null jj log       # Ignores any settings specified in the con
 
 ### Specifying config on the command-line
 
-You can use one or more `--config-toml` options on the command line to specify
-additional configuration settings. This overrides settings defined in config
-files or environment variables. For example,
+You can use one or more `--config-toml`/`--config-file` options on the command
+line to specify additional configuration settings. This overrides settings
+defined in config files or environment variables. For example,
 
 ```shell
 jj --config-toml='ui.color="always"' --config-toml='ui.diff-editor="kdiff3"' split
@@ -1220,4 +1220,10 @@ files with the config specified in `.jjconfig.toml`:
 
 ```shell
 jj --config-toml="$(cat extra-config.toml)" log
+```
+
+This is equivalent to
+
+```shell
+jj --config-file=extra-config.toml log
 ```
