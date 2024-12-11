@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use clap::builder::NonEmptyStringValueParser;
+use clap_complete::ArgValueCandidates;
 use jj_lib::object_id::ObjectId as _;
 use jj_lib::op_store::RefTarget;
 
@@ -21,6 +22,7 @@ use crate::cli_util::CommandHelper;
 use crate::cli_util::RevisionArg;
 use crate::command_error::user_error_with_hint;
 use crate::command_error::CommandError;
+use crate::complete;
 use crate::ui::Ui;
 
 /// Create a new bookmark
@@ -30,7 +32,11 @@ pub struct BookmarkCreateArgs {
     //
     // The `--to` alias exists for making it easier for the user to switch
     // between `bookmark create`, `bookmark move`, and `bookmark set`.
-    #[arg(long, short, visible_alias = "to")]
+    #[arg(
+        long, short,
+        visible_alias = "to",
+        add = ArgValueCandidates::new(complete::all_revisions),
+    )]
     revision: Option<RevisionArg>,
 
     /// The bookmarks to create
