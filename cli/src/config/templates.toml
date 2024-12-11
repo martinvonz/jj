@@ -17,7 +17,7 @@ commit_summary = 'format_commit_summary_with_refs(self, bookmarks)'
 annotate_commit_summary = '''
 separate(" ",
   change_id.shortest(8),
-  pad_end(8, truncate_end(8, author.username())),
+  pad_end(8, truncate_end(8, author.email().local())),
   committer.timestamp().local().format('%Y-%m-%d %H:%M:%S'),
 )
 '''
@@ -72,7 +72,7 @@ if(root,
     concat(
       separate(" ",
         format_short_change_id_with_hidden_and_divergent_info(self),
-        if(author.email(), author.username(), email_placeholder),
+        if(author.email(), author.email().local(), email_placeholder),
         format_timestamp(committer.timestamp()),
         bookmarks,
         tags,

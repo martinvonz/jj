@@ -27,6 +27,7 @@ use crate::formatter::FormatRecorder;
 use crate::formatter::Formatter;
 use crate::formatter::LabeledWriter;
 use crate::formatter::PlainTextFormatter;
+use crate::text_util;
 use crate::time_util;
 
 /// Represents printable type or compiled template containing placeholder value.
@@ -75,8 +76,30 @@ impl Template for Signature {
         }
         if !self.email.is_empty() {
             write!(formatter, "<")?;
-            write!(formatter.labeled("email"), "{}", self.email)?;
+            let email: Email = self.email.clone().into();
+            email.format(formatter)?;
             write!(formatter, ">")?;
+        }
+        Ok(())
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Email(pub String);
+
+impl From<String> for Email {
+    fn from(value: String) -> Self {
+        Self(value)
+    }
+}
+
+impl Template for Email {
+    fn format(&self, formatter: &mut TemplateFormatter) -> io::Result<()> {
+        let (local, domain) = text_util::split_email(&self.0);
+        write!(formatter.labeled("local"), "{local}")?;
+        if let Some(domain) = domain {
+            write!(formatter, "@")?;
+            write!(formatter.labeled("domain"), "{domain}")?;
         }
         Ok(())
     }

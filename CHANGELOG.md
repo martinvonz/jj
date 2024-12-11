@@ -32,6 +32,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Deprecations
 
+* The `Signature.username()` template method is deprecated for
+  `Signature().email().local()`.
+
 ### New features
 
 * `jj` command no longer fails due to new working-copy files larger than the
@@ -43,6 +46,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 * Templates now support the `>=`, `>`, `<=`, and `<` relational operators for
   `Integer` types.
+
+* A new Email template type is added. `Signature.email()` now returns an Email
+  template type instead of a String.
 
 ### Fixed bugs
 

@@ -129,11 +129,12 @@ fn test_template_parse_warning() {
           local_branches,
           remote_branches,
           self.contained_in('branches()'),
+          author.username(),
         )
     "#};
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["log", "-r@", "-T", template]);
     insta::assert_snapshot!(stdout, @r#"
-    @  false
+    @  false test.user
     │
     ~
     "#);
@@ -172,6 +173,13 @@ fn test_template_parse_warning() {
       | ^------^
       |
       = branches() is deprecated; use bookmarks() instead
+    Warning: In template expression
+     --> 6:10
+      |
+    6 |   author.username(),
+      |          ^------^
+      |
+      = username() is deprecated; use email().local() instead
     "#);
 }
 
