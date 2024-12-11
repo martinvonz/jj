@@ -46,8 +46,8 @@ use jj_lib::settings::UserSettings;
 use jj_lib::working_copy::CheckoutError;
 use jj_lib::working_copy::CheckoutOptions;
 use jj_lib::working_copy::CheckoutStats;
-use jj_lib::working_copy::SnapshotError;
 use jj_lib::working_copy::SnapshotOptions;
+use jj_lib::working_copy::UntrackedReason;
 use jj_lib::workspace::default_working_copy_factories;
 use jj_lib::workspace::LockedWorkspace;
 use jj_lib::workspace::Workspace;
@@ -939,7 +939,7 @@ fn test_snapshot_racy_timestamps() {
             .workspace
             .start_working_copy_mutation()
             .unwrap();
-        let new_tree_id = locked_ws
+        let (new_tree_id, _stats) = locked_ws
             .locked_wc()
             .snapshot(&SnapshotOptions::empty_for_test())
             .unwrap();
@@ -973,7 +973,7 @@ fn test_snapshot_special_file() {
 
     // Snapshot the working copy with the socket file
     let mut locked_ws = ws.start_working_copy_mutation().unwrap();
-    let tree_id = locked_ws
+    let (tree_id, _stats) = locked_ws
         .locked_wc()
         .snapshot(&SnapshotOptions::empty_for_test())
         .unwrap();
@@ -2052,7 +2052,7 @@ fn test_fsmonitor() {
             .iter()
             .map(|p| p.to_fs_path_unchecked(Path::new("")))
             .collect();
-        locked_ws
+        let (tree_id, _stats) = locked_ws
             .locked_wc()
             .snapshot(&SnapshotOptions {
                 fsmonitor_settings: FsmonitorSettings::Test {
@@ -2060,7 +2060,8 @@ fn test_fsmonitor() {
                 },
                 ..SnapshotOptions::empty_for_test()
             })
-            .unwrap()
+            .unwrap();
+        tree_id
     };
 
     {
@@ -2144,21 +2145,31 @@ fn test_snapshot_max_new_file_size() {
         vec![0; limit + 1],
     )
     .unwrap();
-    test_workspace
+    let (old_tree, _stats) = test_workspace
         .snapshot_with_options(&options)
         .expect("existing files may grow beyond the size limit");
-    // A new file of 1KiB + 1 bytes should fail
+
+    // A new file of 1KiB + 1 bytes should be left untracked
     std::fs::write(
         large_path.to_fs_path_unchecked(&workspace_root),
         vec![0; limit + 1],
     )
     .unwrap();
-    let err = test_workspace
+    let (new_tree, stats) = test_workspace
         .snapshot_with_options(&options)
-        .expect_err("new files beyond the size limit should fail");
-    assert!(
-        matches!(err, SnapshotError::NewFileTooLarge { .. }),
-        "the failure should be attributed to new file size"
+        .expect("snapshot should not fail because of new files beyond the size limit");
+    assert_eq!(new_tree, old_tree);
+    assert_eq!(
+        stats
+            .untracked_paths
+            .keys()
+            .map(AsRef::as_ref)
+            .collect_vec(),
+        [large_path]
+    );
+    assert_matches!(
+        stats.untracked_paths.values().next().unwrap(),
+        UntrackedReason::FileTooLarge { size, .. } if *size == (limit as u64) + 1
     );
 
     // A file in sub directory should also be caught
@@ -2175,6 +2186,20 @@ fn test_snapshot_max_new_file_size() {
         sub_large_path.to_fs_path_unchecked(&workspace_root),
     )
     .unwrap();
-    let result = test_workspace.snapshot_with_options(&options);
-    assert_matches!(result, Err(SnapshotError::NewFileTooLarge { .. }));
+    let (new_tree, stats) = test_workspace
+        .snapshot_with_options(&options)
+        .expect("snapshot should not fail because of new files beyond the size limit");
+    assert_eq!(new_tree, old_tree);
+    assert_eq!(
+        stats
+            .untracked_paths
+            .keys()
+            .map(AsRef::as_ref)
+            .collect_vec(),
+        [sub_large_path]
+    );
+    assert_matches!(
+        stats.untracked_paths.values().next().unwrap(),
+        UntrackedReason::FileTooLarge { .. }
+    );
 }

@@ -97,7 +97,6 @@ use crate::op_store::WorkspaceId;
 use crate::repo_path::RepoPath;
 use crate::repo_path::RepoPathBuf;
 use crate::repo_path::RepoPathComponent;
-use crate::settings::HumanByteSize;
 use crate::store::Store;
 use crate::tree::Tree;
 use crate::working_copy::CheckoutError;
@@ -108,6 +107,8 @@ use crate::working_copy::ResetError;
 use crate::working_copy::SnapshotError;
 use crate::working_copy::SnapshotOptions;
 use crate::working_copy::SnapshotProgress;
+use crate::working_copy::SnapshotStats;
+use crate::working_copy::UntrackedReason;
 use crate::working_copy::WorkingCopy;
 use crate::working_copy::WorkingCopyFactory;
 use crate::working_copy::WorkingCopyStateError;
@@ -908,7 +909,10 @@ impl TreeState {
     /// Look for changes to the working copy. If there are any changes, create
     /// a new tree from it.
     #[instrument(skip_all)]
-    pub fn snapshot(&mut self, options: &SnapshotOptions) -> Result<bool, SnapshotError> {
+    pub fn snapshot(
+        &mut self,
+        options: &SnapshotOptions,
+    ) -> Result<(bool, SnapshotStats), SnapshotError> {
         let &SnapshotOptions {
             ref base_ignores,
             ref fsmonitor_settings,
@@ -935,11 +939,12 @@ impl TreeState {
         if matcher.visit(RepoPath::root()).is_nothing() {
             // No need to load the current tree, set up channels, etc.
             self.watchman_clock = watchman_clock;
-            return Ok(is_dirty);
+            return Ok((is_dirty, SnapshotStats::default()));
         }
 
         let (tree_entries_tx, tree_entries_rx) = channel();
         let (file_states_tx, file_states_rx) = channel();
+        let (untracked_paths_tx, untracked_paths_rx) = channel();
         let (deleted_files_tx, deleted_files_rx) = channel();
 
         trace_span!("traverse filesystem").in_scope(|| -> Result<(), SnapshotError> {
@@ -951,6 +956,7 @@ impl TreeState {
                 // Move tx sides so they'll be dropped at the end of the scope.
                 tree_entries_tx,
                 file_states_tx,
+                untracked_paths_tx,
                 deleted_files_tx,
                 error: OnceLock::new(),
                 progress,
@@ -972,6 +978,9 @@ impl TreeState {
             snapshotter.into_result()
         })?;
 
+        let stats = SnapshotStats {
+            untracked_paths: untracked_paths_rx.into_iter().collect(),
+        };
         let mut tree_builder = MergedTreeBuilder::new(self.tree_id.clone());
         trace_span!("process tree entries").in_scope(|| {
             for (path, tree_values) in &tree_entries_rx {
@@ -1011,7 +1020,7 @@ impl TreeState {
             assert_eq!(state_paths, tree_paths);
         }
         self.watchman_clock = watchman_clock;
-        Ok(is_dirty)
+        Ok((is_dirty, stats))
     }
 
     #[instrument(skip_all)]
@@ -1087,6 +1096,7 @@ struct FileSnapshotter<'a> {
     start_tracking_matcher: &'a dyn Matcher,
     tree_entries_tx: Sender<(RepoPathBuf, MergedTreeValue)>,
     file_states_tx: Sender<(RepoPathBuf, FileState)>,
+    untracked_paths_tx: Sender<(RepoPathBuf, UntrackedReason)>,
     deleted_files_tx: Sender<RepoPathBuf>,
     error: OnceLock<SnapshotError>,
     progress: Option<&'a SnapshotProgress<'a>>,
@@ -1234,14 +1244,14 @@ impl FileSnapshotter<'_> {
                     err: err.into(),
                 })?;
                 if maybe_current_file_state.is_none() && metadata.len() > self.max_new_file_size {
-                    // TODO: Maybe leave the file untracked instead
-                    return Err(SnapshotError::NewFileTooLarge {
-                        path: entry.path().clone(),
-                        size: HumanByteSize(metadata.len()),
-                        max_size: HumanByteSize(self.max_new_file_size),
-                    });
-                }
-                if let Some(new_file_state) = file_state(&metadata) {
+                    // Leave the large file untracked
+                    let reason = UntrackedReason::FileTooLarge {
+                        size: metadata.len(),
+                        max_size: self.max_new_file_size,
+                    };
+                    self.untracked_paths_tx.send((path, reason)).ok();
+                    Ok(None)
+                } else if let Some(new_file_state) = file_state(&metadata) {
                     self.process_present_file(
                         path,
                         &entry.path(),
@@ -2150,7 +2160,10 @@ impl LockedWorkingCopy for LockedLocalWorkingCopy {
         &self.old_tree_id
     }
 
-    fn snapshot(&mut self, options: &SnapshotOptions) -> Result<MergedTreeId, SnapshotError> {
+    fn snapshot(
+        &mut self,
+        options: &SnapshotOptions,
+    ) -> Result<(MergedTreeId, SnapshotStats), SnapshotError> {
         let tree_state = self
             .wc
             .tree_state_mut()
@@ -2158,8 +2171,9 @@ impl LockedWorkingCopy for LockedLocalWorkingCopy {
                 message: "Failed to read the working copy state".to_string(),
                 err: err.into(),
             })?;
-        self.tree_state_dirty |= tree_state.snapshot(options)?;
-        Ok(tree_state.current_tree_id().clone())
+        let (is_dirty, stats) = tree_state.snapshot(options)?;
+        self.tree_state_dirty |= is_dirty;
+        Ok((tree_state.current_tree_id().clone(), stats))
     }
 
     fn check_out(

@@ -16,6 +16,7 @@
 //! default local-disk implementation.
 
 use std::any::Any;
+use std::collections::BTreeMap;
 use std::ffi::OsString;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -45,7 +46,6 @@ use crate::repo::RewriteRootCommit;
 use crate::repo_path::InvalidRepoPathError;
 use crate::repo_path::RepoPath;
 use crate::repo_path::RepoPathBuf;
-use crate::settings::HumanByteSize;
 use crate::settings::UserSettings;
 use crate::store::Store;
 
@@ -113,8 +113,11 @@ pub trait LockedWorkingCopy {
     /// The tree at the time the lock was taken
     fn old_tree_id(&self) -> &MergedTreeId;
 
-    /// Snapshot the working copy and return the tree id.
-    fn snapshot(&mut self, options: &SnapshotOptions) -> Result<MergedTreeId, SnapshotError>;
+    /// Snapshot the working copy. Returns the tree id and stats.
+    fn snapshot(
+        &mut self,
+        options: &SnapshotOptions,
+    ) -> Result<(MergedTreeId, SnapshotStats), SnapshotError>;
 
     /// Check out the specified commit in the working copy.
     fn check_out(
@@ -178,17 +181,6 @@ pub enum SnapshotError {
     /// Reading or writing from the commit backend failed.
     #[error(transparent)]
     BackendError(#[from] BackendError),
-    /// A file was larger than the specified maximum file size for new
-    /// (previously untracked) files.
-    #[error("New file {path} of size ~{size} exceeds snapshot.max-new-file-size ({max_size})")]
-    NewFileTooLarge {
-        /// The path of the large file.
-        path: PathBuf,
-        /// The size of the large file.
-        size: HumanByteSize,
-        /// The maximum allowed size.
-        max_size: HumanByteSize,
-    },
     /// Checking path with ignore patterns failed.
     #[error(transparent)]
     GitIgnoreError(#[from] GitIgnoreError),
@@ -248,6 +240,25 @@ impl SnapshotOptions<'_> {
 
 /// A callback for getting progress updates.
 pub type SnapshotProgress<'a> = dyn Fn(&RepoPath) + 'a + Sync;
+
+/// Stats about a snapshot operation on a working copy.
+#[derive(Clone, Debug, Default)]
+pub struct SnapshotStats {
+    /// List of new (previously untracked) files which are still untracked.
+    pub untracked_paths: BTreeMap<RepoPathBuf, UntrackedReason>,
+}
+
+/// Reason why the new path isn't tracked.
+#[derive(Clone, Debug)]
+pub enum UntrackedReason {
+    /// File was larger than the specified maximum file size.
+    FileTooLarge {
+        /// Actual size of the large file.
+        size: u64,
+        /// Maximum allowed size.
+        max_size: u64,
+    },
+}
 
 /// Options used when checking out a tree in the working copy.
 #[derive(Clone)]
