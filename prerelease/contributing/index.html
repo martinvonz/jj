@@ -1153,15 +1153,6 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#using-an-alternative-rust-compiler-version" class="md-nav__link">
-    <span class="md-ellipsis">
-      Using an alternative Rust compiler version
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
   <a href="#using-mold-for-faster-tests-on-linux" class="md-nav__link">
     <span class="md-ellipsis">
       Using mold for faster tests on Linux
@@ -1695,15 +1686,6 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#using-an-alternative-rust-compiler-version" class="md-nav__link">
-    <span class="md-ellipsis">
-      Using an alternative Rust compiler version
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
   <a href="#using-mold-for-faster-tests-on-linux" class="md-nav__link">
     <span class="md-ellipsis">
       Using mold for faster tests on Linux
@@ -1943,13 +1925,16 @@ recommended steps.</p>
 <h3 id="summary">Summary<a class="headerlink" href="#summary" title="Permanent link">&para;</a></h3>
 <p>One-time setup:</p>
 <div class="codehilite"><pre><span></span><code>rustup toolchain add nightly  # wanted for &#39;rustfmt&#39;
-cargo install cargo-insta cargo-watch cargo-nextest
+rustup toolchain add 1.76     # also specified in Cargo.toml
+cargo install cargo-insta
+cargo install cargo-watch
+cargo install cargo-nextest
 </code></pre></div>
 
 <p>During development (adapt according to your preference):</p>
 <div class="codehilite"><pre><span></span><code>cargo watch --ignore &#39;.jj/**&#39; -s \
   &#39;cargo clippy --workspace --all-targets \
-   &amp;&amp; cargo check --workspace --all-targets&#39;
+   &amp;&amp; cargo +1.76 check --workspace --all-targets&#39;
 cargo +nightly fmt # Occasionally
 cargo nextest run --workspace # Occasionally
 cargo insta test --workspace --test-runner nextest # Occasionally
@@ -2002,16 +1987,6 @@ Cargo will happily use up your entire hard drive. If this happens, run
  the <code>mold</code> linker, as explained below.</p>
 </li>
 </ol>
-<h3 id="using-an-alternative-rust-compiler-version">Using an alternative Rust compiler version<a class="headerlink" href="#using-an-alternative-rust-compiler-version" title="Permanent link">&para;</a></h3>
-<p>To use a different version of the Rust compiler/toolchain for development, you
-can run:</p>
-<div class="codehilite"><pre><span></span><code>rustup override set 1.80  # or any other version
-</code></pre></div>
-
-<p>Or manually set it in individual <code>cargo</code> commands:</p>
-<div class="codehilite"><pre><span></span><code>cargo +1.80 clippy --workspace --all-targets  # or any other version
-</code></pre></div>
-
 <h3 id="using-mold-for-faster-tests-on-linux">Using <code>mold</code> for faster tests on Linux<a class="headerlink" href="#using-mold-for-faster-tests-on-linux" title="Permanent link">&para;</a></h3>
 <p>On a machine with a multi-core CPU, one way to speed up
 <code>cargo nextest</code> on Linux is to use the multi-threaded <a href="https://github.com/rui314/mold"><code>mold</code>
