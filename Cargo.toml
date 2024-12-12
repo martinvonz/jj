@@ -22,7 +22,7 @@ assert_cmd = "2.0.8"
 assert_matches = "1.5.0"
 async-trait = "0.1.83"
 blake2 = "0.10.6"
-bstr = "1.11.0"
+bstr = "1.11.1"
 clap = { version = "4.5.23", features = [
     "derive",
     "deprecated",
