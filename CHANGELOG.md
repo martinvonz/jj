@@ -51,6 +51,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * Fixed performance of progress bar rendering when fetching from Git remote.
   [#5057](https://github.com/martinvonz/jj/issues/5057)
 
+* `jj config path --user` no longer creates new file at the default config path.
+
 ## [0.24.0] - 2024-12-04
 
 ### Release highlights
