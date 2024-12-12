@@ -74,8 +74,8 @@ impl Rule {
             Rule::concat_op => Some("++"),
             Rule::logical_or_op => Some("||"),
             Rule::logical_and_op => Some("&&"),
-            Rule::logical_eq_op => Some("=="),
-            Rule::logical_ne_op => Some("!="),
+            Rule::eq_op => Some("=="),
+            Rule::ne_op => Some("!="),
             Rule::ge_op => Some(">="),
             Rule::gt_op => Some(">"),
             Rule::le_op => Some("<="),
@@ -381,9 +381,9 @@ pub enum BinaryOp {
     /// `&&`
     LogicalAnd,
     /// `==`
-    LogicalEq,
+    Eq,
     /// `!=`
-    LogicalNe,
+    Ne,
     /// `>=`
     Ge,
     /// `>`
@@ -522,8 +522,7 @@ fn parse_expression_node(pair: Pair<Rule>) -> TemplateParseResult<ExpressionNode
         PrattParser::new()
             .op(Op::infix(Rule::logical_or_op, Assoc::Left))
             .op(Op::infix(Rule::logical_and_op, Assoc::Left))
-            .op(Op::infix(Rule::logical_eq_op, Assoc::Left)
-                | Op::infix(Rule::logical_ne_op, Assoc::Left))
+            .op(Op::infix(Rule::eq_op, Assoc::Left) | Op::infix(Rule::ne_op, Assoc::Left))
             .op(Op::infix(Rule::ge_op, Assoc::Left)
                 | Op::infix(Rule::gt_op, Assoc::Left)
                 | Op::infix(Rule::le_op, Assoc::Left)
@@ -547,8 +546,8 @@ fn parse_expression_node(pair: Pair<Rule>) -> TemplateParseResult<ExpressionNode
             let op_kind = match op.as_rule() {
                 Rule::logical_or_op => BinaryOp::LogicalOr,
                 Rule::logical_and_op => BinaryOp::LogicalAnd,
-                Rule::logical_eq_op => BinaryOp::LogicalEq,
-                Rule::logical_ne_op => BinaryOp::LogicalNe,
+                Rule::eq_op => BinaryOp::Eq,
+                Rule::ne_op => BinaryOp::Ne,
                 Rule::ge_op => BinaryOp::Ge,
                 Rule::gt_op => BinaryOp::Gt,
                 Rule::le_op => BinaryOp::Le,
