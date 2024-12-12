@@ -21,6 +21,7 @@ mod unset;
 
 use std::path::Path;
 
+use itertools::Itertools as _;
 use jj_lib::config::ConfigFile;
 use jj_lib::config::ConfigSource;
 use tracing::instrument;
@@ -99,16 +100,35 @@ impl ConfigLevelArgs {
         }
     }
 
-    fn edit_config_file(&self, config_env: &ConfigEnv) -> Result<ConfigFile, CommandError> {
-        let path = self.new_config_file_path(config_env)?;
-        if path.is_dir() {
-            return Err(user_error(format!(
-                "Can't set config in path {path} (dirs not supported)",
-                path = path.display()
-            )));
+    fn edit_config_file(&self, command: &CommandHelper) -> Result<ConfigFile, CommandError> {
+        let config_env = command.config_env();
+        let config = command.settings().config();
+        let pick_one = |mut files: Vec<ConfigFile>, not_found_error: &str| {
+            if files.len() > 1 {
+                // TODO: prompt or pick the last?
+                return Err(user_error(format!(
+                    "Cannot determine config file to edit:\n{}",
+                    files
+                        .iter()
+                        .map(|file| format!("  {}", file.path().display()))
+                        .join("\n")
+                )));
+            }
+            files.pop().ok_or_else(|| user_error(not_found_error))
+        };
+        if self.user {
+            pick_one(
+                config_env.user_config_files(config)?,
+                "No user config path found to edit",
+            )
+        } else if self.repo {
+            pick_one(
+                config_env.repo_config_files(config)?,
+                "No repo config path found to edit",
+            )
+        } else {
+            panic!("No config_level provided")
         }
-        let source = self.get_source_kind().unwrap();
-        Ok(ConfigFile::load_or_empty(source, path)?)
     }
 }
 

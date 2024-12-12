@@ -22,6 +22,7 @@ use std::path::PathBuf;
 use std::process::Command;
 
 use itertools::Itertools;
+use jj_lib::config::ConfigFile;
 use jj_lib::config::ConfigLayer;
 use jj_lib::config::ConfigLoadError;
 use jj_lib::config::ConfigNamePathBuf;
@@ -266,6 +267,34 @@ impl ConfigEnv {
         }
     }
 
+    /// Returns user configuration files for modification. Instantiates one if
+    /// `config` has no user configuration layers.
+    ///
+    /// The parent directory for the new file may be created by this function.
+    /// If the user configuration path is unknown, this function returns an
+    /// empty `Vec`.
+    pub fn user_config_files(
+        &self,
+        config: &StackedConfig,
+    ) -> Result<Vec<ConfigFile>, ConfigLoadError> {
+        config_files_for(config, ConfigSource::User, || self.new_user_config_file())
+    }
+
+    fn new_user_config_file(&self) -> Result<Option<ConfigFile>, ConfigLoadError> {
+        self.user_config_path()
+            .map(|path| {
+                // No need to propagate io::Error here. If the directory
+                // couldn't be created, file.save() would fail later.
+                if let Some(dir) = path.parent() {
+                    create_dir_all(dir).ok();
+                }
+                // The path doesn't usually exist, but we shouldn't overwrite it
+                // with an empty config if it did exist.
+                ConfigFile::load_or_empty(ConfigSource::User, path)
+            })
+            .transpose()
+    }
+
     /// Loads user-specific config files into the given `config`. The old
     /// user-config layers will be replaced if any.
     #[instrument]
@@ -300,6 +329,27 @@ impl ConfigEnv {
         }
     }
 
+    /// Returns repo configuration files for modification. Instantiates one if
+    /// `config` has no repo configuration layers.
+    ///
+    /// If the repo path is unknown, this function returns an empty `Vec`. Since
+    /// the repo config path cannot be a directory, the returned `Vec` should
+    /// have at most one config file.
+    pub fn repo_config_files(
+        &self,
+        config: &StackedConfig,
+    ) -> Result<Vec<ConfigFile>, ConfigLoadError> {
+        config_files_for(config, ConfigSource::Repo, || self.new_repo_config_file())
+    }
+
+    fn new_repo_config_file(&self) -> Result<Option<ConfigFile>, ConfigLoadError> {
+        self.repo_config_path()
+            // The path doesn't usually exist, but we shouldn't overwrite it
+            // with an empty config if it did exist.
+            .map(|path| ConfigFile::load_or_empty(ConfigSource::Repo, path))
+            .transpose()
+    }
+
     /// Loads repo-specific config file into the given `config`. The old
     /// repo-config layer will be replaced if any.
     #[instrument]
@@ -310,6 +360,22 @@ impl ConfigEnv {
         }
         Ok(())
     }
+}
+
+fn config_files_for(
+    config: &StackedConfig,
+    source: ConfigSource,
+    new_file: impl FnOnce() -> Result<Option<ConfigFile>, ConfigLoadError>,
+) -> Result<Vec<ConfigFile>, ConfigLoadError> {
+    let mut files = config
+        .layers_for(source)
+        .iter()
+        .filter_map(|layer| ConfigFile::from_layer(layer.clone()).ok())
+        .collect_vec();
+    if files.is_empty() {
+        files.extend(new_file()?);
+    }
+    Ok(files)
 }
 
 /// Initializes stacked config with the given `default_layers` and infallible

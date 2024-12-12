@@ -201,6 +201,7 @@ bar
 fn test_config_list_layer() {
     let mut test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    // Test with fresh new config file
     let user_config_path = test_env.config_path().join("config.toml");
     test_env.set_config_path(user_config_path.clone());
     let repo_path = test_env.env_root().join("repo");
@@ -473,7 +474,7 @@ fn test_config_set_bad_opts() {
 fn test_config_set_for_user() {
     let mut test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
-    // Point to a config file since `config set` can't handle directories.
+    // Test with fresh new config file
     let user_config_path = test_env.config_path().join("config.toml");
     test_env.set_config_path(user_config_path.clone());
     let repo_path = test_env.env_root().join("repo");
@@ -501,6 +502,36 @@ fn test_config_set_for_user() {
     foo = true
     "bar()" = 0
     "###);
+}
+
+#[test]
+fn test_config_set_for_user_directory() {
+    let test_env = TestEnvironment::default();
+
+    test_env.jj_cmd_ok(
+        test_env.env_root(),
+        &["config", "set", "--user", "test-key", "test-val"],
+    );
+    insta::assert_snapshot!(
+        std::fs::read_to_string(test_env.last_config_file_path()).unwrap(),
+        @r#"
+    test-key = "test-val"
+
+    [template-aliases]
+    'format_time_range(time_range)' = 'time_range.start() ++ " - " ++ time_range.end()'
+    "#);
+
+    // Add one more config file to the directory
+    test_env.add_config("");
+    let stderr = test_env.jj_cmd_failure(
+        test_env.env_root(),
+        &["config", "set", "--user", "test-key", "test-val"],
+    );
+    insta::assert_snapshot!(stderr, @r"
+    Error: Cannot determine config file to edit:
+      $TEST_ENV/config/config0001.toml
+      $TEST_ENV/config/config0002.toml
+    ");
 }
 
 #[test]
@@ -537,6 +568,7 @@ fn test_config_set_for_repo() {
 fn test_config_set_toml_types() {
     let mut test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    // Test with fresh new config file
     let user_config_path = test_env.config_path().join("config.toml");
     test_env.set_config_path(user_config_path.clone());
     let repo_path = test_env.env_root().join("repo");
@@ -563,10 +595,8 @@ fn test_config_set_toml_types() {
 
 #[test]
 fn test_config_set_type_mismatch() {
-    let mut test_env = TestEnvironment::default();
+    let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
-    let user_config_path = test_env.config_path().join("config.toml");
-    test_env.set_config_path(user_config_path);
     let repo_path = test_env.env_root().join("repo");
 
     test_env.jj_cmd_ok(
@@ -603,10 +633,8 @@ fn test_config_set_type_mismatch() {
 
 #[test]
 fn test_config_set_nontable_parent() {
-    let mut test_env = TestEnvironment::default();
+    let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
-    let user_config_path = test_env.config_path().join("config.toml");
-    test_env.set_config_path(user_config_path);
     let repo_path = test_env.env_root().join("repo");
 
     test_env.jj_cmd_ok(
@@ -625,11 +653,8 @@ fn test_config_set_nontable_parent() {
 
 #[test]
 fn test_config_unset_non_existent_key() {
-    let mut test_env = TestEnvironment::default();
+    let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
-    // Point to a config file since `config set` can't handle directories.
-    let user_config_path = test_env.config_path().join("config.toml");
-    test_env.set_config_path(user_config_path);
     let repo_path = test_env.env_root().join("repo");
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["config", "unset", "--user", "nonexistent"]);
@@ -638,11 +663,8 @@ fn test_config_unset_non_existent_key() {
 
 #[test]
 fn test_config_unset_inline_table_key() {
-    let mut test_env = TestEnvironment::default();
+    let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
-    // Point to a config file since `config set` can't handle directories.
-    let user_config_path = test_env.config_path().join("config.toml");
-    test_env.set_config_path(user_config_path.clone());
     let repo_path = test_env.env_root().join("repo");
 
     test_env.jj_cmd_ok(
@@ -660,7 +682,7 @@ fn test_config_unset_inline_table_key() {
 #[test]
 fn test_config_unset_table_like() {
     let mut test_env = TestEnvironment::default();
-    // Point to a config file since `config unset` can't handle directories.
+    // Test with fresh new config file
     let user_config_path = test_env.config_path().join("config.toml");
     test_env.set_config_path(user_config_path.clone());
 
@@ -700,7 +722,7 @@ fn test_config_unset_table_like() {
 fn test_config_unset_for_user() {
     let mut test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
-    // Point to a config file since `config set` can't handle directories.
+    // Test with fresh new config file
     let user_config_path = test_env.config_path().join("config.toml");
     test_env.set_config_path(user_config_path.clone());
     let repo_path = test_env.env_root().join("repo");
@@ -991,10 +1013,8 @@ fn test_config_path_syntax() {
 
 #[test]
 fn test_config_show_paths() {
-    let mut test_env = TestEnvironment::default();
+    let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
-    let user_config_path = test_env.config_path().join("config.toml");
-    test_env.set_config_path(user_config_path.clone());
     let repo_path = test_env.env_root().join("repo");
 
     test_env.jj_cmd_ok(
@@ -1006,7 +1026,7 @@ fn test_config_show_paths() {
     Config error: Invalid type or value for ui.paginate
     Caused by: unknown variant `:builtin`, expected `never` or `auto`
 
-    Hint: Check the config file: $TEST_ENV/config/config.toml
+    Hint: Check the config file: $TEST_ENV/config/config0001.toml
     For help, see https://martinvonz.github.io/jj/latest/config/.
     ");
 }
@@ -1039,9 +1059,7 @@ fn test_config_author_change_warning() {
 
 #[test]
 fn test_config_author_change_warning_root_env() {
-    let mut test_env = TestEnvironment::default();
-    let user_config_path = test_env.config_path().join("config.toml");
-    test_env.set_config_path(user_config_path);
+    let test_env = TestEnvironment::default();
     test_env.jj_cmd_success(
         test_env.env_root(),
         &["config", "set", "--user", "user.email", "'Foo'"],

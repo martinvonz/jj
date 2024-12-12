@@ -52,7 +52,7 @@ pub fn cmd_config_set(
     command: &CommandHelper,
     args: &ConfigSetArgs,
 ) -> Result<(), CommandError> {
-    let mut file = args.level.edit_config_file(command.config_env())?;
+    let mut file = args.level.edit_config_file(command)?;
 
     // TODO(#531): Infer types based on schema (w/ --type arg to override).
     let value = parse_toml_value_or_bare_string(&args.value);
