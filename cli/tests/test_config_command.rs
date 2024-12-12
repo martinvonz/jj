@@ -655,7 +655,7 @@ fn test_config_unset_inline_table_key() {
         &["config", "unset", "--user", "inline-table.foo"],
     );
 
-    insta::assert_snapshot!(stderr, @r#"Error: "inline-table" is not a table"#);
+    insta::assert_snapshot!(stderr, @r#"Error: "inline-table.foo" doesn't exist"#);
 }
 
 #[test]
@@ -685,7 +685,10 @@ fn test_config_unset_table_like() {
         test_env.env_root(),
         &["config", "unset", "--user", "non-inline-table"],
     );
-    insta::assert_snapshot!(stderr, @"Error: Won't remove table non-inline-table");
+    insta::assert_snapshot!(stderr, @r"
+    Error: Failed to unset non-inline-table
+    Caused by: Would delete entire table non-inline-table
+    ");
 
     let user_config_toml = std::fs::read_to_string(&user_config_path).unwrap();
     insta::assert_snapshot!(user_config_toml, @r"

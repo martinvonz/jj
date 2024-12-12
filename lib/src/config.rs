@@ -95,6 +95,12 @@ pub enum ConfigUpdateError {
         /// Dotted config name path.
         name: String,
     },
+    /// Table exists at the path, which shouldn't be deleted.
+    #[error("Would delete entire table {name}")]
+    WouldDeleteTable {
+        /// Dotted config name path.
+        name: String,
+    },
 }
 
 /// Extension methods for `Result<T, ConfigGetError>`.
@@ -390,6 +396,39 @@ impl ConfigLayer {
                 entry.insert(toml_edit::value(new_value));
                 Ok(None)
             }
+        }
+    }
+
+    /// Deletes value specified by the `name` path. Returns old value if any.
+    ///
+    /// Returns `Ok(None)` if middle node wasn't a table or a value wasn't
+    /// found. Returns `Err` if attempted to delete a table.
+    pub fn delete_value(
+        &mut self,
+        name: impl ToConfigNamePath,
+    ) -> Result<Option<ConfigValue>, ConfigUpdateError> {
+        let would_delete_table = |name| ConfigUpdateError::WouldDeleteTable { name };
+        let name = name.into_name_path();
+        let name = name.borrow();
+        let mut keys = name.components();
+        let leaf_key = keys
+            .next_back()
+            .ok_or_else(|| would_delete_table(name.to_string()))?;
+        let root_table = self.data.as_table_mut();
+        let Some(parent_table) =
+            keys.try_fold(root_table, |table, key| table.get_mut(key)?.as_table_mut())
+        else {
+            return Ok(None);
+        };
+        match parent_table.entry(leaf_key) {
+            toml_edit::Entry::Occupied(entry) => {
+                if !entry.get().is_value() {
+                    return Err(would_delete_table(name.to_string()));
+                }
+                let old_item = entry.remove();
+                Ok(Some(old_item.into_value().unwrap()))
+            }
+            toml_edit::Entry::Vacant(_) => Ok(None),
         }
     }
 }
@@ -753,6 +792,53 @@ mod tests {
 
         [bar]
         qux = "new bar.qux"
+
+        [bar.baz]
+        blah = "2"
+        "#);
+    }
+
+    #[test]
+    fn test_config_layer_delete_value() {
+        let mut layer = ConfigLayer::empty(ConfigSource::User);
+        // Cannot delete the root table
+        assert_matches!(
+            layer.delete_value(ConfigNamePathBuf::root()),
+            Err(ConfigUpdateError::WouldDeleteTable { name }) if name.is_empty()
+        );
+
+        // Insert some values
+        layer.set_value("foo", 1).unwrap();
+        layer.set_value("bar.baz.blah", "2").unwrap();
+        layer
+            .set_value("bar.qux", ConfigValue::from_iter([("inline", "table")]))
+            .unwrap();
+        insta::assert_snapshot!(layer.data, @r#"
+        foo = 1
+
+        [bar]
+        qux = { inline = "table" }
+
+        [bar.baz]
+        blah = "2"
+        "#);
+
+        // Can delete value
+        let old_value = layer.delete_value("foo").unwrap();
+        assert_eq!(old_value.and_then(|v| v.as_integer()), Some(1));
+        // Can delete inline table
+        let old_value = layer.delete_value("bar.qux").unwrap();
+        assert!(old_value.is_some_and(|v| v.is_inline_table()));
+        // Cannot delete table
+        assert_matches!(
+            layer.delete_value("bar"),
+            Err(ConfigUpdateError::WouldDeleteTable { name }) if name == "bar"
+        );
+        // Deleting a non-table child isn't an error because the value doesn't
+        // exist
+        assert_matches!(layer.delete_value("bar.baz.blah.blah"), Ok(None));
+        insta::assert_snapshot!(layer.data, @r#"
+        [bar]
 
         [bar.baz]
         blah = "2"

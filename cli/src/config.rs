@@ -469,36 +469,14 @@ pub fn remove_config_value_from_file(
     path: &Path,
 ) -> Result<(), CommandError> {
     // TODO: Load config layer by caller. Here we use a dummy source for now.
-    let mut doc = load_config_file_or_empty(ConfigSource::User, path)?.data;
-
-    // Find target table
-    let mut key_iter = key.components();
-    let last_key = key_iter.next_back().expect("key must not be empty");
-    let target_table = key_iter.try_fold(doc.as_table_mut(), |table, key| {
-        table
-            .get_mut(key)
-            .ok_or_else(|| user_error(format!(r#""{key}" doesn't exist"#)))
-            .and_then(|table| {
-                table
-                    .as_table_mut()
-                    .ok_or_else(|| user_error(format!(r#""{key}" is not a table"#)))
-            })
-    })?;
-
-    // Remove config value
-    match target_table.entry(last_key) {
-        toml_edit::Entry::Occupied(entry) => {
-            if entry.get().is_table() {
-                return Err(user_error(format!("Won't remove table {key}")));
-            }
-            entry.remove();
-        }
-        toml_edit::Entry::Vacant(_) => {
-            return Err(user_error(format!(r#""{key}" doesn't exist"#)));
-        }
+    let mut layer = load_config_file_or_empty(ConfigSource::User, path)?;
+    let old_value = layer
+        .delete_value(key)
+        .map_err(|err| user_error_with_message(format!("Failed to unset {key}"), err))?;
+    if old_value.is_none() {
+        return Err(user_error(format!(r#""{key}" doesn't exist"#)));
     }
-
-    write_config(path, &doc)
+    write_config(path, &layer.data)
 }
 
 /// Command name and arguments specified by config.
