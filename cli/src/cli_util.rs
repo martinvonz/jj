@@ -1959,6 +1959,10 @@ See https://martinvonz.github.io/jj/latest/working-copy/#stale-working-copy \
                 )?;
             }
         }
+        if tx.repo().view() == tx.base_repo().view() {
+            writeln!(ui.status(), "Nothing changed.")?;
+            return Ok(());
+        }
 
         let old_repo = tx.base_repo().clone();
 

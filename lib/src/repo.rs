@@ -1314,7 +1314,6 @@ impl MutableRepo {
             }
             Ok(())
         })?;
-        self.parent_mapping.clear();
         Ok(rebased)
     }
 
@@ -1339,7 +1338,6 @@ impl MutableRepo {
             }
             Ok(())
         })?;
-        self.parent_mapping.clear();
         Ok(num_rebased)
     }
 
@@ -1360,7 +1358,6 @@ impl MutableRepo {
             }
             Ok(())
         })?;
-        self.parent_mapping.clear();
         Ok(num_reparented)
     }
 
