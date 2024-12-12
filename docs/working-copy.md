@@ -72,7 +72,7 @@ Ignored files are never tracked automatically (regardless of the value of
 * if they were tracked in the parent commit
 * because of an explicit `jj file track` command
 
-You can untrack such files with the jj file untrack command.
+You can untrack such files with the `jj file untrack` command.
 
 
 ## Workspaces
