@@ -672,7 +672,7 @@ fn build_binary_operation<'a, L: TemplateLanguage<'a> + ?Sized>(
             let out = lhs.and_then(move |l| Ok(l && rhs.extract()?));
             Ok(L::wrap_boolean(out))
         }
-        BinaryOp::LogicalEq | BinaryOp::LogicalNe => {
+        BinaryOp::Eq | BinaryOp::Ne => {
             let lhs = build_expression(language, diagnostics, build_ctx, lhs_node)?;
             let rhs = build_expression(language, diagnostics, build_ctx, rhs_node)?;
             let lty = lhs.type_name();
@@ -682,8 +682,8 @@ fn build_binary_operation<'a, L: TemplateLanguage<'a> + ?Sized>(
                 TemplateParseError::expression(message, span)
             })?;
             match op {
-                BinaryOp::LogicalEq => Ok(L::wrap_boolean(out)),
-                BinaryOp::LogicalNe => Ok(L::wrap_boolean(out.map(|eq| !eq))),
+                BinaryOp::Eq => Ok(L::wrap_boolean(out)),
+                BinaryOp::Ne => Ok(L::wrap_boolean(out.map(|eq| !eq))),
                 _ => unreachable!(),
             }
         }

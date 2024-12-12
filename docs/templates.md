@@ -33,8 +33,8 @@ The following operators are supported.
 * `!x`: Logical not.
 * `x >= y`, `x > y`, `x <= y`, `x < y`: Greater than or equal/greater than/
   lesser than or equal/lesser than. Operands must be `Integer`s.
-* `x == y`, `x != y`: Logical equal/not equal. Operands must be either
-  `Boolean`, `Integer`, or `String`.
+* `x == y`, `x != y`: Equal/not equal. Operands must be either `Boolean`,
+  `Integer`, or `String`.
 * `x && y`: Logical and, short-circuiting.
 * `x || y`: Logical or, short-circuiting.
 * `x ++ y`: Concatenate `x` and `y` templates.
