@@ -15,7 +15,6 @@
 use std::path::PathBuf;
 
 use indoc::indoc;
-use insta::assert_snapshot;
 use itertools::Itertools;
 use regex::Regex;
 
@@ -793,22 +792,33 @@ fn test_config_edit_repo() {
 
 #[test]
 fn test_config_path() {
-    let test_env = TestEnvironment::default();
+    let mut test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
 
-    assert_snapshot!(
-      test_env.jj_cmd_success(&repo_path, &["config", "path", "--user"]),
-      @r###"
-      $TEST_ENV/config
-      "###
+    let user_config_path = test_env.env_root().join("config.toml");
+    let repo_config_path = repo_path.join(PathBuf::from_iter([".jj", "repo", "config.toml"]));
+    test_env.set_config_path(user_config_path.clone());
+
+    insta::assert_snapshot!(
+        test_env.jj_cmd_success(&repo_path, &["config", "path", "--user"]),
+        @"$TEST_ENV/config.toml");
+    assert!(
+        !user_config_path.exists(),
+        "jj config path shouldn't create new file"
     );
-    assert_snapshot!(
-      test_env.jj_cmd_success(&repo_path, &["config", "path", "--repo"]),
-      @r###"
-      $TEST_ENV/repo/.jj/repo/config.toml
-      "###
+
+    insta::assert_snapshot!(
+        test_env.jj_cmd_success(&repo_path, &["config", "path", "--repo"]),
+        @"$TEST_ENV/repo/.jj/repo/config.toml");
+    assert!(
+        !repo_config_path.exists(),
+        "jj config path shouldn't create new file"
     );
+
+    insta::assert_snapshot!(
+        test_env.jj_cmd_failure(test_env.env_root(), &["config", "path", "--repo"]),
+        @"Error: No repo config path found");
 }
 
 #[test]

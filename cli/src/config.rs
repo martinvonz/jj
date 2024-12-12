@@ -141,6 +141,13 @@ impl ConfigPath {
             None => ConfigPath::Unavailable,
         }
     }
+
+    fn as_path(&self) -> Option<&Path> {
+        match self {
+            ConfigPath::Existing(path) | ConfigPath::New(path) => Some(path),
+            ConfigPath::Unavailable => None,
+        }
+    }
 }
 
 /// Like std::fs::create_dir_all but creates new directories to be accessible to
@@ -225,8 +232,13 @@ impl ConfigEnv {
         })
     }
 
+    /// Returns a path to the user-specific config file or directory.
+    pub fn user_config_path(&self) -> Option<&Path> {
+        self.user_config_path.as_path()
+    }
+
     /// Returns a path to the existing user-specific config file or directory.
-    pub fn existing_user_config_path(&self) -> Option<&Path> {
+    fn existing_user_config_path(&self) -> Option<&Path> {
         match &self.user_config_path {
             ConfigPath::Existing(path) => Some(path),
             _ => None,
@@ -243,8 +255,7 @@ impl ConfigEnv {
             ConfigPath::Existing(path) => Ok(Some(path)),
             ConfigPath::New(path) => {
                 // TODO: Maybe we shouldn't create new file here. Not all
-                // callers need an empty file. For example, "jj config path"
-                // should be a readonly operation. "jj config set" doesn't have
+                // callers need an empty file. "jj config set" doesn't have
                 // to create an empty file to be overwritten. Since it's unclear
                 // who and when to update ConfigPath::New(_) to ::Existing(_),
                 // it's probably better to not cache the path existence.
@@ -276,20 +287,16 @@ impl ConfigEnv {
         self.repo_config_path = ConfigPath::new(Some(path.join("config.toml")));
     }
 
+    /// Returns a path to the repo-specific config file.
+    pub fn repo_config_path(&self) -> Option<&Path> {
+        self.repo_config_path.as_path()
+    }
+
     /// Returns a path to the existing repo-specific config file.
-    pub fn existing_repo_config_path(&self) -> Option<&Path> {
+    fn existing_repo_config_path(&self) -> Option<&Path> {
         match &self.repo_config_path {
             ConfigPath::Existing(path) => Some(path),
             _ => None,
-        }
-    }
-
-    /// Returns a path to the repo-specific config file.
-    pub fn new_repo_config_path(&self) -> Option<&Path> {
-        match &self.repo_config_path {
-            ConfigPath::Existing(path) => Some(path),
-            ConfigPath::New(path) => Some(path),
-            ConfigPath::Unavailable => None,
         }
     }
 

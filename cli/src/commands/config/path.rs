@@ -39,7 +39,7 @@ pub fn cmd_config_path(
     command: &CommandHelper,
     args: &ConfigPathArgs,
 ) -> Result<(), CommandError> {
-    let config_path = args.level.new_config_file_path(command.config_env())?;
+    let config_path = args.level.config_path(command.config_env())?;
     writeln!(
         ui.stdout(),
         "{}",
