@@ -503,6 +503,17 @@ impl ConfigFile {
         Ok(ConfigFile { layer })
     }
 
+    /// Wraps file-based [`ConfigLayer`] for modification. Returns `Err(layer)`
+    /// if the source `path` is unknown.
+    #[allow(clippy::result_large_err)] // Ok-variant is as large as Err anyway
+    pub fn from_layer(layer: ConfigLayer) -> Result<Self, ConfigLayer> {
+        if layer.path.is_some() {
+            Ok(ConfigFile { layer })
+        } else {
+            Err(layer)
+        }
+    }
+
     /// Writes serialized data to the source file.
     pub fn save(&self) -> Result<(), ConfigFileSaveError> {
         fs::write(self.path(), self.layer.data.to_string())
@@ -654,6 +665,11 @@ impl StackedConfig {
     /// Layers sorted by precedence.
     pub fn layers(&self) -> &[ConfigLayer] {
         &self.layers
+    }
+
+    /// Layers of the specified `source`.
+    pub fn layers_for(&self, source: ConfigSource) -> &[ConfigLayer] {
+        &self.layers[self.layer_range(source)]
     }
 
     /// Looks up value of the specified type `T` from all layers, merges sub
