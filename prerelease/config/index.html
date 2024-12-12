@@ -709,9 +709,9 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#dotted-style-and-headings" class="md-nav__link">
+  <a href="#dotted-style-headings-and-inline-tables" class="md-nav__link">
     <span class="md-ellipsis">
-      Dotted style and headings
+      Dotted style, headings, and inline tables
     </span>
   </a>
   
@@ -1977,9 +1977,9 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#dotted-style-and-headings" class="md-nav__link">
+  <a href="#dotted-style-headings-and-inline-tables" class="md-nav__link">
     <span class="md-ellipsis">
-      Dotted style and headings
+      Dotted style, headings, and inline tables
     </span>
   </a>
   
@@ -2601,14 +2601,13 @@ located in <code>.jj/repo/config.toml</code>.</p>
 </li>
 </ul>
 <p>These are listed in the order they are loaded; the settings from earlier items
-in
-the list are overridden by the settings from later items if they disagree. Every
-type of config except for the built-in settings is optional.</p>
+in the list are overridden by the settings from later items if they disagree.
+Every type of config except for the built-in settings is optional.</p>
 <p>See the <a href="https://toml.io/en/">TOML site</a> and the <a href="https://toml.io/en/v1.0.0">syntax guide</a> for a detailed description of the
 syntax. We cover some of the basics below.</p>
 <p>The first thing to remember is that the value of a setting (the part to the
 right of the <code>=</code> sign) should be surrounded in quotes if it's a string.</p>
-<h3 id="dotted-style-and-headings">Dotted style and headings<a class="headerlink" href="#dotted-style-and-headings" title="Permanent link">&para;</a></h3>
+<h3 id="dotted-style-headings-and-inline-tables">Dotted style, headings, and inline tables<a class="headerlink" href="#dotted-style-headings-and-inline-tables" title="Permanent link">&para;</a></h3>
 <p>In TOML, anything under a heading can be dotted instead. For example,
 <code>user.name = "YOUR NAME"</code> is equivalent to:</p>
 <div class="highlight"><pre><span></span><code><span class="k">[user]</span>
@@ -2617,7 +2616,7 @@ right of the <code>=</code> sign) should be surrounded in quotes if it's a strin
 <p>For future reference, here are a couple of more complicated examples,</p>
 <div class="highlight"><pre><span></span><code><span class="c1"># Dotted style</span>
 <span class="n">template-aliases</span><span class="p">.</span><span class="s2">&quot;format_short_id(id)&quot;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;id.shortest(12)&quot;</span>
-<span class="n">colors</span><span class="p">.</span><span class="s2">&quot;commit_id prefix&quot;</span><span class="p">.</span><span class="n">bold</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+<span class="n">colors</span><span class="p">.</span><span class="s2">&quot;commit_id prefix&quot;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">bold</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="kc">true</span><span class="w"> </span><span class="p">}</span>
 
 <span class="c1"># is equivalent to:</span>
 <span class="k">[template-aliases]</span>
@@ -2626,6 +2625,13 @@ right of the <code>=</code> sign) should be surrounded in quotes if it's a strin
 <span class="k">[colors]</span>
 <span class="s2">&quot;commit_id prefix&quot;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">bold</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="kc">true</span><span class="w"> </span><span class="p">}</span>
 </code></pre></div>
+<p>Dotted and non-inline table items are merged one by one if the same keys exist
+in multiple files. In the example above, <code>template-aliases</code> and <code>colors</code> are
+the tables to be merged. <code>template-aliases."format_short_id(id)"</code> and
+<code>colors."commit_id prefix"</code> in the default settings are overridden. On the other
+hand, inner items of an inline table are <em>not</em> merged. For example, <code>{ bold =
+true }</code> wouldn't be merged as <code>{ fg = "blue", bold = true }</code> even if the default
+settings had <code>colors."commit_id prefix" = { fg = "blue" }</code>.</p>
 <p>The docs below refer to keys in text using dotted notation, but example
 blocks will use heading notation to be unambiguous. If you are confident with TOML
 then use whichever suits you in your config. If you mix dotted keys and headings,
@@ -2687,7 +2693,7 @@ this:</p>
 <span class="s2">&quot;working_copy commit_id&quot;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">underline</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="kc">true</span><span class="w"> </span><span class="p">}</span>
 </code></pre></div>
 <p>Parts of the style that are not overridden - such as the foreground color in the
-example above - are inherited from the parent style.</p>
+example above - are inherited from the style of the parent label.</p>
 <p>Which elements can be colored is not yet documented, but see
 the <a href="https://github.com/martinvonz/jj/blob/main/cli/src/config/colors.toml">default color configuration</a>
 for some examples of what's possible.</p>
