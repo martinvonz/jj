@@ -22,6 +22,7 @@ use std::path::PathBuf;
 use std::process::Command;
 
 use itertools::Itertools;
+use jj_lib::config::ConfigFile;
 use jj_lib::config::ConfigLayer;
 use jj_lib::config::ConfigLoadError;
 use jj_lib::config::ConfigNamePathBuf;
@@ -426,42 +427,17 @@ pub fn parse_config_args(toml_strs: &[ConfigArg]) -> Result<Vec<ConfigLayer>, Co
         .try_collect()
 }
 
-fn load_config_file_or_empty(
-    source: ConfigSource,
-    path: &Path,
-) -> Result<ConfigLayer, ConfigLoadError> {
-    match ConfigLayer::load_from_file(source, path.into()) {
-        Ok(layer) => Ok(layer),
-        Err(ConfigLoadError::Read(err)) if err.error.kind() == std::io::ErrorKind::NotFound => {
-            // If config doesn't exist yet, read as empty and we'll write one.
-            let mut layer = ConfigLayer::empty(source);
-            layer.path = Some(path.into());
-            Ok(layer)
-        }
-        Err(err) => Err(err),
-    }
-}
-
-fn write_config(path: &Path, doc: &toml_edit::DocumentMut) -> Result<(), CommandError> {
-    std::fs::write(path, doc.to_string()).map_err(|err| {
-        user_error_with_message(
-            format!("Failed to write file {path}", path = path.display()),
-            err,
-        )
-    })
-}
-
 pub fn write_config_value_to_file(
     key: &ConfigNamePathBuf,
     value: toml_edit::Value,
     path: &Path,
 ) -> Result<(), CommandError> {
     // TODO: Load config layer by caller. Here we use a dummy source for now.
-    let mut layer = load_config_file_or_empty(ConfigSource::User, path)?;
-    layer
-        .set_value(key, value)
+    let mut file = ConfigFile::load_or_empty(ConfigSource::User, path)?;
+    file.set_value(key, value)
         .map_err(|err| user_error_with_message(format!("Failed to set {key}"), err))?;
-    write_config(path, &layer.data)
+    file.save()?;
+    Ok(())
 }
 
 pub fn remove_config_value_from_file(
@@ -469,14 +445,15 @@ pub fn remove_config_value_from_file(
     path: &Path,
 ) -> Result<(), CommandError> {
     // TODO: Load config layer by caller. Here we use a dummy source for now.
-    let mut layer = load_config_file_or_empty(ConfigSource::User, path)?;
-    let old_value = layer
+    let mut file = ConfigFile::load_or_empty(ConfigSource::User, path)?;
+    let old_value = file
         .delete_value(key)
         .map_err(|err| user_error_with_message(format!("Failed to unset {key}"), err))?;
     if old_value.is_none() {
         return Err(user_error(format!(r#""{key}" doesn't exist"#)));
     }
-    write_config(path, &layer.data)
+    file.save()?;
+    Ok(())
 }
 
 /// Command name and arguments specified by config.
