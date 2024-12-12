@@ -426,23 +426,20 @@ pub fn parse_config_args(toml_strs: &[ConfigArg]) -> Result<Vec<ConfigLayer>, Co
         .try_collect()
 }
 
-fn read_config(path: &Path) -> Result<toml_edit::ImDocument<String>, CommandError> {
-    let config_toml = std::fs::read_to_string(path).or_else(|err| {
-        match err.kind() {
+fn load_config_file_or_empty(
+    source: ConfigSource,
+    path: &Path,
+) -> Result<ConfigLayer, ConfigLoadError> {
+    match ConfigLayer::load_from_file(source, path.into()) {
+        Ok(layer) => Ok(layer),
+        Err(ConfigLoadError::Read(err)) if err.error.kind() == std::io::ErrorKind::NotFound => {
             // If config doesn't exist yet, read as empty and we'll write one.
-            std::io::ErrorKind::NotFound => Ok("".to_string()),
-            _ => Err(user_error_with_message(
-                format!("Failed to read file {path}", path = path.display()),
-                err,
-            )),
+            let mut layer = ConfigLayer::empty(source);
+            layer.path = Some(path.into());
+            Ok(layer)
         }
-    })?;
-    config_toml.parse().map_err(|err| {
-        user_error_with_message(
-            format!("Failed to parse file {path}", path = path.display()),
-            err,
-        )
-    })
+        Err(err) => Err(err),
+    }
 }
 
 fn write_config(path: &Path, doc: &toml_edit::DocumentMut) -> Result<(), CommandError> {
@@ -459,43 +456,20 @@ pub fn write_config_value_to_file(
     value: toml_edit::Value,
     path: &Path,
 ) -> Result<(), CommandError> {
-    let mut doc = read_config(path)?.into_mut();
-
-    // Apply config value
-    let mut target_table = doc.as_table_mut();
-    let mut key_parts_iter = key.components();
-    let last_key_part = key_parts_iter.next_back().expect("key must not be empty");
-    for key_part in key_parts_iter {
-        target_table = target_table
-            .entry(key_part)
-            .or_insert_with(|| toml_edit::Item::Table(toml_edit::Table::new()))
-            .as_table_mut()
-            .ok_or_else(|| {
-                user_error(format!(
-                    "Failed to set {key}: would overwrite non-table value with parent table"
-                ))
-            })?;
-    }
-    // Error out if overwriting non-scalar value for key (table or array) with
-    // scalar.
-    match target_table.get(last_key_part) {
-        None | Some(toml_edit::Item::None | toml_edit::Item::Value(_)) => {}
-        Some(toml_edit::Item::Table(_) | toml_edit::Item::ArrayOfTables(_)) => {
-            return Err(user_error(format!(
-                "Failed to set {key}: would overwrite entire table"
-            )));
-        }
-    }
-    target_table[last_key_part] = toml_edit::Item::Value(value);
-
-    write_config(path, &doc)
+    // TODO: Load config layer by caller. Here we use a dummy source for now.
+    let mut layer = load_config_file_or_empty(ConfigSource::User, path)?;
+    layer
+        .set_value(key, value)
+        .map_err(|err| user_error_with_message(format!("Failed to set {key}"), err))?;
+    write_config(path, &layer.data)
 }
 
 pub fn remove_config_value_from_file(
     key: &ConfigNamePathBuf,
     path: &Path,
 ) -> Result<(), CommandError> {
-    let mut doc = read_config(path)?.into_mut();
+    // TODO: Load config layer by caller. Here we use a dummy source for now.
+    let mut doc = load_config_file_or_empty(ConfigSource::User, path)?.data;
 
     // Find target table
     let mut key_iter = key.components();

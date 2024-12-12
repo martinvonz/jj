@@ -578,9 +578,10 @@ fn test_config_set_type_mismatch() {
         &repo_path,
         &["config", "set", "--user", "test-table", "not-a-table"],
     );
-    insta::assert_snapshot!(stderr, @r###"
-    Error: Failed to set test-table: would overwrite entire table
-    "###);
+    insta::assert_snapshot!(stderr, @r"
+    Error: Failed to set test-table
+    Caused by: Would overwrite entire table test-table
+    ");
 
     // But it's fine to overwrite arrays and inline tables
     test_env.jj_cmd_success(
@@ -617,9 +618,10 @@ fn test_config_set_nontable_parent() {
         &repo_path,
         &["config", "set", "--user", "test-nontable.foo", "test-val"],
     );
-    insta::assert_snapshot!(stderr, @r###"
-    Error: Failed to set test-nontable.foo: would overwrite non-table value with parent table
-    "###);
+    insta::assert_snapshot!(stderr, @r"
+    Error: Failed to set test-nontable.foo
+    Caused by: Would overwrite non-table value with parent table test-nontable
+    ");
 }
 
 #[test]
