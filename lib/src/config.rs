@@ -18,6 +18,7 @@ use std::borrow::Borrow;
 use std::convert::Infallible;
 use std::fmt;
 use std::fs;
+use std::io;
 use std::ops::Range;
 use std::path::Path;
 use std::path::PathBuf;
@@ -57,6 +58,11 @@ pub enum ConfigLoadError {
         source_path: Option<PathBuf>,
     },
 }
+
+/// Error that can occur when saving config variables to file.
+#[derive(Debug, Error)]
+#[error("Failed to write configuration file")]
+pub struct ConfigFileSaveError(#[source] pub PathError);
 
 /// Error that can occur when looking up config variable.
 #[derive(Debug, Error)]
@@ -465,6 +471,71 @@ fn ensure_parent_table<'a, 'b>(
         sub_item.as_table_mut().ok_or(&name.0[..=i])
     })?;
     Ok((parent_table, leaf_key))
+}
+
+/// Wrapper for file-based [`ConfigLayer`], providing convenient methods for
+/// modification.
+#[derive(Debug)]
+pub struct ConfigFile {
+    layer: ConfigLayer,
+}
+
+impl ConfigFile {
+    /// Loads TOML file from the specified `path` if exists. Returns an empty
+    /// object if the file doesn't exist.
+    pub fn load_or_empty(
+        source: ConfigSource,
+        path: impl Into<PathBuf>,
+    ) -> Result<Self, ConfigLoadError> {
+        let layer = match ConfigLayer::load_from_file(source, path.into()) {
+            Ok(layer) => layer,
+            Err(ConfigLoadError::Read(PathError { path, error }))
+                if error.kind() == io::ErrorKind::NotFound =>
+            {
+                ConfigLayer {
+                    source,
+                    path: Some(path),
+                    data: DocumentMut::new(),
+                }
+            }
+            Err(err) => return Err(err),
+        };
+        Ok(ConfigFile { layer })
+    }
+
+    /// Writes serialized data to the source file.
+    pub fn save(&self) -> Result<(), ConfigFileSaveError> {
+        fs::write(self.path(), self.layer.data.to_string())
+            .context(self.path())
+            .map_err(ConfigFileSaveError)
+    }
+
+    /// Source file path.
+    pub fn path(&self) -> &Path {
+        self.layer.path.as_ref().expect("path must be known")
+    }
+
+    /// Returns the underlying config layer.
+    pub fn layer(&self) -> &ConfigLayer {
+        &self.layer
+    }
+
+    /// See [`ConfigLayer::set_value()`].
+    pub fn set_value(
+        &mut self,
+        name: impl ToConfigNamePath,
+        new_value: impl Into<ConfigValue>,
+    ) -> Result<Option<ConfigValue>, ConfigUpdateError> {
+        self.layer.set_value(name, new_value)
+    }
+
+    /// See [`ConfigLayer::delete_value()`].
+    pub fn delete_value(
+        &mut self,
+        name: impl ToConfigNamePath,
+    ) -> Result<Option<ConfigValue>, ConfigUpdateError> {
+        self.layer.delete_value(name)
+    }
 }
 
 /// Stack of configuration layers which can be merged as needed.
