@@ -47,8 +47,9 @@ use crate::ui::Ui;
 /// achieved with `jj new`.
 #[derive(clap::Args, Clone, Debug)]
 pub(crate) struct SplitArgs {
-    /// Interactively choose which parts to split. This is the default if no
-    /// paths are provided.
+    /// Interactively choose which parts to split
+    ///
+    /// This is the default if no filesets are provided.
     #[arg(long, short)]
     interactive: bool,
     /// Specify diff editor to be used (implies --interactive)
@@ -62,16 +63,16 @@ pub(crate) struct SplitArgs {
     )]
     revision: RevisionArg,
     /// Split the revision into two parallel revisions instead of a parent and
-    /// child.
+    /// child
     // TODO: Delete `--siblings` alias in jj 0.25+
     #[arg(long, short, alias = "siblings")]
     parallel: bool,
-    /// Put these paths in the first commit
+    /// Files matching any of these filesets are put in the first commit
     #[arg(
         value_hint = clap::ValueHint::AnyPath,
         add = ArgValueCompleter::new(complete::modified_revision_files),
     )]
-    paths: Vec<String>,
+    filesets: Vec<String>,
 }
 
 #[instrument(skip_all)]
@@ -91,12 +92,12 @@ pub(crate) fn cmd_split(
 
     workspace_command.check_rewritable([commit.id()])?;
     let matcher = workspace_command
-        .parse_file_patterns(ui, &args.paths)?
+        .parse_file_patterns(ui, &args.filesets)?
         .to_matcher();
     let diff_selector = workspace_command.diff_selector(
         ui,
         args.tool.as_deref(),
-        args.interactive || args.paths.is_empty(),
+        args.interactive || args.filesets.is_empty(),
     )?;
     let mut tx = workspace_command.start_transaction();
     let end_tree = commit.tree()?;
