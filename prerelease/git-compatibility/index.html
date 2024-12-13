@@ -1570,10 +1570,13 @@ a comparison with Git, including how workflows are different, see the
   and <a href="#branches">how they interoperate with Git</a>.</li>
 <li><strong>Tags: Partial.</strong> You can check out tagged commits by name (pointed to be
   either annotated or lightweight tags), but you cannot create new tags.</li>
-<li><strong>.gitignore: Yes.</strong> Ignores in <code>.gitignore</code> files are supported. So are
+<li><strong>.gitignore: Yes.</strong> Patterns in <code>.gitignore</code> files are supported. So are
   ignores in <code>.git/info/exclude</code> or configured via Git's <code>core.excludesfile</code>
-  config. The <code>.gitignore</code> support uses a native implementation, so please
-  report a bug if you notice any difference compared to <code>git</code>.</li>
+  config. Since working-copy files are snapshotted by every <code>jj</code> command, you
+  might need to run <code>jj file untrack</code> to exclude newly ignored files from the
+  working-copy commit. It's recommended to set up the ignore patterns earlier.
+  The <code>.gitignore</code> support uses a native implementation, so please report a bug
+  if you notice any difference compared to <code>git</code>.</li>
 <li><strong>.gitattributes: No.</strong> There's <a href="https://github.com/martinvonz/jj/issues/53">#53</a>
   about adding support for at least the <code>eol</code> attribute.</li>
 <li><strong>Hooks: No.</strong> There's <a href="https://github.com/martinvonz/jj/issues/405">#405</a>
