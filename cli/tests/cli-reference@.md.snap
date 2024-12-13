@@ -2054,15 +2054,17 @@ If the change you split had a description, you will be asked to enter a change d
 
 Splitting an empty commit is not supported because the same effect can be achieved with `jj new`.
 
-**Usage:** `jj split [OPTIONS] [PATHS]...`
+**Usage:** `jj split [OPTIONS] [FILESETS]...`
 
 ###### **Arguments:**
 
-* `<PATHS>` — Put these paths in the first commit
+* `<FILESETS>` — Files matching any of these filesets are put in the first commit
 
 ###### **Options:**
 
-* `-i`, `--interactive` — Interactively choose which parts to split. This is the default if no paths are provided
+* `-i`, `--interactive` — Interactively choose which parts to split
+
+   This is the default if no filesets are provided.
 * `--tool <NAME>` — Specify diff editor to be used (implies --interactive)
 * `-r`, `--revision <REVISION>` — The revision to split
 
