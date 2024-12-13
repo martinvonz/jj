@@ -19,9 +19,9 @@ use tracing::instrument;
 use super::ConfigLevelArgs;
 use crate::cli_util::CommandHelper;
 use crate::command_error::user_error;
+use crate::command_error::user_error_with_message;
 use crate::command_error::CommandError;
 use crate::complete;
-use crate::config::remove_config_value_from_file;
 use crate::ui::Ui;
 
 /// Update config file to unset the given option.
@@ -39,13 +39,13 @@ pub fn cmd_config_unset(
     command: &CommandHelper,
     args: &ConfigUnsetArgs,
 ) -> Result<(), CommandError> {
-    let config_path = args.level.new_config_file_path(command.config_env())?;
-    if config_path.is_dir() {
-        return Err(user_error(format!(
-            "Can't set config in path {path} (dirs not supported)",
-            path = config_path.display()
-        )));
+    let mut file = args.level.edit_config_file(command.config_env())?;
+    let old_value = file
+        .delete_value(&args.name)
+        .map_err(|err| user_error_with_message(format!("Failed to unset {}", args.name), err))?;
+    if old_value.is_none() {
+        return Err(user_error(format!(r#""{}" doesn't exist"#, args.name)));
     }
-
-    remove_config_value_from_file(&args.name, config_path)
+    file.save()?;
+    Ok(())
 }

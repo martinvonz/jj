@@ -23,11 +23,10 @@ use tracing::instrument;
 use super::ConfigLevelArgs;
 use crate::cli_util::CommandHelper;
 use crate::cli_util::WorkspaceCommandHelper;
-use crate::command_error::user_error;
+use crate::command_error::user_error_with_message;
 use crate::command_error::CommandError;
 use crate::complete;
 use crate::config::parse_toml_value_or_bare_string;
-use crate::config::write_config_value_to_file;
 use crate::ui::Ui;
 
 /// Update config file to set the given option to a given value.
@@ -53,13 +52,7 @@ pub fn cmd_config_set(
     command: &CommandHelper,
     args: &ConfigSetArgs,
 ) -> Result<(), CommandError> {
-    let config_path = args.level.new_config_file_path(command.config_env())?;
-    if config_path.is_dir() {
-        return Err(user_error(format!(
-            "Can't set config in path {path} (dirs not supported)",
-            path = config_path.display()
-        )));
-    }
+    let mut file = args.level.edit_config_file(command.config_env())?;
 
     // TODO(#531): Infer types based on schema (w/ --type arg to override).
     let value = parse_toml_value_or_bare_string(&args.value);
@@ -72,7 +65,10 @@ pub fn cmd_config_set(
         check_wc_author(ui, command, &value, AuthorChange::Email)?;
     };
 
-    write_config_value_to_file(&args.name, value, config_path)
+    file.set_value(&args.name, value)
+        .map_err(|err| user_error_with_message(format!("Failed to set {}", args.name), err))?;
+    file.save()?;
+    Ok(())
 }
 
 /// Returns the commit of the working copy if it exists.

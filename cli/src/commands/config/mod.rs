@@ -21,6 +21,7 @@ mod unset;
 
 use std::path::Path;
 
+use jj_lib::config::ConfigFile;
 use jj_lib::config::ConfigSource;
 use tracing::instrument;
 
@@ -82,6 +83,18 @@ impl ConfigLevelArgs {
         } else {
             panic!("No config_level provided")
         }
+    }
+
+    fn edit_config_file(&self, config_env: &ConfigEnv) -> Result<ConfigFile, CommandError> {
+        let path = self.new_config_file_path(config_env)?;
+        if path.is_dir() {
+            return Err(user_error(format!(
+                "Can't set config in path {path} (dirs not supported)",
+                path = path.display()
+            )));
+        }
+        let source = self.get_source_kind().unwrap();
+        Ok(ConfigFile::load_or_empty(source, path)?)
     }
 }
 
