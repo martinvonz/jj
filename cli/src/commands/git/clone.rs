@@ -19,7 +19,6 @@ use std::num::NonZeroU32;
 use std::path::Path;
 use std::path::PathBuf;
 
-use jj_lib::config::ConfigNamePathBuf;
 use jj_lib::git;
 use jj_lib::git::GitFetchError;
 use jj_lib::git::GitFetchStats;
@@ -27,6 +26,7 @@ use jj_lib::repo::Repo;
 use jj_lib::str_util::StringPattern;
 use jj_lib::workspace::Workspace;
 
+use super::write_repository_level_trunk_alias;
 use crate::cli_util::CommandHelper;
 use crate::cli_util::WorkspaceCommandHelper;
 use crate::command_error::cli_error;
@@ -34,7 +34,6 @@ use crate::command_error::user_error;
 use crate::command_error::user_error_with_message;
 use crate::command_error::CommandError;
 use crate::commands::git::maybe_add_gitignore;
-use crate::config::write_config_value_to_file;
 use crate::git_util::get_git_repo;
 use crate::git_util::map_git_error;
 use crate::git_util::print_git_import_stats;
@@ -165,16 +164,11 @@ pub fn cmd_git_clone(
 
     let (mut workspace_command, stats) = clone_result?;
     if let Some(default_branch) = &stats.default_branch {
-        // Set repository level `trunk()` alias to the default remote branch.
-        let config_path = workspace_command.repo_path().join("config.toml");
-        write_config_value_to_file(
-            &ConfigNamePathBuf::from_iter(["revset-aliases", "trunk()"]),
-            format!("{default_branch}@{remote_name}").into(),
-            &config_path,
-        )?;
-        writeln!(
-            ui.status(),
-            "Setting the revset alias \"trunk()\" to \"{default_branch}@{remote_name}\""
+        write_repository_level_trunk_alias(
+            ui,
+            workspace_command.repo_path(),
+            remote_name,
+            default_branch,
         )?;
 
         let default_branch_remote_ref = workspace_command

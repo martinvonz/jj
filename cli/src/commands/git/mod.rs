@@ -21,7 +21,10 @@ pub mod push;
 pub mod remote;
 pub mod submodule;
 
+use std::path::Path;
+
 use clap::Subcommand;
+use jj_lib::config::ConfigNamePathBuf;
 
 use self::clone::cmd_git_clone;
 use self::clone::GitCloneArgs;
@@ -43,6 +46,7 @@ use crate::cli_util::CommandHelper;
 use crate::cli_util::WorkspaceCommandHelper;
 use crate::command_error::user_error_with_message;
 use crate::command_error::CommandError;
+use crate::config::write_config_value_to_file;
 use crate::ui::Ui;
 
 /// Commands for working with Git remotes and the underlying Git repo
@@ -101,4 +105,24 @@ fn get_single_remote(git_repo: &git2::Repository) -> Result<Option<String>, Comm
         1 => git_remotes.get(0).map(ToOwned::to_owned),
         _ => None,
     })
+}
+
+/// Sets repository level `trunk()` alias to the specified remote branch.
+fn write_repository_level_trunk_alias(
+    ui: &Ui,
+    repo_path: &Path,
+    remote: &str,
+    branch: &str,
+) -> Result<(), CommandError> {
+    let config_path = repo_path.join("config.toml");
+    write_config_value_to_file(
+        &ConfigNamePathBuf::from_iter(["revset-aliases", "trunk()"]),
+        format!("{branch}@{remote}").into(),
+        &config_path,
+    )?;
+    writeln!(
+        ui.status(),
+        r#"Setting the revset alias "trunk()" to "{branch}@{remote}""#,
+    )?;
+    Ok(())
 }
