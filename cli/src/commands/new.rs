@@ -44,8 +44,8 @@ use crate::ui::Ui;
 /// the new commit. This can be avoided with `--no-edit`.
 ///
 /// Note that you can create a merge commit by specifying multiple revisions as
-/// argument. For example, `jj new main @` will create a new commit with the
-/// `main` bookmark and the working copy as parents.
+/// argument. For example, `jj new @ main` will create a new commit with the
+/// working copy and the `main` bookmark as parents.
 ///
 /// For more information, see
 /// https://martinvonz.github.io/jj/latest/working-copy/.
