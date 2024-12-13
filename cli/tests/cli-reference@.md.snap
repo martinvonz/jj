@@ -1392,7 +1392,7 @@ Create a new, empty change and (by default) edit it in the working copy
 
 By default, `jj` will edit the new change, making the working copy represent the new commit. This can be avoided with `--no-edit`.
 
-Note that you can create a merge commit by specifying multiple revisions as argument. For example, `jj new main @` will create a new commit with the `main` bookmark and the working copy as parents.
+Note that you can create a merge commit by specifying multiple revisions as argument. For example, `jj new @ main` will create a new commit with the working copy and the `main` bookmark as parents.
 
 For more information, see https://martinvonz.github.io/jj/latest/working-copy/.
 
