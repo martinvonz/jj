@@ -22,7 +22,6 @@ use std::path::PathBuf;
 use std::process::Command;
 
 use itertools::Itertools;
-use jj_lib::config::ConfigFile;
 use jj_lib::config::ConfigLayer;
 use jj_lib::config::ConfigLoadError;
 use jj_lib::config::ConfigNamePathBuf;
@@ -33,10 +32,6 @@ use regex::Captures;
 use regex::Regex;
 use thiserror::Error;
 use tracing::instrument;
-
-use crate::command_error::user_error;
-use crate::command_error::user_error_with_message;
-use crate::command_error::CommandError;
 
 // TODO(#879): Consider generating entire schema dynamically vs. static file.
 pub const CONFIG_SCHEMA: &str = include_str!("config-schema.json");
@@ -425,35 +420,6 @@ pub fn parse_config_args(toml_strs: &[ConfigArg]) -> Result<Vec<ConfigLayer>, Co
             ConfigArg::File(path) => ConfigLayer::load_from_file(source, path.into()),
         })
         .try_collect()
-}
-
-pub fn write_config_value_to_file(
-    key: &ConfigNamePathBuf,
-    value: toml_edit::Value,
-    path: &Path,
-) -> Result<(), CommandError> {
-    // TODO: Load config layer by caller. Here we use a dummy source for now.
-    let mut file = ConfigFile::load_or_empty(ConfigSource::User, path)?;
-    file.set_value(key, value)
-        .map_err(|err| user_error_with_message(format!("Failed to set {key}"), err))?;
-    file.save()?;
-    Ok(())
-}
-
-pub fn remove_config_value_from_file(
-    key: &ConfigNamePathBuf,
-    path: &Path,
-) -> Result<(), CommandError> {
-    // TODO: Load config layer by caller. Here we use a dummy source for now.
-    let mut file = ConfigFile::load_or_empty(ConfigSource::User, path)?;
-    let old_value = file
-        .delete_value(key)
-        .map_err(|err| user_error_with_message(format!("Failed to unset {key}"), err))?;
-    if old_value.is_none() {
-        return Err(user_error(format!(r#""{key}" doesn't exist"#)));
-    }
-    file.save()?;
-    Ok(())
 }
 
 /// Command name and arguments specified by config.

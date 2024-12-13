@@ -24,7 +24,8 @@ pub mod submodule;
 use std::path::Path;
 
 use clap::Subcommand;
-use jj_lib::config::ConfigNamePathBuf;
+use jj_lib::config::ConfigFile;
+use jj_lib::config::ConfigSource;
 
 use self::clone::cmd_git_clone;
 use self::clone::GitCloneArgs;
@@ -46,7 +47,6 @@ use crate::cli_util::CommandHelper;
 use crate::cli_util::WorkspaceCommandHelper;
 use crate::command_error::user_error_with_message;
 use crate::command_error::CommandError;
-use crate::config::write_config_value_to_file;
 use crate::ui::Ui;
 
 /// Commands for working with Git remotes and the underlying Git repo
@@ -114,12 +114,10 @@ fn write_repository_level_trunk_alias(
     remote: &str,
     branch: &str,
 ) -> Result<(), CommandError> {
-    let config_path = repo_path.join("config.toml");
-    write_config_value_to_file(
-        &ConfigNamePathBuf::from_iter(["revset-aliases", "trunk()"]),
-        format!("{branch}@{remote}").into(),
-        &config_path,
-    )?;
+    let mut file = ConfigFile::load_or_empty(ConfigSource::Repo, repo_path.join("config.toml"))?;
+    file.set_value(["revset-aliases", "trunk()"], format!("{branch}@{remote}"))
+        .expect("initial repo config shouldn't have invalid values");
+    file.save()?;
     writeln!(
         ui.status(),
         r#"Setting the revset alias "trunk()" to "{branch}@{remote}""#,
