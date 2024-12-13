@@ -7404,7 +7404,7 @@ will be removed in a future version.</p>
 <h2 id="jj-new"><code>jj new</code><a class="headerlink" href="#jj-new" title="Permanent link">&para;</a></h2>
 <p>Create a new, empty change and (by default) edit it in the working copy</p>
 <p>By default, <code>jj</code> will edit the new change, making the working copy represent the new commit. This can be avoided with <code>--no-edit</code>.</p>
-<p>Note that you can create a merge commit by specifying multiple revisions as argument. For example, <code>jj new main @</code> will create a new commit with the <code>main</code> bookmark and the working copy as parents.</p>
+<p>Note that you can create a merge commit by specifying multiple revisions as argument. For example, <code>jj new @ main</code> will create a new commit with the working copy and the <code>main</code> bookmark as parents.</p>
 <p>For more information, see https://martinvonz.github.io/jj/latest/working-copy/.</p>
 <p><strong>Usage:</strong> <code>jj new [OPTIONS] [REVISIONS]...</code></p>
 <h6 id="arguments_37"><strong>Arguments:</strong><a class="headerlink" href="#arguments_37" title="Permanent link">&para;</a></h6>
