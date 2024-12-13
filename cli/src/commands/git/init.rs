@@ -17,7 +17,6 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use jj_lib::config::ConfigNamePathBuf;
 use jj_lib::file_util;
 use jj_lib::git;
 use jj_lib::git::parse_git_ref;
@@ -26,6 +25,7 @@ use jj_lib::repo::ReadonlyRepo;
 use jj_lib::repo::Repo;
 use jj_lib::workspace::Workspace;
 
+use super::write_repository_level_trunk_alias;
 use crate::cli_util::print_trackable_remote_bookmarks;
 use crate::cli_util::start_repo_transaction;
 use crate::cli_util::CommandHelper;
@@ -35,7 +35,6 @@ use crate::command_error::user_error_with_hint;
 use crate::command_error::user_error_with_message;
 use crate::command_error::CommandError;
 use crate::commands::git::maybe_add_gitignore;
-use crate::config::write_config_value_to_file;
 use crate::git_util::get_git_repo;
 use crate::git_util::is_colocated_git_workspace;
 use crate::git_util::print_failed_git_export;
@@ -240,20 +239,12 @@ pub fn maybe_set_repository_level_trunk_alias(
     let git_repo = get_git_repo(workspace_command.repo().store())?;
     if let Ok(reference) = git_repo.find_reference("refs/remotes/origin/HEAD") {
         if let Some(reference_name) = reference.symbolic_target() {
-            if let Some(RefName::RemoteBranch {
-                branch: default_branch,
-                ..
-            }) = parse_git_ref(reference_name)
-            {
-                let config_path = workspace_command.repo_path().join("config.toml");
-                write_config_value_to_file(
-                    &ConfigNamePathBuf::from_iter(["revset-aliases", "trunk()"]),
-                    format!("{default_branch}@origin").into(),
-                    &config_path,
-                )?;
-                writeln!(
-                    ui.status(),
-                    "Setting the revset alias \"trunk()\" to \"{default_branch}@origin\"",
+            if let Some(RefName::RemoteBranch { branch, .. }) = parse_git_ref(reference_name) {
+                write_repository_level_trunk_alias(
+                    ui,
+                    workspace_command.repo_path(),
+                    "origin",
+                    &branch,
                 )?;
             }
         };
