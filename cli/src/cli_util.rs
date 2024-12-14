@@ -3113,7 +3113,7 @@ pub struct EarlyArgs {
 }
 
 impl EarlyArgs {
-    fn merged_config_args(&self, matches: &ArgMatches) -> Vec<(ConfigArgKind, &str)> {
+    pub(crate) fn merged_config_args(&self, matches: &ArgMatches) -> Vec<(ConfigArgKind, &str)> {
         merge_args_with(
             matches,
             &[
