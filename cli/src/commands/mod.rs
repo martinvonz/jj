@@ -18,6 +18,7 @@ mod backout;
 #[cfg(feature = "bench")]
 mod bench;
 mod bookmark;
+mod buzz;
 mod commit;
 mod config;
 mod debug;
@@ -87,6 +88,7 @@ enum Command {
     // TODO: Remove in jj 0.28+
     #[command(subcommand, hide = true)]
     Branch(bookmark::BookmarkCommand),
+    Buzz(buzz::BuzzArgs),
     #[command(alias = "print", hide = true)]
     Cat(file::show::FileShowArgs),
     // TODO: Delete `chmod` in jj 0.25+
@@ -185,6 +187,7 @@ pub fn run_command(ui: &mut Ui, command_helper: &CommandHelper) -> Result<(), Co
             let cmd = renamed_cmd("branch", "bookmark", bookmark::cmd_bookmark);
             cmd(ui, command_helper, args)
         }
+        Command::Buzz(args) => buzz::cmd_buzz(ui, command_helper, args),
         Command::Cat(args) => {
             let cmd = renamed_cmd("cat", "file show", file::show::cmd_file_show);
             cmd(ui, command_helper, args)
