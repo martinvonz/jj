@@ -194,6 +194,9 @@ To get started, see the tutorial at https://martinvonz.github.io/jj/latest/tutor
 
    Warnings and errors will still be printed.
 * `--no-pager` — Disable the pager
+* `--config <NAME=VALUE>` — Additional configuration options (can be repeated)
+
+   The name should be specified as TOML dotted keys. The value should be specified as a TOML expression. If string value doesn't contain any TOML constructs (such as array notation), quotes can be omitted.
 * `--config-toml <TOML>` — Additional configuration options (can be repeated)
 * `--config-file <PATH>` — Additional configuration files (can be repeated)
 

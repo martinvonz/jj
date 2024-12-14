@@ -3103,8 +3103,13 @@ pub struct EarlyArgs {
     // Option<bool>.
     pub no_pager: Option<bool>,
     /// Additional configuration options (can be repeated)
-    //  TODO: Introduce a `--config` option with simpler syntax for simple
-    //  cases, designed so that `--config ui.color=auto` works
+    ///
+    /// The name should be specified as TOML dotted keys. The value should be
+    /// specified as a TOML expression. If string value doesn't contain any TOML
+    /// constructs (such as array notation), quotes can be omitted.
+    #[arg(long, value_name = "NAME=VALUE", global = true)]
+    pub config: Vec<String>,
+    /// Additional configuration options (can be repeated)
     #[arg(long, value_name = "TOML", global = true)]
     pub config_toml: Vec<String>,
     /// Additional configuration files (can be repeated)
@@ -3117,10 +3122,12 @@ impl EarlyArgs {
         merge_args_with(
             matches,
             &[
+                ("config", &self.config),
                 ("config_toml", &self.config_toml),
                 ("config_file", &self.config_file),
             ],
             |id, value| match id {
+                "config" => (ConfigArgKind::Item, value.as_ref()),
                 "config_toml" => (ConfigArgKind::Toml, value.as_ref()),
                 "config_file" => (ConfigArgKind::File, value.as_ref()),
                 _ => unreachable!("unexpected id {id:?}"),

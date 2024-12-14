@@ -623,6 +623,8 @@ fn test_config_args() {
     )
     .unwrap();
 
+    let stdout = list_config(&["--config=test.key1=arg1"]);
+    insta::assert_snapshot!(stdout, @r#"test.key1 = "arg1""#);
     let stdout = list_config(&["--config-toml=test.key1='arg1'"]);
     insta::assert_snapshot!(stdout, @"test.key1 = 'arg1'");
     let stdout = list_config(&["--config-file=file1.toml"]);
@@ -631,19 +633,36 @@ fn test_config_args() {
     test.key2 = 'file1'
     ");
 
+    // --config items are inserted to a single layer internally
+    let stdout = list_config(&[
+        "--config=test.key1='arg1'",
+        "--config=test.key2.sub=true",
+        "--config=test.key1=arg3",
+    ]);
+    insta::assert_snapshot!(stdout, @r#"
+    test.key1 = "arg3"
+    test.key2.sub = true
+    "#);
+
     // --config* arguments are processed in order of appearance
     let stdout = list_config(&[
-        "--config-toml=test.key1='arg1'",
+        "--config=test.key1=arg1",
         "--config-file=file1.toml",
         "--config-toml=test.key2='arg3'",
         "--config-file=file2.toml",
     ]);
-    insta::assert_snapshot!(stdout, @r"
-    # test.key1 = 'arg1'
+    insta::assert_snapshot!(stdout, @r##"
+    # test.key1 = "arg1"
     test.key1 = 'file1'
     # test.key2 = 'file1'
     test.key2 = 'arg3'
     test.key3 = 'file2'
+    "##);
+
+    let stderr = test_env.jj_cmd_failure(test_env.env_root(), &["config", "list", "--config=foo"]);
+    insta::assert_snapshot!(stderr, @r"
+    Config error: --config must be specified as NAME=VALUE
+    For help, see https://martinvonz.github.io/jj/latest/config/.
     ");
 
     let stderr = test_env.jj_cmd_failure(
@@ -775,6 +794,7 @@ fn test_help() {
           --color <WHEN>                 When to colorize output (always, never, debug, auto)
           --quiet                        Silence non-primary command output
           --no-pager                     Disable the pager
+          --config <NAME=VALUE>          Additional configuration options (can be repeated)
           --config-toml <TOML>           Additional configuration options (can be repeated)
           --config-file <PATH>           Additional configuration files (can be repeated)
     ");

@@ -34,6 +34,10 @@ use regex::Regex;
 use thiserror::Error;
 use tracing::instrument;
 
+use crate::command_error::config_error;
+use crate::command_error::config_error_with_message;
+use crate::command_error::CommandError;
+
 // TODO(#879): Consider generating entire schema dynamically vs. static file.
 pub const CONFIG_SCHEMA: &str = include_str!("config-schema.json");
 
@@ -376,7 +380,7 @@ fn config_files_for(
 /// 4. Repo config `.jj/repo/config.toml`
 /// 5. TODO: Workspace config `.jj/config.toml`
 /// 6. Override environment variables
-/// 7. Command-line arguments `--config-toml`, `--config-file`
+/// 7. Command-line arguments `--config`, `--config-toml`, `--config-file`
 ///
 /// This function sets up 1, 2, and 6.
 pub fn config_from_environment(
@@ -461,24 +465,34 @@ fn env_overrides_layer() -> ConfigLayer {
 /// Configuration source/data type provided as command-line argument.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ConfigArgKind {
+    /// `--config=NAME=VALUE`
+    Item,
     /// `--config-toml=TOML`
     Toml,
     /// `--config-file=PATH`
     File,
 }
 
-/// Parses `--config-toml` arguments.
+/// Parses `--config*` arguments.
 pub fn parse_config_args(
     toml_strs: &[(ConfigArgKind, &str)],
-) -> Result<Vec<ConfigLayer>, ConfigLoadError> {
-    // It might look silly that a layer is constructed per argument, but
-    // --config-toml argument can contain a full TOML document, and it makes
-    // sense to preserve line numbers within the doc. If we add
-    // --config=KEY=VALUE, multiple values might be loaded into one layer.
+) -> Result<Vec<ConfigLayer>, CommandError> {
     let source = ConfigSource::CommandArg;
     let mut layers = Vec::new();
     for (kind, chunk) in &toml_strs.iter().chunk_by(|&(kind, _)| kind) {
         match kind {
+            ConfigArgKind::Item => {
+                let mut layer = ConfigLayer::empty(source);
+                for (_, item) in chunk {
+                    let (name, value) = parse_config_arg_item(item)?;
+                    // Can fail depending on the argument order, but that
+                    // wouldn't matter in practice.
+                    layer.set_value(name, value).map_err(|err| {
+                        config_error_with_message("--config argument cannot be set", err)
+                    })?;
+                }
+                layers.push(layer);
+            }
             ConfigArgKind::Toml => {
                 for (_, text) in chunk {
                     layers.push(ConfigLayer::parse(source, text)?);
@@ -492,6 +506,24 @@ pub fn parse_config_args(
         }
     }
     Ok(layers)
+}
+
+/// Parses `NAME=VALUE` string.
+fn parse_config_arg_item(item_str: &str) -> Result<(ConfigNamePathBuf, ConfigValue), CommandError> {
+    // split NAME=VALUE at the first parsable position
+    let split_candidates = item_str.as_bytes().iter().positions(|&b| b == b'=');
+    let Some((name, value_str)) = split_candidates
+        .map(|p| (&item_str[..p], &item_str[p + 1..]))
+        .map(|(name, value)| name.parse().map(|name| (name, value)))
+        .find_or_last(Result::is_ok)
+        .transpose()
+        .map_err(|err| config_error_with_message("--config name cannot be parsed", err))?
+    else {
+        return Err(config_error("--config must be specified as NAME=VALUE"));
+    };
+    let value = parse_value_or_bare_string(value_str)
+        .map_err(|err| config_error_with_message("--config value cannot be parsed", err))?;
+    Ok((name, value))
 }
 
 /// Command name and arguments specified by config.
@@ -676,6 +708,46 @@ mod tests {
         assert!(parse("{ x = }").is_err());
         assert!(parse("key = 'value'").is_err());
         assert!(parse("[table]\nkey = 'value'").is_err());
+    }
+
+    #[test]
+    fn test_parse_config_arg_item() {
+        assert!(parse_config_arg_item("").is_err());
+        assert!(parse_config_arg_item("a").is_err());
+        assert!(parse_config_arg_item("=").is_err());
+        assert!(parse_config_arg_item("a=b=c").is_err());
+        // The value parser is sensitive to leading whitespaces, which seems
+        // good because the parsing falls back to a bare string.
+        assert!(parse_config_arg_item("a = 'b'").is_err());
+
+        let (name, value) = parse_config_arg_item("a=b").unwrap();
+        assert_eq!(name, ConfigNamePathBuf::from_iter(["a"]));
+        assert_eq!(value.as_str(), Some("b"));
+
+        let (name, value) = parse_config_arg_item("a=").unwrap();
+        assert_eq!(name, ConfigNamePathBuf::from_iter(["a"]));
+        assert_eq!(value.as_str(), Some(""));
+
+        let (name, value) = parse_config_arg_item("a= ").unwrap();
+        assert_eq!(name, ConfigNamePathBuf::from_iter(["a"]));
+        assert_eq!(value.as_str(), Some(" "));
+
+        let (name, value) = parse_config_arg_item("a.b=true").unwrap();
+        assert_eq!(name, ConfigNamePathBuf::from_iter(["a", "b"]));
+        assert_eq!(value.as_bool(), Some(true));
+
+        let (name, value) = parse_config_arg_item("a='b=c'").unwrap();
+        assert_eq!(name, ConfigNamePathBuf::from_iter(["a"]));
+        assert_eq!(value.as_str(), Some("b=c"));
+
+        let (name, value) = parse_config_arg_item("'a=b'=c").unwrap();
+        assert_eq!(name, ConfigNamePathBuf::from_iter(["a=b"]));
+        assert_eq!(value.as_str(), Some("c"));
+
+        let (name, value) = parse_config_arg_item("'a = b=c '={d = 'e=f'}").unwrap();
+        assert_eq!(name, ConfigNamePathBuf::from_iter(["a = b=c "]));
+        assert!(value.is_inline_table());
+        assert_eq!(value.to_string(), "{d = 'e=f'}");
     }
 
     #[test]
