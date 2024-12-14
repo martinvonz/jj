@@ -157,7 +157,7 @@ use crate::complete;
 use crate::config::config_from_environment;
 use crate::config::parse_config_args;
 use crate::config::CommandNameAndArgs;
-use crate::config::ConfigArg;
+use crate::config::ConfigArgKind;
 use crate::config::ConfigEnv;
 use crate::diff_util;
 use crate::diff_util::DiffFormat;
@@ -3113,7 +3113,7 @@ pub struct EarlyArgs {
 }
 
 impl EarlyArgs {
-    fn merged_config_args(&self, matches: &ArgMatches) -> Vec<ConfigArg> {
+    fn merged_config_args(&self, matches: &ArgMatches) -> Vec<(ConfigArgKind, &str)> {
         merge_args_with(
             matches,
             &[
@@ -3121,8 +3121,8 @@ impl EarlyArgs {
                 ("config_file", &self.config_file),
             ],
             |id, value| match id {
-                "config_toml" => ConfigArg::Toml(value.clone()),
-                "config_file" => ConfigArg::File(value.clone()),
+                "config_toml" => (ConfigArgKind::Toml, value.as_ref()),
+                "config_file" => (ConfigArgKind::File, value.as_ref()),
                 _ => unreachable!("unexpected id {id:?}"),
             },
         )
