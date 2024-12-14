@@ -30,6 +30,7 @@ use crate::command_error::user_error;
 use crate::command_error::CommandError;
 use crate::config::config_from_environment;
 use crate::config::default_config_layers;
+use crate::config::ConfigArgKind;
 use crate::config::ConfigEnv;
 use crate::config::CONFIG_SCHEMA;
 use crate::ui::Ui;
@@ -701,13 +702,13 @@ fn get_jj_command() -> Result<(JjBuilder, UserSettings), CommandError> {
     // skip 2 because of the clap_complete prelude: jj -- jj <actual args...>
     let args = std::env::args_os().skip(2);
     let args = expand_args(&ui, &app, args, &config)?;
-    let args = app
+    let arg_matches = app
         .clone()
         .disable_version_flag(true)
         .disable_help_flag(true)
         .ignore_errors(true)
         .try_get_matches_from(args)?;
-    let args: GlobalArgs = GlobalArgs::from_arg_matches(&args)?;
+    let args: GlobalArgs = GlobalArgs::from_arg_matches(&arg_matches)?;
 
     if let Some(repository) = args.repository {
         // Try to update repo-specific config on a best-effort basis.
@@ -745,9 +746,12 @@ fn get_jj_command() -> Result<(JjBuilder, UserSettings), CommandError> {
             _ => {} // Invalid operation ID, ignore.
         }
     }
-    for config_toml in args.early_args.config_toml {
-        cmd_args.push("--config-toml".into());
-        cmd_args.push(config_toml);
+    for (kind, value) in args.early_args.merged_config_args(&arg_matches) {
+        let arg = match kind {
+            ConfigArgKind::Toml => format!("--config-toml={value}"),
+            ConfigArgKind::File => format!("--config-file={value}"),
+        };
+        cmd_args.push(arg);
     }
 
     let builder = JjBuilder {
