@@ -36,6 +36,9 @@ pub fn cmd_config_edit(
     command: &CommandHelper,
     args: &ConfigEditArgs,
 ) -> Result<(), CommandError> {
-    let config_path = args.level.new_config_file_path(command.config_env())?;
-    run_ui_editor(command.settings(), config_path)
+    let file = args.level.edit_config_file(command)?;
+    if !file.path().exists() {
+        file.save()?;
+    }
+    run_ui_editor(command.settings(), file.path())
 }

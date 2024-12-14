@@ -67,25 +67,6 @@ impl ConfigLevelArgs {
         }
     }
 
-    fn new_config_file_path<'a>(
-        &self,
-        config_env: &'a ConfigEnv,
-    ) -> Result<&'a Path, CommandError> {
-        if self.user {
-            // TODO(#531): Special-case for editors that can't handle viewing
-            // directories?
-            config_env
-                .new_user_config_path()?
-                .ok_or_else(|| user_error("No user config path found to edit"))
-        } else if self.repo {
-            config_env
-                .repo_config_path()
-                .ok_or_else(|| user_error("No repo config path found to edit"))
-        } else {
-            panic!("No config_level provided")
-        }
-    }
-
     fn config_path<'a>(&self, config_env: &'a ConfigEnv) -> Result<&'a Path, CommandError> {
         if self.user {
             config_env

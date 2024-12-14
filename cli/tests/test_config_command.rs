@@ -784,6 +784,8 @@ fn test_config_edit_user() {
     let mut test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
+    // Remove one of the config file to disambiguate
+    std::fs::remove_file(test_env.last_config_file_path()).unwrap();
     let edit_script = test_env.set_up_fake_editor();
 
     std::fs::write(edit_script, "dump-path path").unwrap();
@@ -791,7 +793,25 @@ fn test_config_edit_user() {
 
     let edited_path =
         PathBuf::from(std::fs::read_to_string(test_env.env_root().join("path")).unwrap());
-    assert_eq!(edited_path, dunce::simplified(test_env.config_path()));
+    assert_eq!(
+        edited_path,
+        dunce::simplified(&test_env.last_config_file_path())
+    );
+}
+
+#[test]
+fn test_config_edit_user_new_file() {
+    let mut test_env = TestEnvironment::default();
+    let user_config_path = test_env.config_path().join("config").join("file.toml");
+    test_env.set_up_fake_editor(); // set $EDITOR, but added configuration is ignored
+    test_env.set_config_path(user_config_path.clone());
+    assert!(!user_config_path.exists());
+
+    test_env.jj_cmd_ok(test_env.env_root(), &["config", "edit", "--user"]);
+    assert!(
+        user_config_path.exists(),
+        "new file and directory should be created"
+    );
 }
 
 #[test]
@@ -799,17 +819,17 @@ fn test_config_edit_repo() {
     let mut test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
+    let repo_config_path = repo_path.join(PathBuf::from_iter([".jj", "repo", "config.toml"]));
     let edit_script = test_env.set_up_fake_editor();
+    assert!(!repo_config_path.exists());
 
     std::fs::write(edit_script, "dump-path path").unwrap();
     test_env.jj_cmd_ok(&repo_path, &["config", "edit", "--repo"]);
 
     let edited_path =
         PathBuf::from(std::fs::read_to_string(test_env.env_root().join("path")).unwrap());
-    assert_eq!(
-        edited_path,
-        dunce::simplified(&repo_path.join(".jj/repo/config.toml"))
-    );
+    assert_eq!(edited_path, dunce::simplified(&repo_config_path));
+    assert!(repo_config_path.exists(), "new file should be created");
 }
 
 #[test]
