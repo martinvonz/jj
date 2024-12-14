@@ -24,6 +24,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   documentation](docs/config.md#dotted-style-headings-and-inline-tables) for
   details.
 
+* `jj config edit --user` now opens a file even if `$JJ_CONFIG` points to a
+  directory. If there are multiple config files, the command will fail.
+
 * The deprecated `[alias]` config section is no longer respected. Move command
   aliases to the `[aliases]` section.
 

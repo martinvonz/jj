@@ -52,8 +52,6 @@ pub fn parse_toml_value_or_bare_string(value_str: &str) -> toml_edit::Value {
 pub enum ConfigEnvError {
     #[error("Both {0} and {1} exist. Please consolidate your configs in one of them.")]
     AmbiguousSource(PathBuf, PathBuf),
-    #[error(transparent)]
-    CreateFile(std::io::Error),
 }
 
 /// Configuration variable with its source information.
@@ -164,18 +162,6 @@ fn create_dir_all(path: &Path) -> std::io::Result<()> {
     dir.create(path)
 }
 
-fn create_config_file(path: &Path) -> std::io::Result<std::fs::File> {
-    if let Some(parent) = path.parent() {
-        create_dir_all(parent)?;
-    }
-    // TODO: Use File::create_new once stabilized.
-    std::fs::OpenOptions::new()
-        .read(true)
-        .write(true)
-        .create_new(true)
-        .open(path)
-}
-
 // The struct exists so that we can mock certain global values in unit tests.
 #[derive(Clone, Default, Debug)]
 struct UnresolvedConfigEnv {
@@ -243,27 +229,6 @@ impl ConfigEnv {
         match &self.user_config_path {
             ConfigPath::Existing(path) => Some(path),
             _ => None,
-        }
-    }
-
-    /// Returns a path to the user-specific config file.
-    ///
-    /// If no config file is found, tries to guess a reasonable new location for
-    /// it. If a path to a new config file is returned, the parent directory may
-    /// be created as a result of this call.
-    pub fn new_user_config_path(&self) -> Result<Option<&Path>, ConfigEnvError> {
-        match &self.user_config_path {
-            ConfigPath::Existing(path) => Ok(Some(path)),
-            ConfigPath::New(path) => {
-                // TODO: Maybe we shouldn't create new file here. Not all
-                // callers need an empty file. "jj config set" doesn't have
-                // to create an empty file to be overwritten. Since it's unclear
-                // who and when to update ConfigPath::New(_) to ::Existing(_),
-                // it's probably better to not cache the path existence.
-                create_config_file(path).map_err(ConfigEnvError::CreateFile)?;
-                Ok(Some(path))
-            }
-            ConfigPath::Unavailable => Ok(None),
         }
     }
 
@@ -1116,18 +1081,9 @@ mod tests {
             let env = self
                 .resolve(tmp.path())
                 .map_err(|e| anyhow!("new_config_path: {e}"))?;
-            let got = env
-                .new_user_config_path()
-                .map_err(|e| anyhow!("new_config_path: {e}"))?;
+            let got = env.user_config_path();
             if got != want.as_deref() {
                 return Err(anyhow!("new_config_path: got {got:?}, want {want:?}"));
-            }
-            if let Some(path) = got {
-                if !Path::new(&path).is_file() {
-                    return Err(anyhow!(
-                        "new_config_path returned {path:?} which is not a file"
-                    ));
-                }
             }
             Ok(())
         }
