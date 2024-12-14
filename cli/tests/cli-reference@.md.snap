@@ -607,7 +607,9 @@ Update config file to set the given option to a given value
 ###### **Arguments:**
 
 * `<NAME>`
-* `<VALUE>`
+* `<VALUE>` — New value to set
+
+   The value should be specified as a TOML expression. If string value doesn't contain any TOML constructs (such as array notation), quotes can be omitted.
 
 ###### **Options:**
 

@@ -38,13 +38,36 @@ use tracing::instrument;
 pub const CONFIG_SCHEMA: &str = include_str!("config-schema.json");
 
 /// Parses a TOML value expression. Interprets the given value as string if it
-/// can't be parsed.
-pub fn parse_toml_value_or_bare_string(value_str: &str) -> toml_edit::Value {
+/// can't be parsed and doesn't look like a TOML expression.
+pub fn parse_value_or_bare_string(value_str: &str) -> Result<ConfigValue, toml_edit::TomlError> {
     match value_str.parse() {
-        Ok(value) => value,
-        // TODO: might be better to reject meta characters. A typo in TOML value
-        // expression shouldn't be silently converted to string.
-        _ => value_str.into(),
+        Ok(value) => Ok(value),
+        Err(_) if value_str.as_bytes().iter().copied().all(is_bare_char) => Ok(value_str.into()),
+        Err(err) => Err(err),
+    }
+}
+
+const fn is_bare_char(b: u8) -> bool {
+    match b {
+        // control chars (including tabs and newlines), which are unlikely to
+        // appear in command-line arguments
+        b'\x00'..=b'\x1f' | b'\x7f' => false,
+        // space and symbols that don't construct a TOML value
+        b' ' | b'!' | b'#' | b'$' | b'%' | b'&' | b'(' | b')' | b'*' | b'/' | b';' | b'<'
+        | b'>' | b'?' | b'@' | b'\\' | b'^' | b'_' | b'`' | b'|' | b'~' => true,
+        // there may be an error in integer, float, or date-time, but that's rare
+        b'+' | b'-' | b'.' | b':' => true,
+        // comma and equal don't construct a compound value by themselves, but
+        // they suggest that the value is an inline array or table
+        b',' | b'=' => false,
+        // unpaired quotes are often typo
+        b'"' | b'\'' => false,
+        // symbols that construct an inline array or table
+        b'[' | b']' | b'{' | b'}' => false,
+        // ASCII alphanumeric
+        b'0'..=b'9' | b'A'..=b'Z' | b'a'..=b'z' => true,
+        // non-ASCII
+        b'\x80'..=b'\xff' => true,
     }
 }
 
@@ -610,6 +633,38 @@ mod tests {
         // Suppress Decor { .. } which is uninteresting
         settings.add_filter(r"\bDecor \{[^}]*\}", "Decor { .. }");
         settings
+    }
+
+    #[test]
+    fn test_parse_value_or_bare_string() {
+        let parse = |s: &str| parse_value_or_bare_string(s);
+
+        // Value in TOML syntax
+        assert_eq!(parse("true").unwrap().as_bool(), Some(true));
+        assert_eq!(parse("42").unwrap().as_integer(), Some(42));
+        assert_eq!(parse("-1").unwrap().as_integer(), Some(-1));
+        assert_eq!(parse("'a'").unwrap().as_str(), Some("a"));
+        assert!(parse("[]").unwrap().is_array());
+        assert!(parse("{ a = 'b' }").unwrap().is_inline_table());
+
+        // Bare string
+        assert_eq!(parse("").unwrap().as_str(), Some(""));
+        assert_eq!(parse("John Doe").unwrap().as_str(), Some("John Doe"));
+        assert_eq!(
+            parse("<foo+bar@example.org>").unwrap().as_str(),
+            Some("<foo+bar@example.org>")
+        );
+        assert_eq!(parse("#ff00aa").unwrap().as_str(), Some("#ff00aa"));
+        assert_eq!(parse("all()").unwrap().as_str(), Some("all()"));
+        assert_eq!(parse("glob:*.*").unwrap().as_str(), Some("glob:*.*"));
+        assert_eq!(parse("柔術").unwrap().as_str(), Some("柔術"));
+
+        // Error in TOML value
+        assert!(parse("'foo").is_err());
+        assert!(parse("[0 1]").is_err());
+        assert!(parse("{ x = }").is_err());
+        assert!(parse("key = 'value'").is_err());
+        assert!(parse("[table]\nkey = 'value'").is_err());
     }
 
     #[test]

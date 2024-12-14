@@ -468,6 +468,22 @@ fn test_config_set_bad_opts() {
 
     For more information, try '--help'.
     "###);
+
+    let stderr = test_env.jj_cmd_cli_error(
+        test_env.env_root(),
+        &["config", "set", "--user", "x", "['typo'}"],
+    );
+    insta::assert_snapshot!(stderr, @r"
+    error: invalid value '['typo'}' for '<VALUE>': TOML parse error at line 1, column 8
+      |
+    1 | ['typo'}
+      |        ^
+    invalid array
+    expected `]`
+
+
+    For more information, try '--help'.
+    ");
 }
 
 #[test]
