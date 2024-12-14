@@ -27,6 +27,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * `jj config edit --user` now opens a file even if `$JJ_CONFIG` points to a
   directory. If there are multiple config files, the command will fail.
 
+* `jj config set` no longer accepts a bare string value that looks like a TOML
+  expression. For example, `jj config set NAME '[foo]'` must be quoted as `jj
+  config set NAME '"[foo]"'`.
+
 * The deprecated `[alias]` config section is no longer respected. Move command
   aliases to the `[aliases]` section.
 
