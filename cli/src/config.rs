@@ -458,29 +458,40 @@ fn env_overrides_layer() -> ConfigLayer {
     layer
 }
 
-/// Configuration source/data provided as command-line argument.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum ConfigArg {
+/// Configuration source/data type provided as command-line argument.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ConfigArgKind {
     /// `--config-toml=TOML`
-    Toml(String),
+    Toml,
     /// `--config-file=PATH`
-    File(String),
+    File,
 }
 
 /// Parses `--config-toml` arguments.
-pub fn parse_config_args(toml_strs: &[ConfigArg]) -> Result<Vec<ConfigLayer>, ConfigLoadError> {
+pub fn parse_config_args(
+    toml_strs: &[(ConfigArgKind, &str)],
+) -> Result<Vec<ConfigLayer>, ConfigLoadError> {
     // It might look silly that a layer is constructed per argument, but
     // --config-toml argument can contain a full TOML document, and it makes
     // sense to preserve line numbers within the doc. If we add
     // --config=KEY=VALUE, multiple values might be loaded into one layer.
     let source = ConfigSource::CommandArg;
-    toml_strs
-        .iter()
-        .map(|arg| match arg {
-            ConfigArg::Toml(text) => ConfigLayer::parse(source, text),
-            ConfigArg::File(path) => ConfigLayer::load_from_file(source, path.into()),
-        })
-        .try_collect()
+    let mut layers = Vec::new();
+    for (kind, chunk) in &toml_strs.iter().chunk_by(|&(kind, _)| kind) {
+        match kind {
+            ConfigArgKind::Toml => {
+                for (_, text) in chunk {
+                    layers.push(ConfigLayer::parse(source, text)?);
+                }
+            }
+            ConfigArgKind::File => {
+                for (_, path) in chunk {
+                    layers.push(ConfigLayer::load_from_file(source, path.into())?);
+                }
+            }
+        }
+    }
+    Ok(layers)
 }
 
 /// Command name and arguments specified by config.
