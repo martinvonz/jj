@@ -3704,7 +3704,7 @@ impl CliRunner {
             }
         }
 
-        let settings = UserSettings::from_config(config);
+        let settings = UserSettings::from_config(config)?;
         let command_helper_data = CommandHelperData {
             app: self.app,
             cwd,

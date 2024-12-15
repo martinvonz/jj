@@ -177,7 +177,7 @@ fn test_rewrite(backend: TestRepoBackend) {
         )
         .unwrap(),
     );
-    let rewrite_settings = UserSettings::from_config(config);
+    let rewrite_settings = UserSettings::from_config(config).unwrap();
     let mut tx = repo.start_transaction(&settings);
     let rewritten_commit = tx
         .repo_mut()
@@ -221,7 +221,7 @@ fn test_rewrite(backend: TestRepoBackend) {
 #[test_case(TestRepoBackend::Local ; "local backend")]
 #[test_case(TestRepoBackend::Git ; "git backend")]
 fn test_rewrite_update_missing_user(backend: TestRepoBackend) {
-    let missing_user_settings = UserSettings::from_config(StackedConfig::empty());
+    let missing_user_settings = UserSettings::from_config(StackedConfig::empty()).unwrap();
     let test_repo = TestRepo::init_with_backend(backend);
     let repo = &test_repo.repo;
 
@@ -251,7 +251,7 @@ fn test_rewrite_update_missing_user(backend: TestRepoBackend) {
         )
         .unwrap(),
     );
-    let settings = UserSettings::from_config(config);
+    let settings = UserSettings::from_config(config).unwrap();
     let rewritten_commit = tx
         .repo_mut()
         .rewrite_commit(&settings, &initial_commit)
@@ -278,7 +278,8 @@ fn test_rewrite_resets_author_timestamp(backend: TestRepoBackend) {
 
     // Create discardable commit
     let initial_timestamp = "2001-02-03T04:05:06+07:00";
-    let settings = UserSettings::from_config(config_with_commit_timestamp(initial_timestamp));
+    let settings =
+        UserSettings::from_config(config_with_commit_timestamp(initial_timestamp)).unwrap();
     let mut tx = repo.start_transaction(&settings);
     let initial_commit = tx
         .repo_mut()
@@ -297,7 +298,8 @@ fn test_rewrite_resets_author_timestamp(backend: TestRepoBackend) {
 
     // Rewrite discardable commit to no longer be discardable
     let new_timestamp_1 = "2002-03-04T05:06:07+08:00";
-    let settings = UserSettings::from_config(config_with_commit_timestamp(new_timestamp_1));
+    let settings =
+        UserSettings::from_config(config_with_commit_timestamp(new_timestamp_1)).unwrap();
     let rewritten_commit_1 = tx
         .repo_mut()
         .rewrite_commit(&settings, &initial_commit)
@@ -315,7 +317,8 @@ fn test_rewrite_resets_author_timestamp(backend: TestRepoBackend) {
 
     // Rewrite non-discardable commit
     let new_timestamp_2 = "2003-04-05T06:07:08+09:00";
-    let settings = UserSettings::from_config(config_with_commit_timestamp(new_timestamp_2));
+    let settings =
+        UserSettings::from_config(config_with_commit_timestamp(new_timestamp_2)).unwrap();
     let rewritten_commit_2 = tx
         .repo_mut()
         .rewrite_commit(&settings, &rewritten_commit_1)
