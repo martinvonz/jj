@@ -22,6 +22,11 @@ fn get_log_output(test_env: &TestEnvironment, cwd: &Path) -> String {
     test_env.jj_cmd_success(cwd, &["log", "-T", template])
 }
 
+fn get_log_output_with_patch(test_env: &TestEnvironment, cwd: &Path) -> String {
+    let template = r#"separate(" ", change_id.short(), empty, description, local_bookmarks)"#;
+    test_env.jj_cmd_success(cwd, &["log", "-p", "--git", "-T", template])
+}
+
 fn get_recorded_dates(test_env: &TestEnvironment, cwd: &Path, revset: &str) -> String {
     let template = r#"separate("\n", "Author date:  " ++ author.timestamp(), "Committer date: " ++ committer.timestamp())"#;
     test_env.jj_cmd_success(cwd, &["log", "--no-graph", "-T", template, "-r", revset])
@@ -519,6 +524,340 @@ fn test_split_siblings_with_merge_child() {
     ○ │  qpvuntsmwlqt true 1
     ├─╯
     ◆  zzzzzzzzzzzz true
+    "###);
+}
+
+#[test]
+fn test_split_from_one_file() {
+    let mut test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let workspace_path = test_env.env_root().join("repo");
+    test_env.jj_cmd_ok(&workspace_path, &["describe", "-m=older"]);
+    std::fs::write(workspace_path.join("file1"), "older\n").unwrap();
+    std::fs::write(workspace_path.join("file2"), "older\n").unwrap();
+    test_env.jj_cmd_ok(&workspace_path, &["new", "root()", "-m=base"]);
+    std::fs::write(workspace_path.join("file1"), "base\n").unwrap();
+    std::fs::write(workspace_path.join("file2"), "base\n").unwrap();
+    test_env.jj_cmd_ok(&workspace_path, &["new", "-m=pre-split"]);
+    std::fs::write(workspace_path.join("file1"), "newer\n").unwrap();
+    std::fs::write(workspace_path.join("file2"), "newer\n").unwrap();
+
+    // In many use-cases, the `older` commit will be an older version of the
+    // `pre-split` commit and might be hidden.
+    insta::assert_snapshot!(get_log_output_with_patch(&test_env, &workspace_path), @r###"
+    @  zsuskulnrvyr false pre-split
+    │  diff --git a/file1 b/file1
+    │  index df967b96a5..d58ed19c91 100644
+    │  --- a/file1
+    │  +++ b/file1
+    │  @@ -1,1 +1,1 @@
+    │  -base
+    │  +newer
+    │  diff --git a/file2 b/file2
+    │  index df967b96a5..d58ed19c91 100644
+    │  --- a/file2
+    │  +++ b/file2
+    │  @@ -1,1 +1,1 @@
+    │  -base
+    │  +newer
+    ○  kkmpptxzrspx false base
+    │  diff --git a/file1 b/file1
+    │  new file mode 100644
+    │  index 0000000000..df967b96a5
+    │  --- /dev/null
+    │  +++ b/file1
+    │  @@ -1,0 +1,1 @@
+    │  +base
+    │  diff --git a/file2 b/file2
+    │  new file mode 100644
+    │  index 0000000000..df967b96a5
+    │  --- /dev/null
+    │  +++ b/file2
+    │  @@ -1,0 +1,1 @@
+    │  +base
+    │ ○  qpvuntsmwlqt false older
+    ├─╯  diff --git a/file1 b/file1
+    │    new file mode 100644
+    │    index 0000000000..b074d105d8
+    │    --- /dev/null
+    │    +++ b/file1
+    │    @@ -1,0 +1,1 @@
+    │    +older
+    │    diff --git a/file2 b/file2
+    │    new file mode 100644
+    │    index 0000000000..b074d105d8
+    │    --- /dev/null
+    │    +++ b/file2
+    │    @@ -1,0 +1,1 @@
+    │    +older
+    ◆  zzzzzzzzzzzz true
+    "###);
+
+    let edit_script = test_env.set_up_fake_editor();
+    std::fs::write(
+        edit_script,
+        [
+            // Invocations for test 2
+            "dump editor1",
+            "write\npart 1",
+            "next invocation\n",
+            "dump editor2",
+            "write\npart 2",
+            "next invocation\n",
+            // Repeat the same invocations for test 3
+            "dump editor1",
+            "write\npart 1",
+            "next invocation\n",
+            "dump editor2",
+            "write\npart 2",
+        ]
+        .join("\0"),
+    )
+    .unwrap();
+
+    // SETUP ENDS HERE
+    let setup_operation_id = test_env.current_operation_id(&workspace_path);
+
+    // Test 1: --from --interactive is not (yet) implemented, see TODOs in split.rs
+    let stderr = test_env.jj_cmd_cli_error(
+        &workspace_path,
+        &["split", "--from=description(older)", "--interactive"],
+    );
+    insta::assert_snapshot!(stderr, @r###"
+    error: the argument '--restore-from <FROM>' cannot be used with '--interactive'
+
+    Usage: jj split --restore-from <FROM> [PATHS]...
+
+    For more information, try '--help'.
+    "###);
+
+    // Test 2: --from without a file argument (restores the entire older commit
+    // non-interactively)
+    let (stdout, stderr) =
+        test_env.jj_cmd_ok(&workspace_path, &["split", "--from=description(older)"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    First part: zsuskuln b20629fa part 1
+    Second part: vruxwmqv d4b39657 part 2
+    Working copy now at: vruxwmqv d4b39657 part 2
+    Parent commit      : zsuskuln b20629fa part 1
+    "###);
+
+    // The files are listed as modified, not added, since they are modified relative
+    // to the parent of the commit being split.
+    insta::assert_snapshot!(
+            std::fs::read_to_string(test_env.env_root().join("editor1")).unwrap(), @r###"
+    JJ: Enter a description for the first commit.
+    older
+
+    JJ: This commit contains the following changes:
+    JJ:     M file1
+    JJ:     M file2
+
+    JJ: Lines starting with "JJ: " (like this one) will be removed.
+    "###);
+    insta::assert_snapshot!(
+            std::fs::read_to_string(test_env.env_root().join("editor2")).unwrap(), @r###"
+    JJ: Enter a description for the second commit.
+    pre-split
+
+    JJ: This commit contains the following changes:
+    JJ:     M file1
+    JJ:     M file2
+
+    JJ: Lines starting with "JJ: " (like this one) will be removed.
+    "###);
+
+    // The new parent commit is identical to the `older` commit, as after `jj
+    // restore --from older`, but its description was edited successfully
+    let stdout = test_env.jj_cmd_success(&workspace_path, &["show", "--git", "-r", "@-"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Commit ID: b20629fa59453e41cb28d1a09c3954d29767e900
+    Change ID: zsuskulnrvyrovkzqrwmxqlsskqntxvp
+    Author: Test User <test.user@example.com> (2001-02-03 08:05:10)
+    Committer: Test User <test.user@example.com> (2001-02-03 08:05:14)
+
+        part 1
+
+    diff --git a/file1 b/file1
+    index df967b96a5..b074d105d8 100644
+    --- a/file1
+    +++ b/file1
+    @@ -1,1 +1,1 @@
+    -base
+    +older
+    diff --git a/file2 b/file2
+    index df967b96a5..b074d105d8 100644
+    --- a/file2
+    +++ b/file2
+    @@ -1,1 +1,1 @@
+    -base
+    +older
+    "###);
+    // The new child commit is the same as the pre-split commit as a snapshot
+    let stdout = test_env.jj_cmd_success(&workspace_path, &["show", "--git", "-r", "@"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Commit ID: d4b396576002b46b435b260dd30473675bd74d8a
+    Change ID: vruxwmqvtpmxqkrrksmzyrvxysqqlsxp
+    Author: Test User <test.user@example.com> (2001-02-03 08:05:10)
+    Committer: Test User <test.user@example.com> (2001-02-03 08:05:14)
+
+        part 2
+
+    diff --git a/file1 b/file1
+    index b074d105d8..d58ed19c91 100644
+    --- a/file1
+    +++ b/file1
+    @@ -1,1 +1,1 @@
+    -older
+    +newer
+    diff --git a/file2 b/file2
+    index b074d105d8..d58ed19c91 100644
+    --- a/file2
+    +++ b/file2
+    @@ -1,1 +1,1 @@
+    -older
+    +newer
+    "###);
+
+    // Test 3: --from with a file argument, preliminaries
+    let (stdout, stderr) = test_env.jj_cmd_ok(
+        &workspace_path,
+        &["operation", "restore", &setup_operation_id],
+    );
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r#"
+    Restored to operation: 88c8e968ccd7 (2001-02-03 08:05:11) snapshot working copy
+    Working copy now at: zsuskuln 0ca028a6 pre-split
+    Parent commit      : kkmpptxz e4a752c8 base
+    "#);
+    // Reminder of the setup
+    insta::assert_snapshot!(get_log_output_with_patch(&test_env, &workspace_path), @r###"
+    @  zsuskulnrvyr false pre-split
+    │  diff --git a/file1 b/file1
+    │  index df967b96a5..d58ed19c91 100644
+    │  --- a/file1
+    │  +++ b/file1
+    │  @@ -1,1 +1,1 @@
+    │  -base
+    │  +newer
+    │  diff --git a/file2 b/file2
+    │  index df967b96a5..d58ed19c91 100644
+    │  --- a/file2
+    │  +++ b/file2
+    │  @@ -1,1 +1,1 @@
+    │  -base
+    │  +newer
+    ○  kkmpptxzrspx false base
+    │  diff --git a/file1 b/file1
+    │  new file mode 100644
+    │  index 0000000000..df967b96a5
+    │  --- /dev/null
+    │  +++ b/file1
+    │  @@ -1,0 +1,1 @@
+    │  +base
+    │  diff --git a/file2 b/file2
+    │  new file mode 100644
+    │  index 0000000000..df967b96a5
+    │  --- /dev/null
+    │  +++ b/file2
+    │  @@ -1,0 +1,1 @@
+    │  +base
+    │ ○  qpvuntsmwlqt false older
+    ├─╯  diff --git a/file1 b/file1
+    │    new file mode 100644
+    │    index 0000000000..b074d105d8
+    │    --- /dev/null
+    │    +++ b/file1
+    │    @@ -1,0 +1,1 @@
+    │    +older
+    │    diff --git a/file2 b/file2
+    │    new file mode 100644
+    │    index 0000000000..b074d105d8
+    │    --- /dev/null
+    │    +++ b/file2
+    │    @@ -1,0 +1,1 @@
+    │    +older
+    ◆  zzzzzzzzzzzz true
+    "###);
+
+    // Test 3: --from with a file argument
+    let (stdout, stderr) = test_env.jj_cmd_ok(
+        &workspace_path,
+        &["split", "--from=description(older)", "file1"],
+    );
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    First part: zsuskuln dc949368 part 1
+    Second part: wqnwkozp f22c2886 part 2
+    Working copy now at: wqnwkozp f22c2886 part 2
+    Parent commit      : zsuskuln dc949368 part 1
+    "###);
+
+    insta::assert_snapshot!(
+            std::fs::read_to_string(test_env.env_root().join("editor1")).unwrap(), @r###"
+    JJ: Enter a description for the first commit.
+    older
+
+    JJ: This commit contains the following changes:
+    JJ:     M file1
+
+    JJ: Lines starting with "JJ: " (like this one) will be removed.
+    "###);
+    insta::assert_snapshot!(
+            std::fs::read_to_string(test_env.env_root().join("editor2")).unwrap(), @r###"
+    JJ: Enter a description for the second commit.
+    pre-split
+
+    JJ: This commit contains the following changes:
+    JJ:     M file1
+    JJ:     M file2
+
+    JJ: Lines starting with "JJ: " (like this one) will be removed.
+    "###);
+
+    // The new parent commit restored one file from the `older` commit
+    let stdout = test_env.jj_cmd_success(&workspace_path, &["show", "--git", "-r", "@-"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Commit ID: dc9493680b1791877e47cf7186bd8e1d1b1e7964
+    Change ID: zsuskulnrvyrovkzqrwmxqlsskqntxvp
+    Author: Test User <test.user@example.com> (2001-02-03 08:05:10)
+    Committer: Test User <test.user@example.com> (2001-02-03 08:05:19)
+
+        part 1
+
+    diff --git a/file1 b/file1
+    index df967b96a5..b074d105d8 100644
+    --- a/file1
+    +++ b/file1
+    @@ -1,1 +1,1 @@
+    -base
+    +older
+    "###);
+    // The new child commit is the same as the pre-split commit as a snapshot
+    let stdout = test_env.jj_cmd_success(&workspace_path, &["show", "--git", "-r", "@"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Commit ID: f22c2886b7c96ccedeec11f6f1321f38303edb57
+    Change ID: wqnwkozpkustnxypnnntnykwrqrkrpvv
+    Author: Test User <test.user@example.com> (2001-02-03 08:05:10)
+    Committer: Test User <test.user@example.com> (2001-02-03 08:05:19)
+
+        part 2
+
+    diff --git a/file1 b/file1
+    index b074d105d8..d58ed19c91 100644
+    --- a/file1
+    +++ b/file1
+    @@ -1,1 +1,1 @@
+    -older
+    +newer
+    diff --git a/file2 b/file2
+    index df967b96a5..d58ed19c91 100644
+    --- a/file2
+    +++ b/file2
+    @@ -1,1 +1,1 @@
+    -base
+    +newer
     "###);
 }
 
