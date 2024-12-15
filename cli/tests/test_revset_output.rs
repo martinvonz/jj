@@ -570,17 +570,11 @@ fn test_alias_override() {
     "###,
     );
 
-    // 'f(x)' should be overridden by --config-toml 'f(a)'. If aliases were sorted
+    // 'f(x)' should be overridden by --config 'f(a)'. If aliases were sorted
     // purely by name, 'f(a)' would come first.
     let stderr = test_env.jj_cmd_failure(
         &repo_path,
-        &[
-            "log",
-            "-r",
-            "f(_)",
-            "--config-toml",
-            "revset-aliases.'f(a)' = 'arg'",
-        ],
+        &["log", "-r", "f(_)", "--config=revset-aliases.'f(a)'=arg"],
     );
     insta::assert_snapshot!(stderr, @r###"
     Error: Revision "arg" doesn't exist
@@ -686,7 +680,7 @@ fn test_all_modifier() {
     // Modifier shouldn't be allowed in sub expression
     let stderr = test_env.jj_cmd_failure(
         &repo_path,
-        &["new", "x..", "--config-toml=revset-aliases.x='all:@'"],
+        &["new", "x..", "--config=revset-aliases.x='all:@'"],
     );
     insta::assert_snapshot!(stderr, @r#"
     Error: Failed to parse revset: In alias "x"
@@ -711,8 +705,8 @@ fn test_all_modifier() {
         &repo_path,
         &[
             "new",
-            "--config-toml=revset-aliases.'immutable_heads()'='all:@'",
-            "--config-toml=revsets.short-prefixes='none()'",
+            "--config=revset-aliases.'immutable_heads()'='all:@'",
+            "--config=revsets.short-prefixes='none()'",
         ],
     );
     insta::assert_snapshot!(stderr, @r###"
@@ -746,8 +740,7 @@ fn test_revset_committer_date_with_time_zone() {
     test_env.jj_cmd_ok(
         &repo_path,
         &[
-            "--config-toml",
-            "debug.commit-timestamp='2023-01-25T11:30:00-05:00'",
+            "--config=debug.commit-timestamp='2023-01-25T11:30:00-05:00'",
             "describe",
             "-m",
             "first",
@@ -756,8 +749,7 @@ fn test_revset_committer_date_with_time_zone() {
     test_env.jj_cmd_ok(
         &repo_path,
         &[
-            "--config-toml",
-            "debug.commit-timestamp='2023-01-25T12:30:00-05:00'",
+            "--config=debug.commit-timestamp='2023-01-25T12:30:00-05:00'",
             "new",
             "-m",
             "second",
@@ -766,8 +758,7 @@ fn test_revset_committer_date_with_time_zone() {
     test_env.jj_cmd_ok(
         &repo_path,
         &[
-            "--config-toml",
-            "debug.commit-timestamp='2023-01-25T13:30:00-05:00'",
+            "--config=debug.commit-timestamp='2023-01-25T13:30:00-05:00'",
             "new",
             "-m",
             "third",
@@ -781,7 +772,7 @@ fn test_revset_committer_date_with_time_zone() {
             let before_log = test_env.jj_cmd_success(
                 &repo_path,
                 &[
-                    "--config-toml",
+                    "--config",
                     config.as_str(),
                     "log",
                     "--no-graph",
@@ -794,7 +785,7 @@ fn test_revset_committer_date_with_time_zone() {
             let after_log = test_env.jj_cmd_success(
                 &repo_path,
                 &[
-                    "--config-toml",
+                    "--config",
                     config.as_str(),
                     "log",
                     "--no-graph",

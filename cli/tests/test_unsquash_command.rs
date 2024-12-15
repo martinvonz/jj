@@ -240,7 +240,7 @@ fn test_unsquash_partial() {
         &repo_path,
         &[
             "unsquash",
-            "--config-toml=ui.diff-editor='false'",
+            "--config=ui.diff-editor='false'",
             "--tool=fake-diff-editor",
         ],
     );

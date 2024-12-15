@@ -37,7 +37,7 @@ fn set_up() -> (TestEnvironment, PathBuf) {
         &[
             "git",
             "clone",
-            "--config-toml=git.auto-local-bookmark=true",
+            "--config=git.auto-local-bookmark=true",
             origin_git_repo_path.to_str().unwrap(),
             "local",
         ],

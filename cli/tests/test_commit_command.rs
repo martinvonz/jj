@@ -136,7 +136,7 @@ fn test_commit_interactive() {
         &workspace_path,
         &[
             "commit",
-            "--config-toml=ui.diff-editor='false'",
+            "--config=ui.diff-editor='false'",
             "--tool=fake-diff-editor",
         ],
     );
@@ -357,9 +357,8 @@ fn test_commit_reset_author() {
         &repo_path,
         &[
             "commit",
-            "--config-toml",
-            r#"user.name = "Ove Ridder"
-            user.email = "ove.ridder@example.com""#,
+            "--config=user.name=Ove Ridder",
+            "--config=user.email=ove.ridder@example.com",
             "--reset-author",
             "-m1",
         ],

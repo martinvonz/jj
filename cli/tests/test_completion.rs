@@ -337,14 +337,13 @@ fn test_aliases_are_completed() {
     );
     insta::assert_snapshot!(stdout, @"repo-alias");
 
-    // cannot load aliases from --config-toml flag
+    // cannot load aliases from --config flag
     let stdout = test_env.jj_cmd_success(
         test_env.env_root(),
         &[
             "--",
             "jj",
-            "--config-toml",
-            "aliases.cli-alias = ['bookmark']",
+            "--config=aliases.cli-alias=['bookmark']",
             "cli-al",
         ],
     );

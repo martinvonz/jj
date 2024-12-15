@@ -50,9 +50,8 @@ pub enum FsmonitorSettings {
 
     /// No filesystem monitor. This is the default if nothing is configured, but
     /// also makes it possible to turn off the monitor on a case-by-case basis
-    /// when the user gives an option like
-    /// `--config-toml='core.fsmonitor="none"'`; useful when e.g. when doing
-    /// analysis of snapshot performance.
+    /// when the user gives an option like `--config=core.fsmonitor=none`;
+    /// useful when e.g. when doing analysis of snapshot performance.
     None,
 }
 

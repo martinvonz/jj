@@ -2609,7 +2609,7 @@ pub fn print_snapshot_stats(
               - Adding the file to `.gitignore`
               - Run `jj config set --repo snapshot.max-new-file-size {size}`
                 This will increase the maximum file size allowed for new files, in this repository only.
-              - Run `jj --config-toml 'snapshot.max-new-file-size={size}' st`
+              - Run `jj --config snapshot.max-new-file-size={size} st`
                 This will increase the maximum file size allowed for new files, for this command only.
             "
         )?;
@@ -3682,11 +3682,11 @@ impl CliRunner {
             maybe_cwd_workspace_loader
         };
 
-        // Apply workspace configs and --config-toml arguments.
+        // Apply workspace configs and --config arguments.
         ui.reset(&config)?;
 
         // If -R is specified, check if the expanded arguments differ. Aliases
-        // can also be injected by --config-toml, but that's obviously wrong.
+        // can also be injected by --config, but that's obviously wrong.
         if args.global_args.repository.is_some() {
             let new_string_args = expand_args(ui, &self.app, env::args_os(), &config).ok();
             if new_string_args.as_ref() != Some(&string_args) {

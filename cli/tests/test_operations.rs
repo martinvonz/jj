@@ -33,8 +33,7 @@ fn test_op_log() {
         &[
             "op",
             "log",
-            "--config-toml",
-            "template-aliases.'format_time_range(x)' = 'x'",
+            "--config=template-aliases.'format_time_range(x)'=x",
         ],
     );
     insta::assert_snapshot!(&stdout, @r#"
@@ -121,11 +120,8 @@ fn test_op_log_with_custom_symbols() {
         &[
             "op",
             "log",
-            "--config-toml",
-            concat!(
-                "template-aliases.'format_time_range(x)' = 'x'\n",
-                "templates.op_log_node = 'if(current_operation, \"$\", if(root, \"┴\", \"┝\"))'",
-            ),
+            "--config=template-aliases.'format_time_range(x)'=x",
+            "--config=templates.op_log_node='if(current_operation, \"$\", if(root, \"┴\", \"┝\"))'",
         ],
     );
     insta::assert_snapshot!(&stdout, @r#"
@@ -316,7 +312,7 @@ fn test_op_log_word_wrap() {
     let render = |args: &[&str], columns: u32, word_wrap: bool| {
         let mut args = args.to_vec();
         if word_wrap {
-            args.push("--config-toml=ui.log-word-wrap=true");
+            args.push("--config=ui.log-word-wrap=true");
         }
         let assert = test_env
             .jj_cmd(&repo_path, &args)
@@ -417,7 +413,7 @@ fn test_op_log_word_wrap() {
     // Nested graph widths should be subtracted from the term width
     let config = r#"templates.commit_summary='"0 1 2 3 4 5 6 7 8 9"'"#;
     insta::assert_snapshot!(
-        render(&["op", "log", "-T''", "--op-diff", "-n1", "--config-toml", config], 15, true), @r#"
+        render(&["op", "log", "-T''", "--op-diff", "-n1", "--config", config], 15, true), @r#"
     @
     │
     │  Changed
@@ -1498,7 +1494,7 @@ fn test_op_diff_word_wrap() {
     let render = |args: &[&str], columns: u32, word_wrap: bool| {
         let mut args = args.to_vec();
         if word_wrap {
-            args.push("--config-toml=ui.log-word-wrap=true");
+            args.push("--config=ui.log-word-wrap=true");
         }
         let assert = test_env
             .jj_cmd(&repo_path, &args)
@@ -1568,7 +1564,7 @@ fn test_op_diff_word_wrap() {
     // Graph width should be subtracted from the term width
     let config = r#"templates.commit_summary='"0 1 2 3 4 5 6 7 8 9"'"#;
     insta::assert_snapshot!(
-        render(&["op", "diff", "--from=@---", "--config-toml", config], 10, true), @r#"
+        render(&["op", "diff", "--from=@---", "--config", config], 10, true), @r#"
     From operation: eac759b9ab75 (2001-02-03 08:05:07) add workspace 'default'
       To operation: f3052392e08c (2001-02-03 08:05:08) snapshot working copy
 

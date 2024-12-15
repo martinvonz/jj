@@ -35,9 +35,7 @@ use crate::config::ConfigEnv;
 use crate::config::CONFIG_SCHEMA;
 use crate::ui::Ui;
 
-const BOOKMARK_HELP_TEMPLATE: &str = r#"
-[template-aliases]
-"bookmark_help()" = """
+const BOOKMARK_HELP_TEMPLATE: &str = r#"template-aliases.'bookmark_help()'='''
 " " ++
 if(normal_target,
     if(normal_target.description(),
@@ -46,8 +44,7 @@ if(normal_target,
     ),
     "(conflicted bookmark)",
 )
-"""
-"#;
+'''"#;
 
 /// A helper function for various completer functions. It returns
 /// (candidate, help) assuming they are separated by a space.
@@ -64,7 +61,7 @@ pub fn local_bookmarks() -> Vec<CompletionCandidate> {
             .build()
             .arg("bookmark")
             .arg("list")
-            .arg("--config-toml")
+            .arg("--config")
             .arg(BOOKMARK_HELP_TEMPLATE)
             .arg("--template")
             .arg(r#"if(!remote, name ++ bookmark_help()) ++ "\n""#)
@@ -86,7 +83,7 @@ pub fn tracked_bookmarks() -> Vec<CompletionCandidate> {
             .arg("bookmark")
             .arg("list")
             .arg("--tracked")
-            .arg("--config-toml")
+            .arg("--config")
             .arg(BOOKMARK_HELP_TEMPLATE)
             .arg("--template")
             .arg(r#"if(remote, name ++ '@' ++ remote ++ bookmark_help() ++ "\n")"#)
@@ -108,7 +105,7 @@ pub fn untracked_bookmarks() -> Vec<CompletionCandidate> {
             .arg("bookmark")
             .arg("list")
             .arg("--all-remotes")
-            .arg("--config-toml")
+            .arg("--config")
             .arg(BOOKMARK_HELP_TEMPLATE)
             .arg("--template")
             .arg(
@@ -146,7 +143,7 @@ pub fn bookmarks() -> Vec<CompletionCandidate> {
             .arg("bookmark")
             .arg("list")
             .arg("--all-remotes")
-            .arg("--config-toml")
+            .arg("--config")
             .arg(BOOKMARK_HELP_TEMPLATE)
             .arg("--template")
             .arg(
@@ -238,7 +235,7 @@ fn revisions(revisions: Option<&str>) -> Vec<CompletionCandidate> {
         cmd.arg("bookmark")
             .arg("list")
             .arg("--all-remotes")
-            .arg("--config-toml")
+            .arg("--config")
             .arg(BOOKMARK_HELP_TEMPLATE)
             .arg("--template")
             .arg(
@@ -278,7 +275,7 @@ fn revisions(revisions: Option<&str>) -> Vec<CompletionCandidate> {
                 .build()
                 .arg("tag")
                 .arg("list")
-                .arg("--config-toml")
+                .arg("--config")
                 .arg(BOOKMARK_HELP_TEMPLATE)
                 .arg("--template")
                 .arg(r#"name ++ bookmark_help() ++ "\n""#)
@@ -370,8 +367,8 @@ pub fn workspaces() -> Vec<CompletionCandidate> {
     with_jj(|jj, _| {
         let output = jj
             .build()
-            .arg("--config-toml")
-            .arg(r#"templates.commit_summary = 'if(description, description.first_line(), "(no description set)")'"#)
+            .arg("--config")
+            .arg(r#"templates.commit_summary='if(description, description.first_line(), "(no description set)")'"#)
             .arg("workspace")
             .arg("list")
             .output()
@@ -472,8 +469,7 @@ fn all_files_from_rev(rev: String, current: &std::ffi::OsStr) -> Vec<CompletionC
             .arg("list")
             .arg("--revision")
             .arg(rev)
-            .arg("--config-toml")
-            .arg("ui.allow-filesets = true")
+            .arg("--config=ui.allow-filesets=true")
             .arg(current_prefix_to_fileset(current))
             .stdout(std::process::Stdio::piped())
             .spawn()
@@ -505,8 +501,7 @@ fn modified_files_from_rev_with_jj_cmd(
     };
     cmd.arg("diff")
         .arg("--summary")
-        .arg("--config-toml")
-        .arg("ui.allow-filesets = true")
+        .arg("--config=ui.allow-filesets=true")
         .arg(current_prefix_to_fileset(current));
     match rev {
         (rev, None) => cmd.arg("--revision").arg(rev),
@@ -558,8 +553,7 @@ fn conflicted_files_from_rev(rev: &str, current: &std::ffi::OsStr) -> Vec<Comple
             .arg("--list")
             .arg("--revision")
             .arg(rev)
-            .arg("--config-toml")
-            .arg("ui.allow-filesets = true")
+            .arg("--config=ui.allow-filesets=true")
             .arg(current_prefix_to_fileset(current))
             .output()
             .map_err(user_error)?;

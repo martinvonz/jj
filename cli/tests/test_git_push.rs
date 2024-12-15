@@ -38,7 +38,7 @@ fn set_up() -> (TestEnvironment, PathBuf) {
         &[
             "git",
             "clone",
-            "--config-toml=git.auto-local-bookmark=true",
+            "--config=git.auto-local-bookmark=true",
             origin_git_repo_path.to_str().unwrap(),
             "local",
         ],
@@ -688,8 +688,7 @@ fn test_git_push_changes() {
         &[
             "git",
             "push",
-            "--config-toml",
-            r"git.push-bookmark-prefix='test-'",
+            "--config=git.push-bookmark-prefix=test-",
             "--change=@",
         ],
     );
@@ -706,8 +705,7 @@ fn test_git_push_changes() {
         &[
             "git",
             "push",
-            "--config-toml",
-            r"git.push-branch-prefix='branch-'",
+            "--config=git.push-branch-prefix=branch-",
             "--change=@",
         ],
     );

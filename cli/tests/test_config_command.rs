@@ -185,7 +185,7 @@ bar
             "list",
             "multiline",
             "--include-overridden",
-            "--config-toml=multiline='single'",
+            "--config=multiline='single'",
         ],
     );
     insta::assert_snapshot!(stdout, @r"
@@ -293,7 +293,7 @@ fn test_config_layer_override_default() {
             "config",
             "list",
             config_key,
-            "--config-toml",
+            "--config",
             &format!("{config_key}={value:?}", value = "command-arg"),
         ],
     );
@@ -309,7 +309,7 @@ fn test_config_layer_override_default() {
             "list",
             config_key,
             "--include-overridden",
-            "--config-toml",
+            "--config",
             &format!("{config_key}={value:?}", value = "command-arg"),
         ],
     );
@@ -381,7 +381,7 @@ fn test_config_layer_override_env() {
             "config",
             "list",
             config_key,
-            "--config-toml",
+            "--config",
             &format!("{config_key}={value:?}", value = "command-arg"),
         ],
     );
@@ -397,7 +397,7 @@ fn test_config_layer_override_env() {
             "list",
             config_key,
             "--include-overridden",
-            "--config-toml",
+            "--config",
             &format!("{config_key}={value:?}", value = "command-arg"),
         ],
     );
