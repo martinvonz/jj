@@ -740,7 +740,7 @@ fn test_revset_committer_date_with_time_zone() {
     test_env.jj_cmd_ok(
         &repo_path,
         &[
-            "--config=debug.commit-timestamp='2023-01-25T11:30:00-05:00'",
+            "--config=debug.commit-timestamp=2023-01-25T11:30:00-05:00",
             "describe",
             "-m",
             "first",
@@ -749,7 +749,7 @@ fn test_revset_committer_date_with_time_zone() {
     test_env.jj_cmd_ok(
         &repo_path,
         &[
-            "--config=debug.commit-timestamp='2023-01-25T12:30:00-05:00'",
+            "--config=debug.commit-timestamp=2023-01-25T12:30:00-05:00",
             "new",
             "-m",
             "second",
@@ -758,7 +758,7 @@ fn test_revset_committer_date_with_time_zone() {
     test_env.jj_cmd_ok(
         &repo_path,
         &[
-            "--config=debug.commit-timestamp='2023-01-25T13:30:00-05:00'",
+            "--config=debug.commit-timestamp=2023-01-25T13:30:00-05:00",
             "new",
             "-m",
             "third",
@@ -768,7 +768,7 @@ fn test_revset_committer_date_with_time_zone() {
     let mut log_commits_before_and_after =
         |committer_date: &str, now: &str, tz: &str| -> (String, String) {
             test_env.add_env_var("TZ", tz);
-            let config = format!("debug.commit-timestamp='{now}'");
+            let config = format!("debug.commit-timestamp={now}");
             let before_log = test_env.jj_cmd_success(
                 &repo_path,
                 &[

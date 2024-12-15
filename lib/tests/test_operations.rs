@@ -427,7 +427,7 @@ fn stable_op_id_settings() -> UserSettings {
     config.add_layer(
         ConfigLayer::parse(
             ConfigSource::User,
-            "debug.operation-timestamp = '2001-02-03T04:05:06+07:00'",
+            "debug.operation-timestamp = 2001-02-03T04:05:06+07:00",
         )
         .unwrap(),
     );
