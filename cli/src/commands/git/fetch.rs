@@ -15,16 +15,24 @@
 use clap_complete::ArgValueCandidates;
 use itertools::Itertools;
 use jj_lib::config::ConfigGetResultExt as _;
+use jj_lib::git::GitFetch;
+use jj_lib::git::GitFetchError;
 use jj_lib::repo::Repo;
 use jj_lib::settings::UserSettings;
 use jj_lib::str_util::StringPattern;
 
 use crate::cli_util::CommandHelper;
+use crate::cli_util::WorkspaceCommandTransaction;
+use crate::command_error::user_error;
+use crate::command_error::user_error_with_hint;
 use crate::command_error::CommandError;
 use crate::commands::git::get_single_remote;
 use crate::complete;
 use crate::git_util::get_git_repo;
-use crate::git_util::git_fetch;
+use crate::git_util::map_git_error;
+use crate::git_util::print_git_import_stats;
+use crate::git_util::warn_if_branches_not_found;
+use crate::git_util::with_remote_git_callbacks;
 use crate::ui::Ui;
 
 /// Fetch from a Git remote
@@ -118,4 +126,49 @@ fn get_all_remotes(git_repo: &git2::Repository) -> Result<Vec<String>, CommandEr
         .iter()
         .filter_map(|x| x.map(ToOwned::to_owned))
         .collect())
+}
+
+pub fn git_fetch(
+    ui: &mut Ui,
+    tx: &mut WorkspaceCommandTransaction,
+    git_repo: &git2::Repository,
+    remotes: &[String],
+    branch: &[StringPattern],
+) -> Result<(), CommandError> {
+    let git_settings = tx.settings().git_settings();
+    let mut git_fetch = GitFetch::new(tx.repo_mut(), git_repo, &git_settings);
+
+    for remote in remotes {
+        with_remote_git_callbacks(ui, None, |cb| -> Result<(), CommandError> {
+            git_fetch
+                .fetch(remote, branch, cb, None)
+                .map_err(|err| match err {
+                    GitFetchError::InvalidBranchPattern => {
+                        if branch
+                            .iter()
+                            .any(|pattern| pattern.as_exact().is_some_and(|s| s.contains('*')))
+                        {
+                            user_error_with_hint(
+                                "Branch names may not include `*`.",
+                                "Prefix the pattern with `glob:` to expand `*` as a glob",
+                            )
+                        } else {
+                            user_error(err)
+                        }
+                    }
+                    GitFetchError::GitImportError(err) => err.into(),
+                    GitFetchError::InternalGitError(err) => map_git_error(err),
+                    _ => user_error(err),
+                })?;
+            Ok(())
+        })?;
+    }
+    let import_stats = git_fetch.import_refs()?;
+    print_git_import_stats(ui, tx.repo(), &import_stats, true)?;
+    warn_if_branches_not_found(
+        ui,
+        tx,
+        branch,
+        &remotes.iter().map(StringPattern::exact).collect_vec(),
+    )
 }
