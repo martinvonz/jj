@@ -68,7 +68,7 @@ fn test_diffedit() {
     std::fs::write(&edit_script, "files-before file1 file2\0files-after file2").unwrap();
     let (stdout, stderr) = test_env.jj_cmd_ok(
         &repo_path,
-        &["diffedit", "--config-toml=ui.diff-instructions=false"],
+        &["diffedit", "--config=ui.diff-instructions=false"],
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
@@ -90,7 +90,7 @@ fn test_diffedit() {
         &repo_path,
         &[
             "diffedit",
-            "--config-toml=ui.diff-editor='false'",
+            "--config=ui.diff-editor='false'",
             "--tool=fake-diff-editor",
         ],
     );
@@ -456,7 +456,7 @@ fn test_diffedit_3pane() {
     .unwrap();
     let (stdout, stderr) = test_env.jj_cmd_ok(
         &repo_path,
-        &["diffedit", "--config-toml", &config_with_output_as_after],
+        &["diffedit", "--config", &config_with_output_as_after],
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
@@ -470,7 +470,7 @@ fn test_diffedit_3pane() {
     // Nothing happens if we make no changes, `config_with_right_as_after` version
     let (stdout, stderr) = test_env.jj_cmd_ok(
         &repo_path,
-        &["diffedit", "--config-toml", &config_with_right_as_after],
+        &["diffedit", "--config", &config_with_right_as_after],
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
@@ -486,7 +486,7 @@ fn test_diffedit_3pane() {
     std::fs::write(&edit_script, "reset file2").unwrap();
     let (stdout, stderr) = test_env.jj_cmd_ok(
         &repo_path,
-        &["diffedit", "--config-toml", &config_with_output_as_after],
+        &["diffedit", "--config", &config_with_output_as_after],
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
@@ -505,7 +505,7 @@ fn test_diffedit_3pane() {
     std::fs::write(&edit_script, "write file1\nnew content").unwrap();
     let (stdout, stderr) = test_env.jj_cmd_ok(
         &repo_path,
-        &["diffedit", "--config-toml", &config_with_output_as_after],
+        &["diffedit", "--config", &config_with_output_as_after],
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
@@ -525,7 +525,7 @@ fn test_diffedit_3pane() {
     std::fs::write(&edit_script, "write file1\nnew content").unwrap();
     let (stdout, stderr) = test_env.jj_cmd_ok(
         &repo_path,
-        &["diffedit", "--config-toml", &config_with_right_as_after],
+        &["diffedit", "--config", &config_with_right_as_after],
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"

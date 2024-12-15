@@ -744,10 +744,7 @@ fn test_diff_color_words_inlining_threshold() {
 
     let render_diff = |max_alternation: i32, args: &[&str]| {
         let config = format!("diff.color-words.max-inline-alternation={max_alternation}");
-        test_env.jj_cmd_success(
-            &repo_path,
-            &[&["diff", "--config-toml", &config], args].concat(),
-        )
+        test_env.jj_cmd_success(&repo_path, &[&["diff", "--config", &config], args].concat())
     };
 
     let file1_path = "file1-single-line";
@@ -1441,7 +1438,7 @@ fn test_color_words_diff_missing_newline() {
         &repo_path,
         &[
             "log",
-            "--config-toml=diff.color-words.max-inline-alternation=0",
+            "--config=diff.color-words.max-inline-alternation=0",
             "-Tdescription",
             "-pr::@-",
             "--no-graph",
@@ -2102,7 +2099,7 @@ fn test_diff_external_tool() {
     "#);
 
     // Enabled by default, looks up the merge-tools table
-    let config = "--config-toml=ui.diff.tool='fake-diff-editor'";
+    let config = "--config=ui.diff.tool=fake-diff-editor";
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff", config]), @r###"
     file1
     file2
@@ -2113,7 +2110,7 @@ fn test_diff_external_tool() {
 
     // Inlined command arguments
     let command = escaped_fake_diff_editor_path();
-    let config = format!(r#"--config-toml=ui.diff.tool=["{command}", "$right", "$left"]"#);
+    let config = format!(r#"--config=ui.diff.tool=["{command}", "$right", "$left"]"#);
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff", &config]), @r###"
     file2
     file3
@@ -2178,12 +2175,14 @@ fn test_diff_external_file_by_file_tool() {
     .unwrap();
 
     // Enabled by default, looks up the merge-tools table
-    let config = "--config-toml=ui.diff.tool='fake-diff-editor'\nmerge-tools.fake-diff-editor.\
-                  diff-invocation-mode='file-by-file'";
+    let configs: &[_] = &[
+        "--config=ui.diff.tool=fake-diff-editor",
+        "--config=merge-tools.fake-diff-editor.diff-invocation-mode=file-by-file",
+    ];
 
     // diff without file patterns
     insta::assert_snapshot!(
-        test_env.jj_cmd_success(&repo_path, &["diff", config]), @r###"
+        test_env.jj_cmd_success(&repo_path, &[&["diff"], configs].concat()), @r###"
     ==
     file2
     --
@@ -2200,7 +2199,7 @@ fn test_diff_external_file_by_file_tool() {
 
     // diff with file patterns
     insta::assert_snapshot!(
-        test_env.jj_cmd_success(&repo_path, &["diff", config, "file1"]), @r###"
+        test_env.jj_cmd_success(&repo_path, &[&["diff", "file1"], configs].concat()), @r###"
     ==
     file1
     --
@@ -2208,7 +2207,7 @@ fn test_diff_external_file_by_file_tool() {
     "###);
 
     insta::assert_snapshot!(
-        test_env.jj_cmd_success(&repo_path, &["log", "-p", config]), @r###"
+        test_env.jj_cmd_success(&repo_path, &[&["log", "-p"], configs].concat()), @r###"
     @  rlvkpnrz test.user@example.com 2001-02-03 08:05:09 7b01704a
     │  (no description set)
     │  ==
@@ -2237,7 +2236,7 @@ fn test_diff_external_file_by_file_tool() {
     "###);
 
     insta::assert_snapshot!(
-        test_env.jj_cmd_success(&repo_path, &["show", config]), @r#"
+        test_env.jj_cmd_success(&repo_path, &[&["show"], configs].concat()), @r#"
     Commit ID: 7b01704a670bc77d11ed117d362855cff1d4513b
     Change ID: rlvkpnrzqnoowoytxnquwvuryrwnrmlp
     Author   : Test User <test.user@example.com> (2001-02-03 08:05:09)

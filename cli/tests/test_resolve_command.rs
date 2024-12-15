@@ -125,7 +125,7 @@ fn test_resolution() {
         &repo_path,
         &[
             "resolve",
-            "--config-toml=ui.merge-editor='false'",
+            "--config=ui.merge-editor='false'",
             "--tool=fake-editor",
         ],
     );
@@ -172,8 +172,7 @@ fn test_resolution() {
         &repo_path,
         &[
             "resolve",
-            "--config-toml",
-            "merge-tools.fake-editor.merge-tool-edits-conflict-markers=true",
+            "--config=merge-tools.fake-editor.merge-tool-edits-conflict-markers=true",
         ],
     );
     insta::assert_snapshot!(
@@ -230,8 +229,7 @@ fn test_resolution() {
         &repo_path,
         &[
             "resolve",
-            "--config-toml",
-            "merge-tools.fake-editor.merge-tool-edits-conflict-markers=true",
+            "--config=merge-tools.fake-editor.merge-tool-edits-conflict-markers=true",
         ],
     );
     insta::assert_snapshot!(stdout, @"");
@@ -375,12 +373,8 @@ fn test_resolution() {
         &repo_path,
         &[
             "resolve",
-            "--config-toml",
-            r#"
-            [merge-tools.fake-editor]
-            merge-tool-edits-conflict-markers = true
-            conflict-marker-style = "git"
-            "#,
+            "--config=merge-tools.fake-editor.merge-tool-edits-conflict-markers=true",
+            "--config=merge-tools.fake-editor.conflict-marker-style=git",
         ],
     );
     insta::assert_snapshot!(stdout, @"");
@@ -461,8 +455,7 @@ fn test_resolution() {
         &repo_path,
         &[
             "resolve",
-            "--config-toml",
-            "merge-tools.fake-editor.merge-conflict-exit-codes = [1]",
+            "--config=merge-tools.fake-editor.merge-conflict-exit-codes=[1]",
         ],
     );
     insta::assert_snapshot!(stdout, @"");
@@ -531,8 +524,7 @@ fn test_resolution() {
         &repo_path,
         &[
             "resolve",
-            "--config-toml",
-            "merge-tools.fake-editor.merge-conflict-exit-codes = [1]",
+            "--config=merge-tools.fake-editor.merge-conflict-exit-codes=[1]",
         ],
     );
     // On Windows, the ExitStatus struct prints "exit code" instead of "exit status"
@@ -556,7 +548,7 @@ fn check_resolve_produces_input_file(
     let editor_script = test_env.set_up_fake_editor();
     std::fs::write(editor_script, format!("expect\n{expected_content}")).unwrap();
 
-    let merge_arg_config = format!(r#"merge-tools.fake-editor.merge-args = ["${role}"]"#);
+    let merge_arg_config = format!(r#"merge-tools.fake-editor.merge-args=["${role}"]"#);
     // This error means that fake-editor exited successfully but did not modify the
     // output file.
     // We cannot use `insta::assert_snapshot!` here after insta 1.22 due to
@@ -565,7 +557,7 @@ fn check_resolve_produces_input_file(
     assert_eq!(
         test_env.jj_cmd_failure(
             repo_path,
-            &["resolve", "--config-toml", &merge_arg_config, filename]
+            &["resolve", "--config", &merge_arg_config, filename]
         ),
         format!(
             "Resolving conflicts in: {filename}\nError: Failed to resolve conflicts\nCaused by: \
@@ -778,8 +770,7 @@ fn test_simplify_conflict_sides() {
         &repo_path,
         &[
             "resolve",
-            "--config-toml",
-            "merge-tools.fake-editor.merge-tool-edits-conflict-markers=true",
+            "--config=merge-tools.fake-editor.merge-tool-edits-conflict-markers=true",
             "fileB",
         ],
     );

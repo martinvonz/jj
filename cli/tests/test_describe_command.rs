@@ -602,9 +602,8 @@ fn test_describe_author() {
         &repo_path,
         &[
             "describe",
-            "--config-toml",
-            r#"user.name = "Ove Ridder"
-            user.email = "ove.ridder@example.com""#,
+            "--config=user.name=Ove Ridder",
+            "--config=user.email=ove.ridder@example.com",
             "--no-edit",
             "--reset-author",
         ],
@@ -628,9 +627,8 @@ fn test_describe_author() {
             "describe",
             "@---",
             "@-",
-            "--config-toml",
-            r#"user.name = "Ove Ridder"
-            user.email = "ove.ridder@example.com""#,
+            "--config=user.name=Ove Ridder",
+            "--config=user.email=ove.ridder@example.com",
             "--reset-author",
         ],
     );

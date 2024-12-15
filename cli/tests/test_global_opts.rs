@@ -404,30 +404,23 @@ fn test_color_config() {
     ◆  0000000000000000000000000000000000000000
     "###);
 
-    // Test that --config-toml 'ui.color="never"' overrides the config.
+    // Test that --config 'ui.color=never' overrides the config.
     let stdout = test_env.jj_cmd_success(
         &repo_path,
-        &[
-            "--config-toml",
-            "ui.color=\"never\"",
-            "log",
-            "-T",
-            "commit_id",
-        ],
+        &["--config=ui.color=never", "log", "-T", "commit_id"],
     );
     insta::assert_snapshot!(stdout, @r###"
     @  230dd059e1b059aefc0da06a2e5a7dbf22362f22
     ◆  0000000000000000000000000000000000000000
     "###);
 
-    // --color overrides --config-toml 'ui.color=...'.
+    // --color overrides --config 'ui.color=...'.
     let stdout = test_env.jj_cmd_success(
         &repo_path,
         &[
             "--color",
             "never",
-            "--config-toml",
-            "ui.color=\"always\"",
+            "--config=ui.color=always",
             "log",
             "-T",
             "commit_id",
@@ -466,7 +459,7 @@ fn test_color_config() {
     For more information, try '--help'.
     ");
     // Invalid ui.color
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "--config-toml=ui.color=true"]);
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "--config=ui.color=true"]);
     insta::assert_snapshot!(stderr, @r"
     Config error: Invalid type or value for ui.color
     Caused by: wanted string or table
@@ -518,7 +511,7 @@ fn test_color_ui_messages() {
         &[
             "log",
             "-r@|@--",
-            "--config-toml=templates.log_node='commit_id'",
+            "--config=templates.log_node=commit_id",
             "-Tdescription",
         ],
     );
@@ -591,10 +584,7 @@ fn test_early_args() {
     // bug that causes defaults to be unpopulated. Test that the early args are
     // tolerant of this bug and don't cause a crash.
     test_env.jj_cmd_success(test_env.env_root(), &["--no-pager", "help"]);
-    test_env.jj_cmd_success(
-        test_env.env_root(),
-        &["--config-toml", "ui.color = 'always'", "help"],
-    );
+    test_env.jj_cmd_success(test_env.env_root(), &["--config=ui.color=always", "help"]);
 }
 
 #[test]
@@ -710,10 +700,8 @@ fn test_invalid_config_value() {
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
 
-    let stderr = test_env.jj_cmd_failure(
-        &repo_path,
-        &["status", "--config-toml=snapshot.auto-track=[0]"],
-    );
+    let stderr =
+        test_env.jj_cmd_failure(&repo_path, &["status", "--config=snapshot.auto-track=[0]"]);
     insta::assert_snapshot!(stderr, @r"
     Config error: Invalid type or value for snapshot.auto-track
     Caused by: invalid type: sequence, expected a string

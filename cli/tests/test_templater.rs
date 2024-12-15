@@ -437,7 +437,7 @@ fn test_templater_alias_override() {
     "#,
     );
 
-    // 'f(x)' should be overridden by --config-toml 'f(a)'. If aliases were sorted
+    // 'f(x)' should be overridden by --config 'f(a)'. If aliases were sorted
     // purely by name, 'f(a)' would come first.
     let stdout = test_env.jj_cmd_success(
         &repo_path,
@@ -447,8 +447,7 @@ fn test_templater_alias_override() {
             "-r@",
             "-T",
             r#"f(_)"#,
-            "--config-toml",
-            r#"template-aliases.'f(a)' = '"arg"'"#,
+            r#"--config=template-aliases.'f(a)'='"arg"'"#,
         ],
     );
     insta::assert_snapshot!(stdout, @"arg");

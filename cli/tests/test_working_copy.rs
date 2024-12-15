@@ -36,7 +36,7 @@ fn test_snapshot_large_file() {
       - Adding the file to `.gitignore`
       - Run `jj config set --repo snapshot.max-new-file-size 13`
         This will increase the maximum file size allowed for new files, in this repository only.
-      - Run `jj --config-toml 'snapshot.max-new-file-size=13' st`
+      - Run `jj --config snapshot.max-new-file-size=13 st`
         This will increase the maximum file size allowed for new files, for this command only.
     ");
 
@@ -53,18 +53,14 @@ fn test_snapshot_large_file() {
       - Adding the file to `.gitignore`
       - Run `jj config set --repo snapshot.max-new-file-size 11264`
         This will increase the maximum file size allowed for new files, in this repository only.
-      - Run `jj --config-toml 'snapshot.max-new-file-size=11264' st`
+      - Run `jj --config snapshot.max-new-file-size=11264 st`
         This will increase the maximum file size allowed for new files, for this command only.
     ");
 
     // test invalid configuration
     let stderr = test_env.jj_cmd_failure(
         &repo_path,
-        &[
-            "file",
-            "list",
-            "--config-toml=snapshot.max-new-file-size = []",
-        ],
+        &["file", "list", "--config=snapshot.max-new-file-size=[]"],
     );
     insta::assert_snapshot!(stderr, @r"
     Config error: Invalid type or value for snapshot.max-new-file-size
@@ -102,7 +98,7 @@ fn test_snapshot_large_file_restore() {
       - Adding the file to `.gitignore`
       - Run `jj config set --repo snapshot.max-new-file-size 13`
         This will increase the maximum file size allowed for new files, in this repository only.
-      - Run `jj --config-toml 'snapshot.max-new-file-size=13' st`
+      - Run `jj --config snapshot.max-new-file-size=13 st`
         This will increase the maximum file size allowed for new files, for this command only.
     Created kkmpptxz e3eb7e81 (no description set)
     Working copy now at: kkmpptxz e3eb7e81 (no description set)
