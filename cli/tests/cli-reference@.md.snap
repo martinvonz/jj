@@ -752,14 +752,15 @@ When none of the `--destination`, `--insert-after`, or `--insert-before` argumen
 
 When any of the `--destination`, `--insert-after`, or `--insert-before` arguments are provided, the roots of the specified commits will be duplicated onto the destination indicated by the arguments. Other specified commits will be duplicated onto these newly duplicated commits. If the `--insert-after` or `--insert-before` arguments are provided, the new children indicated by the arguments will be rebased onto the heads of the specified commits.
 
-**Usage:** `jj duplicate [OPTIONS] [REVISIONS]...`
+**Usage:** `jj duplicate [OPTIONS]`
 
 ###### **Arguments:**
 
-* `<REVISIONS>` — The revision(s) to duplicate (default: @)
+* `<REVISIONS>`
 
 ###### **Options:**
 
+* `-r`, `--revisions <REVISIONS>` — The revision(s) to duplicate (default: @)
 * `-d`, `--destination <DESTINATION>` — The revision(s) to duplicate onto (can be repeated to create a merge commit)
 * `-A`, `--insert-after <INSERT_AFTER>` — The revision(s) to insert after (can be repeated to create a merge commit)
 * `-B`, `--insert-before <INSERT_BEFORE>` — The revision(s) to insert before (can be repeated to create a merge commit)

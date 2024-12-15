@@ -992,7 +992,7 @@ fn test_short_prefix_in_transaction() {
     }
     // Create 2^4 duplicates of the chain
     for _ in 0..4 {
-        test_env.jj_cmd_ok(&repo_path, &["duplicate", "description(commit)"]);
+        test_env.jj_cmd_ok(&repo_path, &["duplicate", "-rdescription(commit)"]);
     }
 
     // Short prefix should be used for commit summary inside the transaction
