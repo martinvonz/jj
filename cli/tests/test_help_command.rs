@@ -102,33 +102,33 @@ fn test_help_keyword() {
 
     // It should give hints if a similar keyword is present
     let help_cmd_stderr = test_env.jj_cmd_cli_error(test_env.env_root(), &["help", "-k", "rev"]);
-    insta::assert_snapshot!(help_cmd_stderr, @r#"
+    insta::assert_snapshot!(help_cmd_stderr, @r###"
     error: invalid value 'rev' for '--keyword <KEYWORD>'
-      [possible values: revsets, tutorial]
+      [possible values: bookmarks, config, filesets, glossary, revsets, templates, tutorial]
 
       tip: a similar value exists: 'revsets'
 
     For more information, try '--help'.
-    "#);
+    "###);
 
     // It should give error with a hint if no similar keyword is found
     let help_cmd_stderr =
         test_env.jj_cmd_cli_error(test_env.env_root(), &["help", "-k", "<no-similar-keyword>"]);
-    insta::assert_snapshot!(help_cmd_stderr, @r#"
+    insta::assert_snapshot!(help_cmd_stderr, @r###"
     error: invalid value '<no-similar-keyword>' for '--keyword <KEYWORD>'
-      [possible values: revsets, tutorial]
+      [possible values: bookmarks, config, filesets, glossary, revsets, templates, tutorial]
 
     For more information, try '--help'.
-    "#);
+    "###);
 
     // The keyword flag with no argument should error with a hint
     let help_cmd_stderr = test_env.jj_cmd_cli_error(test_env.env_root(), &["help", "-k"]);
-    insta::assert_snapshot!(help_cmd_stderr, @r#"
+    insta::assert_snapshot!(help_cmd_stderr, @r###"
     error: a value is required for '--keyword <KEYWORD>' but none was supplied
-      [possible values: revsets, tutorial]
+      [possible values: bookmarks, config, filesets, glossary, revsets, templates, tutorial]
 
     For more information, try '--help'.
-    "#);
+    "###);
 
     // It shouldn't show help for a certain keyword if the `--keyword` is not
     // present
