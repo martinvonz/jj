@@ -1203,27 +1203,18 @@ env JJ_CONFIG=/dev/null jj log       # Ignores any settings specified in the con
 
 ### Specifying config on the command-line
 
-You can use one or more `--config`/`--config-toml`/`--config-file` options on
-the command line to specify additional configuration settings. This overrides
-settings defined in config files or environment variables. For example,
+You can use one or more `--config`/`--config-file` options on the command line
+to specify additional configuration settings. This overrides settings defined in
+config files or environment variables. For example,
 
 ```shell
-jj --config=ui.color=always --config-toml='ui.diff-editor="kdiff3"' split
+jj --config=ui.color=always --config=ui.diff-editor=kdiff3 split
 ```
 
-Config specified by `--config-toml` must be valid TOML. In particular, string
-values must be surrounded by quotes. To pass these quotes to `jj`, most shells
-require surrounding those quotes with single quotes as shown above. On the other
-hand, `--config` can accept a bare string value.
+Config value should be specified as a TOML expression. If string value doesn't
+contain any TOML constructs (such as array notation), quotes can be omitted.
 
-In `sh`-compatible shells, `--config-toml` can be used to merge entire TOML
-files with the config specified in `.jjconfig.toml`:
-
-```shell
-jj --config-toml="$(cat extra-config.toml)" log
-```
-
-This is equivalent to
+To load an entire TOML document, use `--config-file`:
 
 ```shell
 jj --config-file=extra-config.toml log

@@ -3109,8 +3109,9 @@ pub struct EarlyArgs {
     /// constructs (such as array notation), quotes can be omitted.
     #[arg(long, value_name = "NAME=VALUE", global = true)]
     pub config: Vec<String>,
-    /// Additional configuration options (can be repeated)
-    #[arg(long, value_name = "TOML", global = true)]
+    /// Additional configuration options (can be repeated) (DEPRECATED)
+    // TODO: delete --config-toml in jj 0.31+
+    #[arg(long, value_name = "TOML", global = true, hide = true)]
     pub config_toml: Vec<String>,
     /// Additional configuration files (can be repeated)
     #[arg(long, value_name = "PATH", global = true, value_hint = clap::ValueHint::FilePath)]
@@ -3334,6 +3335,12 @@ fn handle_early_args(
     let args = EarlyArgs::from_arg_matches(&early_matches).unwrap();
 
     let old_layers_len = config.layers().len();
+    if !args.config_toml.is_empty() {
+        writeln!(
+            ui.warning_default(),
+            "--config-toml is deprecated; use --config or --config-file instead."
+        )?;
+    }
     config.extend_layers(parse_config_args(&args.merged_config_args(&early_matches))?);
 
     // Command arguments overrides any other configuration including the
