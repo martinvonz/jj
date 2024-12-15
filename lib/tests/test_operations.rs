@@ -431,7 +431,7 @@ fn stable_op_id_settings() -> UserSettings {
         )
         .unwrap(),
     );
-    UserSettings::from_config(config)
+    UserSettings::from_config(config).unwrap()
 }
 
 #[test]

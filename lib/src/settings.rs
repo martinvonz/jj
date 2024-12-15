@@ -124,28 +124,31 @@ impl SignSettings {
     }
 }
 
-fn get_timestamp_config(config: &StackedConfig, key: &'static str) -> Option<Timestamp> {
+fn to_timestamp(value: ConfigValue) -> Result<Timestamp, Box<dyn std::error::Error + Send + Sync>> {
     // TODO: Maybe switch to native TOML date-time type?
-    match config.get::<String>(key) {
-        Ok(timestamp_str) => match DateTime::parse_from_rfc3339(&timestamp_str) {
-            Ok(datetime) => Some(Timestamp::from_datetime(datetime)),
-            Err(_) => None,
-        },
-        Err(_) => None,
+    if let Some(s) = value.as_str() {
+        Ok(Timestamp::from_datetime(DateTime::parse_from_rfc3339(s)?))
+    } else {
+        let ty = value.type_name();
+        Err(format!("invalid type: {ty}, expected a date-time string").into())
     }
 }
 
 impl UserSettings {
-    pub fn from_config(config: StackedConfig) -> Self {
-        let commit_timestamp = get_timestamp_config(&config, "debug.commit-timestamp");
-        let operation_timestamp = get_timestamp_config(&config, "debug.operation-timestamp");
-        let rng_seed = config.get::<u64>("debug.randomness-seed").ok();
-        UserSettings {
+    pub fn from_config(config: StackedConfig) -> Result<Self, ConfigGetError> {
+        let commit_timestamp = config
+            .get_value_with("debug.commit-timestamp", to_timestamp)
+            .optional()?;
+        let operation_timestamp = config
+            .get_value_with("debug.operation-timestamp", to_timestamp)
+            .optional()?;
+        let rng_seed = config.get::<u64>("debug.randomness-seed").optional()?;
+        Ok(UserSettings {
             config,
             commit_timestamp,
             operation_timestamp,
             rng: Arc::new(JJRng::new(rng_seed)),
-        }
+        })
     }
 
     // TODO: Reconsider UserSettings/RepoSettings abstraction. See

@@ -123,7 +123,7 @@ pub fn base_user_config() -> StackedConfig {
 /// Returns new immutable settings object that includes fake user configuration
 /// needed to run basic operations.
 pub fn user_settings() -> UserSettings {
-    UserSettings::from_config(base_user_config())
+    UserSettings::from_config(base_user_config()).unwrap()
 }
 
 #[derive(Debug)]

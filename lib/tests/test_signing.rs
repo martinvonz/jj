@@ -30,7 +30,7 @@ fn user_settings(sign_all: bool) -> UserSettings {
         )
         .unwrap(),
     );
-    UserSettings::from_config(config)
+    UserSettings::from_config(config).unwrap()
 }
 
 fn someone_else() -> Signature {

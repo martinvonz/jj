@@ -753,7 +753,7 @@ fn get_jj_command() -> Result<(JjBuilder, UserSettings), CommandError> {
         cmd: current_exe,
         args: cmd_args,
     };
-    let settings = UserSettings::from_config(config);
+    let settings = UserSettings::from_config(config)?;
 
     Ok((builder, settings))
 }

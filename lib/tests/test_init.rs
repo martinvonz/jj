@@ -143,7 +143,7 @@ fn test_init_no_config_set(backend: TestRepoBackend) {
     // Test that we can create a repo without setting any config
     // TODO: Perhaps, StackedConfig::empty() will be replaced with ::default()
     // or something that includes the minimal configuration variables.
-    let settings = UserSettings::from_config(StackedConfig::empty());
+    let settings = UserSettings::from_config(StackedConfig::empty()).unwrap();
     let test_workspace = TestWorkspace::init_with_backend(&settings, backend);
     let repo = &test_workspace.repo;
     let wc_commit_id = repo
