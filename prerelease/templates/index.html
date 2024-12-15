@@ -850,6 +850,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#email-type" class="md-nav__link">
+    <span class="md-ellipsis">
+      Email type
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#integer-type" class="md-nav__link">
     <span class="md-ellipsis">
       Integer type
@@ -1719,6 +1728,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#email-type" class="md-nav__link">
+    <span class="md-ellipsis">
+      Email type
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#integer-type" class="md-nav__link">
     <span class="md-ellipsis">
       Integer type
@@ -2020,6 +2038,12 @@ type</a> are available as keywords. For example,
 <li><code>.short([len: Integer]) -&gt; String</code></li>
 <li><code>.shortest([min_len: Integer]) -&gt; ShortestIdPrefix</code>: Shortest unique prefix.</li>
 </ul>
+<h3 id="email-type">Email type<a class="headerlink" href="#email-type" title="Permanent link">&para;</a></h3>
+<p>The following methods are defined.</p>
+<ul>
+<li><code>.local() -&gt; String</code></li>
+<li><code>.domain() -&gt; String</code></li>
+</ul>
 <h3 id="integer-type">Integer type<a class="headerlink" href="#integer-type" title="Permanent link">&para;</a></h3>
 <p>No methods are defined.</p>
 <h3 id="list-type">List type<a class="headerlink" href="#list-type" title="Permanent link">&para;</a></h3>
@@ -2092,8 +2116,7 @@ invoked. If not set, an error will be reported inline on method call.</p>
 <p>The following methods are defined.</p>
 <ul>
 <li><code>.name() -&gt; String</code></li>
-<li><code>.email() -&gt; String</code></li>
-<li><code>.username() -&gt; String</code></li>
+<li><code>.email() -&gt; Email</code></li>
 <li><code>.timestamp() -&gt; Timestamp</code></li>
 </ul>
 <h3 id="sizehint-type">SizeHint type<a class="headerlink" href="#sizehint-type" title="Permanent link">&para;</a></h3>
