@@ -36,6 +36,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Deprecations
 
+* `--config-toml=TOML` is deprecated in favor of `--config=NAME=VALUE` and
+  `--config-file=PATH`.
+
 * The `Signature.username()` template method is deprecated for
   `Signature().email().local()`.
 

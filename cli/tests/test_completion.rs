@@ -83,7 +83,6 @@ fn test_bookmark_names() {
     --quiet	Silence non-primary command output
     --no-pager	Disable the pager
     --config	Additional configuration options (can be repeated)
-    --config-toml	Additional configuration options (can be repeated)
     --config-file	Additional configuration files (can be repeated)
     --help	Print help (see more with '--help')
     ");

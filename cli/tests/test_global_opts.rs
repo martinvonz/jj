@@ -591,10 +591,12 @@ fn test_early_args() {
 fn test_config_args() {
     let test_env = TestEnvironment::default();
     let list_config = |args: &[&str]| {
-        test_env.jj_cmd_success(
+        // Suppress deprecation warning of --config-toml
+        let (stdout, _stderr) = test_env.jj_cmd_ok(
             test_env.env_root(),
             &[&["config", "list", "--include-overridden", "test"], args].concat(),
-        )
+        );
+        stdout
     };
 
     std::fs::write(
@@ -648,6 +650,15 @@ fn test_config_args() {
     test.key2 = 'arg3'
     test.key3 = 'file2'
     "##);
+
+    let (stdout, stderr) = test_env.jj_cmd_ok(
+        test_env.env_root(),
+        &["config", "list", "foo", "--config-toml=foo='bar'"],
+    );
+    insta::assert_snapshot!(stdout, @"foo = 'bar'");
+    insta::assert_snapshot!(
+        stderr,
+        @"Warning: --config-toml is deprecated; use --config or --config-file instead.");
 
     let stderr = test_env.jj_cmd_failure(test_env.env_root(), &["config", "list", "--config=foo"]);
     insta::assert_snapshot!(stderr, @r"
@@ -783,7 +794,6 @@ fn test_help() {
           --quiet                        Silence non-primary command output
           --no-pager                     Disable the pager
           --config <NAME=VALUE>          Additional configuration options (can be repeated)
-          --config-toml <TOML>           Additional configuration options (can be repeated)
           --config-file <PATH>           Additional configuration files (can be repeated)
     ");
 }
