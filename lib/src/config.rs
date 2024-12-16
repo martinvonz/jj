@@ -33,6 +33,8 @@ use thiserror::Error;
 use toml_edit::DocumentMut;
 use toml_edit::ImDocument;
 
+pub use crate::config_resolver::resolve;
+pub use crate::config_resolver::ConfigResolutionContext;
 use crate::file_util::IoResultExt as _;
 use crate::file_util::PathError;
 
