@@ -227,3 +227,27 @@ fn test_materialize_and_snapshot_different_conflict_markers() {
      line 3
     "##);
 }
+
+#[test]
+fn test_snapshot_invalid_ignore_pattern() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+    let gitignore_path = repo_path.join(".gitignore");
+
+    // Test invalid pattern in .gitignore
+    std::fs::write(&gitignore_path, " []\n").unwrap();
+    insta::assert_snapshot!(test_env.jj_cmd_internal_error(&repo_path, &["st"]), @r#"
+    Internal error: Failed to snapshot the working copy
+    Caused by: error parsing glob ' []': unclosed character class; missing ']'
+    "#);
+
+    // Test invalid UTF-8 in .gitignore
+    std::fs::write(&gitignore_path, b"\xff\n").unwrap();
+    insta::assert_snapshot!(test_env.jj_cmd_internal_error(&repo_path, &["st"]), @r##"
+    Internal error: Failed to snapshot the working copy
+    Caused by:
+    1: invalid UTF-8 for ignore pattern in  on line #1: �
+    2: invalid utf-8 sequence of 1 bytes from index 0
+    "##);
+}
