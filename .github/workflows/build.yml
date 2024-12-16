@@ -69,7 +69,7 @@ jobs:
         choco install openssh --pre
 
     - name: Install Rust
-      uses: dtolnay/rust-toolchain@1482605bfc5719782e1267fd0c0cc350fe7646b8
+      uses: dtolnay/rust-toolchain@a54c7afa936fefeb4456b2dd8068152669aa8203
       with:
         toolchain:  1.76
     - name: Build
@@ -87,7 +87,7 @@ jobs:
     - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
     - name: Install Rust
-      uses: dtolnay/rust-toolchain@1482605bfc5719782e1267fd0c0cc350fe7646b8
+      uses: dtolnay/rust-toolchain@a54c7afa936fefeb4456b2dd8068152669aa8203
       with:
         toolchain:  1.76
     - name: Build
@@ -98,7 +98,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-      - uses: dtolnay/rust-toolchain@1482605bfc5719782e1267fd0c0cc350fe7646b8
+      - uses: dtolnay/rust-toolchain@a54c7afa936fefeb4456b2dd8068152669aa8203
         with:
           toolchain: stable
       - run: sudo apt update && sudo apt-get -y install protobuf-compiler
@@ -112,7 +112,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-      - uses: dtolnay/rust-toolchain@1482605bfc5719782e1267fd0c0cc350fe7646b8
+      - uses: dtolnay/rust-toolchain@a54c7afa936fefeb4456b2dd8068152669aa8203
         with:
           toolchain: nightly
           components: rustfmt
@@ -172,7 +172,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-      - uses: dtolnay/rust-toolchain@1482605bfc5719782e1267fd0c0cc350fe7646b8
+      - uses: dtolnay/rust-toolchain@a54c7afa936fefeb4456b2dd8068152669aa8203
         with:
           toolchain: stable
           components: clippy
