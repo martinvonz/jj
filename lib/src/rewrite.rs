@@ -155,6 +155,11 @@ impl<'repo> CommitRewriter<'repo> {
         self.mut_repo
     }
 
+    /// Returns an immutable reference to `MutableRepo`.
+    pub fn repo(&mut self) -> &MutableRepo {
+        self.mut_repo
+    }
+
     /// The commit we're rewriting.
     pub fn old_commit(&self) -> &Commit {
         &self.old_commit
