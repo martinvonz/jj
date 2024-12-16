@@ -5,7 +5,7 @@ on:
     branches:
       - main
 
-permissions: read-all
+permissions: {}
 
 jobs:
   binaries:
@@ -42,6 +42,8 @@ jobs:
     name: Build binary artifacts
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
       - name: Install packages (Ubuntu)
         if: matrix.os == 'ubuntu-24.04'
         run: |

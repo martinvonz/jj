@@ -1,0 +1,34 @@
+name: GHA Security Analysis with zizmor
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["**"]
+
+jobs:
+  zizmor:
+    name: Run zizmor on all workflows
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+
+      - name: Install the latest version of uv
+        uses: astral-sh/setup-uv@38f3f104447c67c051c4a08e39b64a148898af3a
+
+      - name: Run zizmor
+        run: uvx zizmor --format sarif . > results.sarif 
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
+
+      - name: Upload SARIF file
+        uses: github/codeql-action/upload-sarif@babb554ede22fd5605947329c4d04d8e7a0b8155
+        with:
+          sarif_file: results.sarif
+          category: zizmor

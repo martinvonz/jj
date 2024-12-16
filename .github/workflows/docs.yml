@@ -5,8 +5,7 @@ on:
     branches:
       - main
 
-permissions:
-  contents: write
+permissions: {}
 
 jobs:
   prerelease-docs-build-deploy:
@@ -18,6 +17,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false          
       - run:  "git fetch origin gh-pages --depth=1"
       - uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b
         with:
@@ -27,6 +28,8 @@ jobs:
         with:
           version: "0.5.1"
       - name: Install dependencies, compile and deploy docs
+        permissions:
+          contents: write
         run: |
           git config user.name 'jj-docs[bot]'
           git config user.email 'jj-docs[bot]@users.noreply.github.io'

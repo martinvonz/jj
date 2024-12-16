@@ -4,7 +4,7 @@ on:
   release:
     types: [published]
 
-permissions: read-all
+permissions: {}
 
 env:
   CARGO_INCREMENTAL: 0
@@ -38,6 +38,8 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      with:
+        persist-credentials: false
     - name: Install packages (Ubuntu)
       if: matrix.os == 'ubuntu-24.04'
       run: |
@@ -63,7 +65,7 @@ jobs:
       shell: bash
       run: |
         outdir="target/${{ matrix.target }}/release"
-        staging="jj-${{ github.event.release.tag_name }}-${{ matrix.target }}"
+        staging="jj-${RELEASE_TAG_NAME}-${{ matrix.target }}"
         mkdir "$staging"
         cp {README.md,LICENSE} "$staging/"
         if [ "${{ matrix.os }}" = "windows-2022" ]; then
@@ -80,6 +82,7 @@ jobs:
       uses: actions/upload-release-asset@e8f9f06c4b078e705bd2ea027f0926603fc9b4d5
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        RELEASE_TAG_NAME: ${{ github.event.release.tag_name }}
       with:
         upload_url: ${{ github.event.release.upload_url }}
         asset_path: ${{ env.ASSET }}
@@ -97,6 +100,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends xz-utils liblz4-tool musl-tools
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
       - uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b
         with:
           python-version: 3.11
@@ -107,13 +112,14 @@ jobs:
       - name: Compile docs and zip them up
         run: |
           uv run -- mkdocs build -f mkdocs-offline.yml
-          archive="jj-${{ github.event.release.tag_name }}-docs-html.tar.gz"
+          archive="jj-${RELEASE_TAG_NAME}-docs-html.tar.gz"
           tar czf "$archive" -C "rendered-docs" .
           echo "ASSET=$archive" >> $GITHUB_ENV
       - name: Upload release archive
         uses: actions/upload-release-asset@e8f9f06c4b078e705bd2ea027f0926603fc9b4d5
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG_NAME: ${{ github.event.release.tag_name }}
         with:
           upload_url: ${{ github.event.release.upload_url }}
           asset_path: ${{ env.ASSET }}
@@ -127,6 +133,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
       - run:  "git fetch origin gh-pages --depth=1"
       - uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b
         with:
@@ -141,6 +149,8 @@ jobs:
           git config user.email 'jj-docs[bot]@users.noreply.github.io'
           # Using the 'latest' tag below makes the website default
           # to this version.
-          .github/scripts/docs-build-deploy 'https://martinvonz.github.io/jj' "${{ github.event.release.tag_name }}" latest --update-aliases --push
+          .github/scripts/docs-build-deploy 'https://martinvonz.github.io/jj' "${RELEASE_TAG_NAME}" latest --update-aliases --push
+        env:
+          RELEASE_TAG_NAME: ${{ github.event.release.tag_name }}
       - name: "Show `git diff --stat`"
         run: git diff --stat gh-pages^ gh-pages || echo "(No diffs)"

@@ -7,7 +7,7 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
-permissions: read-all
+permissions: {}
 
 jobs:
   dependabot-auto-merge:
