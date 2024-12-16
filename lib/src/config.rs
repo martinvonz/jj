@@ -24,6 +24,7 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::slice;
 use std::str::FromStr;
+use std::sync::Arc;
 
 use itertools::Itertools as _;
 use serde::de::IntoDeserializer as _;
@@ -477,7 +478,7 @@ fn ensure_parent_table<'a, 'b>(
 /// modification.
 #[derive(Debug)]
 pub struct ConfigFile {
-    layer: ConfigLayer,
+    layer: Arc<ConfigLayer>,
 }
 
 impl ConfigFile {
@@ -488,15 +489,15 @@ impl ConfigFile {
         path: impl Into<PathBuf>,
     ) -> Result<Self, ConfigLoadError> {
         let layer = match ConfigLayer::load_from_file(source, path.into()) {
-            Ok(layer) => layer,
+            Ok(layer) => Arc::new(layer),
             Err(ConfigLoadError::Read(PathError { path, error }))
                 if error.kind() == io::ErrorKind::NotFound =>
             {
-                ConfigLayer {
+                Arc::new(ConfigLayer {
                     source,
                     path: Some(path),
                     data: DocumentMut::new(),
-                }
+                })
             }
             Err(err) => return Err(err),
         };
@@ -505,8 +506,7 @@ impl ConfigFile {
 
     /// Wraps file-based [`ConfigLayer`] for modification. Returns `Err(layer)`
     /// if the source `path` is unknown.
-    #[allow(clippy::result_large_err)] // Ok-variant is as large as Err anyway
-    pub fn from_layer(layer: ConfigLayer) -> Result<Self, ConfigLayer> {
+    pub fn from_layer(layer: Arc<ConfigLayer>) -> Result<Self, Arc<ConfigLayer>> {
         if layer.path.is_some() {
             Ok(ConfigFile { layer })
         } else {
@@ -527,7 +527,7 @@ impl ConfigFile {
     }
 
     /// Returns the underlying config layer.
-    pub fn layer(&self) -> &ConfigLayer {
+    pub fn layer(&self) -> &Arc<ConfigLayer> {
         &self.layer
     }
 
@@ -537,7 +537,7 @@ impl ConfigFile {
         name: impl ToConfigNamePath,
         new_value: impl Into<ConfigValue>,
     ) -> Result<Option<ConfigValue>, ConfigUpdateError> {
-        self.layer.set_value(name, new_value)
+        Arc::make_mut(&mut self.layer).set_value(name, new_value)
     }
 
     /// See [`ConfigLayer::delete_value()`].
@@ -545,7 +545,7 @@ impl ConfigFile {
         &mut self,
         name: impl ToConfigNamePath,
     ) -> Result<Option<ConfigValue>, ConfigUpdateError> {
-        self.layer.delete_value(name)
+        Arc::make_mut(&mut self.layer).delete_value(name)
     }
 }
 
@@ -584,7 +584,7 @@ impl ConfigFile {
 #[derive(Clone, Debug)]
 pub struct StackedConfig {
     /// Layers sorted by `source` (the lowest precedence one first.)
-    layers: Vec<ConfigLayer>,
+    layers: Vec<Arc<ConfigLayer>>,
 }
 
 impl StackedConfig {
@@ -618,14 +618,20 @@ impl StackedConfig {
     }
 
     /// Inserts new layer at the position specified by `layer.source`.
-    pub fn add_layer(&mut self, layer: ConfigLayer) {
+    pub fn add_layer(&mut self, layer: impl Into<Arc<ConfigLayer>>) {
+        let layer = layer.into();
         let index = self.insert_point(layer.source);
         self.layers.insert(index, layer);
     }
 
     /// Inserts multiple layers at the positions specified by `layer.source`.
-    pub fn extend_layers(&mut self, layers: impl IntoIterator<Item = ConfigLayer>) {
-        for (source, chunk) in &layers.into_iter().chunk_by(|layer| layer.source) {
+    pub fn extend_layers<I>(&mut self, layers: I)
+    where
+        I: IntoIterator,
+        I::Item: Into<Arc<ConfigLayer>>,
+    {
+        let layers = layers.into_iter().map(Into::into);
+        for (source, chunk) in &layers.chunk_by(|layer| layer.source) {
             let index = self.insert_point(source);
             self.layers.splice(index..index, chunk);
         }
@@ -663,12 +669,12 @@ impl StackedConfig {
     }
 
     /// Layers sorted by precedence.
-    pub fn layers(&self) -> &[ConfigLayer] {
+    pub fn layers(&self) -> &[Arc<ConfigLayer>] {
         &self.layers
     }
 
     /// Layers of the specified `source`.
-    pub fn layers_for(&self, source: ConfigSource) -> &[ConfigLayer] {
+    pub fn layers_for(&self, source: ConfigSource) -> &[Arc<ConfigLayer>] {
         &self.layers[self.layer_range(source)]
     }
 
@@ -756,7 +762,7 @@ impl StackedConfig {
 /// Looks up item from `layers`, merges sub fields as needed. Returns a merged
 /// item and the uppermost layer index where the item was found.
 fn get_merged_item(
-    layers: &[ConfigLayer],
+    layers: &[Arc<ConfigLayer>],
     name: &ConfigNamePathBuf,
 ) -> Option<(ConfigItem, usize)> {
     let mut to_merge = Vec::new();
@@ -790,7 +796,7 @@ fn get_merged_item(
 /// Looks up non-inline tables to be merged from `layers`, returns in reverse
 /// order.
 fn get_tables_to_merge<'a>(
-    layers: &'a [ConfigLayer],
+    layers: &'a [Arc<ConfigLayer>],
     name: &ConfigNamePathBuf,
 ) -> Vec<&'a ConfigTable> {
     let mut to_merge = Vec::new();
