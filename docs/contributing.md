@@ -455,6 +455,16 @@ you can submit a PR based on the `gh-pages` bookmark of
  The `.rs` files generated from `.proto` files are included in the repository,
  and there is a GitHub CI check that will complain if they do not match.
 
+## Logging
+
+You can print internal jj logs using `JJ_LOG`. It acts like the `RUST_LOG`
+environment variable, frequent in Rust codebases, and accepts one or more
+[directives]. You can also use the `--debug` global option that sets
+`debug` log level for all targets by default. `JJ_LOG` is still respected when
+using `--debug`.
+
+[directives]: https://docs.rs/tracing-subscriber/latest/tracing_subscriber/filter/struct.EnvFilter.html#directives
+
 ## Profiling
 
 One easy-to-use sampling profiler
