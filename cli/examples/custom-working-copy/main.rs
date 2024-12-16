@@ -239,7 +239,11 @@ impl LockedWorkingCopy for LockedConflictsWorkingCopy {
         options: &SnapshotOptions,
     ) -> Result<(MergedTreeId, SnapshotStats), SnapshotError> {
         let options = SnapshotOptions {
-            base_ignores: options.base_ignores.chain("", "/.conflicts".as_bytes())?,
+            base_ignores: options.base_ignores.chain(
+                "",
+                Path::new(""),
+                "/.conflicts".as_bytes(),
+            )?,
             ..options.clone()
         };
         self.inner.snapshot(&options)
