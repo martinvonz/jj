@@ -222,10 +222,10 @@ Log all remote bookmarks that you authored or committed to:
 $ jj log -r 'remote_bookmarks() & (mine() | committer(your@email.com))'
 ```
 
-Log all descendants of the current working copy that aren't on any remote:
+Log all ancestors of the current working copy that aren't on any remote:
 
 ```shell
-$ jj log -r '::@ & ~remote_bookmarks()'
+$ jj log -r 'remote_bookmarks()..@'
 ```
 
 ## Merge conflicts
