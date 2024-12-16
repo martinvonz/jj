@@ -1838,8 +1838,8 @@ remote:</p>
 <p>Log all remote bookmarks that you authored or committed to:</p>
 <div class="highlight"><pre><span></span><code>$<span class="w"> </span>jj<span class="w"> </span>log<span class="w"> </span>-r<span class="w"> </span><span class="s1">&#39;remote_bookmarks() &amp; (mine() | committer(your@email.com))&#39;</span>
 </code></pre></div>
-<p>Log all descendants of the current working copy that aren't on any remote:</p>
-<div class="highlight"><pre><span></span><code>$<span class="w"> </span>jj<span class="w"> </span>log<span class="w"> </span>-r<span class="w"> </span><span class="s1">&#39;::@ &amp; ~remote_bookmarks()&#39;</span>
+<p>Log all ancestors of the current working copy that aren't on any remote:</p>
+<div class="highlight"><pre><span></span><code>$<span class="w"> </span>jj<span class="w"> </span>log<span class="w"> </span>-r<span class="w"> </span><span class="s1">&#39;remote_bookmarks()..@&#39;</span>
 </code></pre></div>
 <h2 id="merge-conflicts">Merge conflicts<a class="headerlink" href="#merge-conflicts" title="Permanent link">&para;</a></h2>
 <p>For a detailed overview, how Jujutsu handles conflicts, revisit
