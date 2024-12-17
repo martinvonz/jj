@@ -658,26 +658,28 @@ fn make_merge_file(
 
 pub fn edit_merge_builtin(
     tree: &MergedTree,
-    merge_tool_file: &MergeToolFile,
+    merge_tool_files: &[MergeToolFile],
 ) -> Result<MergedTreeId, BuiltinToolError> {
     let mut input = scm_record::helpers::CrosstermInput;
     let recorder = scm_record::Recorder::new(
         scm_record::RecordState {
             is_read_only: false,
-            files: vec![make_merge_file(merge_tool_file)?],
+            files: merge_tool_files.iter().map(make_merge_file).try_collect()?,
             commits: Default::default(),
         },
         &mut input,
     );
     let state = recorder.run()?;
 
-    let file = state.files.into_iter().exactly_one().unwrap();
     apply_diff_builtin(
         tree.store(),
         tree,
         tree,
-        vec![merge_tool_file.repo_path.clone()],
-        &[file],
+        merge_tool_files
+            .iter()
+            .map(|file| file.repo_path.clone())
+            .collect_vec(),
+        &state.files,
     )
     .map_err(BuiltinToolError::BackendError)
 }

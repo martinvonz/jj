@@ -420,7 +420,12 @@ impl From<DiffRenderError> for CommandError {
 
 impl From<ConflictResolveError> for CommandError {
     fn from(err: ConflictResolveError) -> Self {
-        user_error_with_message("Failed to resolve conflicts", err)
+        match err {
+            ConflictResolveError::Backend(err) => err.into(),
+            ConflictResolveError::Io(err) => err.into(),
+            ConflictResolveError::PartialResolution { .. } => user_error(err),
+            _ => user_error_with_message("Failed to resolve conflicts", err),
+        }
     }
 }
 

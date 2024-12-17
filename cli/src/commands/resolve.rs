@@ -26,12 +26,16 @@ use crate::cli_util::RevisionArg;
 use crate::command_error::cli_error;
 use crate::command_error::CommandError;
 use crate::complete;
+use crate::merge_tools::ConflictResolveError;
 use crate::ui::Ui;
 
-/// Resolve a conflicted file with an external merge tool
+/// Resolve conflicted files with an external merge tool
 ///
 /// Only conflicts that can be resolved with a 3-way merge are supported. See
-/// docs for merge tool configuration instructions.
+/// docs for merge tool configuration instructions. External merge tools will be
+/// invoked for each conflicted file one-by-one until all conflicts are
+/// resolved. To stop resolving conflicts, exit the merge tool without making
+/// any changes.
 ///
 /// Note that conflicts can also be resolved without using this command. You may
 /// edit the conflict markers in the conflicted file directly with a text
@@ -52,7 +56,7 @@ pub(crate) struct ResolveArgs {
         add = ArgValueCandidates::new(complete::mutable_revisions),
     )]
     revision: RevisionArg,
-    /// Instead of resolving one conflict, list all the conflicts
+    /// Instead of resolving conflicts, list all the conflicts
     // TODO: Also have a `--summary` option. `--list` currently acts like
     // `diff --summary`, but should be more verbose.
     #[arg(long, short)]
@@ -60,10 +64,8 @@ pub(crate) struct ResolveArgs {
     /// Specify 3-way merge tool to be used
     #[arg(long, conflicts_with = "list", value_name = "NAME")]
     tool: Option<String>,
-    /// Restrict to these paths when searching for a conflict to resolve. We
-    /// will attempt to resolve the first conflict we can find. You can use
-    /// the `--list` argument to find paths to use here.
-    // TODO: Find the conflict we can resolve even if it's not the first one.
+    /// Only resolve conflicts in these paths. You can use the `--list` argument
+    /// to find paths to use here.
     #[arg(
         value_name = "FILESETS",
         value_hint = clap::ValueHint::AnyPath,
@@ -103,16 +105,32 @@ pub(crate) fn cmd_resolve(
         );
     };
 
-    let (repo_path, _) = conflicts.first().unwrap();
+    let repo_paths = conflicts
+        .iter()
+        .map(|(path, _)| path.as_ref())
+        .collect_vec();
     workspace_command.check_rewritable([commit.id()])?;
-    let merge_editor = workspace_command.merge_editor(ui, args.tool.as_deref())?;
-    writeln!(
-        ui.status(),
-        "Resolving conflicts in: {}",
-        workspace_command.format_file_path(repo_path)
-    )?;
     let mut tx = workspace_command.start_transaction();
-    let new_tree_id = merge_editor.edit_file(&tree, repo_path)?;
+    let merge_editor = tx
+        .base_workspace_helper()
+        .merge_editor(ui, args.tool.as_deref())?;
+    let mut suppressed_error = None;
+    let new_tree_id = match merge_editor.edit_files(ui, &tree, &repo_paths) {
+        Ok(new_tree_id) => new_tree_id,
+        Err(err) => {
+            // If resolution failed completely, we can return immediately since there's
+            // nothing to commit
+            let ConflictResolveError::PartialResolution { resolved_tree, .. } = &err else {
+                return Err(err.into());
+            };
+
+            // Some files were resolved successfully, so we want to commit the transaction
+            // before returning the error
+            let resolved_tree = resolved_tree.clone();
+            suppressed_error = Some(err.into());
+            resolved_tree
+        }
+    };
     let new_commit = tx
         .repo_mut()
         .rewrite_commit(command.settings(), &commit)
@@ -138,6 +156,10 @@ pub(crate) fn cmd_resolve(
                 print_conflicted_paths(new_conflicts, formatter.as_mut(), &workspace_command)?;
             }
         }
+    }
+
+    if let Some(err) = suppressed_error {
+        return Err(err);
     }
     Ok(())
 }

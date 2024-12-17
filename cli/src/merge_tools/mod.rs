@@ -19,6 +19,7 @@ mod external;
 use std::sync::Arc;
 
 use bstr::BString;
+use itertools::Itertools;
 use jj_lib::backend::FileId;
 use jj_lib::backend::MergedTreeId;
 use jj_lib::config::ConfigGetError;
@@ -34,6 +35,7 @@ use jj_lib::merged_tree::MergedTree;
 use jj_lib::repo_path::InvalidRepoPathError;
 use jj_lib::repo_path::RepoPath;
 use jj_lib::repo_path::RepoPathBuf;
+use jj_lib::repo_path::RepoPathUiConverter;
 use jj_lib::settings::UserSettings;
 use jj_lib::working_copy::SnapshotError;
 use pollster::FutureExt;
@@ -101,8 +103,16 @@ pub enum ConflictResolveError {
          see the exact invocation)."
     )]
     EmptyOrUnchanged,
-    #[error("Backend error")]
+    #[error(transparent)]
     Backend(#[from] jj_lib::backend::BackendError),
+    #[error(transparent)]
+    Io(#[from] std::io::Error),
+    #[error("Stopped due to error after resolving {resolved_count} conflicts")]
+    PartialResolution {
+        source: Box<ConflictResolveError>,
+        resolved_count: usize,
+        resolved_tree: MergedTreeId,
+    },
 }
 
 #[derive(Debug, Error)]
@@ -271,28 +281,31 @@ struct MergeToolFile {
 
 /// Configured 3-way merge editor.
 #[derive(Clone, Debug)]
-pub struct MergeEditor {
+pub struct MergeEditor<'a> {
     tool: MergeTool,
+    path_converter: &'a RepoPathUiConverter,
     conflict_marker_style: ConflictMarkerStyle,
 }
 
-impl MergeEditor {
+impl<'a> MergeEditor<'a> {
     /// Creates 3-way merge editor of the given name, and loads parameters from
     /// the settings.
     pub fn with_name(
         name: &str,
         settings: &UserSettings,
+        path_converter: &'a RepoPathUiConverter,
         conflict_marker_style: ConflictMarkerStyle,
     ) -> Result<Self, MergeToolConfigError> {
         let tool = get_tool_config(settings, name)?
             .unwrap_or_else(|| MergeTool::external(ExternalMergeTool::with_program(name)));
-        Self::new_inner(name, tool, conflict_marker_style)
+        Self::new_inner(name, tool, path_converter, conflict_marker_style)
     }
 
     /// Loads the default 3-way merge editor from the settings.
     pub fn from_settings(
         ui: &Ui,
         settings: &UserSettings,
+        path_converter: &'a RepoPathUiConverter,
         conflict_marker_style: ConflictMarkerStyle,
     ) -> Result<Self, MergeToolConfigError> {
         let args = editor_args_from_settings(ui, settings, "ui.merge-editor")?;
@@ -302,12 +315,13 @@ impl MergeEditor {
             None
         }
         .unwrap_or_else(|| MergeTool::external(ExternalMergeTool::with_merge_args(&args)));
-        Self::new_inner(&args, tool, conflict_marker_style)
+        Self::new_inner(&args, tool, path_converter, conflict_marker_style)
     }
 
     fn new_inner(
         name: impl ToString,
         tool: MergeTool,
+        path_converter: &'a RepoPathUiConverter,
         conflict_marker_style: ConflictMarkerStyle,
     ) -> Result<Self, MergeToolConfigError> {
         if matches!(&tool, MergeTool::External(mergetool) if mergetool.merge_args.is_empty()) {
@@ -317,51 +331,65 @@ impl MergeEditor {
         }
         Ok(MergeEditor {
             tool,
+            path_converter,
             conflict_marker_style,
         })
     }
 
-    /// Starts a merge editor for the specified file.
-    pub fn edit_file(
+    /// Starts a merge editor for the specified files.
+    pub fn edit_files(
         &self,
+        ui: &Ui,
         tree: &MergedTree,
-        repo_path: &RepoPath,
+        repo_paths: &[&RepoPath],
     ) -> Result<MergedTreeId, ConflictResolveError> {
-        let conflict = match tree.path_value(repo_path)?.into_resolved() {
-            Err(conflict) => conflict,
-            Ok(Some(_)) => return Err(ConflictResolveError::NotAConflict(repo_path.to_owned())),
-            Ok(None) => return Err(ConflictResolveError::PathNotFound(repo_path.to_owned())),
-        };
-        let file_merge = conflict.to_file_merge().ok_or_else(|| {
-            let summary = conflict.describe();
-            ConflictResolveError::NotNormalFiles(repo_path.to_owned(), summary)
-        })?;
-        let simplified_file_merge = file_merge.clone().simplify();
-        // We only support conflicts with 2 sides (3-way conflicts)
-        if simplified_file_merge.num_sides() > 2 {
-            return Err(ConflictResolveError::ConflictTooComplicated {
-                path: repo_path.to_owned(),
-                sides: simplified_file_merge.num_sides(),
-            });
-        };
-        let content =
-            extract_as_single_hunk(&simplified_file_merge, tree.store(), repo_path).block_on()?;
-        let merge_tool_file = MergeToolFile {
-            repo_path: repo_path.to_owned(),
-            conflict,
-            file_merge,
-            content,
-        };
+        let merge_tool_files: Vec<MergeToolFile> = repo_paths
+            .iter()
+            .map(|&repo_path| {
+                let conflict = match tree.path_value(repo_path)?.into_resolved() {
+                    Err(conflict) => conflict,
+                    Ok(Some(_)) => {
+                        return Err(ConflictResolveError::NotAConflict(repo_path.to_owned()))
+                    }
+                    Ok(None) => {
+                        return Err(ConflictResolveError::PathNotFound(repo_path.to_owned()))
+                    }
+                };
+                let file_merge = conflict.to_file_merge().ok_or_else(|| {
+                    let summary = conflict.describe();
+                    ConflictResolveError::NotNormalFiles(repo_path.to_owned(), summary)
+                })?;
+                let simplified_file_merge = file_merge.clone().simplify();
+                // We only support conflicts with 2 sides (3-way conflicts)
+                if simplified_file_merge.num_sides() > 2 {
+                    return Err(ConflictResolveError::ConflictTooComplicated {
+                        path: repo_path.to_owned(),
+                        sides: simplified_file_merge.num_sides(),
+                    });
+                };
+                let content =
+                    extract_as_single_hunk(&simplified_file_merge, tree.store(), repo_path)
+                        .block_on()?;
+                Ok(MergeToolFile {
+                    repo_path: repo_path.to_owned(),
+                    conflict,
+                    file_merge,
+                    content,
+                })
+            })
+            .try_collect()?;
 
         match &self.tool {
             MergeTool::Builtin => {
-                let tree_id = edit_merge_builtin(tree, &merge_tool_file).map_err(Box::new)?;
+                let tree_id = edit_merge_builtin(tree, &merge_tool_files).map_err(Box::new)?;
                 Ok(tree_id)
             }
             MergeTool::External(editor) => external::run_mergetool_external(
+                ui,
+                self.path_converter,
                 editor,
                 tree,
-                &merge_tool_file,
+                &merge_tool_files,
                 self.conflict_marker_style,
             ),
         }
@@ -630,7 +658,11 @@ mod tests {
         let get = |name, config_text| {
             let config = config_from_string(config_text);
             let settings = UserSettings::from_config(config).unwrap();
-            MergeEditor::with_name(name, &settings, ConflictMarkerStyle::Diff)
+            let path_converter = RepoPathUiConverter::Fs {
+                cwd: "".into(),
+                base: "".into(),
+            };
+            MergeEditor::with_name(name, &settings, &path_converter, ConflictMarkerStyle::Diff)
                 .map(|editor| editor.tool)
         };
 
@@ -682,7 +714,11 @@ mod tests {
             let config = config_from_string(text);
             let ui = Ui::with_config(&config).unwrap();
             let settings = UserSettings::from_config(config).unwrap();
-            MergeEditor::from_settings(&ui, &settings, ConflictMarkerStyle::Diff)
+            let path_converter = RepoPathUiConverter::Fs {
+                cwd: "".into(),
+                base: "".into(),
+            };
+            MergeEditor::from_settings(&ui, &settings, &path_converter, ConflictMarkerStyle::Diff)
                 .map(|editor| editor.tool)
         };
 
