@@ -134,7 +134,7 @@
 
           meta = {
             description = "Git-compatible DVCS that is both simple and powerful";
-            homepage = "https://github.com/martinvonz/jj";
+            homepage = "https://github.com/jj-vcs/jj";
             license = pkgs.lib.licenses.asl20;
             mainProgram = "jj";
           };

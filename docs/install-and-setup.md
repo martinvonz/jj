@@ -5,7 +5,7 @@
 
 ### Download pre-built binaries for a release
 
-There are [pre-built binaries](https://github.com/martinvonz/jj/releases/latest)
+There are [pre-built binaries](https://github.com/jj-vcs/jj/releases/latest)
 of the last released version of `jj` for Windows, Mac, or Linux (the "musl"
 version should work on all distributions).
 
@@ -42,7 +42,7 @@ Now run either:
 
 ```shell
 # To install the *prerelease* version from the main branch
-cargo install --git https://github.com/martinvonz/jj.git --locked --bin jj jj-cli
+cargo install --git https://github.com/jj-vcs/jj.git --locked --bin jj jj-cli
 ```
 
 or:
@@ -120,7 +120,7 @@ Now run either:
 
 ```shell
 # To install the *prerelease* version from the main branch
-cargo install --git https://github.com/martinvonz/jj.git \
+cargo install --git https://github.com/jj-vcs/jj.git \
      --features vendored-openssl --locked --bin jj jj-cli
 ```
 
@@ -149,7 +149,7 @@ Now run either:
 
 ```shell
 # To install the *prerelease* version from the main branch
-cargo install --git https://github.com/martinvonz/jj.git --locked --bin jj jj-cli
+cargo install --git https://github.com/jj-vcs/jj.git --locked --bin jj jj-cli
 ```
 
 or:
@@ -192,7 +192,7 @@ Now run either:
 
 ```shell
 # To install the *prerelease* version from the main branch
-cargo install --git https://github.com/martinvonz/jj.git --locked --bin jj jj-cli --features vendored-openssl
+cargo install --git https://github.com/jj-vcs/jj.git --locked --bin jj jj-cli --features vendored-openssl
 ```
 
 or:
@@ -228,7 +228,7 @@ them. Please let us know if you encounter any issues, so we can ensure a smooth
 transition once we default to these new completions. Our initial experience
 is that these new completions work best with `fish`. If you have ideas about
 specific completions that could be added, please share them
-[here](https://github.com/martinvonz/jj/issues/4763).
+[here](https://github.com/jj-vcs/jj/issues/4763).
 
 ### Bash
 

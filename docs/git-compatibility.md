@@ -20,7 +20,7 @@ a comparison with Git, including how workflows are different, see the
   you miss any particular configuration options.
   * The configuration of remotes (`[remote "<name>"]`). Only the names and URLs
     are respected (refspecs are not respected, and
-    [only the last pushurl](https://github.com/martinvonz/jj/issues/4889) is
+    [only the last pushurl](https://github.com/jj-vcs/jj/issues/4889) is
     respected).
   * `core.excludesFile`
 * **Authentication: Partial.** Only `ssh-agent`, a password-less key (
@@ -38,9 +38,9 @@ a comparison with Git, including how workflows are different, see the
   working-copy commit. It's recommended to set up the ignore patterns earlier.
   The `.gitignore` support uses a native implementation, so please report a bug
   if you notice any difference compared to `git`.
-* **.gitattributes: No.** There's [#53](https://github.com/martinvonz/jj/issues/53)
+* **.gitattributes: No.** There's [#53](https://github.com/jj-vcs/jj/issues/53)
   about adding support for at least the `eol` attribute.
-* **Hooks: No.** There's [#405](https://github.com/martinvonz/jj/issues/405)
+* **Hooks: No.** There's [#405](https://github.com/jj-vcs/jj/issues/405)
   specifically for providing the checks from https://pre-commit.com.
 * **Merge commits: Yes.** Octopus merges (i.e. with more than 2 parents) are
   also supported.
@@ -51,11 +51,11 @@ a comparison with Git, including how workflows are different, see the
 * **Staging area: Kind of.** The staging area will be ignored. For example,
   `jj diff` will show a diff from the Git HEAD to the working copy. There are
   [ways of fulfilling your use cases without a staging
-  area](https://github.com/martinvonz/jj/blob/main/docs/git-comparison.md#the-index).
+  area](https://github.com/jj-vcs/jj/blob/main/docs/git-comparison.md#the-index).
 * **Garbage collection: Yes.** It should be safe to run `git gc` in the Git
   repo, but it's not tested, so it's probably a good idea to make a backup of
   the whole workspace first. There's [no garbage collection and repacking of
-  Jujutsu's own data structures yet](https://github.com/martinvonz/jj/issues/12),
+  Jujutsu's own data structures yet](https://github.com/jj-vcs/jj/issues/12),
   however.
 * **Bare repositories: Yes.** You can use `jj git init --git-repo=<path>` to
   create a repo backed by a bare Git repo.
@@ -71,9 +71,9 @@ a comparison with Git, including how workflows are different, see the
 * **Sparse checkouts: No.** However, there's native support for sparse
   checkouts. See the `jj sparse` command.
 * **Signed commits: Partial.**
-  So far only [by configuration](https://github.com/martinvonz/jj/blob/main/docs/config.md#commit-signing),
-  later perhaps [a command](https://github.com/martinvonz/jj/pull/3142).
-* **Git LFS: No.** ([#80](https://github.com/martinvonz/jj/issues/80))
+  So far only [by configuration](https://github.com/jj-vcs/jj/blob/main/docs/config.md#commit-signing),
+  later perhaps [a command](https://github.com/jj-vcs/jj/pull/3142).
+* **Git LFS: No.** ([#80](https://github.com/jj-vcs/jj/issues/80))
 
 
 ## Creating an empty repo

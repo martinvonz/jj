@@ -769,7 +769,7 @@ fn recreate_no_gc_refs(
         // TODO: might be better to switch to a dummy merge, where new no-gc ref
         // will always have a unique name. Doing that with the current
         // ref-per-head strategy would increase the number of the no-gc refs.
-        // https://github.com/martinvonz/jj/pull/2659#issuecomment-1837057782
+        // https://github.com/jj-vcs/jj/pull/2659#issuecomment-1837057782
         let loose_ref_path = git_repo.path().join(git_ref.name.to_path());
         if let Ok(metadata) = loose_ref_path.metadata() {
             let mtime = metadata.modified().expect("unsupported platform?");
@@ -1178,7 +1178,7 @@ impl Backend for GitBackend {
             // TODO: Remove this hack and map to ObjectNotFound error if we're sure that
             // there are no reachable ancestor commits without extras metadata. Git commits
             // imported by jj < 0.8.0 might not have extras (#924).
-            // https://github.com/martinvonz/jj/issues/2343
+            // https://github.com/jj-vcs/jj/issues/2343
             tracing::info!("unimported Git commit found");
             self.import_head_commits([id])?;
             let table = self.cached_extra_metadata_table()?;
@@ -1424,13 +1424,13 @@ fn write_tree_conflict(
     .collect_vec();
     let readme_id = repo
         .write_blob(
-            r#"This commit was made by jj, https://github.com/martinvonz/jj.
+            r#"This commit was made by jj, https://github.com/jj-vcs/jj.
 The commit contains file conflicts, and therefore looks wrong when used with plain
 Git or other tools that are unfamiliar with jj.
 
 The .jjconflict-* directories represent the different inputs to the conflict.
 For details, see
-https://martinvonz.github.io/jj/prerelease/git-compatibility/#format-mapping-details
+https://jj-vcs.github.io/jj/prerelease/git-compatibility/#format-mapping-details
 
 If you see this file in your working copy, it probably means that you used a
 regular `git` command to check out a conflicted commit. Use `jj abandon` to

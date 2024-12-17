@@ -61,7 +61,7 @@ fn test_config_no_tools() {
     let stderr = test_env.jj_cmd_failure(&repo_path, &["fix"]);
     insta::assert_snapshot!(stderr, @r###"
     Config error: At least one entry of `fix.tools` or `fix.tool-command` is required.
-    For help, see https://martinvonz.github.io/jj/latest/config/.
+    For help, see https://jj-vcs.github.io/jj/latest/config/.
     "###);
 
     let content = test_env.jj_cmd_success(&repo_path, &["file", "show", "file", "-r", "@"]);
@@ -180,7 +180,7 @@ fn test_config_multiple_tools_with_same_name() {
     duplicate key `my-tool` in table `fix.tools`
 
     Hint: Check the config file: $TEST_ENV/config/config0002.toml
-    For help, see https://martinvonz.github.io/jj/latest/config/.
+    For help, see https://jj-vcs.github.io/jj/latest/config/.
     ");
 
     test_env.set_config_path("/dev/null".into());
@@ -259,7 +259,7 @@ fn test_config_tables_all_commands_missing() {
     Caused by: missing field `command`
 
     Hint: Check the config file: $TEST_ENV/config/config0002.toml
-    For help, see https://martinvonz.github.io/jj/latest/config/.
+    For help, see https://jj-vcs.github.io/jj/latest/config/.
     ");
 
     let content = test_env.jj_cmd_success(&repo_path, &["file", "show", "foo", "-r", "@"]);
@@ -294,7 +294,7 @@ fn test_config_tables_some_commands_missing() {
     Caused by: missing field `command`
 
     Hint: Check the config file: $TEST_ENV/config/config0002.toml
-    For help, see https://martinvonz.github.io/jj/latest/config/.
+    For help, see https://jj-vcs.github.io/jj/latest/config/.
     ");
 
     let content = test_env.jj_cmd_success(&repo_path, &["file", "show", "foo", "-r", "@"]);
@@ -1060,7 +1060,7 @@ fn test_fix_both_sides_of_conflict() {
     // fixed if we didn't fix the parents also.
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["fix", "-s", "a", "-s", "b"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(redact(&stderr), @r#"
+    insta::assert_snapshot!(redact(&stderr), @r###"
     Warning: The `fix.tool-command` config option is deprecated and will be removed in a future version.
     Hint: Replace it with the following:
                 [fix.tools.legacy-tool-command]
@@ -1068,13 +1068,13 @@ fn test_fix_both_sides_of_conflict() {
                 patterns = ["all()"]
                 
     Fixed 3 commits of 3 checked.
-    Working copy now at: mzvwutvl 88866235 (conflict) (empty) (no description set)
+    Working copy now at: mzvwutvl a55c6ec2 (conflict) (empty) (no description set)
     Parent commit      : qpvuntsm 8e8aad69 a | (no description set)
     Parent commit      : kkmpptxz 91f9b284 b | (no description set)
     Added 0 files, modified 1 files, removed 0 files
     There are unresolved conflicts at these paths:
     file    2-sided conflict
-    "#);
+    "###);
     let content = test_env.jj_cmd_success(&repo_path, &["file", "show", "file", "-r", "a"]);
     insta::assert_snapshot!(content, @r###"
     CONTENT A

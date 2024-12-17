@@ -146,7 +146,7 @@ impl UserSettings {
     }
 
     // TODO: Reconsider UserSettings/RepoSettings abstraction. See
-    // https://github.com/martinvonz/jj/issues/616#issuecomment-1345170699
+    // https://github.com/jj-vcs/jj/issues/616#issuecomment-1345170699
     pub fn with_repo(&self, _repo_path: &Path) -> RepoSettings {
         let config = self.config.clone();
         RepoSettings { _config: config }

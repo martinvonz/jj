@@ -93,7 +93,7 @@ struct Keyword {
 //
 // TODO: Find a way to render markdown using ANSI escape codes.
 //
-// Maybe we can steal some ideas from https://github.com/martinvonz/jj/pull/3130
+// Maybe we can steal some ideas from https://github.com/jj-vcs/jj/pull/3130
 const KEYWORDS: &[Keyword] = &[
     Keyword {
         name: "bookmarks",

@@ -62,4 +62,4 @@ state C. We then back out that change. Backing out ("reverting" in Git-speak) a
 change means applying its reverse diff, so the result is `(B+C-A)+(A-(B+C-A))`,
 which we can simplify to just `A` (i.e. no conflict).
 
-[merge-rs]: https://github.com/martinvonz/jj/blob/main/lib/src/merge.rs
+[merge-rs]: https://github.com/jj-vcs/jj/blob/main/lib/src/merge.rs

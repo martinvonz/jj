@@ -52,7 +52,7 @@ use crate::ui::Ui;
 /// Commands for working with Git remotes and the underlying Git repo
 ///
 /// For a comparison with Git, including a table of commands, see
-/// https://martinvonz.github.io/jj/latest/git-comparison/.
+/// https://jj-vcs.github.io/jj/latest/git-comparison/.
 #[derive(Subcommand, Clone, Debug)]
 pub enum GitCommand {
     Clone(GitCloneArgs),

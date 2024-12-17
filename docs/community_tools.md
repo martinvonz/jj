@@ -76,4 +76,4 @@ You can find other community contributed tools and integrations in our
 [lazyjj]: https://github.com/Cretezy/lazyjj
 [vjj]: https://github.com/noahmayr/vjj
 [visualjj]: https://www.visualjj.com
-[Wiki]: https://github.com/martinvonz/jj/wiki
+[Wiki]: https://github.com/jj-vcs/jj/wiki

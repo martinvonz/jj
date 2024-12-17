@@ -2300,7 +2300,7 @@ fn test_duplicate_insert_after_before() {
     "#);
 }
 
-// https://github.com/martinvonz/jj/issues/1050
+// https://github.com/jj-vcs/jj/issues/1050
 #[test]
 fn test_undo_after_duplicate() {
     let test_env = TestEnvironment::default();
@@ -2336,7 +2336,7 @@ fn test_undo_after_duplicate() {
     "###);
 }
 
-// https://github.com/martinvonz/jj/issues/694
+// https://github.com/jj-vcs/jj/issues/694
 #[test]
 fn test_rebase_duplicates() {
     let test_env = TestEnvironment::default();

@@ -184,7 +184,7 @@ fn test_git_colocated_unborn_bookmark() {
     test_env.jj_cmd_ok(&workspace_root, &["bookmark", "create", "-r@-", "master"]);
 
     // Stage some change, and check out root again. This should unset the HEAD.
-    // https://github.com/martinvonz/jj/issues/1495
+    // https://github.com/jj-vcs/jj/issues/1495
     add_file_to_index("file2", "");
     let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["new", "root()"]);
     insta::assert_snapshot!(stdout, @"");

@@ -86,6 +86,6 @@ future cloud-based server using the same model as [XetHub][xet-storage].
 [api-design-doc]: https://docs.google.com/document/d/1rOKvutee5TVYpFhh_UDNZDxfUKyrJ8rjCNpFaNHOHwU/edit?usp=sharing&resourcekey=0-922ApyoAjuXN_uTKqmCqjg
 [copy-design-doc]: design/copy-tracking.md
 [gg]: https://github.com/gulbanana/gg
-[jj-run]: https://github.com/martinvonz/jj/issues/1869
-[submodules]: https://github.com/martinvonz/jj/issues/494
+[jj-run]: https://github.com/jj-vcs/jj/issues/1869
+[submodules]: https://github.com/jj-vcs/jj/issues/494
 [xet-storage]: https://web.archive.org/web/20240914200921/https://xethub.com/assets/docs/concepts/xet-storage

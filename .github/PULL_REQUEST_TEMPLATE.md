@@ -5,7 +5,7 @@ each commit representing one logical change. Address code review comments by
 rewriting the commits rather than adding commits on top. Use force-push when
 pushing the updated commits (`jj git push` does that automatically when you
 rewrite commits). Merge the PR at will once it's been approved. See
-https://github.com/martinvonz/jj/blob/main/docs/contributing.md for details.
+https://github.com/jj-vcs/jj/blob/main/docs/contributing.md for details.
 Note that you need to sign Google's CLA to contribute.
 -->
 

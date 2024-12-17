@@ -2,7 +2,7 @@
 # Set up a virtual environment with the required tools, build, and deploy the docs.
 #
 # Run from the root directory of the project as
-# .github/scripts/docs-build-deploy 'https://martinvonz.github.io' prerelease main
+# .github/scripts/docs-build-deploy 'https://jj-vcs.github.io' prerelease main
 # All arguments after the first are passed to `mike deploy`, run
 # `uv run -- mike deploy --help` for options. Note that `mike deploy`
 # creates a commit directly on the `gh-pages` branch.

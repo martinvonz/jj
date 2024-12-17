@@ -37,7 +37,7 @@ pub struct BookmarkTrackArgs {
     ///
     /// By default, the specified name matches exactly. Use `glob:` prefix to
     /// select bookmarks by wildcard pattern. For details, see
-    /// https://martinvonz.github.io/jj/latest/revsets/#string-patterns.
+    /// https://jj-vcs.github.io/jj/latest/revsets/#string-patterns.
     ///
     /// Examples: bookmark@remote, glob:main@*, glob:jjfan-*@upstream
     #[arg(

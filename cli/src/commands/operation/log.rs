@@ -62,7 +62,7 @@ pub struct OperationLogArgs {
     no_graph: bool,
     /// Render each operation using the given template
     ///
-    /// For the syntax, see https://martinvonz.github.io/jj/latest/templates/
+    /// For the syntax, see https://jj-vcs.github.io/jj/latest/templates/
     #[arg(long, short = 'T')]
     template: Option<String>,
     /// Show changes to the repository at each operation

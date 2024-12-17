@@ -34,7 +34,7 @@ pub(crate) struct ShowArgs {
     unused_revision: bool,
     /// Render a revision using the given template
     ///
-    /// For the syntax, see https://martinvonz.github.io/jj/latest/templates/
+    /// For the syntax, see https://jj-vcs.github.io/jj/latest/templates/
     #[arg(long, short = 'T')]
     template: Option<String>,
     #[command(flatten)]

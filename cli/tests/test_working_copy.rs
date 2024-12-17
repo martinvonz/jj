@@ -65,7 +65,7 @@ fn test_snapshot_large_file() {
     insta::assert_snapshot!(stderr, @r"
     Config error: Invalid type or value for snapshot.max-new-file-size
     Caused by: Expected a positive integer or a string in '<number><unit>' form
-    For help, see https://martinvonz.github.io/jj/latest/config/.
+    For help, see https://jj-vcs.github.io/jj/latest/config/.
     ");
 
     // No error if we disable auto-tracking of the path

@@ -126,7 +126,7 @@ fn test_alias_calls_help() {
     insta::assert_snapshot!(stdout.lines().take(5).join("\n"), @r###"
     Jujutsu (An experimental VCS)
 
-    To get started, see the tutorial at https://martinvonz.github.io/jj/latest/tutorial/.
+    To get started, see the tutorial at https://jj-vcs.github.io/jj/latest/tutorial/.
 
     Usage: jj [OPTIONS] <COMMAND>
     "###);
@@ -239,7 +239,7 @@ fn test_alias_invalid_definition() {
     Caused by: invalid type: integer `5`, expected a sequence
 
     Hint: Check the config file: $TEST_ENV/config/config0002.toml
-    For help, see https://martinvonz.github.io/jj/latest/config/.
+    For help, see https://jj-vcs.github.io/jj/latest/config/.
     ");
     let stderr = test_env.jj_cmd_failure(test_env.env_root(), &["non-string-list"]);
     insta::assert_snapshot!(stderr, @r"
@@ -247,7 +247,7 @@ fn test_alias_invalid_definition() {
     Caused by: invalid type: integer `0`, expected a string
 
     Hint: Check the config file: $TEST_ENV/config/config0002.toml
-    For help, see https://martinvonz.github.io/jj/latest/config/.
+    For help, see https://jj-vcs.github.io/jj/latest/config/.
     ");
 }
 

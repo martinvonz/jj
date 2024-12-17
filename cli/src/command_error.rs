@@ -638,8 +638,8 @@ fn file_pattern_parse_error_hint(err: &FilePatternParseError) -> Option<String> 
 fn fileset_parse_error_hint(err: &FilesetParseError) -> Option<String> {
     match err.kind() {
         FilesetParseErrorKind::SyntaxError => Some(String::from(
-            "See https://martinvonz.github.io/jj/latest/filesets/ for filesets syntax, or for how \
-             to match file paths.",
+            "See https://jj-vcs.github.io/jj/latest/filesets/ for filesets syntax, or for how to \
+             match file paths.",
         )),
         FilesetParseErrorKind::NoSuchFunction {
             name: _,
@@ -760,7 +760,7 @@ fn try_handle_command_result(
             print_error(ui, "Config error: ", err, hints)?;
             writeln!(
                 ui.stderr_formatter().labeled("hint"),
-                "For help, see https://martinvonz.github.io/jj/latest/config/."
+                "For help, see https://jj-vcs.github.io/jj/latest/config/."
             )?;
             Ok(ExitCode::from(1))
         }

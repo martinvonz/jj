@@ -52,7 +52,7 @@ Martin used watch in a [tmux](https://github.com/tmux/tmux/wiki) pane during his
 
 Alternatively, you can use [jj-fzf](https://github.com/tim-janik/jj-fzf), where the central piece is the `jj log` view and common operations can be carried out via key bindings while the log view updates.
 
-The wiki lists additional TUIs and GUIs beyond the terminal: [GUI-and-TUI](https://github.com/martinvonz/jj/wiki/GUI-and-TUI)
+The wiki lists additional TUIs and GUIs beyond the terminal: [GUI-and-TUI](https://github.com/jj-vcs/jj/wiki/GUI-and-TUI)
 
 ### Should I co-locate my repository?
 
@@ -78,7 +78,7 @@ important ones are:
   and ignore the confusing information such tools present for conflicted commits
   (unless you are curious about [the details of how `jj` stores
   conflicts](technical/conflicts.md)). See
-  [\#3979](https://github.com/martinvonz/jj/issues/3979) for plans to improve
+  [\#3979](https://github.com/jj-vcs/jj/issues/3979) for plans to improve
   this situation.
 
 - Jujutsu commands may be a little slower in very large repositories due to
@@ -372,4 +372,4 @@ detect custom backends and more).
 
 [templates]: templates.md
 
-[this issue]: https://github.com/martinvonz/jj/issues/1531
+[this issue]: https://github.com/jj-vcs/jj/issues/1531

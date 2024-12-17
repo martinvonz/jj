@@ -32,7 +32,7 @@ fn test_evolog_with_or_without_diff() {
     insta::assert_snapshot!(stdout, @r###"
     @  rlvkpnrz test.user@example.com 2001-02-03 08:05:10 66b42ad3
     │  my description
-    ×  rlvkpnrz hidden test.user@example.com 2001-02-03 08:05:09 cf73917d conflict
+    ×  rlvkpnrz hidden test.user@example.com 2001-02-03 08:05:09 07b18245 conflict
     │  my description
     ○  rlvkpnrz hidden test.user@example.com 2001-02-03 08:05:09 068224a7
     │  my description
@@ -45,7 +45,7 @@ fn test_evolog_with_or_without_diff() {
     insta::assert_snapshot!(stdout, @r###"
     [1m[38;5;2m@[0m  [1m[38;5;13mr[38;5;8mlvkpnrz[39m [38;5;3mtest.user@example.com[39m [38;5;14m2001-02-03 08:05:10[39m [38;5;12m6[38;5;8m6b42ad3[39m[0m
     │  [1mmy description[0m
-    [1m[38;5;1m×[0m  [1m[39mr[0m[38;5;8mlvkpnrz[39m hidden [38;5;3mtest.user@example.com[39m [38;5;6m2001-02-03 08:05:09[39m [1m[38;5;4mc[0m[38;5;8mf73917d[39m [38;5;1mconflict[39m
+    [1m[38;5;1m×[0m  [1m[39mr[0m[38;5;8mlvkpnrz[39m hidden [38;5;3mtest.user@example.com[39m [38;5;6m2001-02-03 08:05:09[39m [1m[38;5;4m07[0m[38;5;8mb18245[39m [38;5;1mconflict[39m
     │  my description
     ○  [1m[39mr[0m[38;5;8mlvkpnrz[39m hidden [38;5;3mtest.user@example.com[39m [38;5;6m2001-02-03 08:05:09[39m [1m[38;5;4m06[0m[38;5;8m8224a7[39m
     │  my description
@@ -67,7 +67,7 @@ fn test_evolog_with_or_without_diff() {
     │     5     : foo
     │     6     : bar
     │     7    1: >>>>>>> Conflict 1 of 1 endsresolved
-    ×  rlvkpnrz hidden test.user@example.com 2001-02-03 08:05:09 cf73917d conflict
+    ×  rlvkpnrz hidden test.user@example.com 2001-02-03 08:05:09 07b18245 conflict
     │  my description
     ○  rlvkpnrz hidden test.user@example.com 2001-02-03 08:05:09 068224a7
     │  my description
@@ -85,7 +85,7 @@ fn test_evolog_with_or_without_diff() {
     insta::assert_snapshot!(stdout, @r###"
     @  rlvkpnrz test.user@example.com 2001-02-03 08:05:10 66b42ad3
     │  my description
-    ×  rlvkpnrz hidden test.user@example.com 2001-02-03 08:05:09 cf73917d conflict
+    ×  rlvkpnrz hidden test.user@example.com 2001-02-03 08:05:09 07b18245 conflict
     │  my description
     "###);
 
@@ -94,7 +94,7 @@ fn test_evolog_with_or_without_diff() {
     insta::assert_snapshot!(stdout, @r###"
     rlvkpnrz test.user@example.com 2001-02-03 08:05:10 66b42ad3
     my description
-    rlvkpnrz hidden test.user@example.com 2001-02-03 08:05:09 cf73917d conflict
+    rlvkpnrz hidden test.user@example.com 2001-02-03 08:05:09 07b18245 conflict
     my description
     rlvkpnrz hidden test.user@example.com 2001-02-03 08:05:09 068224a7
     my description
@@ -104,7 +104,7 @@ fn test_evolog_with_or_without_diff() {
 
     // Test `--git` format, and that it implies `-p`
     let stdout = test_env.jj_cmd_success(&repo_path, &["evolog", "--no-graph", "--git"]);
-    insta::assert_snapshot!(stdout, @r"
+    insta::assert_snapshot!(stdout, @r###"
     rlvkpnrz test.user@example.com 2001-02-03 08:05:10 66b42ad3
     my description
     diff --git a/file1 b/file1
@@ -120,7 +120,7 @@ fn test_evolog_with_or_without_diff() {
     -bar
     ->>>>>>> Conflict 1 of 1 ends
     +resolved
-    rlvkpnrz hidden test.user@example.com 2001-02-03 08:05:09 cf73917d conflict
+    rlvkpnrz hidden test.user@example.com 2001-02-03 08:05:09 07b18245 conflict
     my description
     rlvkpnrz hidden test.user@example.com 2001-02-03 08:05:09 068224a7
     my description
@@ -140,7 +140,7 @@ fn test_evolog_with_or_without_diff() {
     +foo
     rlvkpnrz hidden test.user@example.com 2001-02-03 08:05:08 2b023b5f
     (empty) my description
-    ");
+    "###);
 }
 
 #[test]
@@ -162,7 +162,7 @@ fn test_evolog_with_custom_symbols() {
     insta::assert_snapshot!(stdout, @r###"
     $  rlvkpnrz test.user@example.com 2001-02-03 08:05:10 66b42ad3
     │  my description
-    ┝  rlvkpnrz hidden test.user@example.com 2001-02-03 08:05:09 cf73917d conflict
+    ┝  rlvkpnrz hidden test.user@example.com 2001-02-03 08:05:09 07b18245 conflict
     │  my description
     ┝  rlvkpnrz hidden test.user@example.com 2001-02-03 08:05:09 068224a7
     │  my description

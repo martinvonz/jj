@@ -504,14 +504,14 @@ fn test_workspaces_conflicting_edits() {
     insta::assert_snapshot!(stderr, @r##"
     Error: The working copy is stale (not updated since operation c81af45155a2).
     Hint: Run `jj workspace update-stale` to update it.
-    See https://martinvonz.github.io/jj/latest/working-copy/#stale-working-copy for more information.
+    See https://jj-vcs.github.io/jj/latest/working-copy/#stale-working-copy for more information.
     "##);
     // Same error on second run, and from another command
     let stderr = test_env.jj_cmd_failure(&secondary_path, &["log"]);
     insta::assert_snapshot!(stderr, @r##"
     Error: The working copy is stale (not updated since operation c81af45155a2).
     Hint: Run `jj workspace update-stale` to update it.
-    See https://martinvonz.github.io/jj/latest/working-copy/#stale-working-copy for more information.
+    See https://jj-vcs.github.io/jj/latest/working-copy/#stale-working-copy for more information.
     "##);
     let (stdout, stderr) = test_env.jj_cmd_ok(&secondary_path, &["workspace", "update-stale"]);
     // It was detected that the working copy is now stale.
@@ -526,27 +526,27 @@ fn test_workspaces_conflicting_edits() {
     Updated working copy to fresh commit e82cd4ee8faa
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &secondary_path),
-    @r"
+    @r###"
     @  e82cd4ee8faa secondary@ (divergent)
-    │ ×  a28c85ce128b (divergent)
+    │ ×  30816012e0da (divergent)
     ├─╯
     │ ○  a58c9a9b19ce default@
     ├─╯
     ○  d41244767d45
     ◆  000000000000
-    ");
+    "###);
     // The stale working copy should have been resolved by the previous command
     let stdout = get_log_output(&test_env, &secondary_path);
     assert!(!stdout.starts_with("The working copy is stale"));
-    insta::assert_snapshot!(stdout, @r"
+    insta::assert_snapshot!(stdout, @r###"
     @  e82cd4ee8faa secondary@ (divergent)
-    │ ×  a28c85ce128b (divergent)
+    │ ×  30816012e0da (divergent)
     ├─╯
     │ ○  a58c9a9b19ce default@
     ├─╯
     ○  d41244767d45
     ◆  000000000000
-    ");
+    "###);
 }
 
 /// Test a clean working copy that gets rewritten from another workspace
@@ -592,7 +592,7 @@ fn test_workspaces_updated_by_other() {
     insta::assert_snapshot!(stderr, @r##"
     Error: The working copy is stale (not updated since operation c81af45155a2).
     Hint: Run `jj workspace update-stale` to update it.
-    See https://martinvonz.github.io/jj/latest/working-copy/#stale-working-copy for more information.
+    See https://jj-vcs.github.io/jj/latest/working-copy/#stale-working-copy for more information.
     "##);
     let (stdout, stderr) = test_env.jj_cmd_ok(&secondary_path, &["workspace", "update-stale"]);
     // It was detected that the working copy is now stale, but clean. So no
@@ -781,7 +781,7 @@ fn test_workspaces_current_op_discarded_by_other(automatic: bool) {
         insta::assert_snapshot!(stderr, @r###"
         Error: Could not read working copy's operation.
         Hint: Run `jj workspace update-stale` to recover.
-        See https://martinvonz.github.io/jj/latest/working-copy/#stale-working-copy for more information.
+        See https://jj-vcs.github.io/jj/latest/working-copy/#stale-working-copy for more information.
         "###);
 
         let (stdout, stderr) = test_env.jj_cmd_ok(&secondary_path, &["workspace", "update-stale"]);

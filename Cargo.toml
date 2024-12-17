@@ -10,9 +10,9 @@ license = "Apache-2.0"
 rust-version = "1.76" # NOTE: remember to update CI, contributing.md, changelog.md, install-and-setup.md, and flake.nix
 edition = "2021"
 readme = "README.md"
-homepage = "https://github.com/martinvonz/jj"
-repository = "https://github.com/martinvonz/jj"
-documentation = "https://martinvonz.github.io/jj/"
+homepage = "https://github.com/jj-vcs/jj"
+repository = "https://github.com/jj-vcs/jj"
+documentation = "https://jj-vcs.github.io/jj/"
 categories = ["version-control", "development-tools"]
 keywords = ["VCS", "DVCS", "SCM", "Git", "Mercurial"]
 

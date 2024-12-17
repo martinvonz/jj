@@ -52,7 +52,7 @@ resolutions.
 With the `jj resolve` command, you can use an external merge tool to resolve
 conflicts that have 2 sides and a base.  There is not yet a good way of
 resolving conflicts between directories, files, and symlinks
-(https://github.com/martinvonz/jj/issues/19). You can use `jj restore` to choose
+(https://github.com/jj-vcs/jj/issues/19). You can use `jj restore` to choose
 one side of the conflict, but there's no way to even see where the involved
 parts came from.
 

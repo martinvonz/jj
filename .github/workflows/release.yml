@@ -141,6 +141,6 @@ jobs:
           git config user.email 'jj-docs[bot]@users.noreply.github.io'
           # Using the 'latest' tag below makes the website default
           # to this version.
-          .github/scripts/docs-build-deploy 'https://martinvonz.github.io/jj' "${{ github.event.release.tag_name }}" latest --update-aliases --push
+          .github/scripts/docs-build-deploy 'https://jj-vcs.github.io/jj' "${{ github.event.release.tag_name }}" latest --update-aliases --push
       - name: "Show `git diff --stat`"
         run: git diff --stat gh-pages^ gh-pages || echo "(No diffs)"
