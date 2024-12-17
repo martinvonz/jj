@@ -1233,3 +1233,27 @@ To load an entire TOML document, use `--config-file`:
 ```shell
 jj --config-file=extra-config.toml log
 ```
+
+### Conditional variables
+
+You can conditionally enable config variables by using `--when` and
+`[[--scope]]` tables. Variables defined in `[[--scope]]` tables are expanded to
+the root table. `--when` specifies the condition to enable the scope table.
+
+```toml
+[user]
+name = "YOUR NAME"
+email = "YOUR_DEFAULT_EMAIL@example.com"
+
+# override user.email if the repository is located under ~/oss
+[[--scope]]
+--when.repositories = ["~/oss"]
+[--scope.user]
+email = "YOUR_OSS_EMAIL@example.org"
+```
+
+Condition keys:
+
+* `--when.repositories`: List of paths to match the repository path prefix.
+
+If no conditions are specified, table is always enabled.

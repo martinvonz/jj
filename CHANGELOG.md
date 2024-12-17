@@ -48,6 +48,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `snapshot.max-new-file-size` config option. It will print a warning and large
   files will be left untracked.
 
+* Configuration files now support [conditional
+  variables](docs/config.md#conditional-variables).
+
 * New command options `--config=NAME=VALUE` and `--config-file=PATH` to set
   string value without quoting and to load additional configuration from files.
 

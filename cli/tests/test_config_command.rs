@@ -1048,6 +1048,107 @@ fn test_config_path_syntax() {
 }
 
 #[test]
+#[cfg_attr(windows, ignore = "dirs::home_dir() can't be overridden by $HOME")] // TODO
+fn test_config_conditional() {
+    let mut test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.home_dir(), &["git", "init", "repo1"]);
+    test_env.jj_cmd_ok(test_env.home_dir(), &["git", "init", "repo2"]);
+    let repo1_path = test_env.home_dir().join("repo1");
+    let repo2_path = test_env.home_dir().join("repo2");
+    // Test with fresh new config file
+    let user_config_path = test_env.env_root().join("config.toml");
+    test_env.set_config_path(user_config_path.clone());
+    std::fs::write(
+        &user_config_path,
+        indoc! {"
+            foo = 'global'
+            [[--scope]]
+            --when.repositories = ['~/repo1']
+            foo = 'repo1'
+            [[--scope]]
+            --when.repositories = ['~/repo2']
+            foo = 'repo2'
+        "},
+    )
+    .unwrap();
+
+    // get and list should refer to the resolved config
+    let stdout = test_env.jj_cmd_success(test_env.env_root(), &["config", "get", "foo"]);
+    insta::assert_snapshot!(stdout, @"global");
+    let stdout = test_env.jj_cmd_success(&repo1_path, &["config", "get", "foo"]);
+    insta::assert_snapshot!(stdout, @"repo1");
+    let stdout = test_env.jj_cmd_success(test_env.env_root(), &["config", "list", "--user"]);
+    insta::assert_snapshot!(stdout, @"foo = 'global'");
+    let stdout = test_env.jj_cmd_success(&repo1_path, &["config", "list", "--user"]);
+    insta::assert_snapshot!(stdout, @"foo = 'repo1'");
+    let stdout = test_env.jj_cmd_success(&repo2_path, &["config", "list", "--user"]);
+    insta::assert_snapshot!(stdout, @"foo = 'repo2'");
+
+    // relative workspace path
+    let stdout = test_env.jj_cmd_success(&repo2_path, &["config", "list", "--user", "-R../repo1"]);
+    insta::assert_snapshot!(stdout, @"foo = 'repo1'");
+
+    // set and unset should refer to the source config
+    // (there's no option to update scoped table right now.)
+    let (_stdout, stderr) = test_env.jj_cmd_ok(
+        test_env.env_root(),
+        &["config", "set", "--user", "bar", "new value"],
+    );
+    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(std::fs::read_to_string(&user_config_path).unwrap(), @r#"
+    foo = 'global'
+    bar = "new value"
+    [[--scope]]
+    --when.repositories = ['~/repo1']
+    foo = 'repo1'
+    [[--scope]]
+    --when.repositories = ['~/repo2']
+    foo = 'repo2'
+    "#);
+    let (_stdout, stderr) = test_env.jj_cmd_ok(&repo1_path, &["config", "unset", "--user", "foo"]);
+    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(std::fs::read_to_string(&user_config_path).unwrap(), @r#"
+    bar = "new value"
+    [[--scope]]
+    --when.repositories = ['~/repo1']
+    foo = 'repo1'
+    [[--scope]]
+    --when.repositories = ['~/repo2']
+    foo = 'repo2'
+    "#);
+}
+
+// Minimal test for Windows where the home directory can't be switched.
+// (Can be removed if test_config_conditional() is enabled on Windows.)
+#[test]
+fn test_config_conditional_without_home_dir() {
+    let mut test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+    // Test with fresh new config file
+    let user_config_path = test_env.env_root().join("config.toml");
+    test_env.set_config_path(user_config_path.clone());
+    std::fs::write(
+        &user_config_path,
+        format!(
+            indoc! {"
+                foo = 'global'
+                [[--scope]]
+                --when.repositories = [{repo_path}]
+                foo = 'repo'
+            "},
+            repo_path = toml_edit::Value::from(repo_path.to_str().unwrap())
+        ),
+    )
+    .unwrap();
+
+    let stdout = test_env.jj_cmd_success(test_env.env_root(), &["config", "get", "foo"]);
+    insta::assert_snapshot!(stdout, @"global");
+    let stdout = test_env.jj_cmd_success(&repo_path, &["config", "get", "foo"]);
+    insta::assert_snapshot!(stdout, @"repo");
+}
+
+#[test]
 fn test_config_show_paths() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);

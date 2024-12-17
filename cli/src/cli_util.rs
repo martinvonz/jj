@@ -3650,7 +3650,7 @@ impl CliRunner {
             config_env.reset_repo_path(loader.repo_path());
             config_env.reload_repo_config(&mut raw_config)?;
         }
-        let mut config = raw_config.as_ref().clone(); // TODO
+        let mut config = config_env.resolve_config(&raw_config)?;
         ui.reset(&config)?;
 
         if env::var_os("COMPLETE").is_some() {
@@ -3661,7 +3661,7 @@ impl CliRunner {
         let (args, config_layers) = parse_early_args(&self.app, &string_args)?;
         if !config_layers.is_empty() {
             raw_config.as_mut().extend_layers(config_layers);
-            config = raw_config.as_ref().clone(); // TODO
+            config = config_env.resolve_config(&raw_config)?;
             ui.reset(&config)?;
         }
         if !args.config_toml.is_empty() {
@@ -3687,7 +3687,7 @@ impl CliRunner {
                 .map_err(|err| map_workspace_load_error(err, Some(path)))?;
             config_env.reset_repo_path(loader.repo_path());
             config_env.reload_repo_config(&mut raw_config)?;
-            config = raw_config.as_ref().clone(); // TODO
+            config = config_env.resolve_config(&raw_config)?;
             Ok(loader)
         } else {
             maybe_cwd_workspace_loader

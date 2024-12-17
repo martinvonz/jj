@@ -722,6 +722,59 @@ fn test_invalid_config_value() {
 }
 
 #[test]
+#[cfg_attr(windows, ignore = "dirs::home_dir() can't be overridden by $HOME")] // TODO
+fn test_conditional_config() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.home_dir(), &["git", "init", "repo1"]);
+    test_env.jj_cmd_ok(test_env.home_dir(), &["git", "init", "repo2"]);
+    test_env.add_config(indoc! {"
+        aliases.foo = ['new', 'root()', '-mglobal']
+        [[--scope]]
+        --when.repositories = ['~']
+        aliases.foo = ['new', 'root()', '-mhome']
+        [[--scope]]
+        --when.repositories = ['~/repo1']
+        aliases.foo = ['new', 'root()', '-mrepo1']
+    "});
+
+    // Sanity check
+    let stdout = test_env.jj_cmd_success(
+        test_env.env_root(),
+        &["config", "list", "--include-overridden", "aliases"],
+    );
+    insta::assert_snapshot!(stdout, @"aliases.foo = ['new', 'root()', '-mglobal']");
+    let stdout = test_env.jj_cmd_success(
+        &test_env.home_dir().join("repo1"),
+        &["config", "list", "--include-overridden", "aliases"],
+    );
+    insta::assert_snapshot!(stdout, @r"
+    # aliases.foo = ['new', 'root()', '-mglobal']
+    # aliases.foo = ['new', 'root()', '-mhome']
+    aliases.foo = ['new', 'root()', '-mrepo1']
+    ");
+    let stdout = test_env.jj_cmd_success(
+        &test_env.home_dir().join("repo2"),
+        &["config", "list", "--include-overridden", "aliases"],
+    );
+    insta::assert_snapshot!(stdout, @r"
+    # aliases.foo = ['new', 'root()', '-mglobal']
+    aliases.foo = ['new', 'root()', '-mhome']
+    ");
+
+    // Aliases can be expanded by using the conditional tables
+    let (_stdout, stderr) = test_env.jj_cmd_ok(&test_env.home_dir().join("repo1"), &["foo"]);
+    insta::assert_snapshot!(stderr, @r"
+    Working copy now at: royxmykx 82899b03 (empty) repo1
+    Parent commit      : zzzzzzzz 00000000 (empty) (no description set)
+    ");
+    let (_stdout, stderr) = test_env.jj_cmd_ok(&test_env.home_dir().join("repo2"), &["foo"]);
+    insta::assert_snapshot!(stderr, @r"
+    Working copy now at: yqosqzyt 3bd315a9 (empty) home
+    Parent commit      : zzzzzzzz 00000000 (empty) (no description set)
+    ");
+}
+
+#[test]
 fn test_no_user_configured() {
     // Test that the user is reminded if they haven't configured their name or email
     let test_env = TestEnvironment::default();
