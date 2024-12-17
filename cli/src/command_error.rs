@@ -21,6 +21,7 @@ use std::str;
 use std::sync::Arc;
 
 use itertools::Itertools as _;
+use jj_lib::absorb::AbsorbError;
 use jj_lib::backend::BackendError;
 use jj_lib::config::ConfigFileSaveError;
 use jj_lib::config::ConfigGetError;
@@ -587,6 +588,15 @@ impl From<GitIgnoreError> for CommandError {
 impl From<ParseBulkEditMessageError> for CommandError {
     fn from(err: ParseBulkEditMessageError) -> Self {
         user_error(err)
+    }
+}
+
+impl From<AbsorbError> for CommandError {
+    fn from(err: AbsorbError) -> Self {
+        match err {
+            AbsorbError::Backend(err) => err.into(),
+            AbsorbError::RevsetEvaluation(err) => err.into(),
+        }
     }
 }
 
