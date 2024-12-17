@@ -6452,7 +6452,13 @@ does not match the <code>jj help</code> output exactly.</p>
 <li>
 <p><code>--no-pager</code> — Disable the pager</p>
 </li>
-<li><code>--config-toml &lt;TOML&gt;</code> — Additional configuration options (can be repeated)</li>
+<li>
+<p><code>--config &lt;NAME=VALUE&gt;</code> — Additional configuration options (can be repeated)</p>
+<p>The name should be specified as TOML dotted keys. The value should be specified as a TOML expression. If string value doesn't contain any TOML constructs (such as array notation), quotes can be omitted.</p>
+</li>
+<li>
+<p><code>--config-toml &lt;TOML&gt;</code> — Additional configuration options (can be repeated)</p>
+</li>
 <li><code>--config-file &lt;PATH&gt;</code> — Additional configuration files (can be repeated)</li>
 </ul>
 <h2 id="jj-abandon"><code>jj abandon</code><a class="headerlink" href="#jj-abandon" title="Permanent link">&para;</a></h2>
@@ -6758,7 +6764,10 @@ Martin von Zweigbergk</p>
 <h6 id="arguments_14"><strong>Arguments:</strong><a class="headerlink" href="#arguments_14" title="Permanent link">&para;</a></h6>
 <ul>
 <li><code>&lt;NAME&gt;</code></li>
-<li><code>&lt;VALUE&gt;</code></li>
+<li>
+<p><code>&lt;VALUE&gt;</code> — New value to set</p>
+<p>The value should be specified as a TOML expression. If string value doesn't contain any TOML constructs (such as array notation), quotes can be omitted.</p>
+</li>
 </ul>
 <h6 id="options_12"><strong>Options:</strong><a class="headerlink" href="#options_12" title="Permanent link">&para;</a></h6>
 <ul>
