@@ -83,7 +83,7 @@ impl ConfigLevelArgs {
 
     fn edit_config_file(&self, command: &CommandHelper) -> Result<ConfigFile, CommandError> {
         let config_env = command.config_env();
-        let config = command.settings().config();
+        let config = command.raw_config();
         let pick_one = |mut files: Vec<ConfigFile>, not_found_error: &str| {
             if files.len() > 1 {
                 // TODO: prompt or pick the last?
