@@ -76,7 +76,7 @@ pub(crate) fn cmd_init(
 Use `jj git init` instead"
         )?;
     } else {
-        if !command.settings().allow_native_backend() {
+        if !command.settings().get_bool("ui.allow-init-native")? {
             return Err(user_error_with_hint(
                 "The native backend is disallowed by default.",
                 "Did you mean to call `jj git init`?
