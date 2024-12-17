@@ -42,7 +42,8 @@ use crate::signing::SignBehavior;
 #[derive(Debug, Clone)]
 pub struct UserSettings {
     config: StackedConfig,
-    timestamp: Option<Timestamp>,
+    commit_timestamp: Option<Timestamp>,
+    operation_timestamp: Option<Timestamp>,
     rng: Arc<JJRng>,
 }
 
@@ -136,11 +137,13 @@ fn get_timestamp_config(config: &StackedConfig, key: &'static str) -> Option<Tim
 
 impl UserSettings {
     pub fn from_config(config: StackedConfig) -> Self {
-        let timestamp = get_timestamp_config(&config, "debug.commit-timestamp");
+        let commit_timestamp = get_timestamp_config(&config, "debug.commit-timestamp");
+        let operation_timestamp = get_timestamp_config(&config, "debug.operation-timestamp");
         let rng_seed = config.get::<u64>("debug.randomness-seed").ok();
         UserSettings {
             config,
-            timestamp,
+            commit_timestamp,
+            operation_timestamp,
             rng: Arc::new(JJRng::new(rng_seed)),
         }
     }
@@ -176,11 +179,11 @@ impl UserSettings {
     pub const USER_EMAIL_PLACEHOLDER: &'static str = "(no email configured)";
 
     pub fn commit_timestamp(&self) -> Option<Timestamp> {
-        self.timestamp
+        self.commit_timestamp
     }
 
     pub fn operation_timestamp(&self) -> Option<Timestamp> {
-        get_timestamp_config(&self.config, "debug.operation-timestamp")
+        self.operation_timestamp
     }
 
     pub fn operation_hostname(&self) -> String {
@@ -212,7 +215,7 @@ impl UserSettings {
     }
 
     pub fn signature(&self) -> Signature {
-        let timestamp = self.timestamp.unwrap_or_else(Timestamp::now);
+        let timestamp = self.commit_timestamp.unwrap_or_else(Timestamp::now);
         Signature {
             name: self.user_name(),
             email: self.user_email(),
