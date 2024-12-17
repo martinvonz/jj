@@ -214,6 +214,7 @@ fn do_git_clone(
     maybe_add_gitignore(&workspace_command)?;
     git_repo.remote(remote_name, source).unwrap();
     let mut fetch_tx = workspace_command.start_transaction();
+    let git_settings = command.settings().git_settings()?;
 
     let stats = with_remote_git_callbacks(ui, None, |cb| {
         git::fetch(
@@ -222,7 +223,7 @@ fn do_git_clone(
             remote_name,
             &[StringPattern::everything()],
             cb,
-            &command.settings().git_settings(),
+            &git_settings,
             depth,
         )
     })

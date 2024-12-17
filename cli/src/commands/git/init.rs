@@ -205,7 +205,7 @@ fn init_git_refs(
 ) -> Result<Arc<ReadonlyRepo>, CommandError> {
     let mut tx = start_repo_transaction(&repo, command.settings(), command.string_args());
     // There should be no old refs to abandon, but enforce it.
-    let mut git_settings = command.settings().git_settings();
+    let mut git_settings = command.settings().git_settings()?;
     git_settings.abandon_unreachable_commits = false;
     let stats = git::import_some_refs(
         tx.repo_mut(),

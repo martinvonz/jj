@@ -16,9 +16,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   not converted to a string `"true"`, and vice versa.
 
 * The following configuration variables are now parsed strictly:
-  `colors.<labels>`, `git.push-bookmark-prefix`, `revsets.log`,
-  `revsets.short-prefixes` `ui.allow-init-native`, `ui.color`,
-  `ui.default-description`, `ui.progress-indicator`, `ui.quiet`
+  `colors.<labels>`, `git.abandon-unreachable-commits`,
+  `git.auto-local-bookmark`, `git.push-bookmark-prefix`, `revsets.log`,
+  `revsets.short-prefixes` `signing.backend`, `ui.allow-init-native`,
+  `ui.color`, `ui.default-description`, `ui.progress-indicator`, `ui.quiet`
 
 * `jj config list` now prints inline tables `{ key = value, .. }` literally.
   Inner items of inline tables are no longer merged across configuration files.
