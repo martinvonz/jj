@@ -420,7 +420,11 @@ impl From<DiffRenderError> for CommandError {
 
 impl From<ConflictResolveError> for CommandError {
     fn from(err: ConflictResolveError) -> Self {
-        user_error_with_message("Failed to resolve conflicts", err)
+        match err {
+            ConflictResolveError::Backend(err) => err.into(),
+            ConflictResolveError::Io(err) => err.into(),
+            _ => user_error_with_message("Failed to resolve conflicts", err),
+        }
     }
 }
 
@@ -795,7 +799,7 @@ fn print_error(
     Ok(())
 }
 
-fn print_error_sources(ui: &Ui, source: Option<&dyn error::Error>) -> io::Result<()> {
+pub fn print_error_sources(ui: &Ui, source: Option<&dyn error::Error>) -> io::Result<()> {
     let Some(err) = source else {
         return Ok(());
     };

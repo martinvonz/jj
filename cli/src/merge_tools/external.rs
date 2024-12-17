@@ -18,6 +18,8 @@ use jj_lib::matchers::Matcher;
 use jj_lib::merge::Merge;
 use jj_lib::merged_tree::MergedTree;
 use jj_lib::merged_tree::MergedTreeBuilder;
+use jj_lib::repo_path::RepoPathUiConverter;
+use jj_lib::store::Store;
 use jj_lib::working_copy::CheckoutOptions;
 use pollster::FutureExt;
 use thiserror::Error;
@@ -31,6 +33,7 @@ use super::ConflictResolveError;
 use super::DiffEditError;
 use super::DiffGenerateError;
 use super::MergeToolFile;
+use crate::command_error::print_error_sources;
 use crate::config::find_all_variables;
 use crate::config::interpolate_variables;
 use crate::config::CommandNameAndArgs;
@@ -166,12 +169,13 @@ pub enum ExternalToolError {
     Io(#[source] std::io::Error),
 }
 
-pub fn run_mergetool_external(
+fn run_mergetool_external_single_file(
     editor: &ExternalMergeTool,
-    tree: &MergedTree,
+    store: &Store,
     merge_tool_file: &MergeToolFile,
     default_conflict_marker_style: ConflictMarkerStyle,
-) -> Result<MergedTreeId, ConflictResolveError> {
+    tree_builder: &mut MergedTreeBuilder,
+) -> Result<(), ConflictResolveError> {
     let MergeToolFile {
         repo_path,
         conflict,
@@ -255,15 +259,14 @@ pub fn run_mergetool_external(
     let new_file_ids = if editor.merge_tool_edits_conflict_markers || exit_status_implies_conflict {
         conflicts::update_from_content(
             file_merge,
-            tree.store(),
+            store,
             repo_path,
             output_file_contents.as_slice(),
             conflict_marker_style,
         )
         .block_on()?
     } else {
-        let new_file_id = tree
-            .store()
+        let new_file_id = store
             .write_file(repo_path, &mut output_file_contents.as_slice())
             .block_on()?;
         Merge::normal(new_file_id)
@@ -286,8 +289,49 @@ pub fn run_mergetool_external(
         }),
         Err(new_file_ids) => conflict.with_new_file_ids(&new_file_ids),
     };
-    let mut tree_builder = MergedTreeBuilder::new(tree.id());
     tree_builder.set_or_remove(repo_path.to_owned(), new_tree_value);
+    Ok(())
+}
+
+pub fn run_mergetool_external(
+    ui: &Ui,
+    path_converter: &RepoPathUiConverter,
+    editor: &ExternalMergeTool,
+    tree: &MergedTree,
+    merge_tool_files: &[MergeToolFile],
+    default_conflict_marker_style: ConflictMarkerStyle,
+) -> Result<MergedTreeId, ConflictResolveError> {
+    let mut tree_builder = MergedTreeBuilder::new(tree.id());
+    for (i, merge_tool_file) in merge_tool_files.iter().enumerate() {
+        writeln!(
+            ui.status(),
+            "Resolving conflicts in: {}",
+            path_converter.format_file_path(&merge_tool_file.repo_path)
+        )?;
+        match run_mergetool_external_single_file(
+            editor,
+            tree.store(),
+            merge_tool_file,
+            default_conflict_marker_style,
+            &mut tree_builder,
+        ) {
+            Ok(()) => {}
+            Err(err) if i == 0 => {
+                // Since no conflicts were successfully resolved, return the error
+                return Err(err);
+            }
+            Err(err) => {
+                // Since some conflicts were already successfully resolved, just print a warning
+                // and stop resolving conflicts
+                writeln!(
+                    ui.warning_default(),
+                    "Stopping due to error after resolving {i} conflicts"
+                )?;
+                print_error_sources(ui, Some(&err))?;
+                break;
+            }
+        }
+    }
     let new_tree = tree_builder.write_tree(tree.store())?;
     Ok(new_tree)
 }
