@@ -76,8 +76,9 @@ impl GitIgnoreFile {
                     line: String::from_utf8_lossy(input_line).to_string(),
                     source: err,
                 })?;
-            // FIXME: do we need to provide the `from` argument? Is it for providing
-            // diagnostics or correctness?
+            // The `from` argument doesn't provide any diagnostics or correctness, so it is
+            // not required. It only allows retrieving the path from the `Glob` later, which
+            // we never do.
             builder
                 .add_line(None, line)
                 .map_err(|err| GitIgnoreError::Underlying {
