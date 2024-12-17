@@ -64,7 +64,7 @@ control. You can tell Jujutsu to not automatically track certain files by using
 `.gitignore` files (there's no such thing as `.jjignore` yet).
 See https://git-scm.com/docs/gitignore for details about the format.
 `.gitignore` files are supported in any directory in the working copy, as well
-as in `$HOME/.gitignore` and `$GIT_DIR/info/exclude`.
+as in `$XDG_CONFIG_DIR/git/ignore` and `$GIT_DIR/info/exclude`.
 
 Ignored files are never tracked automatically (regardless of the value of
 `snapshot.auto-track`), but they can still end up being tracked for a few reasons:
