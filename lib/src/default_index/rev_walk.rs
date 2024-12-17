@@ -464,7 +464,7 @@ impl<'a> RevWalkBuilder<'a> {
     ) -> RevWalkAncestors<'a> {
         // We can also make it stop visiting based on the generation number. Maybe
         // it will perform better for unbalanced branchy history.
-        // https://github.com/martinvonz/jj/pull/1492#discussion_r1160678325
+        // https://github.com/jj-vcs/jj/pull/1492#discussion_r1160678325
         let min_pos = root_positions
             .into_iter()
             .min()

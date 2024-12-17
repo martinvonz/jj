@@ -482,7 +482,7 @@ fn test_git_clone_ignore_working_copy() {
     insta::assert_snapshot!(stderr, @r##"
     Error: The working copy is stale (not updated since operation eac759b9ab75).
     Hint: Run `jj workspace update-stale` to update it.
-    See https://martinvonz.github.io/jj/latest/working-copy/#stale-working-copy for more information.
+    See https://jj-vcs.github.io/jj/latest/working-copy/#stale-working-copy for more information.
     "##);
 }
 
@@ -607,7 +607,7 @@ fn test_git_clone_invalid_immutable_heads() {
     bookmark: main@origin [new] untracked
     Config error: Invalid `revset-aliases.immutable_heads()`
     Caused by: Revision "unknown" doesn't exist
-    For help, see https://martinvonz.github.io/jj/latest/config/.
+    For help, see https://jj-vcs.github.io/jj/latest/config/.
     "#);
 }
 
@@ -637,7 +637,7 @@ fn test_git_clone_malformed() {
     insta::assert_snapshot!(stderr, @r##"
     Error: The working copy is stale (not updated since operation 4a8ddda0ff63).
     Hint: Run `jj workspace update-stale` to update it.
-    See https://martinvonz.github.io/jj/latest/working-copy/#stale-working-copy for more information.
+    See https://jj-vcs.github.io/jj/latest/working-copy/#stale-working-copy for more information.
     "##);
 
     // The error can be somehow recovered.

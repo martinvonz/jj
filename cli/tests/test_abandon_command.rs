@@ -165,7 +165,7 @@ fn test_basics() {
     "###);
 }
 
-// This behavior illustrates https://github.com/martinvonz/jj/issues/2600.
+// This behavior illustrates https://github.com/jj-vcs/jj/issues/2600.
 // See also the corresponding test in `test_rebase_command`
 #[test]
 fn test_bug_2600() {

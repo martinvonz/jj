@@ -908,7 +908,7 @@ fn test_config_get() {
     let stdout = test_env.jj_cmd_failure(test_env.env_root(), &["config", "get", "nonexistent"]);
     insta::assert_snapshot!(stdout, @r"
     Config error: Value not found for nonexistent
-    For help, see https://martinvonz.github.io/jj/latest/config/.
+    For help, see https://jj-vcs.github.io/jj/latest/config/.
     ");
 
     let stdout = test_env.jj_cmd_success(test_env.env_root(), &["config", "get", "table.string"]);
@@ -926,7 +926,7 @@ fn test_config_get() {
     Config error: Invalid type or value for table.list
     Caused by: Expected a value convertible to a string, but is an array
     Hint: Check the config file: $TEST_ENV/config/config0002.toml
-    For help, see https://martinvonz.github.io/jj/latest/config/.
+    For help, see https://jj-vcs.github.io/jj/latest/config/.
     ");
 
     let stdout = test_env.jj_cmd_failure(test_env.env_root(), &["config", "get", "table"]);
@@ -934,7 +934,7 @@ fn test_config_get() {
     Config error: Invalid type or value for table
     Caused by: Expected a value convertible to a string, but is a table
     Hint: Check the config file: $TEST_ENV/config/config0003.toml
-    For help, see https://martinvonz.github.io/jj/latest/config/.
+    For help, see https://jj-vcs.github.io/jj/latest/config/.
     ");
 
     let stdout =
@@ -988,7 +988,7 @@ fn test_config_path_syntax() {
     let stderr = test_env.jj_cmd_failure(test_env.env_root(), &["config", "get", "a.'b()'.x"]);
     insta::assert_snapshot!(stderr, @r"
     Config error: Value not found for a.'b()'.x
-    For help, see https://martinvonz.github.io/jj/latest/config/.
+    For help, see https://jj-vcs.github.io/jj/latest/config/.
     ");
 
     // "-" and "_" are valid TOML keys
@@ -1063,7 +1063,7 @@ fn test_config_show_paths() {
     Caused by: unknown variant `:builtin`, expected `never` or `auto`
 
     Hint: Check the config file: $TEST_ENV/config/config0001.toml
-    For help, see https://martinvonz.github.io/jj/latest/config/.
+    For help, see https://jj-vcs.github.io/jj/latest/config/.
     ");
 }
 

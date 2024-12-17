@@ -50,7 +50,7 @@ the user about the conflict.
 
 Note that, for now, there are known bugs in this area. Most notably, with the
 Git backend, [repository corruption is possible because the backend is not
-entirely lock-free](https://github.com/martinvonz/jj/issues/2193). If you know
+entirely lock-free](https://github.com/jj-vcs/jj/issues/2193). If you know
 about the bug, it is relatively easy to recover from.
 
 Moreover, such use of Jujutsu is not currently thoroughly tested,

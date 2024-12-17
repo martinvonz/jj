@@ -85,9 +85,9 @@ stakeholders, which we do with [Design Docs](design_docs.md), see the
 ## Contributing to the documentation
 
 We appreciate [bug
-reports](https://github.com/martinvonz/jj/issues/new?template=bug_report.md)
+reports](https://github.com/jj-vcs/jj/issues/new?template=bug_report.md)
 about any problems, however small, lurking in [our documentation
-website](https://martinvonz.github.io/jj/prerelease) or in the `jj help
+website](https://jj-vcs.github.io/jj/prerelease) or in the `jj help
 <command>` docs. If a part of the bug report template does not apply, you can
 just delete it.
 
@@ -99,14 +99,14 @@ You can use the version switcher in the top-left of the website to do so.
 If you are willing to make a PR fixing a documentation problem, even better!
 
 The documentation website sources are Markdown files located in the [`docs/`
-directory](https://github.com/martinvonz/jj/tree/main/docs). You do not need to
+directory](https://github.com/jj-vcs/jj/tree/main/docs). You do not need to
 know Rust to work with them. See below for [instructions on how to preview the
 HTML docs](#previewing-the-html-documentation) as you edit the Markdown files.
 Doing so is optional, but recommended.
 
 The `jj help` docs are sourced from the "docstring" comments inside the Rust
 sources, currently from the [`cli/src/commands`
-directory](https://github.com/martinvonz/jj/tree/main/cli/src/commands). Working
+directory](https://github.com/jj-vcs/jj/tree/main/cli/src/commands). Working
 on them requires setting up a Rust development environment, as described
 below, and may occasionally require adjusting a test.
 
@@ -272,7 +272,7 @@ We recommend at least these settings:
 ## Previewing the HTML documentation
 
 The documentation for `jj` is automatically published online at
-<https://martinvonz.github.io/jj/>.
+<https://jj-vcs.github.io/jj/>.
 
 When editing documentation, you should check your changes locally — especially
 if you are adding a new page, or doing a major rewrite.
@@ -353,8 +353,8 @@ reloaded in your browser automatically.
 
 The full `jj` website includes the documentation for several `jj` versions
 (`prerelease`, latest release, and the older releases). The top-level
-URL <https://martinvonz.github.io/jj> redirects to
-<https://martinvonz.github.io/jj/latest>, which in turn redirects to
+URL <https://jj-vcs.github.io/jj> redirects to
+<https://jj-vcs.github.io/jj/latest>, which in turn redirects to
 the docs for the last stable version.
 
 The different versions of documentation are managed and deployed with

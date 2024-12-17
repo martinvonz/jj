@@ -1696,7 +1696,7 @@ fn allow_push(
         Ok(if actual_remote_location == destination_location {
             // This is the situation of what we call "A - B + A = A"
             // conflicts, see also test_refs.rs and
-            // https://github.com/martinvonz/jj/blob/c9b44f382824301e6c0fdd6f4cbc52bb00c50995/lib/src/merge.rs#L92.
+            // https://github.com/jj-vcs/jj/blob/c9b44f382824301e6c0fdd6f4cbc52bb00c50995/lib/src/merge.rs#L92.
             PushAllowReason::UnexpectedNoop
         } else {
             // Due to our ref merge rules, this case should happen if an only

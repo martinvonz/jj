@@ -807,7 +807,7 @@ fn test_log_immutable() {
       | ^--------^
       |
       = Function "unknown_fn" doesn't exist
-    For help, see https://martinvonz.github.io/jj/latest/config/.
+    For help, see https://jj-vcs.github.io/jj/latest/config/.
     "#);
 
     test_env.add_config("revset-aliases.'immutable_heads()' = 'unknown_symbol'");

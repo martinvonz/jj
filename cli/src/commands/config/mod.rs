@@ -119,7 +119,7 @@ impl ConfigLevelArgs {
 /// environment variables.
 ///
 /// For file locations, supported config options, and other details about jj
-/// config, see https://martinvonz.github.io/jj/latest/config/.
+/// config, see https://jj-vcs.github.io/jj/latest/config/.
 #[derive(clap::Subcommand, Clone, Debug)]
 pub(crate) enum ConfigCommand {
     #[command(visible_alias("e"))]

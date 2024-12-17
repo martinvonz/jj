@@ -1786,7 +1786,7 @@ to the current parents may contain changes from multiple commits.
                                 short_operation_hash(&old_op_id)
                             ),
                             "Run `jj workspace update-stale` to update it.
-See https://martinvonz.github.io/jj/latest/working-copy/#stale-working-copy \
+See https://jj-vcs.github.io/jj/latest/working-copy/#stale-working-copy \
                              for more information.",
                         ),
                     ));
@@ -1806,7 +1806,7 @@ See https://martinvonz.github.io/jj/latest/working-copy/#stale-working-copy \
                         user_error_with_hint(
                             "Could not read working copy's operation.",
                             "Run `jj workspace update-stale` to recover.
-See https://martinvonz.github.io/jj/latest/working-copy/#stale-working-copy \
+See https://jj-vcs.github.io/jj/latest/working-copy/#stale-working-copy \
                              for more information.",
                         ),
                     ));
@@ -2506,7 +2506,7 @@ pub fn print_conflicted_paths(
             );
         }
         // TODO: We might decide it's OK for `jj resolve` to ignore special files in the
-        // `removes` of a conflict (see e.g. https://github.com/martinvonz/jj/pull/978). In
+        // `removes` of a conflict (see e.g. https://github.com/jj-vcs/jj/pull/978). In
         // that case, `conflict.removes` should be removed below.
         for term in itertools::chain(conflict.removes(), conflict.adds()).flatten() {
             seen_objects.insert(
@@ -2830,7 +2830,7 @@ impl LogContentFormat {
 
 pub fn run_ui_editor(settings: &UserSettings, edit_path: &Path) -> Result<(), CommandError> {
     // Work around UNC paths not being well supported on Windows (no-op for
-    // non-Windows): https://github.com/martinvonz/jj/issues/3986
+    // non-Windows): https://github.com/jj-vcs/jj/issues/3986
     let edit_path = dunce::simplified(edit_path);
     let editor: CommandNameAndArgs = settings.get("ui.editor")?;
     let mut cmd = editor.to_command();
@@ -3003,7 +3003,7 @@ impl fmt::Display for RemoteBookmarkNamePattern {
 
 /// Jujutsu (An experimental VCS)
 ///
-/// To get started, see the tutorial at https://martinvonz.github.io/jj/latest/tutorial/.
+/// To get started, see the tutorial at https://jj-vcs.github.io/jj/latest/tutorial/.
 #[allow(rustdoc::bare_urls)]
 #[derive(clap::Parser, Clone, Debug)]
 #[command(name = "jj")]

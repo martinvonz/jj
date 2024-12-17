@@ -52,7 +52,7 @@ pub struct ConfigListArgs {
     /// * `value: String`: Serialized value in TOML syntax.
     /// * `overridden: Boolean`: True if the value is shadowed by other.
     ///
-    /// For the syntax, see https://martinvonz.github.io/jj/latest/templates/
+    /// For the syntax, see https://jj-vcs.github.io/jj/latest/templates/
     #[arg(long, short = 'T', verbatim_doc_comment)]
     template: Option<String>,
 }

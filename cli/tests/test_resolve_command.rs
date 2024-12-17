@@ -235,14 +235,14 @@ fn test_resolution() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Resolving conflicts in: file
-    Working copy now at: vruxwmqv 7699b9c3 conflict | (conflict) conflict
+    Working copy now at: vruxwmqv 608a2310 conflict | (conflict) conflict
     Parent commit      : zsuskuln aa493daf a | a
     Parent commit      : royxmykx db6a4daf b | b
     Added 0 files, modified 1 files, removed 0 files
     There are unresolved conflicts at these paths:
     file    2-sided conflict
     New conflicts appeared in these commits:
-      vruxwmqv 7699b9c3 conflict | (conflict) conflict
+      vruxwmqv 608a2310 conflict | (conflict) conflict
     To resolve the conflicts, start by updating to it:
       jj new vruxwmqv
     Then use `jj resolve`, or edit the conflict markers in the file directly.
@@ -378,22 +378,22 @@ fn test_resolution() {
         ],
     );
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r#"
+    insta::assert_snapshot!(stderr, @r###"
     Resolving conflicts in: file
-    Working copy now at: vruxwmqv 6701dfd3 conflict | (conflict) conflict
+    Working copy now at: vruxwmqv 8e03fefa conflict | (conflict) conflict
     Parent commit      : zsuskuln aa493daf a | a
     Parent commit      : royxmykx db6a4daf b | b
     Added 0 files, modified 1 files, removed 0 files
     There are unresolved conflicts at these paths:
     file    2-sided conflict
     New conflicts appeared in these commits:
-      vruxwmqv 6701dfd3 conflict | (conflict) conflict
+      vruxwmqv 8e03fefa conflict | (conflict) conflict
     To resolve the conflicts, start by updating to it:
       jj new vruxwmqv
     Then use `jj resolve`, or edit the conflict markers in the file directly.
     Once the conflicts are resolved, you may want to inspect the result with `jj diff`.
     Then run `jj squash` to move the resolution into the conflicted commit.
-    "#);
+    "###);
     insta::assert_snapshot!(
         std::fs::read_to_string(test_env.env_root().join("editor4")).unwrap(), @r##"
     <<<<<<< Side #1 (Conflict 1 of 1)
@@ -459,22 +459,22 @@ fn test_resolution() {
         ],
     );
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r#"
+    insta::assert_snapshot!(stderr, @r###"
     Resolving conflicts in: file
-    Working copy now at: vruxwmqv 6690cdf4 conflict | (conflict) conflict
+    Working copy now at: vruxwmqv a786ac2f conflict | (conflict) conflict
     Parent commit      : zsuskuln aa493daf a | a
     Parent commit      : royxmykx db6a4daf b | b
     Added 0 files, modified 1 files, removed 0 files
     There are unresolved conflicts at these paths:
     file    2-sided conflict
     New conflicts appeared in these commits:
-      vruxwmqv 6690cdf4 conflict | (conflict) conflict
+      vruxwmqv a786ac2f conflict | (conflict) conflict
     To resolve the conflicts, start by updating to it:
       jj new vruxwmqv
     Then use `jj resolve`, or edit the conflict markers in the file directly.
     Once the conflicts are resolved, you may want to inspect the result with `jj diff`.
     Then run `jj squash` to move the resolution into the conflicted commit.
-    "#);
+    "###);
     insta::assert_snapshot!(
         std::fs::read_to_string(test_env.env_root().join("editor5")).unwrap(), @"");
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff", "--git"]), 
@@ -777,15 +777,15 @@ fn test_simplify_conflict_sides() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Resolving conflicts in: fileB
-    Working copy now at: nkmrtpmo 4b14662a conflict | (conflict) conflict
-    Parent commit      : kmkuslsw 18c1fb00 conflictA | (conflict) (empty) conflictA
-    Parent commit      : lylxulpl d11c92eb conflictB | (conflict) (empty) conflictB
+    Working copy now at: nkmrtpmo 69cc0c2d conflict | (conflict) conflict
+    Parent commit      : kmkuslsw 4601566f conflictA | (conflict) (empty) conflictA
+    Parent commit      : lylxulpl 6f8d8381 conflictB | (conflict) (empty) conflictB
     Added 0 files, modified 1 files, removed 0 files
     There are unresolved conflicts at these paths:
     fileA    2-sided conflict
     fileB    2-sided conflict
     New conflicts appeared in these commits:
-      nkmrtpmo 4b14662a conflict | (conflict) conflict
+      nkmrtpmo 69cc0c2d conflict | (conflict) conflict
     To resolve the conflicts, start by updating to it:
       jj new nkmrtpmo
     Then use `jj resolve`, or edit the conflict markers in the file directly.
@@ -1047,14 +1047,14 @@ fn test_multiple_conflicts() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Resolving conflicts in: another_file
-    Working copy now at: vruxwmqv 6a90e546 conflict | (conflict) conflict
+    Working copy now at: vruxwmqv 309e981c conflict | (conflict) conflict
     Parent commit      : zsuskuln de7553ef a | a
     Parent commit      : royxmykx f68bc2f0 b | b
     Added 0 files, modified 1 files, removed 0 files
     There are unresolved conflicts at these paths:
     this_file_has_a_very_long_name_to_test_padding 2-sided conflict
     New conflicts appeared in these commits:
-      vruxwmqv 6a90e546 conflict | (conflict) conflict
+      vruxwmqv 309e981c conflict | (conflict) conflict
     To resolve the conflicts, start by updating to it:
       jj new vruxwmqv
     Then use `jj resolve`, or edit the conflict markers in the file directly.

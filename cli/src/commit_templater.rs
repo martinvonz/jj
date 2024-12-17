@@ -831,7 +831,7 @@ fn builtin_commit_methods<'repo>() -> CommitTemplateBuildMethodFnMap<'repo, Comm
                 expect_fileset_literal(diagnostics, node, language.path_converter)?
             } else {
                 // TODO: defaults to CLI path arguments?
-                // https://github.com/martinvonz/jj/issues/2933#issuecomment-1925870731
+                // https://github.com/jj-vcs/jj/issues/2933#issuecomment-1925870731
                 FilesetExpression::all()
             };
             let repo = language.repo;

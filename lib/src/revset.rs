@@ -914,7 +914,7 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
             expect_fileset_expression(diagnostics, files_arg, ctx.path_converter)?
         } else {
             // TODO: defaults to CLI path arguments?
-            // https://github.com/martinvonz/jj/issues/2933#issuecomment-1925870731
+            // https://github.com/jj-vcs/jj/issues/2933#issuecomment-1925870731
             FilesetExpression::all()
         };
         Ok(RevsetExpression::filter(

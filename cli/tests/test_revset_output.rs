@@ -156,7 +156,7 @@ fn test_bad_function_call() {
       |     ^---
       |
       = expected <identifier>, <string_literal>, or <raw_string_literal>
-    Hint: See https://martinvonz.github.io/jj/latest/filesets/ for filesets syntax, or for how to match file paths.
+    Hint: See https://jj-vcs.github.io/jj/latest/filesets/ for filesets syntax, or for how to match file paths.
     "#);
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", r#"files(foo:"bar")"#]);
@@ -717,7 +717,7 @@ fn test_all_modifier() {
       | ^-^
       |
       = Modifier "all:" is not allowed in sub expression
-    For help, see https://martinvonz.github.io/jj/latest/config/.
+    For help, see https://jj-vcs.github.io/jj/latest/config/.
     "###);
 }
 

@@ -156,24 +156,24 @@ fn test_absorb_replace_single_line_hunk() {
     test_env.jj_cmd_ok(&repo_path, &["new"]);
     std::fs::write(repo_path.join("file1"), "2a\n1A\n2b\n").unwrap();
     let (_stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["absorb"]);
-    insta::assert_snapshot!(stderr, @r"
+    insta::assert_snapshot!(stderr, @r###"
     Absorbed changes into these revisions:
-      qpvuntsm 9661b868 (conflict) 1
+      qpvuntsm 7e885236 (conflict) 1
     Rebased 2 descendant commits.
-    Working copy now at: zsuskuln f10b6e4e (empty) (no description set)
-    Parent commit      : kkmpptxz bed2d032 2
+    Working copy now at: zsuskuln e9c3b95b (empty) (no description set)
+    Parent commit      : kkmpptxz 7c36845c 2
     New conflicts appeared in these commits:
-      qpvuntsm 9661b868 (conflict) 1
+      qpvuntsm 7e885236 (conflict) 1
     To resolve the conflicts, start by updating to it:
       jj new qpvuntsm
     Then use `jj resolve`, or edit the conflict markers in the file directly.
     Once the conflicts are resolved, you may want to inspect the result with `jj diff`.
     Then run `jj squash` to move the resolution into the conflicted commit.
-    ");
+    "###);
 
-    insta::assert_snapshot!(get_diffs(&test_env, &repo_path, "mutable()"), @r"
-    @  zsuskuln f10b6e4e (empty) (no description set)
-    ○  kkmpptxz bed2d032 2
+    insta::assert_snapshot!(get_diffs(&test_env, &repo_path, "mutable()"), @r###"
+    @  zsuskuln e9c3b95b (empty) (no description set)
+    ○  kkmpptxz 7c36845c 2
     │  diff --git a/file1 b/file1
     │  index 0000000000..2f87e8e465 100644
     │  --- a/file1
@@ -189,7 +189,7 @@ fn test_absorb_replace_single_line_hunk() {
     │   1A
     │   2b
     │  ->>>>>>> Conflict 1 of 1 ends
-    ×  qpvuntsm 9661b868 (conflict) 1
+    ×  qpvuntsm 7e885236 (conflict) 1
     │  diff --git a/file1 b/file1
     ~  new file mode 100644
        index 0000000000..0000000000
@@ -206,7 +206,7 @@ fn test_absorb_replace_single_line_hunk() {
        +1A
        +2b
        +>>>>>>> Conflict 1 of 1 ends
-    ");
+    "###);
 }
 
 #[test]
@@ -314,21 +314,21 @@ fn test_absorb_conflict() {
     test_env.jj_cmd_ok(&repo_path, &["new", "root()"]);
     std::fs::write(repo_path.join("file1"), "2a\n2b\n").unwrap();
     let (_stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-r@", "-ddescription(1)"]);
-    insta::assert_snapshot!(stderr, @r"
+    insta::assert_snapshot!(stderr, @r###"
     Rebased 1 commits onto destination
-    Working copy now at: kkmpptxz 24d6d0f8 (conflict) (no description set)
+    Working copy now at: kkmpptxz 74405a07 (conflict) (no description set)
     Parent commit      : qpvuntsm 3619e4e5 1
     Added 0 files, modified 1 files, removed 0 files
     There are unresolved conflicts at these paths:
     file1    2-sided conflict
     New conflicts appeared in these commits:
-      kkmpptxz 24d6d0f8 (conflict) (no description set)
+      kkmpptxz 74405a07 (conflict) (no description set)
     To resolve the conflicts, start by updating to it:
       jj new kkmpptxz
     Then use `jj resolve`, or edit the conflict markers in the file directly.
     Once the conflicts are resolved, you may want to inspect the result with `jj diff`.
     Then run `jj squash` to move the resolution into the conflicted commit.
-    ");
+    "###);
 
     let conflict_content =
         String::from_utf8(std::fs::read(repo_path.join("file1")).unwrap()).unwrap();

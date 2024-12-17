@@ -308,7 +308,7 @@ fn test_invalid_filesets_looking_like_filepaths() {
       |     ^---
       |
       = expected `~` or <primary>
-    Hint: See https://martinvonz.github.io/jj/latest/filesets/ for filesets syntax, or for how to match file paths.
+    Hint: See https://jj-vcs.github.io/jj/latest/filesets/ for filesets syntax, or for how to match file paths.
     "#);
 
     test_env.add_config(r#"ui.allow-filesets=false"#);
@@ -464,7 +464,7 @@ fn test_color_config() {
     Config error: Invalid type or value for ui.color
     Caused by: wanted string or table
 
-    For help, see https://martinvonz.github.io/jj/latest/config/.
+    For help, see https://jj-vcs.github.io/jj/latest/config/.
     ");
 }
 
@@ -663,7 +663,7 @@ fn test_config_args() {
     let stderr = test_env.jj_cmd_failure(test_env.env_root(), &["config", "list", "--config=foo"]);
     insta::assert_snapshot!(stderr, @r"
     Config error: --config must be specified as NAME=VALUE
-    For help, see https://martinvonz.github.io/jj/latest/config/.
+    For help, see https://jj-vcs.github.io/jj/latest/config/.
     ");
 
     let stderr = test_env.jj_cmd_failure(
@@ -678,7 +678,7 @@ fn test_config_args() {
         Caused by:
         1: Cannot access unknown.toml
         2: <redacted>
-        For help, see https://martinvonz.github.io/jj/latest/config/.
+        For help, see https://jj-vcs.github.io/jj/latest/config/.
         ");
     });
 }
@@ -700,7 +700,7 @@ fn test_invalid_config() {
     expected newline, `#`
 
     Hint: Check the config file: $TEST_ENV/config/config0002.toml
-    For help, see https://martinvonz.github.io/jj/latest/config/.
+    For help, see https://jj-vcs.github.io/jj/latest/config/.
     ");
 }
 
@@ -717,7 +717,7 @@ fn test_invalid_config_value() {
     Config error: Invalid type or value for snapshot.auto-track
     Caused by: invalid type: sequence, expected a string
 
-    For help, see https://martinvonz.github.io/jj/latest/config/.
+    For help, see https://jj-vcs.github.io/jj/latest/config/.
     ");
 }
 

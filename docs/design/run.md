@@ -263,10 +263,10 @@ user and incrementally updating the output of `jj st`.
 
 
 [git-branchless]: https://github.com/arxanas/git-branchless
-[issue]: https://github.com/martinvonz/jj/issues/963
+[issue]: https://github.com/jj-vcs/jj/issues/963
 [fix-src]: https://repo.mercurial-scm.org/hg/file/tip/hgext/fix.py
 [hooks]: https://discord.com/channels/968932220549103686/969829516539228222/1047958933161119795
-[OpHeadsStore]: https://github.com/martinvonz/jj/blob/main/lib/src/op_heads_store.rs
-[pre-commit]: https://github.com/martinvonz/jj/issues/405
-[Treestate]: https://github.com/martinvonz/jj/blob/af85f552b676d66ed0e9ae0d401cd0c4ffbbeb21/lib/src/working_copy.rs#L117
-[Workspace]: https://github.com/martinvonz/jj/blob/af85f552b676d66ed0e9ae0d401cd0c4ffbbeb21/lib/src/workspace.rs#L54
+[OpHeadsStore]: https://github.com/jj-vcs/jj/blob/main/lib/src/op_heads_store.rs
+[pre-commit]: https://github.com/jj-vcs/jj/issues/405
+[Treestate]: https://github.com/jj-vcs/jj/blob/af85f552b676d66ed0e9ae0d401cd0c4ffbbeb21/lib/src/working_copy.rs#L117
+[Workspace]: https://github.com/jj-vcs/jj/blob/af85f552b676d66ed0e9ae0d401cd0c4ffbbeb21/lib/src/workspace.rs#L54

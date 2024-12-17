@@ -652,7 +652,7 @@ fn test_files() {
     );
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-r", "all()", "--summary"]);
-    insta::assert_snapshot!(stdout.replace('\\', "/"), @r"
+    insta::assert_snapshot!(stdout.replace('\\', "/"), @r###"
     @  wqnwkozp test.user@example.com 2001-02-03 08:05:20 working_copy 45c3a621
     │  working_copy
     │  A f_added_2
@@ -666,7 +666,7 @@ fn test_files() {
     │  A f_dir/dir_file_3
     │  M f_modified
     │  A f_renamed
-    │ ×  royxmykx test.user@example.com 2001-02-03 08:05:14 conflicted 23eb154d conflict
+    │ ×  royxmykx test.user@example.com 2001-02-03 08:05:14 conflicted 0ba6786b conflict
     ├─╯  conflicted
     │    A f_added_2
     │    A f_dir/dir_file_1
@@ -688,7 +688,7 @@ fn test_files() {
     │    A f_interdiff_only_from
     │    A f_interdiff_same
     ◆  zzzzzzzz root() 00000000
-    ");
+    "###);
 
     let mut test_env = test_env;
     test_env.add_env_var("COMPLETE", "fish");

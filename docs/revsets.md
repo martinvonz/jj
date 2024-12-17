@@ -439,7 +439,7 @@ For example:
 
 The following aliases are built-in and used for certain operations. These functions
 are defined as aliases in order to allow you to overwrite them as needed.
-See [revsets.toml](https://github.com/martinvonz/jj/blob/main/cli/src/config/revsets.toml)
+See [revsets.toml](https://github.com/jj-vcs/jj/blob/main/cli/src/config/revsets.toml)
 for a comprehensive list.
 
 * `trunk()`: Resolves to the head commit for the trunk bookmark of the remote

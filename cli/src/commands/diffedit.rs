@@ -36,7 +36,7 @@ use crate::ui::Ui;
 /// the "from" revision to the "to" revision.
 ///
 /// [diff editor]:
-///     https://martinvonz.github.io/jj/latest/config/#editing-diffs
+///     https://jj-vcs.github.io/jj/latest/config/#editing-diffs
 ///
 /// Edit the right side of the diff until it looks the way you want. Once you
 /// close the editor, the revision specified with `-r` or `--to` will be

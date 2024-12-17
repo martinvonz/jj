@@ -83,7 +83,7 @@ PS> jj workspace add --name wsl ~/my-repo
 
 Then only use the `~/my-repo` workspace from Linux.
 
-[issue-2040]: https://github.com/martinvonz/jj/issues/2040
+[issue-2040]: https://github.com/jj-vcs/jj/issues/2040
 [array-op]: https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_arrays?view=powershell-7.4#the-array-sub-expression-operator
 
 ## Symbolic link support

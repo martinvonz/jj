@@ -920,7 +920,7 @@ fn test_rebase_error_revision_does_not_exist() {
     "###);
 }
 
-// This behavior illustrates https://github.com/martinvonz/jj/issues/2600
+// This behavior illustrates https://github.com/jj-vcs/jj/issues/2600
 #[test]
 fn test_rebase_with_child_and_descendant_bug_2600() {
     let test_env = TestEnvironment::default();

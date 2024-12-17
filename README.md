@@ -15,10 +15,10 @@
 **[Development Roadmap] &nbsp;&nbsp;&bull;&nbsp;&nbsp;**
 **[Contributing](#contributing)**
 
-[Homepage]: https://martinvonz.github.io/jj
-[Installation]: https://martinvonz.github.io/jj/latest/install-and-setup
-[Getting Started]: https://martinvonz.github.io/jj/latest/tutorial
-[Development Roadmap]: https://martinvonz.github.io/jj/latest/roadmap
+[Homepage]: https://jj-vcs.github.io/jj
+[Installation]: https://jj-vcs.github.io/jj/latest/install-and-setup
+[Getting Started]: https://jj-vcs.github.io/jj/latest/tutorial
+[Development Roadmap]: https://jj-vcs.github.io/jj/latest/roadmap
 
 </div>
 
@@ -68,10 +68,10 @@ systems into a single tool. Some of those sources of inspiration include:
   theory of patches, as opposed to snapshots), the effect is that many forms of
   conflict resolution can be performed and propagated automatically.
 
-[perf]: https://github.com/martinvonz/jj/discussions/49
-[revset]: https://martinvonz.github.io/jj/latest/revsets/
-[no-index]: https://martinvonz.github.io/jj/latest/git-comparison/#the-index
-[conflicts]: https://martinvonz.github.io/jj/latest/conflicts/
+[perf]: https://github.com/jj-vcs/jj/discussions/49
+[revset]: https://jj-vcs.github.io/jj/latest/revsets/
+[no-index]: https://jj-vcs.github.io/jj/latest/git-comparison/#the-index
+[conflicts]: https://jj-vcs.github.io/jj/latest/conflicts/
 
 And it adds several innovative, useful features of its own:
 
@@ -116,9 +116,9 @@ And it adds several innovative, useful features of its own:
   _should_ happen is that it will expose conflicts between the local and remote
   state, leaving you to resolve them.
 
-[wcc]: https://martinvonz.github.io/jj/latest/working-copy/
+[wcc]: https://jj-vcs.github.io/jj/latest/working-copy/
 [undo-history]: https://en.wikipedia.org/wiki/Undo#History
-[conc-safety]: https://martinvonz.github.io/jj/latest/technical/concurrency/
+[conc-safety]: https://jj-vcs.github.io/jj/latest/technical/concurrency/
 
 The command-line tool is called `jj` for now because it's easy to type and easy
 to replace (rare in English). The project is called "Jujutsu" because it matches
@@ -127,7 +127,7 @@ to replace (rare in English). The project is called "Jujutsu" because it matches
 Jujutsu is relatively young, with lots of work to still be done. If you have any
 questions, or want to talk about future plans, please join us on Discord
 [![Discord](https://img.shields.io/discord/968932220549103686.svg?label=&logo=discord&logoColor=ffffff&color=7389D8&labelColor=6A7EC2)](https://discord.gg/dkmfj3aGQN),
-start a [GitHub Discussion](https://github.com/martinvonz/jj/discussions), or
+start a [GitHub Discussion](https://github.com/jj-vcs/jj/discussions), or
 send an IRC message to [`#jujutsu` on Libera
 Chat](https://web.libera.chat/?channel=#jujutsu). The developers monitor all of
 these channels[^bridge].
@@ -165,7 +165,7 @@ The wiki also contains a more extensive list of [media references][wiki-media].
 [lwn]: https://lwn.net/Articles/958468/
 [merge-talk]: https://www.youtube.com/watch?v=bx_LGilOuE4
 [merge-slides]: https://docs.google.com/presentation/d/1F8j9_UOOSGUN9MvHxPZX_L4bQ9NMcYOp1isn17kTC_M/view
-[wiki-media]: https://github.com/martinvonz/jj/wiki/Media
+[wiki-media]: https://github.com/jj-vcs/jj/wiki/Media
 
 ## Getting started
 
@@ -176,23 +176,23 @@ The wiki also contains a more extensive list of [media references][wiki-media].
 > it unusable for your particular use.
 
 Follow the [installation
-instructions](https://martinvonz.github.io/jj/latest/install-and-setup) to
+instructions](https://jj-vcs.github.io/jj/latest/install-and-setup) to
 obtain and configure `jj`.
 
 The best way to get started is probably to go through [the
-tutorial](https://martinvonz.github.io/jj/latest/tutorial). Also see the [Git
-comparison](https://martinvonz.github.io/jj/latest/git-comparison), which
+tutorial](https://jj-vcs.github.io/jj/latest/tutorial). Also see the [Git
+comparison](https://jj-vcs.github.io/jj/latest/git-comparison), which
 includes a table of `jj` vs. `git` commands.
 
 As you become more familiar with Jujutsu, the following resources may be helpful:
 
-- The [FAQ](https://martinvonz.github.io/jj/latest/FAQ).
-- The [Glossary](https://martinvonz.github.io/jj/latest/glossary).
+- The [FAQ](https://jj-vcs.github.io/jj/latest/FAQ).
+- The [Glossary](https://jj-vcs.github.io/jj/latest/glossary).
 - The `jj help` command (e.g. `jj help rebase`).
 
 If you are using a **prerelease** version of `jj`, you would want to consult
 [the docs for the prerelease (main branch)
-version](https://martinvonz.github.io/jj/prerelease/). You can also get there
+version](https://jj-vcs.github.io/jj/prerelease/). You can also get there
 from the docs for the latest release by using the website's version switcher. The version switcher is visible in
 the header of the website when you scroll to the top of any page.
 
@@ -206,7 +206,7 @@ while the other is a native storage backend[^native-backend]. The Git backend
 uses the [libgit2](https://libgit2.org/) C library and the
 [gitoxide](https://github.com/Byron/gitoxide) Rust library.
 
-[backends]: https://martinvonz.github.io/jj/latest/glossary#backend
+[backends]: https://jj-vcs.github.io/jj/latest/glossary#backend
 
 [^native-backend]: At this time, there's practically no reason to use the native
 backend. The backend exists mainly to make sure that it's possible to eventually
@@ -222,7 +222,7 @@ Here is how you can explore a GitHub repository with `jj`.
 <img src="demos/git_compat.png" />
 
 You can even have a ["co-located" local
-repository](https://martinvonz.github.io/jj/latest/git-compatibility#co-located-jujutsugit-repos)
+repository](https://jj-vcs.github.io/jj/latest/git-compatibility#co-located-jujutsugit-repos)
 where you can use both `jj` and `git` commands interchangeably.
 
 ### The working copy is automatically committed
@@ -263,7 +263,7 @@ necessarily have to be the most recent operation).
 ### Conflicts can be recorded in commits
 
 If an operation results in
-[conflicts](https://martinvonz.github.io/jj/latest/glossary#conflict),
+[conflicts](https://jj-vcs.github.io/jj/latest/glossary#conflict),
 information about those conflicts will be recorded in the commit(s). The
 operation will succeed. You can then resolve the conflicts later. One
 consequence of this design is that there's no need to continue interrupted
@@ -316,7 +316,7 @@ scripts if requested.
 ## Related work
 
 There are several tools trying to solve similar problems as Jujutsu. See
-[related work](https://martinvonz.github.io/jj/latest/related-work) for details.
+[related work](https://jj-vcs.github.io/jj/latest/related-work) for details.
 
 ## Contributing
 
@@ -325,7 +325,7 @@ don't be shy. Please ask if you want a pointer on something you can help with,
 and hopefully we can all figure something out.
 
 We do have [a few policies and
-suggestions](https://martinvonz.github.io/jj/prerelease/contributing/)
+suggestions](https://jj-vcs.github.io/jj/prerelease/contributing/)
 for contributors. The broad TL;DR:
 
 - Bug reports are very welcome!

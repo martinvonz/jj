@@ -62,10 +62,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * The `$NO_COLOR` environment variable must now be non-empty to be respected.
 
 * Fixed incompatible rendering of empty hunks in git/unified diffs.
-  [#5049](https://github.com/martinvonz/jj/issues/5049)
+  [#5049](https://github.com/jj-vcs/jj/issues/5049)
 
 * Fixed performance of progress bar rendering when fetching from Git remote.
-  [#5057](https://github.com/martinvonz/jj/issues/5057)
+  [#5057](https://github.com/jj-vcs/jj/issues/5057)
 
 * `jj config path --user` no longer creates new file at the default config path.
 
@@ -73,11 +73,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Release highlights
 
-* New [`jj absorb`](https://martinvonz.github.io/jj/latest/cli-reference/#jj-absorb) command automatically squashes changes from the current commit into relevant ancestor commits.
+* New [`jj absorb`](https://jj-vcs.github.io/jj/latest/cli-reference/#jj-absorb) command automatically squashes changes from the current commit into relevant ancestor commits.
 
-* Experimental dynamic shell completions have been added; see [the docs](https://martinvonz.github.io/jj/latest/install-and-setup/#command-line-completion) for configuration.
+* Experimental dynamic shell completions have been added; see [the docs](https://jj-vcs.github.io/jj/latest/install-and-setup/#command-line-completion) for configuration.
 
-* [`jj duplicate`](https://martinvonz.github.io/jj/latest/cli-reference/#jj-duplicate) now accepts `--destination`/`--insert-before`/`--insert-after`.
+* [`jj duplicate`](https://jj-vcs.github.io/jj/latest/cli-reference/#jj-duplicate) now accepts `--destination`/`--insert-before`/`--insert-after`.
 
 * Some deprecated commands have been removed (`jj move`, `jj checkout`, `jj merge`).
 
@@ -95,7 +95,7 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 * Lines prefixed with "JJ:" in commit descriptions and in sparse patterns (from
   `jj sparse edit`) are now stripped even if they are not immediately followed
-  by a space. [#5004](https://github.com/martinvonz/jj/issues/5004)
+  by a space. [#5004](https://github.com/jj-vcs/jj/issues/5004)
 
 ### Deprecations
 
@@ -112,7 +112,7 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   options, like `jj rebase -r` and `jj rebase -s`.
 
 * A preview of improved shell completions was added. Please refer to the
-  [documentation](https://martinvonz.github.io/jj/latest/install-and-setup/#command-line-completion)
+  [documentation](https://jj-vcs.github.io/jj/latest/install-and-setup/#command-line-completion)
   to activate them. They additionally complete context-dependent, dynamic values
   like bookmarks, aliases, revisions, operations and files.
 
@@ -192,7 +192,7 @@ Thanks to the people who made this release happen!
 
 * Fixed path traversal by cloning/checking out crafted Git repository containing
   `..`, `.jj`, `.git` paths.
-  ([GHSA-88h5-6w7m-5w56](https://github.com/martinvonz/jj/security/advisories/GHSA-88h5-6w7m-5w56);CVE-2024-51990)
+  ([GHSA-88h5-6w7m-5w56](https://github.com/jj-vcs/jj/security/advisories/GHSA-88h5-6w7m-5w56);CVE-2024-51990)
 
 ### Breaking changes
 
@@ -276,7 +276,7 @@ Thanks to the people who made this release happen!
 ### Fixed bugs
 
 * Error on `trunk()` revset resolution is now handled gracefully.
-  [#4616](https://github.com/martinvonz/jj/issues/4616)
+  [#4616](https://github.com/jj-vcs/jj/issues/4616)
 
 * Updated the built-in diff editor `scm-record` to version
   [0.4.0](https://github.com/arxanas/scm-record/releases/tag/v0.4.0), which
@@ -320,7 +320,7 @@ Thanks to the people who made this release happen!
 
 ### Breaking changes
 
-* Fixing [#4239](https://github.com/martinvonz/jj/issues/4239) means the
+* Fixing [#4239](https://github.com/jj-vcs/jj/issues/4239) means the
   ordering of some messages have changed.
 
 * Invalid `ui.graph.style` configuration is now an error.
@@ -366,7 +366,7 @@ Thanks to the people who made this release happen!
   command to manually tracks path that were not automatically tracked. There is
   no way to list untracked files yet. Use `git status` in a colocated workspace
   as a workaround.
-  [#323](https://github.com/martinvonz/jj/issues/323)
+  [#323](https://github.com/jj-vcs/jj/issues/323)
 
 * `jj fix` now allows fixing unchanged files with the `--include-unchanged-files` flag. This
   can be used to more easily introduce automatic formatting changes in a new
@@ -413,7 +413,7 @@ Thanks to the people who made this release happen!
   from leaving the working copy in a stale state.
 
 * Fixed panic when parsing invalid conflict markers of a particular form.
-  ([#2611](https://github.com/martinvonz/jj/pull/2611))
+  ([#2611](https://github.com/jj-vcs/jj/pull/2611))
 
 * Editing a hidden commit now makes it visible.
 
@@ -510,7 +510,7 @@ Thanks to the people who made this release happen!
 
 * `jj` now links `libgit2` statically by default. To use dynamic linking, you
   need to set the environment variable `LIBGIT2_NO_VENDOR=1` while compiling.
-  ([#4163](https://github.com/martinvonz/jj/pull/4163))
+  ([#4163](https://github.com/jj-vcs/jj/pull/4163))
 
 ### Breaking changes
 
@@ -673,7 +673,7 @@ Thanks to the people who made this release happen!
 
 * `jj branch set` now creates new branch if it doesn't exist. Use `jj branch
   move` to ensure that the target branch already exists.
-  [#3584](https://github.com/martinvonz/jj/issues/3584)
+  [#3584](https://github.com/jj-vcs/jj/issues/3584)
 
 ### Deprecations
 
@@ -703,7 +703,7 @@ Thanks to the people who made this release happen!
   like the `ancestors()` depth argument, it limits the depth of the set.
 
 * Revset/template aliases now support function overloading.
-  [#2966](https://github.com/martinvonz/jj/issues/2966)
+  [#2966](https://github.com/jj-vcs/jj/issues/2966)
 
 * Conflicted files are individually simplified before being materialized.
 
@@ -731,7 +731,7 @@ Thanks to the people who made this release happen!
 
 * Author timestamp is now reset when rewriting discardable commits (empty
   commits with no description) if authored by the current user.
-  [#2000](https://github.com/martinvonz/jj/issues/2000)
+  [#2000](https://github.com/jj-vcs/jj/issues/2000)
 
 * `jj commit` now accepts `--reset-author` option to match `jj describe`.
 
@@ -741,11 +741,11 @@ Thanks to the people who made this release happen!
 
 * `jj git push` now ignores immutable commits when checking whether a
   to-be-pushed commit has conflicts, or has no description / committer / author
-  set. [#3029](https://github.com/martinvonz/jj/issues/3029)
+  set. [#3029](https://github.com/jj-vcs/jj/issues/3029)
 
 * `jj` will look for divergent changes outside the short prefix set even if it
   finds the change id inside the short prefix set.
-  [#2476](https://github.com/martinvonz/jj/issues/2476)
+  [#2476](https://github.com/jj-vcs/jj/issues/2476)
 
 ### Contributors
 
@@ -794,7 +794,7 @@ Thanks to the people who made this release happen!
 
 * If a new working-copy commit is created because the old one was abandoned, and
   the old commit was merge, then the new commit will now also be.
-  [#2859](https://github.com/martinvonz/jj/issues/2859)
+  [#2859](https://github.com/jj-vcs/jj/issues/2859)
 
 * `jj new`'s `--insert-before`/`--insert-after` options must now be set for each
   commit the new commit will be inserted before/after. Previously, those options
@@ -834,8 +834,8 @@ Thanks to the people who made this release happen!
 * New command `jj fix` that can be configured to update commits by running code
   formatters (or similar tools) on changed files. The configuration schema and
   flags are minimal for now, with a number of improvements planned (for example,
-  [#3800](https://github.com/martinvonz/jj/issues/3800) and
-  [#3801](https://github.com/martinvonz/jj/issues/3801)).
+  [#3800](https://github.com/jj-vcs/jj/issues/3800) and
+  [#3801](https://github.com/jj-vcs/jj/issues/3801)).
 
 * `jj new`'s `--insert-before` and `--insert-after` options can now be used
   simultaneously.
@@ -985,7 +985,7 @@ Thanks to the people who made this release happen!
 
 * `jj squash <path>` is now a no-op if the path argument didn't match any paths
   (it used to create new commits with bumped timestamp).
-  [#3334](https://github.com/martinvonz/jj/issues/3334)
+  [#3334](https://github.com/jj-vcs/jj/issues/3334)
 
 ### Contributors
 
@@ -1119,7 +1119,7 @@ No code changes (fixing Rust `Cargo.toml` stuff).
 
 * The on-disk index format changed. New index files will be created
   automatically, but it can fail if the repository is co-located and predates
-  Git GC issues [#815](https://github.com/martinvonz/jj/issues/815). If
+  Git GC issues [#815](https://github.com/jj-vcs/jj/issues/815). If
   reindexing failed, you'll need to clean up corrupted operation history by
   `jj op abandon ..<bad operation ID>`.
 
@@ -1171,8 +1171,8 @@ No code changes (fixing Rust `Cargo.toml` stuff).
 
 * Set config `ui.log-synthetic-elided-nodes = true` to make `jj log` include
   synthetic nodes in the graph where some revisions were elided
-  ([#1252](https://github.com/martinvonz/jj/issues/1252),
-  [#2971](https://github.com/martinvonz/jj/issues/2971)). This may become the
+  ([#1252](https://github.com/jj-vcs/jj/issues/1252),
+  [#2971](https://github.com/jj-vcs/jj/issues/2971)). This may become the
   default depending on feedback.
 
 * When creating a new workspace, the sparse patterns are now copied over from
@@ -1191,7 +1191,7 @@ No code changes (fixing Rust `Cargo.toml` stuff).
 
 * `jj commit`/`diffedit`/`move`/`resolve`/`split`/`squash`/`unsquash` now accept
   `--tool=<NAME>` option to override the default.
-  [#2575](https://github.com/martinvonz/jj/issues/2575)
+  [#2575](https://github.com/jj-vcs/jj/issues/2575)
 
 * Added completions for [Nushell](https://nushell.sh) to `jj util completion`
 
@@ -1212,14 +1212,14 @@ No code changes (fixing Rust `Cargo.toml` stuff).
   When symlink support is unavailable, they will be materialized as regular
   files in the
   working copy (instead of resulting in a crash).
-  [#2](https://github.com/martinvonz/jj/issues/2)
+  [#2](https://github.com/jj-vcs/jj/issues/2)
 
 * On Windows, the `:builtin` pager is now used by default, rather than being
   disabled entirely.
 
 * Auto-rebase now preserves the shape of history even for merge commits where
   one parent is an ancestor of another.
-  [#2600](https://github.com/martinvonz/jj/issues/2600)
+  [#2600](https://github.com/jj-vcs/jj/issues/2600)
 
 ### Contributors
 
@@ -1344,11 +1344,11 @@ Thanks to the people who made this release happen!
 ### Fixed bugs
 
 * Fixed snapshots of symlinks in `gitignore`-d directory.
-  [#2878](https://github.com/martinvonz/jj/issues/2878)
+  [#2878](https://github.com/jj-vcs/jj/issues/2878)
 
 * Fixed data loss in dirty working copy when checked-out branch is rebased or
   abandoned by Git.
-  [#2876](https://github.com/martinvonz/jj/issues/2876)
+  [#2876](https://github.com/jj-vcs/jj/issues/2876)
 
 ### Contributors
 
@@ -1391,7 +1391,7 @@ Thanks to the people who made this release happen!
 
 * Command aliases can now be loaded from repository config relative to the
   current working directory.
-  [#2414](https://github.com/martinvonz/jj/issues/2414)
+  [#2414](https://github.com/jj-vcs/jj/issues/2414)
 
 ### Contributors
 
@@ -1427,7 +1427,7 @@ Thanks to the people who made this release happen!
 
 * You can now set `git.abandon-unreachable-commits = false` to disable the
   usual behavior where commits that became unreachable in the Git repo are
-  abandoned ([#2504](https://github.com/martinvonz/jj/pull/2504)).
+  abandoned ([#2504](https://github.com/jj-vcs/jj/pull/2504)).
 
 * `jj new` gained a `--no-edit` option to prevent editing the newly created
   commit. For example, `jj new a b --no-edit -m Merge` creates a merge commit
@@ -1444,7 +1444,7 @@ Thanks to the people who made this release happen!
 
 * Fixed another file conflict resolution issue where `jj status` would disagree
   with the actual file content.
-  [#2654](https://github.com/martinvonz/jj/issues/2654)
+  [#2654](https://github.com/jj-vcs/jj/issues/2654)
 
 ### Contributors
 
@@ -1543,13 +1543,13 @@ Thanks to the people who made this release happen!
 
 * Updating the working copy to a commit where a file that's currently ignored
   in the working copy no longer leads to a crash
-  ([#976](https://github.com/martinvonz/jj/issues/976)).
+  ([#976](https://github.com/jj-vcs/jj/issues/976)).
 
 * Conflicts in executable files can now be resolved just like conflicts in
-  non-executable files ([#1279](https://github.com/martinvonz/jj/issues/1279)).
+  non-executable files ([#1279](https://github.com/jj-vcs/jj/issues/1279)).
 
 * `jj new --insert-before` and `--insert-after` now respect immutable revisions
-  ([#2468](https://github.com/martinvonz/jj/pull/2468)).
+  ([#2468](https://github.com/jj-vcs/jj/pull/2468)).
 
 ### Contributors
 
@@ -1682,7 +1682,7 @@ Thanks to the people who made this release happen!
 
 * It's no longer allowed to create a Git remote named "git". Use `jj git remote
   rename` to rename the existing remote.
-  [#1690](https://github.com/martinvonz/jj/issues/1690)
+  [#1690](https://github.com/jj-vcs/jj/issues/1690)
 
 * Revset expression like `origin/main` will no longer resolve to a
   remote-tracking branch. Use `main@origin` instead.
@@ -1702,7 +1702,7 @@ Thanks to the people who made this release happen!
   directories.
 
 * `jj log` output is now topologically grouped.
-  [#242](https://github.com/martinvonz/jj/issues/242)
+  [#242](https://github.com/jj-vcs/jj/issues/242)
 
 * `jj git clone` now supports the `--colocate` flag to create the git repo
   in the same directory as the jj repo.
@@ -1713,7 +1713,7 @@ Thanks to the people who made this release happen!
 
 * `jj diff`/`log` now supports `--tool <name>` option to generate diffs by
   external program. For configuration, see [the documentation](docs/config.md).
-  [#1886](https://github.com/martinvonz/jj/issues/1886)
+  [#1886](https://github.com/jj-vcs/jj/issues/1886)
 
 * A new experimental diff editor `meld-3` is introduced that sets up Meld to
   allow you to see both sides of the original diff while editing. This can be
@@ -1755,12 +1755,12 @@ Thanks to the people who made this release happen!
 
 * `jj next` and `jj prev` are added, these allow you to traverse the history
   in a linear style. For people coming from Sapling and `git-branchles`
-  see [#2126](https://github.com/martinvonz/jj/issues/2126) for
+  see [#2126](https://github.com/jj-vcs/jj/issues/2126) for
   further pending improvements.
 
 * `jj diff --stat` has been implemented. It shows a histogram of the changes,
   same as `git diff --stat`.
-  Fixes [#2066](https://github.com/martinvonz/jj/issues/2066)
+  Fixes [#2066](https://github.com/jj-vcs/jj/issues/2066)
 
 * `jj git fetch --all-remotes` has been implemented. It fetches all remotes
   instead of just the default remote
@@ -1768,20 +1768,20 @@ Thanks to the people who made this release happen!
 ### Fixed bugs
 
 * Fix issues related to .gitignore handling of untracked directories
-  [#2051](https://github.com/martinvonz/jj/issues/2051).
+  [#2051](https://github.com/jj-vcs/jj/issues/2051).
 
 * `jj config set --user` and `jj config edit --user` can now be used outside of
   any repository.
 
 * SSH authentication could hang when ssh-agent couldn't be reached
-  [#1970](https://github.com/martinvonz/jj/issues/1970)
+  [#1970](https://github.com/jj-vcs/jj/issues/1970)
 
 * SSH authentication can now use ed25519 and ed25519-sk keys. They still need
   to be password-less.
 
 * Git repository managed by the repo tool can now be detected as a "colocated"
   repository.
-  [#2011](https://github.com/martinvonz/jj/issues/2011)
+  [#2011](https://github.com/jj-vcs/jj/issues/2011)
 
 ### Contributors
 
@@ -1875,7 +1875,7 @@ Thanks to the people who made this release happen!
   `jj config set --repo user.email "somebody@example.com"`
 
 * Added `ui.log-word-wrap` option to wrap `jj log`/`obslog`/`op log` content
-  based on terminal width. [#1043](https://github.com/martinvonz/jj/issues/1043)
+  based on terminal width. [#1043](https://github.com/jj-vcs/jj/issues/1043)
 
 * Nodes in the (text-based) graphical log output now use a `◉` symbol instead
   of the letter `o`. The ASCII-based graph styles still use `o`.
@@ -1942,7 +1942,7 @@ Thanks to the people who made this release happen!
 ### Fixed bugs
 
 * Modify/delete conflicts now include context lines
-  [#1244](https://github.com/martinvonz/jj/issues/1244).
+  [#1244](https://github.com/jj-vcs/jj/issues/1244).
 
 * It is now possible to modify either side of a modify/delete conflict (any
   change used to be considered a resolution).
@@ -1964,27 +1964,27 @@ Thanks to the people who made this release happen!
 
 * `git checkout` (without using `jj`) in colocated repo no longer abandons
   the previously checked-out anonymous branch.
-  [#1042](https://github.com/martinvonz/jj/issues/1042).
+  [#1042](https://github.com/jj-vcs/jj/issues/1042).
 
 * `jj git fetch` in a colocated repo now abandons branches deleted on the
   remote, just like in a non-colocated repo.
-  [#864](https://github.com/martinvonz/jj/issues/864)
+  [#864](https://github.com/jj-vcs/jj/issues/864)
 
 * `jj git fetch` can now fetch forgotten branches even if they didn't move on
   the remote.
-  [#1714](https://github.com/martinvonz/jj/pull/1714)
-  [#1771](https://github.com/martinvonz/jj/pull/1771)
+  [#1714](https://github.com/jj-vcs/jj/pull/1714)
+  [#1771](https://github.com/jj-vcs/jj/pull/1771)
 
 * It is now possible to `jj branch forget` deleted branches.
-  [#1537](https://github.com/martinvonz/jj/issues/1537)
+  [#1537](https://github.com/jj-vcs/jj/issues/1537)
 
 * Fixed race condition when assigning change id to Git commit. If you've
   already had unreachable change ids, run `jj debug reindex`.
-  [#924](https://github.com/martinvonz/jj/issues/924)
+  [#924](https://github.com/jj-vcs/jj/issues/924)
 
 * Fixed false divergence on racy working-copy snapshots.
-  [#697](https://github.com/martinvonz/jj/issues/697),
-  [#1608](https://github.com/martinvonz/jj/issues/1608)
+  [#697](https://github.com/jj-vcs/jj/issues/697),
+  [#1608](https://github.com/jj-vcs/jj/issues/1608)
 
 * In colocated repos, a bug causing conflicts when undoing branch moves (#922)
   has been fixed. Some surprising behaviors related to undoing `jj git push` or
@@ -2199,7 +2199,7 @@ Thanks to the people who made this release happen!
 * `jj duplicate` followed by `jj rebase` of a tree containing both the original
   and duplicate commit no longer crashes. The fix should also resolve any
   remaining
-  instances of https://github.com/martinvonz/jj/issues/27.
+  instances of https://github.com/jj-vcs/jj/issues/27.
 
 * Fix the output of `jj debug completion --help` by reversing fish and zsh text.
 
@@ -2263,7 +2263,7 @@ No changes, only changed to a released version of the `thrift` crate dependency.
 ### New features
 
 * Commands with long output are paginated.
-  [#9](https://github.com/martinvonz/jj/issues/9)
+  [#9](https://github.com/jj-vcs/jj/issues/9)
 
 * The new `jj git remote rename` command allows git remotes to be renamed
   in-place.
@@ -2286,11 +2286,11 @@ No changes, only changed to a released version of the `thrift` crate dependency.
 
 * `jj git` subcommands will prompt for credentials when required for HTTPS
   remotes rather than failing.
-  [#469](https://github.com/martinvonz/jj/issues/469)
+  [#469](https://github.com/jj-vcs/jj/issues/469)
 
 * Branches that have a different target on some remote than they do locally are
   now indicated by an asterisk suffix (e.g. `main*`) in `jj log`.
-  [#254](https://github.com/martinvonz/jj/issues/254)
+  [#254](https://github.com/jj-vcs/jj/issues/254)
 
 * The commit ID was moved from first on the line in `jj log` output to close to
   the end. The goal is to encourage users to use the change ID instead, since
@@ -2317,13 +2317,13 @@ No changes, only changed to a released version of the `thrift` crate dependency.
 * A bug in the export of branches to Git caused spurious conflicted branches.
   This typically occurred when running in a working copy colocated with Git
   (created by running `jj init --git-dir=.`).
-  [#463](https://github.com/martinvonz/jj/issues/463)
+  [#463](https://github.com/jj-vcs/jj/issues/463)
 
 * When exporting branches to Git, we used to fail if some branches could not be
   exported (e.g. because Git doesn't allow a branch called `main` and another
   branch called `main/sub`). We now print a warning about these branches
   instead.
-  [#493](https://github.com/martinvonz/jj/issues/493)
+  [#493](https://github.com/jj-vcs/jj/issues/493)
 
 * If you had modified branches in jj and also modified branches in conflicting
   ways in Git, `jj git export` used to overwrite the changes you made in Git.
@@ -2343,7 +2343,7 @@ No changes, only changed to a released version of the `thrift` crate dependency.
 
 * Git's GC could remove commits that were referenced from jj in some cases. We
   are now better at adding Git refs to prevent that.
-  [#815](https://github.com/martinvonz/jj/issues/815)
+  [#815](https://github.com/jj-vcs/jj/issues/815)
 
 * When the working-copy commit was a merge, `jj status` would list only the
   first parent, and the diff summary would be against that parent. The output
@@ -2389,8 +2389,8 @@ No changes (just trying to get automated GitHub release to work).
   branches (plus their closest commit on the remote branch for context). This
   set of commits can be overridden by setting `ui.default-revset`. Use
   `jj log -r 'all()'` for the old behavior. Read more about revsets
-  [here](https://github.com/martinvonz/jj/blob/main/docs/revsets.md).
-  [#250](https://github.com/martinvonz/jj/issues/250)
+  [here](https://github.com/jj-vcs/jj/blob/main/docs/revsets.md).
+  [#250](https://github.com/jj-vcs/jj/issues/250)
 
 * `jj new` now always checks out the new commit (used to be only if the parent
   was `@`).
@@ -2404,7 +2404,7 @@ No changes (just trying to get automated GitHub release to work).
 
 * `jj branch` now uses subcommands like `jj branch create` and
   `jj branch forget` instead of options like `jj branch --forget`.
-  [#330](https://github.com/martinvonz/jj/issues/330)
+  [#330](https://github.com/jj-vcs/jj/issues/330)
 
 * The [`$NO_COLOR` environment variable](https://no-color.org/) no longer
   overrides the `ui.color` configuration if explicitly set.
@@ -2436,7 +2436,7 @@ No changes (just trying to get automated GitHub release to work).
 
 * The new `jj git remotes list` command lists the configured remotes and their
   URLs.
-  [#243](https://github.com/martinvonz/jj/issues/243)
+  [#243](https://github.com/jj-vcs/jj/issues/243)
 
 * `jj move` and `jj squash` now lets you limit the set of changes to move by
   specifying paths on the command line (in addition to the `--interactive`
@@ -2604,7 +2604,7 @@ No changes (just trying to get automated GitHub release to work).
   concurrent operations (so if one operation added B on top of A, and one
   operation rebased A as A', then B would be automatically rebased on top of
   A'). See #111 for more examples.
-  [#111](https://github.com/martinvonz/jj/issues/111)
+  [#111](https://github.com/jj-vcs/jj/issues/111)
 
 * `jj log` now accepts `-p`/`--patch` option.
 
@@ -2629,7 +2629,7 @@ No changes, only trying to get the automated build to work.
 
 - Fixed crash when `core.excludesFile` pointed to nonexistent file, and made
   leading `~/` in that config expand to `$HOME/`
-  [#131](https://github.com/martinvonz/jj/issues/131)
+  [#131](https://github.com/jj-vcs/jj/issues/131)
 
 ## [0.3.0] - 2022-03-12
 

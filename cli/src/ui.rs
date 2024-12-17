@@ -183,7 +183,7 @@ impl UiOutput {
 
                                     Possible workarounds:
                                     - Use `jj --no-pager`
-                                    - Configure a different pager, see https://martinvonz.github.io/jj/latest/windows/#pagination for Git Bash on Windows
+                                    - Configure a different pager, see https://jj-vcs.github.io/jj/latest/windows/#pagination for Git Bash on Windows
                                     - Use a different terminal (e.g. Windows Terminal or the Command Prompt)
                                     - Use `winpty jj ...`; `winpty` comes with Git Bash or Cygwin."#
                                 }

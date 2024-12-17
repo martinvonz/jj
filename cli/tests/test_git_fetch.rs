@@ -388,7 +388,7 @@ fn test_git_fetch_conflicting_bookmarks_colocated() {
         &["git", "fetch", "--remote", "rem1", "--branch", "rem1"],
     );
     // This should result in a CONFLICTED bookmark
-    // See https://github.com/martinvonz/jj/pull/1146#discussion_r1112372340 for the bug this tests for.
+    // See https://github.com/jj-vcs/jj/pull/1146#discussion_r1112372340 for the bug this tests for.
     insta::assert_snapshot!(get_bookmark_output(&test_env, &repo_path), @r###"
     rem1 (conflicted):
       + zsuskuln f652c321 (empty) (no description set)
