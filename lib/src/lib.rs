@@ -28,6 +28,7 @@ extern crate self as jj_lib;
 #[macro_use]
 pub mod content_hash;
 
+pub mod absorb;
 pub mod annotate;
 pub mod backend;
 pub mod commit;
