@@ -18,6 +18,8 @@ mod external;
 
 use std::sync::Arc;
 
+use bstr::BString;
+use jj_lib::backend::FileId;
 use jj_lib::backend::MergedTreeId;
 use jj_lib::config::ConfigGetError;
 use jj_lib::config::ConfigGetResultExt as _;
@@ -26,6 +28,8 @@ use jj_lib::conflicts::extract_as_single_hunk;
 use jj_lib::conflicts::ConflictMarkerStyle;
 use jj_lib::gitignore::GitIgnoreFile;
 use jj_lib::matchers::Matcher;
+use jj_lib::merge::Merge;
+use jj_lib::merge::MergedTreeValue;
 use jj_lib::merged_tree::MergedTree;
 use jj_lib::repo_path::InvalidRepoPathError;
 use jj_lib::repo_path::RepoPath;
@@ -257,6 +261,14 @@ impl DiffEditor {
     }
 }
 
+/// A file to be merged by a merge tool.
+struct MergeToolFile {
+    repo_path: RepoPathBuf,
+    conflict: MergedTreeValue,
+    file_merge: Merge<Option<FileId>>,
+    content: Merge<BString>,
+}
+
 /// Configured 3-way merge editor.
 #[derive(Clone, Debug)]
 pub struct MergeEditor {
@@ -334,19 +346,22 @@ impl MergeEditor {
         };
         let content =
             extract_as_single_hunk(&simplified_file_merge, tree.store(), repo_path).block_on()?;
+        let merge_tool_file = MergeToolFile {
+            repo_path: repo_path.to_owned(),
+            conflict,
+            file_merge,
+            content,
+        };
 
         match &self.tool {
             MergeTool::Builtin => {
-                let tree_id = edit_merge_builtin(tree, repo_path, content).map_err(Box::new)?;
+                let tree_id = edit_merge_builtin(tree, &merge_tool_file).map_err(Box::new)?;
                 Ok(tree_id)
             }
             MergeTool::External(editor) => external::run_mergetool_external(
                 editor,
-                file_merge,
-                content,
-                repo_path,
-                conflict,
                 tree,
+                &merge_tool_file,
                 self.conflict_marker_style,
             ),
         }

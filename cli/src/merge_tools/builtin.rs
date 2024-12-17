@@ -2,7 +2,6 @@ use std::borrow::Cow;
 use std::path::Path;
 use std::sync::Arc;
 
-use bstr::BString;
 use futures::StreamExt;
 use futures::TryFutureExt;
 use futures::TryStreamExt;
@@ -31,6 +30,8 @@ use jj_lib::repo_path::RepoPathBuf;
 use jj_lib::store::Store;
 use pollster::FutureExt;
 use thiserror::Error;
+
+use super::MergeToolFile;
 
 #[derive(Debug, Error)]
 pub enum BuiltinToolError {
@@ -637,24 +638,33 @@ fn make_merge_sections(
     Ok(sections)
 }
 
+fn make_merge_file(
+    merge_tool_file: &MergeToolFile,
+) -> Result<scm_record::File<'static>, BuiltinToolError> {
+    let merge_result = files::merge(&merge_tool_file.content);
+    let sections = make_merge_sections(merge_result)?;
+    Ok(scm_record::File {
+        old_path: None,
+        // Path for displaying purposes, not for file access.
+        path: Cow::Owned(
+            merge_tool_file
+                .repo_path
+                .to_fs_path_unchecked(Path::new("")),
+        ),
+        file_mode: None,
+        sections,
+    })
+}
+
 pub fn edit_merge_builtin(
     tree: &MergedTree,
-    path: &RepoPath,
-    content: Merge<BString>,
+    merge_tool_file: &MergeToolFile,
 ) -> Result<MergedTreeId, BuiltinToolError> {
-    let merge_result = files::merge(&content);
-    let sections = make_merge_sections(merge_result)?;
     let mut input = scm_record::helpers::CrosstermInput;
     let recorder = scm_record::Recorder::new(
         scm_record::RecordState {
             is_read_only: false,
-            files: vec![scm_record::File {
-                old_path: None,
-                // Path for displaying purposes, not for file access.
-                path: Cow::Owned(path.to_fs_path_unchecked(Path::new(""))),
-                file_mode: None,
-                sections,
-            }],
+            files: vec![make_merge_file(merge_tool_file)?],
             commits: Default::default(),
         },
         &mut input,
@@ -662,8 +672,14 @@ pub fn edit_merge_builtin(
     let state = recorder.run()?;
 
     let file = state.files.into_iter().exactly_one().unwrap();
-    apply_diff_builtin(tree.store(), tree, tree, vec![path.to_owned()], &[file])
-        .map_err(BuiltinToolError::BackendError)
+    apply_diff_builtin(
+        tree.store(),
+        tree,
+        tree,
+        vec![merge_tool_file.repo_path.clone()],
+        &[file],
+    )
+    .map_err(BuiltinToolError::BackendError)
 }
 
 #[cfg(test)]
