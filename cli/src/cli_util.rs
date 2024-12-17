@@ -3677,10 +3677,13 @@ impl CliRunner {
         }
 
         let maybe_workspace_loader = if let Some(path) = &args.global_args.repository {
+            // TODO: maybe path should be canonicalized by WorkspaceLoader?
+            let abs_path = cwd.join(path);
+            let abs_path = abs_path.canonicalize().unwrap_or(abs_path);
             // Invalid -R path is an error. No need to proceed.
             let loader = self
                 .workspace_loader_factory
-                .create(&cwd.join(path))
+                .create(&abs_path)
                 .map_err(|err| map_workspace_load_error(err, Some(path)))?;
             config_env.reset_repo_path(loader.repo_path());
             config_env.reload_repo_config(&mut config)?;
