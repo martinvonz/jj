@@ -693,7 +693,7 @@ fn get_jj_command() -> Result<(JjBuilder, UserSettings), CommandError> {
         config_env.reset_repo_path(loader.repo_path());
         let _ = config_env.reload_repo_config(&mut raw_config);
     }
-    let mut config = raw_config.as_ref().clone(); /* TODO */
+    let mut config = config_env.resolve_config(&raw_config)?;
     // skip 2 because of the clap_complete prelude: jj -- jj <actual args...>
     let args = std::env::args_os().skip(2);
     let args = expand_args(&ui, &app, args, &config)?;
@@ -710,7 +710,9 @@ fn get_jj_command() -> Result<(JjBuilder, UserSettings), CommandError> {
         if let Ok(loader) = DefaultWorkspaceLoaderFactory.create(&cwd.join(&repository)) {
             config_env.reset_repo_path(loader.repo_path());
             let _ = config_env.reload_repo_config(&mut raw_config);
-            config = raw_config.as_ref().clone(); // TODO
+            if let Ok(new_config) = config_env.resolve_config(&raw_config) {
+                config = new_config;
+            }
         }
         cmd_args.push("--repository".into());
         cmd_args.push(repository);

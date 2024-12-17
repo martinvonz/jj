@@ -23,9 +23,11 @@ use std::process::Command;
 
 use itertools::Itertools;
 use jj_lib::config::ConfigFile;
+use jj_lib::config::ConfigGetError;
 use jj_lib::config::ConfigLayer;
 use jj_lib::config::ConfigLoadError;
 use jj_lib::config::ConfigNamePathBuf;
+use jj_lib::config::ConfigResolutionContext;
 use jj_lib::config::ConfigSource;
 use jj_lib::config::ConfigValue;
 use jj_lib::config::StackedConfig;
@@ -247,6 +249,8 @@ impl UnresolvedConfigEnv {
 
 #[derive(Clone, Debug)]
 pub struct ConfigEnv {
+    home_dir: Option<PathBuf>,
+    repo_path: Option<PathBuf>,
     user_config_path: ConfigPath,
     repo_config_path: ConfigPath,
 }
@@ -254,12 +258,18 @@ pub struct ConfigEnv {
 impl ConfigEnv {
     /// Initializes configuration loader based on environment variables.
     pub fn from_environment() -> Result<Self, ConfigEnvError> {
+        // Canonicalize home as we do canonicalize cwd in CliRunner.
+        // TODO: Maybe better to switch to dunce::canonicalize() and remove
+        // canonicalization of cwd, home, etc.?
+        let home_dir = dirs::home_dir().map(|path| path.canonicalize().unwrap_or(path));
         let env = UnresolvedConfigEnv {
             config_dir: dirs::config_dir(),
-            home_dir: dirs::home_dir(),
+            home_dir: home_dir.clone(),
             jj_config: env::var("JJ_CONFIG").ok(),
         };
         Ok(ConfigEnv {
+            home_dir,
+            repo_path: None,
             user_config_path: env.resolve()?,
             repo_config_path: ConfigPath::Unavailable,
         })
@@ -324,6 +334,7 @@ impl ConfigEnv {
     /// Sets the directory where repo-specific config file is stored. The path
     /// is usually `.jj/repo`.
     pub fn reset_repo_path(&mut self, path: &Path) {
+        self.repo_path = Some(path.to_owned());
         self.repo_config_path = ConfigPath::new(Some(path.join("config.toml")));
     }
 
@@ -370,6 +381,16 @@ impl ConfigEnv {
             config.as_mut().load_file(ConfigSource::Repo, path)?;
         }
         Ok(())
+    }
+
+    /// Resolves conditional scopes within the current environment. Returns new
+    /// resolved config.
+    pub fn resolve_config(&self, config: &RawConfig) -> Result<StackedConfig, ConfigGetError> {
+        let context = ConfigResolutionContext {
+            home_dir: self.home_dir.as_deref(),
+            repo_path: self.repo_path.as_deref(),
+        };
+        jj_lib::config::resolve(config.as_ref(), &context)
     }
 }
 
@@ -1188,9 +1209,10 @@ mod tests {
 
     impl TestCase {
         fn resolve(&self, root: &Path) -> Result<ConfigEnv, ConfigEnvError> {
+            let home_dir = self.env.home_dir.as_ref().map(|p| root.join(p));
             let env = UnresolvedConfigEnv {
                 config_dir: self.env.config_dir.as_ref().map(|p| root.join(p)),
-                home_dir: self.env.home_dir.as_ref().map(|p| root.join(p)),
+                home_dir: home_dir.clone(),
                 jj_config: self
                     .env
                     .jj_config
@@ -1198,6 +1220,8 @@ mod tests {
                     .map(|p| root.join(p).to_str().unwrap().to_string()),
             };
             Ok(ConfigEnv {
+                home_dir,
+                repo_path: None,
                 user_config_path: env.resolve()?,
                 repo_config_path: ConfigPath::Unavailable,
             })
