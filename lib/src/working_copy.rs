@@ -258,6 +258,8 @@ pub enum UntrackedReason {
         /// Maximum allowed size.
         max_size: u64,
     },
+    /// Setting snapshot.auto-track did not match this file.
+    FileNotAutoTracked,
 }
 
 /// Options used when checking out a tree in the working copy.

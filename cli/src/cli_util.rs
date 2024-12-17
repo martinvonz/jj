@@ -2580,26 +2580,38 @@ pub fn print_snapshot_stats(
     stats: &SnapshotStats,
     path_converter: &RepoPathUiConverter,
 ) -> io::Result<()> {
-    // It might make sense to add files excluded by snapshot.auto-track to the
-    // untracked_paths, but they shouldn't be warned every time we do snapshot.
-    // These paths will have to be printed by "jj status" instead.
-    if !stats.untracked_paths.is_empty() {
-        writeln!(ui.warning_default(), "Refused to snapshot some files:")?;
-        let mut formatter = ui.stderr_formatter();
-        for (path, reason) in &stats.untracked_paths {
-            let ui_path = path_converter.format_file_path(path);
-            let message = match reason {
+    // Paths with UntrackedReason::FileNotAutoTracked shouldn't be warned about
+    // every time we make a snapshot. These paths will be printed by
+    // "jj status" instead.
+
+    let mut untracked_paths = stats
+        .untracked_paths
+        .iter()
+        .filter_map(|(path, reason)| {
+            match reason {
                 UntrackedReason::FileTooLarge { size, max_size } => {
                     // Show both exact and human bytes sizes to avoid something
                     // like '1.0MiB, maximum size allowed is ~1.0MiB'
                     let size_approx = HumanByteSize(*size);
                     let max_size_approx = HumanByteSize(*max_size);
-                    format!(
-                        "{size_approx} ({size} bytes); the maximum size allowed is \
-                         {max_size_approx} ({max_size} bytes)",
-                    )
+                    Some((
+                        path,
+                        format!(
+                            "{size_approx} ({size} bytes); the maximum size allowed is \
+                             {max_size_approx} ({max_size} bytes)",
+                        ),
+                    ))
                 }
-            };
+                UntrackedReason::FileNotAutoTracked => None,
+            }
+        })
+        .peekable();
+
+    if untracked_paths.peek().is_some() {
+        writeln!(ui.warning_default(), "Refused to snapshot some files:")?;
+        let mut formatter = ui.stderr_formatter();
+        for (path, message) in untracked_paths {
+            let ui_path = path_converter.format_file_path(path);
             writeln!(formatter, "  {ui_path}: {message}")?;
         }
     }
@@ -2607,8 +2619,9 @@ pub fn print_snapshot_stats(
     if let Some(size) = stats
         .untracked_paths
         .values()
-        .map(|reason| match reason {
-            UntrackedReason::FileTooLarge { size, .. } => *size,
+        .filter_map(|reason| match reason {
+            UntrackedReason::FileTooLarge { size, .. } => Some(*size),
+            UntrackedReason::FileNotAutoTracked => None,
         })
         .max()
     {
