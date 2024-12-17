@@ -3486,20 +3486,14 @@ default locations. For example,</p>
 <div class="highlight"><pre><span></span><code>env<span class="w"> </span><span class="nv">JJ_CONFIG</span><span class="o">=</span>/dev/null<span class="w"> </span>jj<span class="w"> </span>log<span class="w">       </span><span class="c1"># Ignores any settings specified in the config file.</span>
 </code></pre></div>
 <h3 id="specifying-config-on-the-command-line">Specifying config on the command-line<a class="headerlink" href="#specifying-config-on-the-command-line" title="Permanent link">&para;</a></h3>
-<p>You can use one or more <code>--config</code>/<code>--config-toml</code>/<code>--config-file</code> options on
-the command line to specify additional configuration settings. This overrides
-settings defined in config files or environment variables. For example,</p>
-<div class="highlight"><pre><span></span><code>jj<span class="w"> </span>--config<span class="o">=</span>ui.color<span class="o">=</span>always<span class="w"> </span>--config-toml<span class="o">=</span><span class="s1">&#39;ui.diff-editor=&quot;kdiff3&quot;&#39;</span><span class="w"> </span>split
+<p>You can use one or more <code>--config</code>/<code>--config-file</code> options on the command line
+to specify additional configuration settings. This overrides settings defined in
+config files or environment variables. For example,</p>
+<div class="highlight"><pre><span></span><code>jj<span class="w"> </span>--config<span class="o">=</span>ui.color<span class="o">=</span>always<span class="w"> </span>--config<span class="o">=</span>ui.diff-editor<span class="o">=</span>kdiff3<span class="w"> </span>split
 </code></pre></div>
-<p>Config specified by <code>--config-toml</code> must be valid TOML. In particular, string
-values must be surrounded by quotes. To pass these quotes to <code>jj</code>, most shells
-require surrounding those quotes with single quotes as shown above. On the other
-hand, <code>--config</code> can accept a bare string value.</p>
-<p>In <code>sh</code>-compatible shells, <code>--config-toml</code> can be used to merge entire TOML
-files with the config specified in <code>.jjconfig.toml</code>:</p>
-<div class="highlight"><pre><span></span><code>jj<span class="w"> </span>--config-toml<span class="o">=</span><span class="s2">&quot;</span><span class="k">$(</span>cat<span class="w"> </span>extra-config.toml<span class="k">)</span><span class="s2">&quot;</span><span class="w"> </span>log
-</code></pre></div>
-<p>This is equivalent to</p>
+<p>Config value should be specified as a TOML expression. If string value doesn't
+contain any TOML constructs (such as array notation), quotes can be omitted.</p>
+<p>To load an entire TOML document, use <code>--config-file</code>:</p>
 <div class="highlight"><pre><span></span><code>jj<span class="w"> </span>--config-file<span class="o">=</span>extra-config.toml<span class="w"> </span>log
 </code></pre></div>
 
