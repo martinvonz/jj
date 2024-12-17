@@ -58,18 +58,20 @@ pub struct GitSettings {
 }
 
 impl GitSettings {
-    pub fn from_settings(settings: &UserSettings) -> Self {
-        let auto_local_bookmark = settings
-            .get_bool("git.auto-local-bookmark")
-            .or_else(|_| settings.get_bool("git.auto-local-branch"))
-            .unwrap_or(false);
+    pub fn from_settings(settings: &UserSettings) -> Result<Self, ConfigGetError> {
+        let auto_local_bookmark = {
+            let opt1 = settings.get_bool("git.auto-local-bookmark").optional()?;
+            let opt2 = settings.get_bool("git.auto-local-branch").optional()?;
+            opt1.or(opt2).unwrap_or(false)
+        };
         let abandon_unreachable_commits = settings
             .get_bool("git.abandon-unreachable-commits")
+            .optional()?
             .unwrap_or(true);
-        GitSettings {
+        Ok(GitSettings {
             auto_local_bookmark,
             abandon_unreachable_commits,
-        }
+        })
     }
 }
 
@@ -219,18 +221,22 @@ impl UserSettings {
         &self.config
     }
 
-    pub fn git_settings(&self) -> GitSettings {
+    pub fn git_settings(&self) -> Result<GitSettings, ConfigGetError> {
         GitSettings::from_settings(self)
     }
 
     // separate from sign_settings as those two are needed in pretty different
     // places
-    pub fn signing_backend(&self) -> Option<String> {
-        let backend = self.get_string("signing.backend").ok()?;
-        (backend.as_str() != "none").then_some(backend)
+    pub fn signing_backend(&self) -> Result<Option<String>, ConfigGetError> {
+        let maybe_backend = self.get_string("signing.backend").optional()?;
+        match maybe_backend.as_deref() {
+            Some("none") | None => Ok(None),
+            Some(_) => Ok(maybe_backend),
+        }
     }
 
     pub fn sign_settings(&self) -> SignSettings {
+        // TODO: propagate config error
         SignSettings::from_settings(self)
     }
 }

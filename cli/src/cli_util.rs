@@ -1117,7 +1117,7 @@ impl WorkspaceCommandHelper {
     /// the working copy parent if the repository is colocated.
     #[instrument(skip_all)]
     fn import_git_refs(&mut self, ui: &Ui) -> Result<(), CommandError> {
-        let git_settings = self.settings().git_settings();
+        let git_settings = self.settings().git_settings()?;
         let mut tx = self.start_transaction();
         // Automated import shouldn't fail because of reserved remote name.
         let stats = git::import_some_refs(tx.repo_mut(), &git_settings, |ref_name| {

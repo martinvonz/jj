@@ -463,7 +463,7 @@ pub fn git_fetch(
     remotes: &[String],
     branch: &[StringPattern],
 ) -> Result<(), CommandError> {
-    let git_settings = tx.settings().git_settings();
+    let git_settings = tx.settings().git_settings()?;
 
     for remote in remotes {
         let stats = with_remote_git_callbacks(ui, None, |cb| {

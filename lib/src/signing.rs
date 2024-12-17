@@ -170,6 +170,7 @@ impl Signer {
 
         let main_backend = settings
             .signing_backend()
+            .map_err(SignInitError::BackendConfig)?
             .map(|backend| {
                 backends
                     .iter()
