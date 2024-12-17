@@ -47,7 +47,7 @@ pub(crate) fn cmd_status(
     command: &CommandHelper,
     args: &StatusArgs,
 ) -> Result<(), CommandError> {
-    let workspace_command = command.workspace_helper(ui)?;
+    let (workspace_command, _snapshot_stats) = command.workspace_helper_with_stats(ui)?;
     let repo = workspace_command.repo();
     let maybe_wc_commit = workspace_command
         .get_wc_commit_id()
