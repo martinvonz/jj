@@ -3310,12 +3310,10 @@ fn resolve_aliases(
 }
 
 /// Parse args that must be interpreted early, e.g. before printing help.
-fn handle_early_args(
-    ui: &mut Ui,
+fn parse_early_args(
     app: &Command,
     args: &[String],
-    config: &mut StackedConfig,
-) -> Result<(), CommandError> {
+) -> Result<(EarlyArgs, Vec<ConfigLayer>), CommandError> {
     // ignore_errors() bypasses errors like missing subcommand
     let early_matches = app
         .clone()
@@ -3334,15 +3332,7 @@ fn handle_early_args(
         .try_get_matches_from(args)?;
     let args = EarlyArgs::from_arg_matches(&early_matches).unwrap();
 
-    let old_layers_len = config.layers().len();
-    if !args.config_toml.is_empty() {
-        writeln!(
-            ui.warning_default(),
-            "--config-toml is deprecated; use --config or --config-file instead."
-        )?;
-    }
-    config.extend_layers(parse_config_args(&args.merged_config_args(&early_matches))?);
-
+    let mut config_layers = parse_config_args(&args.merged_config_args(&early_matches))?;
     // Command arguments overrides any other configuration including the
     // variables loaded from --config* arguments.
     let mut layer = ConfigLayer::empty(ConfigSource::CommandArg);
@@ -3356,13 +3346,9 @@ fn handle_early_args(
         layer.set_value("ui.paginate", "never").unwrap();
     }
     if !layer.is_empty() {
-        config.add_layer(layer);
+        config_layers.push(layer);
     }
-
-    if config.layers().len() != old_layers_len {
-        ui.reset(config)?;
-    }
-    Ok(())
+    Ok((args, config_layers))
 }
 
 fn handle_shell_completion(
@@ -3431,14 +3417,11 @@ pub fn expand_args(
     resolve_aliases(ui, config, app, string_args)
 }
 
-pub fn parse_args(
-    ui: &mut Ui,
+fn parse_args(
     app: &Command,
     tracing_subscription: &TracingSubscription,
     string_args: &[String],
-    config: &mut StackedConfig,
 ) -> Result<(ArgMatches, Args), CommandError> {
-    handle_early_args(ui, app, string_args, config)?;
     let matches = app
         .clone()
         .arg_required_else_help(true)
@@ -3664,14 +3647,19 @@ impl CliRunner {
         }
 
         let string_args = expand_args(ui, &self.app, env::args_os(), &config)?;
-        let (matches, args) = parse_args(
-            ui,
-            &self.app,
-            &self.tracing_subscription,
-            &string_args,
-            &mut config,
-        )
-        .map_err(|err| map_clap_cli_error(err, ui, &config))?;
+        let (args, config_layers) = parse_early_args(&self.app, &string_args)?;
+        if !config_layers.is_empty() {
+            config.extend_layers(config_layers);
+            ui.reset(&config)?;
+        }
+        if !args.config_toml.is_empty() {
+            writeln!(
+                ui.warning_default(),
+                "--config-toml is deprecated; use --config or --config-file instead."
+            )?;
+        }
+        let (matches, args) = parse_args(&self.app, &self.tracing_subscription, &string_args)
+            .map_err(|err| map_clap_cli_error(err, ui, &config))?;
         for process_global_args_fn in self.process_global_args_fns {
             process_global_args_fn(ui, &matches)?;
         }
