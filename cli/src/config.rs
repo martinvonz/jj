@@ -148,6 +148,25 @@ pub fn resolved_config_values(
     config_vals
 }
 
+/// Newtype for unprocessed (or unresolved) [`StackedConfig`].
+///
+/// This doesn't provide any strict guarantee about the underlying config
+/// object. It just requires an explicit cast to access to the config object.
+#[derive(Clone, Debug)]
+pub struct RawConfig(StackedConfig);
+
+impl AsRef<StackedConfig> for RawConfig {
+    fn as_ref(&self) -> &StackedConfig {
+        &self.0
+    }
+}
+
+impl AsMut<StackedConfig> for RawConfig {
+    fn as_mut(&mut self) -> &mut StackedConfig {
+        &mut self.0
+    }
+}
+
 #[derive(Clone, Debug)]
 enum ConfigPath {
     /// Existing config file path.
@@ -267,7 +286,7 @@ impl ConfigEnv {
     /// empty `Vec`.
     pub fn user_config_files(
         &self,
-        config: &StackedConfig,
+        config: &RawConfig,
     ) -> Result<Vec<ConfigFile>, ConfigLoadError> {
         config_files_for(config, ConfigSource::User, || self.new_user_config_file())
     }
@@ -290,13 +309,13 @@ impl ConfigEnv {
     /// Loads user-specific config files into the given `config`. The old
     /// user-config layers will be replaced if any.
     #[instrument]
-    pub fn reload_user_config(&self, config: &mut StackedConfig) -> Result<(), ConfigLoadError> {
-        config.remove_layers(ConfigSource::User);
+    pub fn reload_user_config(&self, config: &mut RawConfig) -> Result<(), ConfigLoadError> {
+        config.as_mut().remove_layers(ConfigSource::User);
         if let Some(path) = self.existing_user_config_path() {
             if path.is_dir() {
-                config.load_dir(ConfigSource::User, path)?;
+                config.as_mut().load_dir(ConfigSource::User, path)?;
             } else {
-                config.load_file(ConfigSource::User, path)?;
+                config.as_mut().load_file(ConfigSource::User, path)?;
             }
         }
         Ok(())
@@ -329,7 +348,7 @@ impl ConfigEnv {
     /// have at most one config file.
     pub fn repo_config_files(
         &self,
-        config: &StackedConfig,
+        config: &RawConfig,
     ) -> Result<Vec<ConfigFile>, ConfigLoadError> {
         config_files_for(config, ConfigSource::Repo, || self.new_repo_config_file())
     }
@@ -345,21 +364,22 @@ impl ConfigEnv {
     /// Loads repo-specific config file into the given `config`. The old
     /// repo-config layer will be replaced if any.
     #[instrument]
-    pub fn reload_repo_config(&self, config: &mut StackedConfig) -> Result<(), ConfigLoadError> {
-        config.remove_layers(ConfigSource::Repo);
+    pub fn reload_repo_config(&self, config: &mut RawConfig) -> Result<(), ConfigLoadError> {
+        config.as_mut().remove_layers(ConfigSource::Repo);
         if let Some(path) = self.existing_repo_config_path() {
-            config.load_file(ConfigSource::Repo, path)?;
+            config.as_mut().load_file(ConfigSource::Repo, path)?;
         }
         Ok(())
     }
 }
 
 fn config_files_for(
-    config: &StackedConfig,
+    config: &RawConfig,
     source: ConfigSource,
     new_file: impl FnOnce() -> Result<Option<ConfigFile>, ConfigLoadError>,
 ) -> Result<Vec<ConfigFile>, ConfigLoadError> {
     let mut files = config
+        .as_ref()
         .layers_for(source)
         .iter()
         .filter_map(|layer| ConfigFile::from_layer(layer.clone()).ok())
@@ -383,14 +403,12 @@ fn config_files_for(
 /// 7. Command-line arguments `--config`, `--config-toml`, `--config-file`
 ///
 /// This function sets up 1, 2, and 6.
-pub fn config_from_environment(
-    default_layers: impl IntoIterator<Item = ConfigLayer>,
-) -> StackedConfig {
+pub fn config_from_environment(default_layers: impl IntoIterator<Item = ConfigLayer>) -> RawConfig {
     let mut config = StackedConfig::empty();
     config.extend_layers(default_layers);
     config.add_layer(env_base_layer());
     config.add_layer(env_overrides_layer());
-    config
+    RawConfig(config)
 }
 
 /// Environment variables that should be overridden by config values

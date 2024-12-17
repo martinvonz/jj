@@ -681,18 +681,19 @@ fn get_jj_command() -> Result<(JjBuilder, UserSettings), CommandError> {
     // child process. This shouldn't fail, since none of the global args are
     // required.
     let app = crate::commands::default_app();
-    let mut config = config_from_environment(default_config_layers());
-    let ui = Ui::with_config(&config).expect("default config should be valid");
+    let mut raw_config = config_from_environment(default_config_layers());
+    let ui = Ui::with_config(raw_config.as_ref()).expect("default config should be valid");
     let cwd = std::env::current_dir()
         .and_then(|cwd| cwd.canonicalize())
         .map_err(user_error)?;
     let mut config_env = ConfigEnv::from_environment()?;
     let maybe_cwd_workspace_loader = DefaultWorkspaceLoaderFactory.create(find_workspace_dir(&cwd));
-    let _ = config_env.reload_user_config(&mut config);
+    let _ = config_env.reload_user_config(&mut raw_config);
     if let Ok(loader) = &maybe_cwd_workspace_loader {
         config_env.reset_repo_path(loader.repo_path());
-        let _ = config_env.reload_repo_config(&mut config);
+        let _ = config_env.reload_repo_config(&mut raw_config);
     }
+    let mut config = raw_config.as_ref().clone(); /* TODO */
     // skip 2 because of the clap_complete prelude: jj -- jj <actual args...>
     let args = std::env::args_os().skip(2);
     let args = expand_args(&ui, &app, args, &config)?;
@@ -708,7 +709,8 @@ fn get_jj_command() -> Result<(JjBuilder, UserSettings), CommandError> {
         // Try to update repo-specific config on a best-effort basis.
         if let Ok(loader) = DefaultWorkspaceLoaderFactory.create(&cwd.join(&repository)) {
             config_env.reset_repo_path(loader.repo_path());
-            let _ = config_env.reload_repo_config(&mut config);
+            let _ = config_env.reload_repo_config(&mut raw_config);
+            config = raw_config.as_ref().clone(); // TODO
         }
         cmd_args.push("--repository".into());
         cmd_args.push(repository);

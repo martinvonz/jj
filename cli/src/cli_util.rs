@@ -159,6 +159,7 @@ use crate::config::parse_config_args;
 use crate::config::CommandNameAndArgs;
 use crate::config::ConfigArgKind;
 use crate::config::ConfigEnv;
+use crate::config::RawConfig;
 use crate::diff_util;
 use crate::diff_util::DiffFormat;
 use crate::diff_util::DiffFormatArgs;
@@ -291,6 +292,7 @@ struct CommandHelperData {
     matches: ArgMatches,
     global_args: GlobalArgs,
     config_env: ConfigEnv,
+    raw_config: RawConfig,
     settings: UserSettings,
     revset_extensions: Arc<RevsetExtensions>,
     commit_template_extensions: Vec<Arc<dyn CommitTemplateLanguageExtension>>,
@@ -327,6 +329,14 @@ impl CommandHelper {
 
     pub fn config_env(&self) -> &ConfigEnv {
         &self.data.config_env
+    }
+
+    /// Unprocessed (or unresolved) configuration data.
+    ///
+    /// Use this only if the unmodified config data is needed. For example, `jj
+    /// config set` should use this to write updated data back to file.
+    pub fn raw_config(&self) -> &RawConfig {
+        &self.data.raw_config
     }
 
     pub fn settings(&self) -> &UserSettings {
@@ -3616,7 +3626,7 @@ impl CliRunner {
     }
 
     #[instrument(skip_all)]
-    fn run_internal(self, ui: &mut Ui, mut config: StackedConfig) -> Result<(), CommandError> {
+    fn run_internal(self, ui: &mut Ui, mut raw_config: RawConfig) -> Result<(), CommandError> {
         // `cwd` is canonicalized for consistency with `Workspace::workspace_root()` and
         // to easily compute relative paths between them.
         let cwd = env::current_dir()
@@ -3635,11 +3645,12 @@ impl CliRunner {
             .workspace_loader_factory
             .create(find_workspace_dir(&cwd))
             .map_err(|err| map_workspace_load_error(err, None));
-        config_env.reload_user_config(&mut config)?;
+        config_env.reload_user_config(&mut raw_config)?;
         if let Ok(loader) = &maybe_cwd_workspace_loader {
             config_env.reset_repo_path(loader.repo_path());
-            config_env.reload_repo_config(&mut config)?;
+            config_env.reload_repo_config(&mut raw_config)?;
         }
+        let mut config = raw_config.as_ref().clone(); // TODO
         ui.reset(&config)?;
 
         if env::var_os("COMPLETE").is_some() {
@@ -3649,7 +3660,8 @@ impl CliRunner {
         let string_args = expand_args(ui, &self.app, env::args_os(), &config)?;
         let (args, config_layers) = parse_early_args(&self.app, &string_args)?;
         if !config_layers.is_empty() {
-            config.extend_layers(config_layers);
+            raw_config.as_mut().extend_layers(config_layers);
+            config = raw_config.as_ref().clone(); // TODO
             ui.reset(&config)?;
         }
         if !args.config_toml.is_empty() {
@@ -3674,7 +3686,8 @@ impl CliRunner {
                 .create(&abs_path)
                 .map_err(|err| map_workspace_load_error(err, Some(path)))?;
             config_env.reset_repo_path(loader.repo_path());
-            config_env.reload_repo_config(&mut config)?;
+            config_env.reload_repo_config(&mut raw_config)?;
+            config = raw_config.as_ref().clone(); // TODO
             Ok(loader)
         } else {
             maybe_cwd_workspace_loader
@@ -3703,6 +3716,7 @@ impl CliRunner {
             matches,
             global_args: args.global_args,
             config_env,
+            raw_config,
             settings,
             revset_extensions: self.revset_extensions.into(),
             commit_template_extensions: self.commit_template_extensions,
@@ -3726,7 +3740,9 @@ impl CliRunner {
         // Tell crossterm to ignore NO_COLOR (we check it ourselves)
         crossterm::style::force_color_output(true);
         let config = config_from_environment(self.config_layers.drain(..));
-        let mut ui = Ui::with_config(&config)
+        // Set up ui assuming the default config has no conditional variables.
+        // If it had, the configuration will be fixed by the next ui.reset().
+        let mut ui = Ui::with_config(config.as_ref())
             .expect("default config should be valid, env vars are stringly typed");
         let result = self.run_internal(&mut ui, config);
         let exit_code = handle_command_result(&mut ui, result);
