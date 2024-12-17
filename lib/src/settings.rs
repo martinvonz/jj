@@ -34,7 +34,6 @@ use crate::config::ConfigTable;
 use crate::config::ConfigValue;
 use crate::config::StackedConfig;
 use crate::config::ToConfigNamePath;
-use crate::conflicts::ConflictMarkerStyle;
 use crate::fmt_util::binary_prefix;
 use crate::fsmonitor::FsmonitorSettings;
 use crate::signing::SignBehavior;
@@ -204,24 +203,6 @@ impl UserSettings {
             .unwrap_or_else(|_| whoami::username())
     }
 
-    pub fn push_bookmark_prefix(&self) -> String {
-        self.get_string("git.push-bookmark-prefix")
-            .unwrap_or_else(|_| "push-".to_string())
-    }
-
-    pub fn push_branch_prefix(&self) -> Option<String> {
-        self.get_string("git.push-branch-prefix").ok()
-    }
-
-    pub fn default_description(&self) -> String {
-        self.get_string("ui.default-description")
-            .unwrap_or_default()
-    }
-
-    pub fn default_revset(&self) -> String {
-        self.get_string("revsets.log").unwrap_or_default()
-    }
-
     pub fn signature(&self) -> Signature {
         let timestamp = self.commit_timestamp.unwrap_or_else(Timestamp::now);
         Signature {
@@ -229,10 +210,6 @@ impl UserSettings {
             email: self.user_email(),
             timestamp,
         }
-    }
-
-    pub fn allow_native_backend(&self) -> bool {
-        self.get_bool("ui.allow-init-native").unwrap_or(false)
     }
 
     /// Returns low-level config object.
@@ -246,18 +223,6 @@ impl UserSettings {
         GitSettings::from_settings(self)
     }
 
-    pub fn max_new_file_size(&self) -> Result<u64, ConfigGetError> {
-        let cfg = self
-            .get_value_with("snapshot.max-new-file-size", TryInto::try_into)
-            .map(|HumanByteSize(x)| x);
-        match cfg {
-            Ok(0) => Ok(u64::MAX),
-            x @ Ok(_) => x,
-            Err(ConfigGetError::NotFound { .. }) => Ok(1024 * 1024),
-            e @ Err(_) => e,
-        }
-    }
-
     // separate from sign_settings as those two are needed in pretty different
     // places
     pub fn signing_backend(&self) -> Option<String> {
@@ -267,13 +232,6 @@ impl UserSettings {
 
     pub fn sign_settings(&self) -> SignSettings {
         SignSettings::from_settings(self)
-    }
-
-    pub fn conflict_marker_style(&self) -> Result<ConflictMarkerStyle, ConfigGetError> {
-        Ok(self
-            .get("ui.conflict-marker-style")
-            .optional()?
-            .unwrap_or_default())
     }
 }
 

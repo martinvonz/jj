@@ -69,9 +69,22 @@ fn test_snapshot_large_file() {
     ");
 
     // No error if we disable auto-tracking of the path
-    test_env.add_config(r#"snapshot.auto-track = 'none()'"#);
-    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["file", "list"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(
+        &repo_path,
+        &["file", "list", "--config=snapshot.auto-track='none()'"],
+    );
     insta::assert_snapshot!(stdout, @"empty");
+    insta::assert_snapshot!(stderr, @"");
+
+    // max-new-file-size=0 means no limit
+    let (stdout, stderr) = test_env.jj_cmd_ok(
+        &repo_path,
+        &["file", "list", "--config=snapshot.max-new-file-size=0"],
+    );
+    insta::assert_snapshot!(stdout, @r"
+    empty
+    large
+    ");
     insta::assert_snapshot!(stderr, @"");
 }
 

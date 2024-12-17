@@ -749,7 +749,7 @@ impl WorkspaceCommandEnvironment {
             workspace_id: workspace.workspace_id().to_owned(),
             immutable_heads_expression: RevsetExpression::root(),
             short_prefixes_expression: None,
-            conflict_marker_style: command.settings().conflict_marker_style()?,
+            conflict_marker_style: command.settings().get("ui.conflict-marker-style")?,
         };
         env.immutable_heads_expression = env.load_immutable_heads_expression(ui)?;
         env.short_prefixes_expression = env.load_short_prefixes_expression(ui)?;
@@ -837,7 +837,8 @@ impl WorkspaceCommandEnvironment {
         let revset_string = self
             .settings()
             .get_string("revsets.short-prefixes")
-            .unwrap_or_else(|_| self.settings().default_revset());
+            .optional()?
+            .map_or_else(|| self.settings().get_string("revsets.log"), Ok)?;
         if revset_string.is_empty() {
             Ok(None)
         } else {
@@ -1311,7 +1312,12 @@ to the current parents may contain changes from multiple commits.
     ) -> Result<SnapshotOptions<'a>, CommandError> {
         let base_ignores = self.base_ignores()?;
         let fsmonitor_settings = self.settings().fsmonitor_settings()?;
-        let max_new_file_size = self.settings().max_new_file_size()?;
+        let HumanByteSize(mut max_new_file_size) = self
+            .settings()
+            .get_value_with("snapshot.max-new-file-size", TryInto::try_into)?;
+        if max_new_file_size == 0 {
+            max_new_file_size = u64::MAX;
+        }
         let conflict_marker_style = self.env.conflict_marker_style();
         Ok(SnapshotOptions {
             base_ignores,

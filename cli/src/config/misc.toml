@@ -16,8 +16,10 @@ context = 3
 [ui]
 # TODO: delete ui.allow-filesets in jj 0.26+
 allow-filesets = true
+allow-init-native = false
 always-allow-large-revsets = false
 color = "auto"
+default-description = ""
 diff-instructions = true
 graph.style = "curved"
 # let user override pager.env independently
