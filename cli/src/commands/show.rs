@@ -27,7 +27,11 @@ use crate::ui::Ui;
 #[derive(clap::Args, Clone, Debug)]
 pub(crate) struct ShowArgs {
     /// Show changes in this revision, compared to its parent(s)
-    #[arg(default_value = "@", add = ArgValueCandidates::new(complete::all_revisions))]
+    #[arg(
+        default_value = "@",
+        value_name = "REVSET",
+        add = ArgValueCandidates::new(complete::all_revisions)
+    )]
     revision: RevisionArg,
     /// Ignored (but lets you pass `-r` for consistency with other commands)
     #[arg(short = 'r', hide = true)]

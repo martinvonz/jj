@@ -44,7 +44,12 @@ pub(crate) struct FileAnnotateArgs {
     )]
     path: String,
     /// an optional revision to start at
-    #[arg(long, short, add = ArgValueCandidates::new(complete::all_revisions))]
+    #[arg(
+        long,
+        short,
+        value_name = "REVSET",
+        add = ArgValueCandidates::new(complete::all_revisions)
+    )]
     revision: Option<RevisionArg>,
 }
 

@@ -771,15 +771,15 @@ fn test_help() {
     let test_env = TestEnvironment::default();
 
     let stdout = test_env.jj_cmd_success(test_env.env_root(), &["diffedit", "-h"]);
-    insta::assert_snapshot!(stdout, @r"
+    insta::assert_snapshot!(stdout, @r###"
     Touch up the content changes in a revision with a diff editor
 
     Usage: jj diffedit [OPTIONS]
 
     Options:
-      -r, --revision <REVISION>  The revision to touch up
-      -f, --from <FROM>          Show changes from this revision
-      -t, --to <TO>              Edit changes in this revision
+      -r, --revision <REVSET>    The revision to touch up
+      -f, --from <REVSET>        Show changes from this revision
+      -t, --to <REVSET>          Edit changes in this revision
           --tool <NAME>          Specify diff editor to be used
           --restore-descendants  Preserve the content (not the diff) when rebasing descendants
       -h, --help                 Print help (see more with '--help')
@@ -795,7 +795,7 @@ fn test_help() {
           --no-pager                     Disable the pager
           --config <NAME=VALUE>          Additional configuration options (can be repeated)
           --config-file <PATH>           Additional configuration files (can be repeated)
-    ");
+    "###);
 }
 
 #[test]

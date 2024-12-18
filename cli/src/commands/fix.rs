@@ -126,7 +126,12 @@ pub(crate) struct FixArgs {
     /// Fix files in the specified revision(s) and their descendants. If no
     /// revisions are specified, this defaults to the `revsets.fix` setting, or
     /// `reachable(@, mutable())` if it is not set.
-    #[arg(long, short, add = ArgValueCandidates::new(complete::mutable_revisions))]
+    #[arg(
+        long,
+        short,
+        value_name = "REVSETS",
+        add = ArgValueCandidates::new(complete::mutable_revisions)
+    )]
     source: Vec<RevisionArg>,
     /// Fix only these paths
     #[arg(value_name = "FILESETS", value_hint = clap::ValueHint::AnyPath)]

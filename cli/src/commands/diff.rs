@@ -49,13 +49,30 @@ pub(crate) struct DiffArgs {
     /// If the revision is a merge commit, this shows changes *from* the
     /// automatic merge of the contents of all of its parents *to* the contents
     /// of the revision itself.
-    #[arg(long, short, add = ArgValueCandidates::new(complete::all_revisions))]
+    #[arg(
+        long,
+        short,
+        value_name = "REVSET",
+        add = ArgValueCandidates::new(complete::all_revisions)
+    )]
     revision: Option<RevisionArg>,
     /// Show changes from this revision
-    #[arg(long, short, conflicts_with = "revision", add = ArgValueCandidates::new(complete::all_revisions))]
+    #[arg(
+        long,
+        short,
+        conflicts_with = "revision",
+        value_name = "REVSET",
+        add = ArgValueCandidates::new(complete::all_revisions)
+    )]
     from: Option<RevisionArg>,
     /// Show changes to this revision
-    #[arg(long, short, conflicts_with = "revision", add = ArgValueCandidates::new(complete::all_revisions))]
+    #[arg(
+        long,
+        short,
+        conflicts_with = "revision",
+        value_name = "REVSET",
+        add = ArgValueCandidates::new(complete::all_revisions)
+    )]
     to: Option<RevisionArg>,
     /// Restrict the diff to these paths
     #[arg(

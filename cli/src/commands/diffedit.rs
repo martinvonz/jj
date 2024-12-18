@@ -50,7 +50,12 @@ pub(crate) struct DiffeditArgs {
     /// The revision to touch up
     ///
     /// Defaults to @ if neither --to nor --from are specified.
-    #[arg(long, short, add = ArgValueCandidates::new(complete::mutable_revisions))]
+    #[arg(
+        long,
+        short,
+        value_name = "REVSET",
+        add = ArgValueCandidates::new(complete::mutable_revisions)
+    )]
     revision: Option<RevisionArg>,
     /// Show changes from this revision
     ///
@@ -58,6 +63,7 @@ pub(crate) struct DiffeditArgs {
     #[arg(
         long, short,
         conflicts_with = "revision",
+        value_name = "REVSET",
         add = ArgValueCandidates::new(complete::all_revisions),
     )]
     from: Option<RevisionArg>,
@@ -67,6 +73,7 @@ pub(crate) struct DiffeditArgs {
     #[arg(
         long, short,
         conflicts_with = "revision",
+        value_name = "REVSET",
         add = ArgValueCandidates::new(complete::mutable_revisions),
     )]
     to: Option<RevisionArg>,

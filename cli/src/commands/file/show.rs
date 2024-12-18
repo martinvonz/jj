@@ -48,6 +48,7 @@ pub(crate) struct FileShowArgs {
     #[arg(
         long, short,
         default_value = "@",
+        value_name = "REVSET",
         add = ArgValueCandidates::new(complete::all_revisions),
     )]
     revision: RevisionArg,

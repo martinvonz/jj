@@ -28,7 +28,7 @@ use crate::ui::Ui;
 #[derive(clap::Args, Clone, Debug)]
 pub struct CopyDetectionArgs {
     /// Show changes in this revision, compared to its parent(s)
-    #[arg(default_value = "@")]
+    #[arg(default_value = "@", value_name = "REVSET")]
     revision: RevisionArg,
 }
 

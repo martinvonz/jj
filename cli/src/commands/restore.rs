@@ -53,22 +53,32 @@ pub(crate) struct RestoreArgs {
     )]
     paths: Vec<String>,
     /// Revision to restore from (source)
-    #[arg(long, short, add = ArgValueCandidates::new(complete::all_revisions))]
+    #[arg(
+        long,
+        short,
+        value_name = "REVSET",
+        add = ArgValueCandidates::new(complete::all_revisions)
+    )]
     from: Option<RevisionArg>,
     /// Revision to restore into (destination)
-    #[arg(long, short, add = ArgValueCandidates::new(complete::mutable_revisions))]
+    #[arg(
+        long,
+        short,
+        value_name = "REVSETS",
+        add = ArgValueCandidates::new(complete::mutable_revisions)
+    )]
     to: Option<RevisionArg>,
     /// Undo the changes in a revision as compared to the merge of its parents.
     ///
-    /// This undoes the changes that can be seen with `jj diff -r REVISION`. If
-    /// `REVISION` only has a single parent, this option is equivalent to `jj
-    ///  restore --to REVISION --from REVISION-`.
+    /// This undoes the changes that can be seen with `jj diff -r REVSET`. If
+    /// `REVSET` only has a single parent, this option is equivalent to `jj
+    ///  restore --to REVSET --from REVSET-`.
     ///
     /// The default behavior of `jj restore` is equivalent to `jj restore
     /// --changes-in @`.
     #[arg(
         long, short,
-        value_name = "REVISION",
+        value_name = "REVSET",
         conflicts_with_all = ["to", "from"],
         add = ArgValueCandidates::new(complete::all_revisions),
     )]

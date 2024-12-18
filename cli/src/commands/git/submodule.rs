@@ -52,7 +52,7 @@ pub fn cmd_git_submodule(
 #[command(hide = true)]
 pub struct PrintArgs {
     /// Read .gitmodules from the given revision.
-    #[arg(long, short = 'r', default_value = "@")]
+    #[arg(long, short = 'r', default_value = "@", value_name = "REVSET")]
     revisions: RevisionArg,
 }
 

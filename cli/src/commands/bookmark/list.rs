@@ -84,7 +84,7 @@ pub struct BookmarkListArgs {
     ///
     /// Note that `-r deleted_bookmark` will not work since `deleted_bookmark`
     /// wouldn't have a local target.
-    #[arg(long, short)]
+    #[arg(long, short, value_name = "REVSETS")]
     revisions: Option<Vec<RevisionArg>>,
 
     /// Render each bookmark using the given template

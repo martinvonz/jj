@@ -68,7 +68,7 @@ pub struct WorkspaceAddArgs {
     /// the new working-copy commit will be created with all these revisions as
     /// parents, i.e. the working-copy commit will exist as if you had run `jj
     /// new r1 r2 r3 ...`.
-    #[arg(long, short)]
+    #[arg(long, short, value_name = "REVSETS")]
     revision: Vec<RevisionArg>,
     /// How to handle sparse patterns when creating a new workspace.
     #[arg(long, value_enum, default_value_t = SparseInheritance::Copy)]

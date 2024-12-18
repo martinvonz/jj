@@ -41,9 +41,9 @@ fn test_rebase_invalid() {
     let stderr = test_env.jj_cmd_cli_error(&repo_path, &["rebase"]);
     insta::assert_snapshot!(stderr, @r###"
     error: the following required arguments were not provided:
-      <--destination <DESTINATION>|--insert-after <INSERT_AFTER>|--insert-before <INSERT_BEFORE>>
+      <--destination <REVSETS>|--insert-after <REVSETS>|--insert-before <REVSETS>>
 
-    Usage: jj rebase <--destination <DESTINATION>|--insert-after <INSERT_AFTER>|--insert-before <INSERT_BEFORE>>
+    Usage: jj rebase <--destination <REVSETS>|--insert-after <REVSETS>|--insert-before <REVSETS>>
 
     For more information, try '--help'.
     "###);
@@ -52,9 +52,9 @@ fn test_rebase_invalid() {
     let stderr =
         test_env.jj_cmd_cli_error(&repo_path, &["rebase", "-r", "a", "-s", "a", "-d", "b"]);
     insta::assert_snapshot!(stderr, @r###"
-    error: the argument '--revisions <REVISIONS>' cannot be used with '--source <SOURCE>'
+    error: the argument '--revisions <REVSETS>' cannot be used with '--source <REVSETS>'
 
-    Usage: jj rebase --revisions <REVISIONS> <--destination <DESTINATION>|--insert-after <INSERT_AFTER>|--insert-before <INSERT_BEFORE>>
+    Usage: jj rebase --revisions <REVSETS> <--destination <REVSETS>|--insert-after <REVSETS>|--insert-before <REVSETS>>
 
     For more information, try '--help'.
     "###);
@@ -63,9 +63,9 @@ fn test_rebase_invalid() {
     let stderr =
         test_env.jj_cmd_cli_error(&repo_path, &["rebase", "-b", "a", "-s", "a", "-d", "b"]);
     insta::assert_snapshot!(stderr, @r###"
-    error: the argument '--branch <BRANCH>' cannot be used with '--source <SOURCE>'
+    error: the argument '--branch <REVSETS>' cannot be used with '--source <REVSETS>'
 
-    Usage: jj rebase --branch <BRANCH> <--destination <DESTINATION>|--insert-after <INSERT_AFTER>|--insert-before <INSERT_BEFORE>>
+    Usage: jj rebase --branch <REVSETS> <--destination <REVSETS>|--insert-after <REVSETS>|--insert-before <REVSETS>>
 
     For more information, try '--help'.
     "###);
@@ -76,9 +76,9 @@ fn test_rebase_invalid() {
         &["rebase", "-r", "a", "-d", "b", "--after", "b"],
     );
     insta::assert_snapshot!(stderr, @r###"
-    error: the argument '--destination <DESTINATION>' cannot be used with '--insert-after <INSERT_AFTER>'
+    error: the argument '--destination <REVSETS>' cannot be used with '--insert-after <REVSETS>'
 
-    Usage: jj rebase --revisions <REVISIONS> <--destination <DESTINATION>|--insert-after <INSERT_AFTER>|--insert-before <INSERT_BEFORE>>
+    Usage: jj rebase --revisions <REVSETS> <--destination <REVSETS>|--insert-after <REVSETS>|--insert-before <REVSETS>>
 
     For more information, try '--help'.
     "###);
@@ -89,9 +89,9 @@ fn test_rebase_invalid() {
         &["rebase", "-r", "a", "-d", "b", "--before", "b"],
     );
     insta::assert_snapshot!(stderr, @r###"
-    error: the argument '--destination <DESTINATION>' cannot be used with '--insert-before <INSERT_BEFORE>'
+    error: the argument '--destination <REVSETS>' cannot be used with '--insert-before <REVSETS>'
 
-    Usage: jj rebase --revisions <REVISIONS> <--destination <DESTINATION>|--insert-after <INSERT_AFTER>|--insert-before <INSERT_BEFORE>>
+    Usage: jj rebase --revisions <REVSETS> <--destination <REVSETS>|--insert-after <REVSETS>|--insert-before <REVSETS>>
 
     For more information, try '--help'.
     "###);

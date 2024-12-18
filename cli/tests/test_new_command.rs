@@ -57,7 +57,7 @@ fn test_new() {
     insta::assert_snapshot!(stderr, @r###"
     error: the argument '--edit' cannot be used with '--no-edit'
 
-    Usage: jj new <REVISIONS>...
+    Usage: jj new <REVSETS>...
 
     For more information, try '--help'.
     "###);
@@ -211,9 +211,9 @@ fn test_new_insert_after() {
     // --after cannot be used with revisions
     let stderr = test_env.jj_cmd_cli_error(&repo_path, &["new", "--after", "B", "D"]);
     insta::assert_snapshot!(stderr, @r###"
-    error: the argument '--insert-after <INSERT_AFTER>' cannot be used with '[REVISIONS]...'
+    error: the argument '--insert-after <REVSETS>' cannot be used with '[REVSETS]...'
 
-    Usage: jj new --insert-after <INSERT_AFTER> [REVISIONS]...
+    Usage: jj new --insert-after <REVSETS> [REVSETS]...
 
     For more information, try '--help'.
     "###);
@@ -333,9 +333,9 @@ fn test_new_insert_before() {
     // --before cannot be used with revisions
     let stderr = test_env.jj_cmd_cli_error(&repo_path, &["new", "--before", "B", "D"]);
     insta::assert_snapshot!(stderr, @r###"
-    error: the argument '--insert-before <INSERT_BEFORE>' cannot be used with '[REVISIONS]...'
+    error: the argument '--insert-before <REVSETS>' cannot be used with '[REVSETS]...'
 
-    Usage: jj new --insert-before <INSERT_BEFORE> [REVISIONS]...
+    Usage: jj new --insert-before <REVSETS> [REVSETS]...
 
     For more information, try '--help'.
     "###);

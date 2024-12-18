@@ -78,11 +78,11 @@ fn test_help() {
     "#);
 
     let stderr = test_env.jj_cmd_cli_error(test_env.env_root(), &["help", "log", "--", "-r"]);
-    insta::assert_snapshot!(stderr, @r#"
-    error: a value is required for '--revisions <REVISIONS>' but none was supplied
+    insta::assert_snapshot!(stderr, @r###"
+    error: a value is required for '--revisions <REVSETS>' but none was supplied
 
     For more information, try '--help'.
-    "#);
+    "###);
 }
 
 #[test]

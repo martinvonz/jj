@@ -49,6 +49,7 @@ pub(crate) struct FileChmodArgs {
     #[arg(
         long, short,
         default_value = "@",
+        value_name = "REVSET",
         add = ArgValueCandidates::new(complete::mutable_revisions),
     )]
     revision: RevisionArg,

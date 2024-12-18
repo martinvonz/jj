@@ -23,7 +23,7 @@ fn test_log_with_empty_revision() {
 
     let stderr = test_env.jj_cmd_cli_error(&repo_path, &["log", "-r="]);
     insta::assert_snapshot!(stderr, @r###"
-    error: a value is required for '--revisions <REVISIONS>' but none was supplied
+    error: a value is required for '--revisions <REVSETS>' but none was supplied
 
     For more information, try '--help'.
     "###);

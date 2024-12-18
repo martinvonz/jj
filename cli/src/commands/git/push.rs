@@ -127,7 +127,7 @@ pub struct GitPushArgs {
     #[arg(long)]
     allow_private: bool,
     /// Push bookmarks pointing to these commits (can be repeated)
-    #[arg(long, short)]
+    #[arg(long, short, value_name = "REVSETS")]
     revisions: Vec<RevisionArg>,
     /// Push this commit by creating a bookmark based on its change ID (can be
     /// repeated)
@@ -135,7 +135,7 @@ pub struct GitPushArgs {
     /// The created bookmark will be tracked automatically. Use the
     /// `git.push-bookmark-prefix` setting to change the prefix for generated
     /// names.
-    #[arg(long, short)]
+    #[arg(long, short, value_name = "REVSETS")]
     change: Vec<RevisionArg>,
     /// Only display what will change on the remote
     #[arg(long)]

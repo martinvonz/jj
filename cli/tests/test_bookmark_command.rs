@@ -260,9 +260,9 @@ fn test_bookmark_move_matching() {
     let stderr = test_env.jj_cmd_cli_error(&repo_path, &["bookmark", "move"]);
     insta::assert_snapshot!(stderr, @r###"
     error: the following required arguments were not provided:
-      <--from <REVISIONS>|NAMES>
+      <--from <REVSETS>|NAMES>
 
-    Usage: jj bookmark move <--from <REVISIONS>|NAMES>
+    Usage: jj bookmark move <--from <REVSETS>|NAMES>
 
     For more information, try '--help'.
     "###);
