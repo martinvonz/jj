@@ -57,6 +57,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * A new Email template type is added. `Signature.email()` now returns an Email
   template type instead of a String.
 
+* Conflict markers are now allowed to be longer than 7 characters, allowing
+  conflicts to be materialized and parsed correctly in files which already
+  contain lines which look like conflict markers.
+
 ### Fixed bugs
 
 * The `$NO_COLOR` environment variable must now be non-empty to be respected.
