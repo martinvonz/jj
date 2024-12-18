@@ -106,7 +106,7 @@ pub struct DiffFormatArgs {
     /// For each path, show only its path
     ///
     /// Typically useful for shell commands like:
-    ///    `jj diff -r @- --name_only | xargs perl -pi -e's/OLD/NEW/g`
+    ///    `jj diff -r @- --name-only | xargs perl -pi -e's/OLD/NEW/g`
     #[arg(long)]
     pub name_only: bool,
     /// Show a Git-format diff
