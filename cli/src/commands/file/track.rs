@@ -34,7 +34,7 @@ use crate::ui::Ui;
 #[derive(clap::Args, Clone, Debug)]
 pub(crate) struct FileTrackArgs {
     /// Paths to track
-    #[arg(required = true, value_hint = clap::ValueHint::AnyPath)]
+    #[arg(required = true, value_name = "FILESETS", value_hint = clap::ValueHint::AnyPath)]
     paths: Vec<String>,
 }
 

@@ -578,7 +578,7 @@ fn test_early_args() {
     let stdout = test_env.jj_cmd_success(test_env.env_root(), &["log", "--help", "--color=always"]);
     insta::assert_snapshot!(
         stdout.lines().find(|l| l.contains("Usage:")).unwrap(),
-        @"[1m[4mUsage:[0m [1mjj log[0m [OPTIONS] [PATHS]...");
+        @"[1m[4mUsage:[0m [1mjj log[0m [OPTIONS] [FILESETS]...");
 
     // Early args are parsed with clap's ignore_errors(), but there is a known
     // bug that causes defaults to be unpopulated. Test that the early args are

@@ -54,6 +54,7 @@ pub(crate) struct FileShowArgs {
     /// Paths to print
     #[arg(
         required = true,
+        value_name = "FILESETS",
         value_hint = clap::ValueHint::FilePath,
         add = ArgValueCompleter::new(complete::all_revision_files),
     )]

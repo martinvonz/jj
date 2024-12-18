@@ -232,11 +232,11 @@ This command splits changes in the source revision and moves each change to the 
 
 The modification made by `jj absorb` can be reviewed by `jj op show -p`.
 
-**Usage:** `jj absorb [OPTIONS] [PATHS]...`
+**Usage:** `jj absorb [OPTIONS] [FILESETS]...`
 
 ###### **Arguments:**
 
-* `<PATHS>` — Move only changes to these paths (instead of all paths)
+* `<FILESETS>` — Move only changes to these paths (instead of all paths)
 
 ###### **Options:**
 
@@ -475,11 +475,11 @@ A non-tracking remote bookmark is just a pointer to the last-fetched remote book
 
 Update the description and create a new change on top
 
-**Usage:** `jj commit [OPTIONS] [PATHS]...`
+**Usage:** `jj commit [OPTIONS] [FILESETS]...`
 
 ###### **Arguments:**
 
-* `<PATHS>` — Put these paths in the first commit
+* `<FILESETS>` — Put these paths in the first commit
 
 ###### **Options:**
 
@@ -683,11 +683,11 @@ With the `-r` option, which is the default, shows the changes compared to the pa
 
 With the `--from` and/or `--to` options, shows the difference from/to the given revisions. If either is left out, it defaults to the working-copy commit. For example, `jj diff --from main` shows the changes from "main" (perhaps a bookmark name) to the working-copy commit.
 
-**Usage:** `jj diff [OPTIONS] [PATHS]...`
+**Usage:** `jj diff [OPTIONS] [FILESETS]...`
 
 ###### **Arguments:**
 
-* `<PATHS>` — Restrict the diff to these paths
+* `<FILESETS>` — Restrict the diff to these paths
 
 ###### **Options:**
 
@@ -864,7 +864,7 @@ Sets or removes the executable bit for paths in the repo
 
 Unlike the POSIX `chmod`, `jj file chmod` also works on Windows, on conflicted files, and on arbitrary revisions.
 
-**Usage:** `jj file chmod [OPTIONS] <MODE> <PATHS>...`
+**Usage:** `jj file chmod [OPTIONS] <MODE> <FILESETS>...`
 
 ###### **Arguments:**
 
@@ -876,7 +876,7 @@ Unlike the POSIX `chmod`, `jj file chmod` also works on Windows, on conflicted f
   - `x`:
     Make a path executable (alias: executable)
 
-* `<PATHS>` — Paths to change the executable bit for
+* `<FILESETS>` — Paths to change the executable bit for
 
 ###### **Options:**
 
@@ -890,11 +890,11 @@ Unlike the POSIX `chmod`, `jj file chmod` also works on Windows, on conflicted f
 
 List files in a revision
 
-**Usage:** `jj file list [OPTIONS] [PATHS]...`
+**Usage:** `jj file list [OPTIONS] [FILESETS]...`
 
 ###### **Arguments:**
 
-* `<PATHS>` — Only list files matching these prefixes (instead of all files)
+* `<FILESETS>` — Only list files matching these prefixes (instead of all files)
 
 ###### **Options:**
 
@@ -910,11 +910,11 @@ Print contents of files in a revision
 
 If the given path is a directory, files in the directory will be visited recursively.
 
-**Usage:** `jj file show [OPTIONS] <PATHS>...`
+**Usage:** `jj file show [OPTIONS] <FILESETS>...`
 
 ###### **Arguments:**
 
-* `<PATHS>` — Paths to print
+* `<FILESETS>` — Paths to print
 
 ###### **Options:**
 
@@ -932,11 +932,11 @@ Without arguments, all paths that are not ignored will be tracked.
 
 New files in the working copy can be automatically tracked. You can configure which paths to automatically track by setting `snapshot.auto-track` (e.g. to `"none()"` or `"glob:**/*.rs"`). Files that don't match the pattern can be manually tracked using this command. The default pattern is `all()` and this command has no effect.
 
-**Usage:** `jj file track <PATHS>...`
+**Usage:** `jj file track <FILESETS>...`
 
 ###### **Arguments:**
 
-* `<PATHS>` — Paths to track
+* `<FILESETS>` — Paths to track
 
 
 
@@ -944,11 +944,11 @@ New files in the working copy can be automatically tracked. You can configure wh
 
 Stop tracking specified paths in the working copy
 
-**Usage:** `jj file untrack <PATHS>...`
+**Usage:** `jj file untrack <FILESETS>...`
 
 ###### **Arguments:**
 
-* `<PATHS>` — Paths to untrack. They must already be ignored.
+* `<FILESETS>` — Paths to untrack. They must already be ignored.
 
    The paths could be ignored via a .gitignore or .git/info/exclude (in colocated repos).
 
@@ -1022,11 +1022,11 @@ The tool defined by `tool-command` acts as if it was the first entry in
 `fix.tools`, and uses `pattern = "all()"``. Support for `tool-command`
 will be removed in a future version.
 
-**Usage:** `jj fix [OPTIONS] [PATHS]...`
+**Usage:** `jj fix [OPTIONS] [FILESETS]...`
 
 ###### **Arguments:**
 
-* `<PATHS>` — Fix only these paths
+* `<FILESETS>` — Fix only these paths
 
 ###### **Options:**
 
@@ -1321,11 +1321,11 @@ Compare the changes of two commits
 
 This excludes changes from other commits by temporarily rebasing `--from` onto `--to`'s parents. If you wish to compare the same change across versions, consider `jj evolog -p` instead.
 
-**Usage:** `jj interdiff [OPTIONS] <--from <FROM>|--to <TO>> [PATHS]...`
+**Usage:** `jj interdiff [OPTIONS] <--from <FROM>|--to <TO>> [FILESETS]...`
 
 ###### **Arguments:**
 
-* `<PATHS>` — Restrict the diff to these paths
+* `<FILESETS>` — Restrict the diff to these paths
 
 ###### **Options:**
 
@@ -1358,11 +1358,11 @@ Spans of revisions that are not included in the graph per `--revisions` are rend
 
 The working-copy commit is indicated by a `@` symbol in the graph. Immutable revisions (https://jj-vcs.github.io/jj/latest/config/#set-of-immutable-commits) have a `◆` symbol. Other commits have a `○` symbol. To customize these symbols, see https://jj-vcs.github.io/jj/latest/config/#node-style.
 
-**Usage:** `jj log [OPTIONS] [PATHS]...`
+**Usage:** `jj log [OPTIONS] [FILESETS]...`
 
 ###### **Arguments:**
 
-* `<PATHS>` — Show revisions modifying the given paths
+* `<FILESETS>` — Show revisions modifying the given paths
 
 ###### **Options:**
 
@@ -1890,11 +1890,11 @@ Only conflicts that can be resolved with a 3-way merge are supported. See docs f
 
 Note that conflicts can also be resolved without using this command. You may edit the conflict markers in the conflicted file directly with a text editor.
 
-**Usage:** `jj resolve [OPTIONS] [PATHS]...`
+**Usage:** `jj resolve [OPTIONS] [FILESETS]...`
 
 ###### **Arguments:**
 
-* `<PATHS>` — Restrict to these paths when searching for a conflict to resolve. We will attempt to resolve the first conflict we can find. You can use the `--list` argument to find paths to use here
+* `<FILESETS>` — Restrict to these paths when searching for a conflict to resolve. We will attempt to resolve the first conflict we can find. You can use the `--list` argument to find paths to use here
 
 ###### **Options:**
 
@@ -1918,11 +1918,11 @@ When neither `--from` nor `--to` is specified, the command restores into the wor
 
 See `jj diffedit` if you'd like to restore portions of files rather than entire files.
 
-**Usage:** `jj restore [OPTIONS] [PATHS]...`
+**Usage:** `jj restore [OPTIONS] [FILESETS]...`
 
 ###### **Arguments:**
 
-* `<PATHS>` — Restore only these paths (instead of all paths)
+* `<FILESETS>` — Restore only these paths (instead of all paths)
 
 ###### **Options:**
 
@@ -2100,11 +2100,11 @@ If the source was abandoned and both the source and destination had a non-empty 
 
 If a working-copy commit gets abandoned, it will be given a new, empty commit. This is true in general; it is not specific to this command.
 
-**Usage:** `jj squash [OPTIONS] [PATHS]...`
+**Usage:** `jj squash [OPTIONS] [FILESETS]...`
 
 ###### **Arguments:**
 
-* `<PATHS>` — Move only changes to these paths (instead of all paths)
+* `<FILESETS>` — Move only changes to these paths (instead of all paths)
 
 ###### **Options:**
 
@@ -2127,11 +2127,11 @@ This includes:
 
 * The working copy commit and its (first) parent, and a summary of the changes between them * Conflicted bookmarks (see https://jj-vcs.github.io/jj/latest/bookmarks/)
 
-**Usage:** `jj status [PATHS]...`
+**Usage:** `jj status [FILESETS]...`
 
 ###### **Arguments:**
 
-* `<PATHS>` — Restrict the status display to these paths
+* `<FILESETS>` — Restrict the status display to these paths
 
 
 

@@ -34,7 +34,7 @@ pub(crate) struct FileListArgs {
     )]
     revision: RevisionArg,
     /// Only list files matching these prefixes (instead of all files)
-    #[arg(value_hint = clap::ValueHint::AnyPath)]
+    #[arg(value_name = "FILESETS", value_hint = clap::ValueHint::AnyPath)]
     paths: Vec<String>,
 }
 

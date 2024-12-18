@@ -42,6 +42,7 @@ pub(crate) struct CommitArgs {
     message_paragraphs: Vec<String>,
     /// Put these paths in the first commit
     #[arg(
+        value_name = "FILESETS", 
         value_hint = clap::ValueHint::AnyPath,
         add = ArgValueCompleter::new(complete::modified_files),
     )]

@@ -47,6 +47,7 @@ use crate::ui::Ui;
 pub(crate) struct RestoreArgs {
     /// Restore only these paths (instead of all paths)
     #[arg(
+        value_name = "FILESETS",
         value_hint = clap::ValueHint::AnyPath,
         add = ArgValueCompleter::new(complete::modified_range_files),
     )]

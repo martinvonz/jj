@@ -93,6 +93,7 @@ pub(crate) struct SquashArgs {
     /// Move only changes to these paths (instead of all paths)
     #[arg(
         conflicts_with_all = ["interactive", "tool"],
+        value_name = "FILESETS",
         value_hint = clap::ValueHint::AnyPath,
         add = ArgValueCompleter::new(complete::squash_revision_files),
     )]
