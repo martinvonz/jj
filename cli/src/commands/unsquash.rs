@@ -38,7 +38,7 @@ use crate::ui::Ui;
 /// commit. This is true in general; it is not specific to this command.
 #[derive(clap::Args, Clone, Debug)]
 pub(crate) struct UnsquashArgs {
-    #[arg(long, short, default_value = "@")]
+    #[arg(long, short, default_value = "@", value_name = "REVSET")]
     revision: RevisionArg,
     /// Interactively choose which parts to unsquash
     // TODO: It doesn't make much sense to run this without -i. We should make that

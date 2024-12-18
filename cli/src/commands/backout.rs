@@ -31,6 +31,7 @@ pub(crate) struct BackoutArgs {
     #[arg(
         long, short,
         default_value = "@",
+        value_name = "REVSETS",
         add = ArgValueCandidates::new(complete::all_revisions),
     )]
     revisions: Vec<RevisionArg>,
@@ -40,6 +41,7 @@ pub(crate) struct BackoutArgs {
     #[arg(
         long, short,
         default_value = "@",
+        value_name = "REVSETS",
         add = ArgValueCandidates::new(complete::all_revisions),
     )]
     destination: Vec<RevisionArg>,

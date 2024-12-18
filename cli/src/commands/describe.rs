@@ -44,7 +44,11 @@ use crate::ui::Ui;
 #[command(visible_aliases = &["desc"])]
 pub(crate) struct DescribeArgs {
     /// The revision(s) whose description to edit
-    #[arg(default_value = "@", add = ArgValueCandidates::new(complete::mutable_revisions))]
+    #[arg(
+        default_value = "@",
+        value_name = "REVSETS",
+        add = ArgValueCandidates::new(complete::mutable_revisions)
+    )]
     revisions: Vec<RevisionArg>,
     /// Ignored (but lets you pass `-r` for consistency with other commands)
     #[arg(short = 'r', hide = true, action = clap::ArgAction::Count)]

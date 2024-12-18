@@ -40,7 +40,7 @@ pub struct RunArgs {
     /// The command to run across all selected revisions.
     shell_command: String,
     /// The revisions to change.
-    #[arg(long, short, default_value = "@")]
+    #[arg(long, short, default_value = "@", value_name = "REVSETS")]
     revisions: Vec<RevisionArg>,
     /// A no-op option to match the interface of `git rebase -x`.
     #[arg(short = 'x', hide = true)]

@@ -29,7 +29,7 @@ use crate::ui::Ui;
 /// List the recursive entries of a tree.
 #[derive(clap::Args, Clone, Debug)]
 pub struct DebugTreeArgs {
-    #[arg(long, short = 'r')]
+    #[arg(long, short = 'r', value_name = "REVSET")]
     revision: Option<RevisionArg>,
     #[arg(long, conflicts_with = "revision")]
     id: Option<String>,

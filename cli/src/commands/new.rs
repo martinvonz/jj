@@ -52,7 +52,11 @@ use crate::ui::Ui;
 #[derive(clap::Args, Clone, Debug)]
 pub(crate) struct NewArgs {
     /// Parent(s) of the new change
-    #[arg(default_value = "@", add = ArgValueCandidates::new(complete::all_revisions))]
+    #[arg(
+        default_value = "@",
+        value_name = "REVSETS",
+        add = ArgValueCandidates::new(complete::all_revisions)
+    )]
     pub(crate) revisions: Vec<RevisionArg>,
     /// Ignored (but lets you pass `-d`/`-r` for consistency with other
     /// commands)
@@ -73,6 +77,7 @@ pub(crate) struct NewArgs {
         short = 'A',
         visible_alias = "after",
         conflicts_with = "revisions",
+        value_name = "REVSETS",
         add = ArgValueCandidates::new(complete::all_revisions),
     )]
     insert_after: Vec<RevisionArg>,
@@ -82,6 +87,7 @@ pub(crate) struct NewArgs {
         short = 'B',
         visible_alias = "before",
         conflicts_with = "revisions",
+        value_name = "REVSETS",
         add = ArgValueCandidates::new(complete::mutable_revisions),
     )]
     insert_before: Vec<RevisionArg>,

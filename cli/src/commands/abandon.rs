@@ -37,7 +37,11 @@ use crate::ui::Ui;
 #[derive(clap::Args, Clone, Debug)]
 pub(crate) struct AbandonArgs {
     /// The revision(s) to abandon
-    #[arg(default_value = "@", add = ArgValueCandidates::new(complete::mutable_revisions))]
+    #[arg(
+        default_value = "@",
+        value_name = "REVSETS",
+        add = ArgValueCandidates::new(complete::mutable_revisions)
+    )]
     revisions: Vec<RevisionArg>,
     /// Do not print every abandoned commit on a separate line
     #[arg(long, short)]

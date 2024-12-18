@@ -39,6 +39,7 @@ pub(crate) struct AbsorbArgs {
     #[arg(
         long, short,
         default_value = "@",
+        value_name = "REVSET",
         add = ArgValueCandidates::new(complete::mutable_revisions),
     )]
     from: RevisionArg,
@@ -48,6 +49,7 @@ pub(crate) struct AbsorbArgs {
     #[arg(
         long, short = 't', visible_alias = "to",
         default_value = "mutable()",
+        value_name = "REVSETS",
         add = ArgValueCandidates::new(complete::mutable_revisions),
     )]
     into: Vec<RevisionArg>,

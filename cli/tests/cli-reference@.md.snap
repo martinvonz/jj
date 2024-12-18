@@ -210,11 +210,11 @@ Abandon a revision, rebasing descendants onto its parent(s). The behavior is sim
 
 If a working-copy commit gets abandoned, it will be given a new, empty commit. This is true in general; it is not specific to this command.
 
-**Usage:** `jj abandon [OPTIONS] [REVISIONS]...`
+**Usage:** `jj abandon [OPTIONS] [REVSETS]...`
 
 ###### **Arguments:**
 
-* `<REVISIONS>` — The revision(s) to abandon
+* `<REVSETS>` — The revision(s) to abandon
 
   Default value: `@`
 
@@ -241,10 +241,10 @@ The modification made by `jj absorb` can be reviewed by `jj op show -p`.
 
 ###### **Options:**
 
-* `-f`, `--from <FROM>` — Source revision to absorb from
+* `-f`, `--from <REVSET>` — Source revision to absorb from
 
   Default value: `@`
-* `-t`, `--into <INTO>` — Destination revisions to absorb into
+* `-t`, `--into <REVSETS>` — Destination revisions to absorb into
 
    Only ancestors of the source revision will be considered.
 
@@ -260,10 +260,10 @@ Apply the reverse of a revision on top of another revision
 
 ###### **Options:**
 
-* `-r`, `--revisions <REVISIONS>` — The revision(s) to apply the reverse of
+* `-r`, `--revisions <REVSETS>` — The revision(s) to apply the reverse of
 
   Default value: `@`
-* `-d`, `--destination <DESTINATION>` — The revision to apply the reverse changes on top of
+* `-d`, `--destination <REVSETS>` — The revision to apply the reverse changes on top of
 
   Default value: `@`
 
@@ -303,7 +303,7 @@ Create a new bookmark
 
 ###### **Options:**
 
-* `-r`, `--revision <REVISION>` — The bookmark's target revision
+* `-r`, `--revision <REVSET>` — The bookmark's target revision
 
 
 
@@ -363,7 +363,7 @@ For information about bookmarks, see https://jj-vcs.github.io/jj/latest/bookmark
    By default, the specified remote name matches exactly. Use `glob:` prefix to select remotes by wildcard pattern. For details, see https://jj-vcs.github.io/jj/latest/revsets/#string-patterns.
 * `-t`, `--tracked` — Show remote tracked bookmarks only. Omits local Git-tracking bookmarks by default
 * `-c`, `--conflicted` — Show conflicted bookmarks only
-* `-r`, `--revisions <REVISIONS>` — Show bookmarks whose local targets are in the given revisions
+* `-r`, `--revisions <REVSETS>` — Show bookmarks whose local targets are in the given revisions
 
    Note that `-r deleted_bookmark` will not work since `deleted_bookmark` wouldn't have a local target.
 * `-T`, `--template <TEMPLATE>` — Render each bookmark using the given template
@@ -386,7 +386,7 @@ Example: pull up the nearest bookmarks to the working-copy parent
 
 $ jj bookmark move --from 'heads(::@- & bookmarks())' --to @-
 
-**Usage:** `jj bookmark move [OPTIONS] <--from <REVISIONS>|NAMES>`
+**Usage:** `jj bookmark move [OPTIONS] <--from <REVSETS>|NAMES>`
 
 ###### **Arguments:**
 
@@ -396,8 +396,8 @@ $ jj bookmark move --from 'heads(::@- & bookmarks())' --to @-
 
 ###### **Options:**
 
-* `--from <REVISIONS>` — Move bookmarks from the given revisions
-* `--to <REVISION>` — Move bookmarks to this revision
+* `--from <REVSETS>` — Move bookmarks from the given revisions
+* `--to <REVSET>` — Move bookmarks to this revision
 
   Default value: `@`
 * `-B`, `--allow-backwards` — Allow moving bookmarks backwards or sideways
@@ -431,7 +431,7 @@ Create or update a bookmark to point to a certain commit
 
 ###### **Options:**
 
-* `-r`, `--revision <REVISION>` — The bookmark's target revision
+* `-r`, `--revision <REVSET>` — The bookmark's target revision
 * `-B`, `--allow-backwards` — Allow moving the bookmark backwards or sideways
 
 
@@ -644,11 +644,11 @@ Update the change description or other metadata
 
 Starts an editor to let you edit the description of changes. The editor will be $EDITOR, or `pico` if that's not defined (`Notepad` on Windows).
 
-**Usage:** `jj describe [OPTIONS] [REVISIONS]...`
+**Usage:** `jj describe [OPTIONS] [REVSETS]...`
 
 ###### **Arguments:**
 
-* `<REVISIONS>` — The revision(s) whose description to edit
+* `<REVSETS>` — The revision(s) whose description to edit
 
   Default value: `@`
 
@@ -692,11 +692,11 @@ With the `--from` and/or `--to` options, shows the difference from/to the given 
 
 ###### **Options:**
 
-* `-r`, `--revision <REVISION>` — Show changes in this revision, compared to its parent(s)
+* `-r`, `--revision <REVSET>` — Show changes in this revision, compared to its parent(s)
 
    If the revision is a merge commit, this shows changes *from* the automatic merge of the contents of all of its parents *to* the contents of the revision itself.
-* `-f`, `--from <FROM>` — Show changes from this revision
-* `-t`, `--to <TO>` — Show changes to this revision
+* `-f`, `--from <REVSET>` — Show changes from this revision
+* `-t`, `--to <REVSET>` — Show changes to this revision
 * `-s`, `--summary` — For each path, show only whether it was modified, added, or deleted
 * `--stat` — Show a histogram of the changes
 * `--types` — For each path, show only its type before and after
@@ -732,13 +732,13 @@ See `jj restore` if you want to move entire files from one revision to another. 
 
 ###### **Options:**
 
-* `-r`, `--revision <REVISION>` — The revision to touch up
+* `-r`, `--revision <REVSET>` — The revision to touch up
 
    Defaults to @ if neither --to nor --from are specified.
-* `-f`, `--from <FROM>` — Show changes from this revision
+* `-f`, `--from <REVSET>` — Show changes from this revision
 
    Defaults to @ if --to is specified.
-* `-t`, `--to <TO>` — Edit changes in this revision
+* `-t`, `--to <REVSET>` — Edit changes in this revision
 
    Defaults to @ if --from is specified.
 * `--tool <NAME>` — Specify diff editor to be used
@@ -756,17 +756,17 @@ When none of the `--destination`, `--insert-after`, or `--insert-before` argumen
 
 When any of the `--destination`, `--insert-after`, or `--insert-before` arguments are provided, the roots of the specified commits will be duplicated onto the destination indicated by the arguments. Other specified commits will be duplicated onto these newly duplicated commits. If the `--insert-after` or `--insert-before` arguments are provided, the new children indicated by the arguments will be rebased onto the heads of the specified commits.
 
-**Usage:** `jj duplicate [OPTIONS] [REVISIONS]...`
+**Usage:** `jj duplicate [OPTIONS] [REVSETS]...`
 
 ###### **Arguments:**
 
-* `<REVISIONS>` — The revision(s) to duplicate (default: @)
+* `<REVSETS>` — The revision(s) to duplicate (default: @)
 
 ###### **Options:**
 
-* `-d`, `--destination <DESTINATION>` — The revision(s) to duplicate onto (can be repeated to create a merge commit)
-* `-A`, `--insert-after <INSERT_AFTER>` — The revision(s) to insert after (can be repeated to create a merge commit)
-* `-B`, `--insert-before <INSERT_BEFORE>` — The revision(s) to insert before (can be repeated to create a merge commit)
+* `-d`, `--destination <REVSETS>` — The revision(s) to duplicate onto (can be repeated to create a merge commit)
+* `-A`, `--insert-after <REVSETS>` — The revision(s) to insert after (can be repeated to create a merge commit)
+* `-B`, `--insert-before <REVSETS>` — The revision(s) to insert before (can be repeated to create a merge commit)
 
 
 
@@ -778,11 +778,11 @@ Note: it is generally recommended to instead use `jj new` and `jj squash`.
 
 For more information, see https://jj-vcs.github.io/jj/latest/FAQ#how-do-i-resume-working-on-an-existing-change
 
-**Usage:** `jj edit <REVISION>`
+**Usage:** `jj edit <REVSET>`
 
 ###### **Arguments:**
 
-* `<REVISION>` — The commit to edit
+* `<REVSET>` — The commit to edit
 
 
 
@@ -796,7 +796,7 @@ Lists the previous commits which a change has pointed to. The current commit of 
 
 ###### **Options:**
 
-* `-r`, `--revision <REVISION>`
+* `-r`, `--revision <REVSET>`
 
   Default value: `@`
 * `-n`, `--limit <LIMIT>` — Limit number of revisions to show
@@ -855,7 +855,7 @@ Annotates a revision line by line. Each line includes the source change that int
 
 ###### **Options:**
 
-* `-r`, `--revision <REVISION>` — an optional revision to start at
+* `-r`, `--revision <REVSET>` — an optional revision to start at
 
 
 
@@ -881,7 +881,7 @@ Unlike the POSIX `chmod`, `jj file chmod` also works on Windows, on conflicted f
 
 ###### **Options:**
 
-* `-r`, `--revision <REVISION>` — The revision to update
+* `-r`, `--revision <REVSET>` — The revision to update
 
   Default value: `@`
 
@@ -899,7 +899,7 @@ List files in a revision
 
 ###### **Options:**
 
-* `-r`, `--revision <REVISION>` — The revision to list files in
+* `-r`, `--revision <REVSET>` — The revision to list files in
 
   Default value: `@`
 
@@ -919,7 +919,7 @@ If the given path is a directory, files in the directory will be visited recursi
 
 ###### **Options:**
 
-* `-r`, `--revision <REVISION>` — The revision to get the file contents from
+* `-r`, `--revision <REVSET>` — The revision to get the file contents from
 
   Default value: `@`
 
@@ -1031,7 +1031,7 @@ will be removed in a future version.
 
 ###### **Options:**
 
-* `-s`, `--source <SOURCE>` — Fix files in the specified revision(s) and their descendants. If no revisions are specified, this defaults to the `revsets.fix` setting, or `reachable(@, mutable())` if it is not set
+* `-s`, `--source <REVSETS>` — Fix files in the specified revision(s) and their descendants. If no revisions are specified, this defaults to the `revsets.fix` setting, or `reachable(@, mutable())` if it is not set
 * `--include-unchanged-files` — Fix unchanged files in addition to changed ones. If no paths are specified, all files in the repo will be fixed
 
 
@@ -1182,8 +1182,8 @@ Before the command actually moves, creates, or deletes a remote bookmark, it mak
    Newly-created remote bookmarks will be tracked automatically.
 * `--allow-empty-description` — Allow pushing commits with empty descriptions
 * `--allow-private` — Allow pushing commits that are private
-* `-r`, `--revisions <REVISIONS>` — Push bookmarks pointing to these commits (can be repeated)
-* `-c`, `--change <CHANGE>` — Push this commit by creating a bookmark based on its change ID (can be repeated)
+* `-r`, `--revisions <REVSETS>` — Push bookmarks pointing to these commits (can be repeated)
+* `-c`, `--change <REVSETS>` — Push this commit by creating a bookmark based on its change ID (can be repeated)
 
    The created bookmark will be tracked automatically. Use the `git.push-bookmark-prefix` setting to change the prefix for generated names.
 * `--dry-run` — Only display what will change on the remote
@@ -1322,7 +1322,7 @@ Compare the changes of two commits
 
 This excludes changes from other commits by temporarily rebasing `--from` onto `--to`'s parents. If you wish to compare the same change across versions, consider `jj evolog -p` instead.
 
-**Usage:** `jj interdiff [OPTIONS] <--from <FROM>|--to <TO>> [FILESETS]...`
+**Usage:** `jj interdiff [OPTIONS] <--from <REVSET>|--to <REVSET>> [FILESETS]...`
 
 ###### **Arguments:**
 
@@ -1330,8 +1330,8 @@ This excludes changes from other commits by temporarily rebasing `--from` onto `
 
 ###### **Options:**
 
-* `-f`, `--from <FROM>` — Show changes from this revision
-* `-t`, `--to <TO>` — Show changes to this revision
+* `-f`, `--from <REVSET>` — Show changes from this revision
+* `-t`, `--to <REVSET>` — Show changes to this revision
 * `-s`, `--summary` — For each path, show only whether it was modified, added, or deleted
 * `--stat` — Show a histogram of the changes
 * `--types` — For each path, show only its type before and after
@@ -1367,7 +1367,7 @@ The working-copy commit is indicated by a `@` symbol in the graph. Immutable rev
 
 ###### **Options:**
 
-* `-r`, `--revisions <REVISIONS>` — Which revisions to show
+* `-r`, `--revisions <REVSETS>` — Which revisions to show
 
    If no paths nor revisions are specified, this defaults to the `revsets.log` setting.
 * `--reversed` — Show revisions in the opposite order (older revisions first)
@@ -1410,11 +1410,11 @@ Note that you can create a merge commit by specifying multiple revisions as argu
 
 For more information, see https://jj-vcs.github.io/jj/latest/working-copy/.
 
-**Usage:** `jj new [OPTIONS] [REVISIONS]...`
+**Usage:** `jj new [OPTIONS] [REVSETS]...`
 
 ###### **Arguments:**
 
-* `<REVISIONS>` — Parent(s) of the new change
+* `<REVSETS>` — Parent(s) of the new change
 
   Default value: `@`
 
@@ -1422,8 +1422,8 @@ For more information, see https://jj-vcs.github.io/jj/latest/working-copy/.
 
 * `-m`, `--message <MESSAGE>` — The change description to use
 * `--no-edit` — Do not edit the newly created change
-* `-A`, `--insert-after <INSERT_AFTER>` — Insert the new change after the given commit(s)
-* `-B`, `--insert-before <INSERT_BEFORE>` — Insert the new change before the given commit(s)
+* `-A`, `--insert-after <REVSETS>` — Insert the new change after the given commit(s)
+* `-B`, `--insert-before <REVSETS>` — Insert the new change before the given commit(s)
 
 
 
@@ -1710,11 +1710,11 @@ Therefore, `jj parallelize '1 | 3'` is a no-op. That's because 2, which is
 not in the target set, was a descendant of 1 before, so it remains a
 descendant, and it was an ancestor of 3 before, so it remains an ancestor.
 
-**Usage:** `jj parallelize [REVISIONS]...`
+**Usage:** `jj parallelize [REVSETS]...`
 
 ###### **Arguments:**
 
-* `<REVISIONS>` — Revisions to parallelize
+* `<REVSETS>` — Revisions to parallelize
 
 
 
@@ -1857,28 +1857,28 @@ J          J
 If a working-copy commit gets abandoned, it will be given a new, empty
 commit. This is true in general; it is not specific to this command.
 
-**Usage:** `jj rebase [OPTIONS] <--destination <DESTINATION>|--insert-after <INSERT_AFTER>|--insert-before <INSERT_BEFORE>>`
+**Usage:** `jj rebase [OPTIONS] <--destination <REVSETS>|--insert-after <REVSETS>|--insert-before <REVSETS>>`
 
 ###### **Options:**
 
-* `-b`, `--branch <BRANCH>` — Rebase the whole branch relative to destination's ancestors (can be repeated)
+* `-b`, `--branch <REVSETS>` — Rebase the whole branch relative to destination's ancestors (can be repeated)
 
    `jj rebase -b=br -d=dst` is equivalent to `jj rebase '-s=roots(dst..br)' -d=dst`.
 
    If none of `-b`, `-s`, or `-r` is provided, then the default is `-b @`.
-* `-s`, `--source <SOURCE>` — Rebase specified revision(s) together with their trees of descendants (can be repeated)
+* `-s`, `--source <REVSETS>` — Rebase specified revision(s) together with their trees of descendants (can be repeated)
 
    Each specified revision will become a direct child of the destination revision(s), even if some of the source revisions are descendants of others.
 
    If none of `-b`, `-s`, or `-r` is provided, then the default is `-b @`.
-* `-r`, `--revisions <REVISIONS>` — Rebase the given revisions, rebasing descendants onto this revision's parent(s)
+* `-r`, `--revisions <REVSETS>` — Rebase the given revisions, rebasing descendants onto this revision's parent(s)
 
    Unlike `-s` or `-b`, you may `jj rebase -r` a revision `A` onto a descendant of `A`.
 
    If none of `-b`, `-s`, or `-r` is provided, then the default is `-b @`.
-* `-d`, `--destination <DESTINATION>` — The revision(s) to rebase onto (can be repeated to create a merge commit)
-* `-A`, `--insert-after <INSERT_AFTER>` — The revision(s) to insert after (can be repeated to create a merge commit)
-* `-B`, `--insert-before <INSERT_BEFORE>` — The revision(s) to insert before (can be repeated to create a merge commit)
+* `-d`, `--destination <REVSETS>` — The revision(s) to rebase onto (can be repeated to create a merge commit)
+* `-A`, `--insert-after <REVSETS>` — The revision(s) to insert after (can be repeated to create a merge commit)
+* `-B`, `--insert-before <REVSETS>` — The revision(s) to insert before (can be repeated to create a merge commit)
 * `--skip-emptied` — If true, when rebasing would produce an empty commit, the commit is abandoned. It will not be abandoned if it was already empty before the rebase. Will never skip merge commits with multiple non-empty parents
 
 
@@ -1899,7 +1899,7 @@ Note that conflicts can also be resolved without using this command. You may edi
 
 ###### **Options:**
 
-* `-r`, `--revision <REVISION>`
+* `-r`, `--revision <REVSET>`
 
   Default value: `@`
 * `-l`, `--list` — Instead of resolving one conflict, list all the conflicts
@@ -1927,11 +1927,11 @@ See `jj diffedit` if you'd like to restore portions of files rather than entire 
 
 ###### **Options:**
 
-* `-f`, `--from <FROM>` — Revision to restore from (source)
-* `-t`, `--to <TO>` — Revision to restore into (destination)
-* `-c`, `--changes-in <REVISION>` — Undo the changes in a revision as compared to the merge of its parents.
+* `-f`, `--from <REVSET>` — Revision to restore from (source)
+* `-t`, `--to <REVSETS>` — Revision to restore into (destination)
+* `-c`, `--changes-in <REVSET>` — Undo the changes in a revision as compared to the merge of its parents.
 
-   This undoes the changes that can be seen with `jj diff -r REVISION`. If `REVISION` only has a single parent, this option is equivalent to `jj restore --to REVISION --from REVISION-`.
+   This undoes the changes that can be seen with `jj diff -r REVSET`. If `REVSET` only has a single parent, this option is equivalent to `jj restore --to REVSET --from REVSET-`.
 
    The default behavior of `jj restore` is equivalent to `jj restore --changes-in @`.
 * `--restore-descendants` — Preserve the content (not the diff) when rebasing descendants
@@ -1950,11 +1950,11 @@ Show the current workspace root directory
 
 Show commit description and changes in a revision
 
-**Usage:** `jj show [OPTIONS] [REVISION]`
+**Usage:** `jj show [OPTIONS] [REVSET]`
 
 ###### **Arguments:**
 
-* `<REVISION>` — Show changes in this revision, compared to its parent(s)
+* `<REVSET>` — Show changes in this revision, compared to its parent(s)
 
   Default value: `@`
 
@@ -1992,8 +1992,8 @@ In other words, for all (A, B, C) where A has (B, C) as parents and C is an ance
 
 ###### **Options:**
 
-* `-s`, `--source <SOURCE>` — Simplify specified revision(s) together with their trees of descendants (can be repeated)
-* `-r`, `--revisions <REVISIONS>` — Simplify specified revision(s) (can be repeated)
+* `-s`, `--source <REVSETS>` — Simplify specified revision(s) together with their trees of descendants (can be repeated)
+* `-r`, `--revisions <REVSETS>` — Simplify specified revision(s) (can be repeated)
 
    If both `--source` and `--revisions` are not provided, this defaults to the `revsets.simplify-parents` setting, or `reachable(@, mutable())` if it is not set.
 
@@ -2080,7 +2080,7 @@ Splitting an empty commit is not supported because the same effect can be achiev
 
    This is the default if no filesets are provided.
 * `--tool <NAME>` — Specify diff editor to be used (implies --interactive)
-* `-r`, `--revision <REVISION>` — The revision to split
+* `-r`, `--revision <REVSET>` — The revision to split
 
   Default value: `@`
 * `-p`, `--parallel` — Split the revision into two parallel revisions instead of a parent and child
@@ -2109,9 +2109,9 @@ If a working-copy commit gets abandoned, it will be given a new, empty commit. T
 
 ###### **Options:**
 
-* `-r`, `--revision <REVISION>` — Revision to squash into its parent (default: @)
-* `-f`, `--from <FROM>` — Revision(s) to squash from (default: @)
-* `-t`, `--into <INTO>` — Revision to squash into (default: @)
+* `-r`, `--revision <REVSET>` — Revision to squash into its parent (default: @)
+* `-f`, `--from <REVSETS>` — Revision(s) to squash from (default: @)
+* `-t`, `--into <REVSET>` — Revision to squash into (default: @)
 * `-m`, `--message <MESSAGE>` — The description to use for squashed revision (don't open editor)
 * `-u`, `--use-destination-message` — Use the description of the destination revision and discard the description(s) of the source revision(s)
 * `-i`, `--interactive` — Interactively choose which parts to squash
@@ -2394,7 +2394,7 @@ By default, the new workspace inherits the sparse patterns of the current worksp
 * `--name <NAME>` — A name for the workspace
 
    To override the default, which is the basename of the destination directory.
-* `-r`, `--revision <REVISION>` — A list of parent revisions for the working-copy commit of the newly created workspace. You may specify nothing, or any number of parents.
+* `-r`, `--revision <REVSETS>` — A list of parent revisions for the working-copy commit of the newly created workspace. You may specify nothing, or any number of parents.
 
    If no revisions are specified, the new workspace will be created, and its working-copy commit will exist on top of the parent(s) of the working-copy commit in the current workspace, i.e. they will share the same parent(s).
 

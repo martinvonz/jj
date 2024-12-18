@@ -30,9 +30,9 @@ fn test_edit() {
     let stderr = test_env.jj_cmd_cli_error(&repo_path, &["edit"]);
     insta::assert_snapshot!(stderr, @r###"
     error: the following required arguments were not provided:
-      <REVISION>
+      <REVSET>
 
-    Usage: jj edit <REVISION>
+    Usage: jj edit <REVSET>
 
     For more information, try '--help'.
     "###);

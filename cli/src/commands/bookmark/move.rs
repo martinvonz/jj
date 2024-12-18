@@ -49,7 +49,7 @@ pub struct BookmarkMoveArgs {
     #[arg(
         long,
         group = "source",
-        value_name = "REVISIONS",
+        value_name = "REVSETS",
         add = ArgValueCandidates::new(complete::all_revisions),
     )]
     from: Vec<RevisionArg>,
@@ -60,7 +60,7 @@ pub struct BookmarkMoveArgs {
     #[arg(
         long,
         default_value = "@",
-        value_name = "REVISION",
+        value_name = "REVSET",
         add = ArgValueCandidates::new(complete::all_revisions),
     )]
     to: RevisionArg,

@@ -48,6 +48,7 @@ pub(crate) struct ResolveArgs {
     #[arg(
         long, short,
         default_value = "@",
+        value_name = "REVSET",
         add = ArgValueCandidates::new(complete::mutable_revisions),
     )]
     revision: RevisionArg,

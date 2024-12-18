@@ -35,6 +35,7 @@ pub struct BookmarkCreateArgs {
     #[arg(
         long, short,
         visible_alias = "to",
+        value_name = "REVSET",
         add = ArgValueCandidates::new(complete::all_revisions),
     )]
     revision: Option<RevisionArg>,
