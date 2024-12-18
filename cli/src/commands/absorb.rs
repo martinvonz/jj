@@ -52,7 +52,7 @@ pub(crate) struct AbsorbArgs {
     )]
     into: Vec<RevisionArg>,
     /// Move only changes to these paths (instead of all paths)
-    #[arg(value_hint = clap::ValueHint::AnyPath)]
+    #[arg(value_name = "FILESETS", value_hint = clap::ValueHint::AnyPath)]
     paths: Vec<String>,
 }
 

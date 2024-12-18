@@ -55,6 +55,7 @@ pub(crate) struct FileChmodArgs {
     /// Paths to change the executable bit for
     #[arg(
         required = true,
+        value_name = "FILESETS",
         value_hint = clap::ValueHint::AnyPath,
         add = ArgValueCompleter::new(complete::all_revision_files),
     )]

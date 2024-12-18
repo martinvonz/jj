@@ -129,7 +129,7 @@ pub(crate) struct FixArgs {
     #[arg(long, short, add = ArgValueCandidates::new(complete::mutable_revisions))]
     source: Vec<RevisionArg>,
     /// Fix only these paths
-    #[arg(value_hint = clap::ValueHint::AnyPath)]
+    #[arg(value_name = "FILESETS", value_hint = clap::ValueHint::AnyPath)]
     paths: Vec<String>,
     /// Fix unchanged files in addition to changed ones. If no paths are
     /// specified, all files in the repo will be fixed.

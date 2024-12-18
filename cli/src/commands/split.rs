@@ -69,10 +69,11 @@ pub(crate) struct SplitArgs {
     parallel: bool,
     /// Files matching any of these filesets are put in the first commit
     #[arg(
+        value_name = "FILESETS",
         value_hint = clap::ValueHint::AnyPath,
         add = ArgValueCompleter::new(complete::modified_revision_files),
     )]
-    filesets: Vec<String>,
+    paths: Vec<String>,
 }
 
 #[instrument(skip_all)]
@@ -92,12 +93,12 @@ pub(crate) fn cmd_split(
 
     workspace_command.check_rewritable([commit.id()])?;
     let matcher = workspace_command
-        .parse_file_patterns(ui, &args.filesets)?
+        .parse_file_patterns(ui, &args.paths)?
         .to_matcher();
     let diff_selector = workspace_command.diff_selector(
         ui,
         args.tool.as_deref(),
-        args.interactive || args.filesets.is_empty(),
+        args.interactive || args.paths.is_empty(),
     )?;
     let mut tx = workspace_command.start_transaction();
     let end_tree = commit.tree()?;

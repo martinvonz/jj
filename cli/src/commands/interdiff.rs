@@ -44,6 +44,7 @@ pub(crate) struct InterdiffArgs {
     to: Option<RevisionArg>,
     /// Restrict the diff to these paths
     #[arg(
+        value_name = "FILESETS",
         value_hint = clap::ValueHint::AnyPath,
         add = ArgValueCompleter::new(complete::interdiff_files),
     )]

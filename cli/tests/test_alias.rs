@@ -110,7 +110,7 @@ fn test_alias_calls_command_with_invalid_option() {
 
       tip: to pass '--nonexistent' as a value, use '-- --nonexistent'
 
-    Usage: jj log [OPTIONS] [PATHS]...
+    Usage: jj log [OPTIONS] [FILESETS]...
 
     For more information, try '--help'.
     "###);

@@ -35,6 +35,7 @@ pub struct DebugTreeArgs {
     id: Option<String>,
     #[arg(long, requires = "id")]
     dir: Option<String>,
+    #[arg(value_name = "FILESETS")]
     paths: Vec<String>,
     // TODO: Add an option to include trees that are ancestors of the matched paths
 }

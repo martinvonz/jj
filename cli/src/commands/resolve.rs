@@ -64,6 +64,7 @@ pub(crate) struct ResolveArgs {
     /// the `--list` argument to find paths to use here.
     // TODO: Find the conflict we can resolve even if it's not the first one.
     #[arg(
+        value_name = "FILESETS",
         value_hint = clap::ValueHint::AnyPath,
         add = ArgValueCompleter::new(complete::revision_conflicted_files),
     )]

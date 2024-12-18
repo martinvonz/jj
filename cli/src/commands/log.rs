@@ -67,6 +67,7 @@ pub(crate) struct LogArgs {
     revisions: Vec<RevisionArg>,
     /// Show revisions modifying the given paths
     #[arg(
+        value_name = "FILESETS",
         value_hint = clap::ValueHint::AnyPath,
         add = ArgValueCompleter::new(complete::log_files),
     )]

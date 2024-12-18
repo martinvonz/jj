@@ -497,7 +497,7 @@ fn test_diff_bad_args() {
     insta::assert_snapshot!(stderr, @r###"
     error: the argument '--summary' cannot be used with '--types'
 
-    Usage: jj diff --summary [PATHS]...
+    Usage: jj diff --summary [FILESETS]...
 
     For more information, try '--help'.
     "###);
@@ -506,7 +506,7 @@ fn test_diff_bad_args() {
     insta::assert_snapshot!(stderr, @r###"
     error: the argument '--color-words' cannot be used with '--git'
 
-    Usage: jj diff --color-words [PATHS]...
+    Usage: jj diff --color-words [FILESETS]...
 
     For more information, try '--help'.
     "###);

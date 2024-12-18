@@ -38,6 +38,7 @@ pub(crate) struct FileUntrackArgs {
     /// colocated repos).
     #[arg(
         required = true,
+        value_name = "FILESETS",
         value_hint = clap::ValueHint::AnyPath,
         add = ArgValueCompleter::new(complete::all_revision_files),
     )]

@@ -1215,7 +1215,7 @@ fn test_squash_use_destination_message_and_message_mutual_exclusion() {
     ), @r###"
     error: the argument '--message <MESSAGE>' cannot be used with '--use-destination-message'
 
-    Usage: jj squash --message <MESSAGE> [PATHS]...
+    Usage: jj squash --message <MESSAGE> [FILESETS]...
 
     For more information, try '--help'.
     "###);

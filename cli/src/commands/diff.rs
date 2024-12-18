@@ -59,6 +59,7 @@ pub(crate) struct DiffArgs {
     to: Option<RevisionArg>,
     /// Restrict the diff to these paths
     #[arg(
+        value_name = "FILESETS",
         value_hint = clap::ValueHint::AnyPath,
         add = ArgValueCompleter::new(complete::modified_revision_or_range_files),
     )]
