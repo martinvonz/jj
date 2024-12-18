@@ -74,7 +74,7 @@ jobs:
           cp $BIN target/out
 
       - name: Publish binary artifact
-        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882
+        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b
         with:
           name: jj-${{ matrix.target }}
           path: target/out
