@@ -57,6 +57,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * A new Email template type is added. `Signature.email()` now returns an Email
   template type instead of a String.
 
+* Adds a new template alias `commit_timestamp(commit)` which defaults to the
+  committer date.
+
 ### Fixed bugs
 
 * The `$NO_COLOR` environment variable must now be non-empty to be respected.

@@ -484,6 +484,20 @@ Can be customized by the `format_short_signature()` template alias.
 'format_short_signature(signature)' = 'signature.username()'
 ```
 
+### Commit timestamp
+
+Commits have both an "author timestamp" and "committer timestamp". By default,
+jj displays the committer timestamp, but can be changed to show the author
+timestamp instead.
+
+The function must return a timestamp because the return value will likely be
+formatted with `format_timestamp()`.
+
+```toml
+[template-aliases]
+'commit_timestamp(commit)' = 'commit.author().timestamp()'
+```
+
 ### Allow "large" revsets by default
 
 Certain commands (such as `jj rebase`) can take multiple revset arguments, but
