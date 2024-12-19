@@ -254,11 +254,11 @@ impl TestEnvironment {
             .join(format!("config{config_file_number:04}.toml"))
     }
 
-    pub fn set_config_path(&mut self, config_path: PathBuf) {
-        self.config_path = config_path;
+    pub fn set_config_path(&mut self, config_path: impl Into<PathBuf>) {
+        self.config_path = config_path.into();
     }
 
-    pub fn add_config(&self, content: &str) {
+    pub fn add_config(&self, content: impl AsRef<[u8]>) {
         if self.config_path.is_file() {
             panic!("add_config not supported when config_path is a file");
         }
@@ -275,8 +275,8 @@ impl TestEnvironment {
         .unwrap();
     }
 
-    pub fn add_env_var(&mut self, key: &str, val: &str) {
-        self.env_vars.insert(key.to_string(), val.to_string());
+    pub fn add_env_var(&mut self, key: impl Into<String>, val: impl Into<String>) {
+        self.env_vars.insert(key.into(), val.into());
     }
 
     pub fn current_operation_id(&self, repo_path: &Path) -> String {
@@ -294,7 +294,7 @@ impl TestEnvironment {
         // in it
         let escaped_editor_path = editor_path.to_str().unwrap().replace('\\', r"\\");
         self.add_env_var("EDITOR", &escaped_editor_path);
-        self.add_config(&format!(
+        self.add_config(format!(
             r###"
                     [ui]
                     merge-editor = "fake-editor"
@@ -314,7 +314,7 @@ impl TestEnvironment {
     /// path
     pub fn set_up_fake_diff_editor(&mut self) -> PathBuf {
         let escaped_diff_editor_path = escaped_fake_diff_editor_path();
-        self.add_config(&format!(
+        self.add_config(format!(
             r###"
             ui.diff-editor = "fake-diff-editor"
             merge-tools.fake-diff-editor.program = "{escaped_diff_editor_path}"

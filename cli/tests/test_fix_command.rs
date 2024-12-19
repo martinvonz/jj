@@ -34,7 +34,7 @@ fn init_with_fake_formatter(args: &[&str]) -> (TestEnvironment, PathBuf, impl Fn
     // make a meaningful difference in coverage. Otherwise, we would have to add
     // dedicated test coverage for the deprecated syntax until it is removed. We use
     // single quotes here to avoid escaping issues when running the test on Windows.
-    test_env.add_config(&format!(
+    test_env.add_config(format!(
         r#"fix.tool-command = ['{}']"#,
         [formatter_path.to_str().unwrap()]
             .iter()
@@ -77,7 +77,7 @@ fn test_config_both_legacy_and_table_tools() {
     let formatter_path = assert_cmd::cargo::cargo_bin("fake-formatter");
     assert!(formatter_path.is_file());
     let escaped_formatter_path = formatter_path.to_str().unwrap().replace('\\', r"\\");
-    test_env.add_config(&format!(
+    test_env.add_config(format!(
         r###"
         [fix]
         tool-command = ["{formatter}", "--append", "legacy change"]
@@ -115,7 +115,7 @@ fn test_config_multiple_tools() {
     let formatter_path = assert_cmd::cargo::cargo_bin("fake-formatter");
     assert!(formatter_path.is_file());
     let escaped_formatter_path = formatter_path.to_str().unwrap().replace('\\', r"\\");
-    test_env.add_config(&format!(
+    test_env.add_config(format!(
         r###"
         [fix.tools.tool-1]
         command = ["{formatter}", "--uppercase"]
@@ -153,7 +153,7 @@ fn test_config_multiple_tools_with_same_name() {
 
     // Multiple definitions with the same `name` are not allowed, because it is
     // likely to be a mistake, and mistakes are risky when they rewrite files.
-    test_env.add_config(&format!(
+    test_env.add_config(format!(
         r###"
         [fix.tools.my-tool]
         command = ["{formatter}", "--uppercase"]
@@ -183,7 +183,7 @@ fn test_config_multiple_tools_with_same_name() {
     For help, see https://jj-vcs.github.io/jj/latest/config/.
     ");
 
-    test_env.set_config_path("/dev/null".into());
+    test_env.set_config_path("/dev/null");
     let content = test_env.jj_cmd_success(&repo_path, &["file", "show", "foo", "-r", "@"]);
     insta::assert_snapshot!(content, @"Foo\n");
     let content = test_env.jj_cmd_success(&repo_path, &["file", "show", "bar", "-r", "@"]);
@@ -199,7 +199,7 @@ fn test_config_tables_overlapping_patterns() {
     assert!(formatter_path.is_file());
     let escaped_formatter_path = formatter_path.to_str().unwrap().replace('\\', r"\\");
 
-    test_env.add_config(&format!(
+    test_env.add_config(format!(
         r###"
         [fix.tools.tool-1]
         command = ["{formatter}", "--append", "tool-1"]
@@ -274,7 +274,7 @@ fn test_config_tables_some_commands_missing() {
     let formatter_path = assert_cmd::cargo::cargo_bin("fake-formatter");
     assert!(formatter_path.is_file());
     let escaped_formatter_path = formatter_path.to_str().unwrap().replace('\\', r"\\");
-    test_env.add_config(&format!(
+    test_env.add_config(format!(
         r###"
         [fix.tools.tool-1]
         command = ["{formatter}", "--uppercase"]
@@ -309,7 +309,7 @@ fn test_config_tables_empty_patterns_list() {
     let formatter_path = assert_cmd::cargo::cargo_bin("fake-formatter");
     assert!(formatter_path.is_file());
     let escaped_formatter_path = formatter_path.to_str().unwrap().replace('\\', r"\\");
-    test_env.add_config(&format!(
+    test_env.add_config(format!(
         r###"
         [fix.tools.my-tool-empty-patterns]
         command = ["{formatter}", "--uppercase"]
@@ -339,7 +339,7 @@ fn test_config_filesets() {
     let formatter_path = assert_cmd::cargo::cargo_bin("fake-formatter");
     assert!(formatter_path.is_file());
     let escaped_formatter_path = formatter_path.to_str().unwrap().replace('\\', r"\\");
-    test_env.add_config(&format!(
+    test_env.add_config(format!(
         r###"
         [fix.tools.my-tool-match-one]
         command = ["{formatter}", "--uppercase"]
@@ -378,7 +378,7 @@ fn test_relative_paths() {
     let formatter_path = assert_cmd::cargo::cargo_bin("fake-formatter");
     assert!(formatter_path.is_file());
     let escaped_formatter_path = formatter_path.to_str().unwrap().replace('\\', r"\\");
-    test_env.add_config(&format!(
+    test_env.add_config(format!(
         r###"
         [fix.tools.tool]
         command = ["{formatter}", "--stdout", "Fixed!"]
@@ -1145,7 +1145,7 @@ fn test_all_files() {
     // File D: NOT in patterns,     changed in child
     // Some files will be in subdirectories to make sure we're covering that aspect
     // of matching.
-    test_env.add_config(&format!(
+    test_env.add_config(format!(
         r###"
         [fix.tools.tool]
         command = ["{formatter}", "--append", "fixed"]
