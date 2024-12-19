@@ -1020,6 +1020,26 @@ as follows:
 backends.ssh.allowed-signers = "/path/to/allowed-signers"
 ```
 
+### Sign commits only on `jj git push`
+
+Instead of signing all commits during creation when `signing.sign-all` is
+set to `true`, the `git.sign-on-push` configuration can be used to sign
+commits only upon running `jj git push`. All mutable unsigned commits
+being pushed will be signed prior to pushing. This might be preferred if the
+signing backend requires user interaction or is slow, so that signing is
+performed in a single batch operation.
+
+```toml
+# Configure signing backend as before, without setting `signing.sign-all`
+[signing]
+backend = "ssh"
+key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGj+J6N6SO+4P8dOZqfR1oiay2yxhhHnagH52avUqw5h"
+
+[git]
+sign-on-push = true
+```
+
+
 ## Git settings
 
 ### Default remotes for `jj git fetch` and `jj git push`
