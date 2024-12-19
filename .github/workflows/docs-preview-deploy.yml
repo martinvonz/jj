@@ -1,0 +1,138 @@
+# This workflow pushes docs rendered by docs-preview-build.yml to
+# https://github.com/jj-preview/docs.
+#
+# There, GitHub's own "deploy pages" action will run to publish the static files
+# to https://jj-preview.github.io/docs/. This adds a 30s delay before the docs
+# are actually published/updated.
+#
+# jj-preview/docs has a top-level .nojekyll file. Otherwise GitHub will try
+# rendering with Jekyll, and the delay will be longer.
+#
+# We use a separate repo for two reasons:
+#   1. No chance to accidentally mess up the main GH Pages
+#   2. Avoid the impression that the published content is "official"
+
+name: docs-preview-deploy
+
+permissions: read-all
+
+# Security note: 'on: workflow_run' workflows must be very careful about referencing any
+# PR-author-controlled strings (branch names, emails, etc). Ideally - don't do it
+# at all. This workflow only references the PR number, and takes care to validate it
+# before using it.
+on:
+  workflow_run:
+    workflows: [docs-preview-build]
+    types: [completed]
+
+jobs:
+  get-pr-number:
+    runs-on: ubuntu-latest
+    outputs:
+      PR_NUMBER: ${{ steps.result.outputs.PR_NUMBER }}
+    steps:
+      - uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16
+        with:
+          name: pr_number
+          path: pr_number
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event.workflow_run.id }}
+
+      # Security note: The PR number is uploaded by the build workflow, and can
+      # be manipulated. The only thing an attacker can do, though, is overwrite
+      # someone else's docs preview. See
+      # https://github.com/orgs/community/discussions/25220
+      - id: result
+        run: |
+          PR_NUMBER=$(cat pr_number/pr_number)
+          if [[ "$PR_NUMBER" =~ ^[0-9]+$ ]]; then
+            echo "PR_NUMBER=$PR_NUMBER"
+            echo "PR_NUMBER=$PR_NUMBER" >> "$GITHUB_OUTPUT"
+          else
+            echo "PR_NUMBER must contain only digits; something went wrong"
+            exit 1
+          fi
+
+  deploy:
+    runs-on: ubuntu-latest
+    # Give this job access to the deploy key in the 'preview' environment's secrets
+    environment: preview
+    permissions:
+      pull-requests: write # Needed to post a comment with the preview URL
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    needs: [get-pr-number]
+    # Never run jobs for different PRs in parallel, since they push to the same
+    # jj-preview/docs repo
+    concurrency:
+      group: docs-preview-${{ needs.get-pr-number.outputs.PR_NUMBER }}
+      # It is tempting to use cancel-in-progress: true, but then people will get
+      # spammed with cancellation notifications.
+      cancel-in-progress: false
+
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+
+      - uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16
+        with:
+          name: rendered-docs
+          path: rendered-docs
+          # The token has to be provided explicitly when downloading artifacts
+          # from a different workflow run (docs-preview-build.yml in this case)
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event.workflow_run.id }}
+
+      # This workflow is used both for *publishing* previews and for *deleting*
+      # previews. We have to know if we are deleting or publishing a preview.
+      - name: Check if we are asked to delete the preview
+        id: should-delete
+        run: |
+          if [[ -f rendered-docs/.delete-this-preview ]]; then
+            echo "delete=true" >> $GITHUB_OUTPUT
+            rm rendered-docs/.delete-this-preview
+          else
+            echo "delete=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Deploy
+        uses: JamesIves/github-pages-deploy-action@62fec3add6773ec5dbbf18d2ee4260911aa35cf4
+        with:
+          folder: rendered-docs
+          repository-name: jj-preview/docs
+          branch: main
+          target-folder: "pr-${{ needs.get-pr-number.outputs.PR_NUMBER }}"
+          # This key allows pushing to jj-preview/docs. It was set up like this:
+          #
+          #   1. ssh-keygen -t ed25519 -C "" -N "" -f <where to save the keys>
+          #   2. Add the public key to https://github.com/jj-preview/docs/settings/keys/new
+          #   3. Add the private key to a 'preview' environment secret in the main repo
+          ssh-key: ${{ secrets.DOCS_DEPLOY_KEY }}
+          git-config-name: "jj-docs[bot]"
+          git-config-email: "jj-docs[bot]@users.noreply.github.io"
+          commit-message: "Update preview for PR ${{ needs.get-pr-number.outputs.PR_NUMBER }}"
+          force: false
+
+      - name: Post a link to the docs in the PR
+        uses: thollander/actions-comment-pull-request@65f9e5c9a1f2cd378bd74b2e057c9736982a8e74
+        if: ${{ steps.should-delete.outputs.delete == 'false' }}}
+        with:
+          # (double blank line = new paragraph)
+          message: >
+            **📖 The documentation preview has been published to
+            https://jj-preview.github.io/docs/pr-${{ needs.get-pr-number.outputs.PR_NUMBER }}.**
+            Thanks for working on the docs!
+
+
+            Note: it will take about 30 seconds before the preview is available.
+
+
+            ---
+
+
+            <sup>If the preview isn't working, please file an issue or reach out to us in Discord/IRC.
+            You can also build the docs on your own machine by following the instructions at
+            https://martinvonz.github.io/jj/prerelease/contributing/#previewing-the-html-documentation.</sup>
+
+          pr-number: ${{ needs.get-pr-number.outputs.PR_NUMBER }}
+          comment-tag: docs-preview
