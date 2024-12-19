@@ -9,9 +9,9 @@ use jj_lib::signing::SigStatus;
 use jj_lib::signing::SignBehavior;
 use jj_lib::signing::Signer;
 use jj_lib::signing::Verification;
+use jj_lib::test_signing_backend::TestSigningBackend;
 use test_case::test_case;
 use testutils::create_random_commit;
-use testutils::test_signing_backend::TestSigningBackend;
 use testutils::write_random_commit;
 use testutils::TestRepoBackend;
 use testutils::TestWorkspace;
@@ -45,11 +45,12 @@ fn someone_else() -> Signature {
 }
 
 fn good_verification() -> Option<Verification> {
-    Some(Verification {
-        status: SigStatus::Good,
-        key: Some("impeccable".to_owned()),
-        display: None,
-    })
+    Some(Verification::new(
+        SigStatus::Good,
+        Some("impeccable".to_owned()),
+        None,
+        Some("test".into()),
+    ))
 }
 
 #[test_case(TestRepoBackend::Local ; "local backend")]

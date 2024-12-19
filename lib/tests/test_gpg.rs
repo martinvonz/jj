@@ -134,7 +134,7 @@ fn gpg_signing_roundtrip_explicit_key() {
     let data = b"hello world";
     let signature = backend.sign(data, Some("Someone Else")).unwrap();
 
-    assert_debug_snapshot!(backend.verify(data, &signature).unwrap(), @r###"
+    assert_debug_snapshot!(backend.verify(data, &signature).unwrap(), @r#"
     Verification {
         status: Good,
         key: Some(
@@ -143,8 +143,11 @@ fn gpg_signing_roundtrip_explicit_key() {
         display: Some(
             "Someone Else (jj test signing key) <someone-else@example.com>",
         ),
+        backend: Some(
+            "gpg",
+        ),
     }
-    "###);
+    "#);
     assert_debug_snapshot!(backend.verify(b"so so bad", &signature).unwrap(), @r###"
     Verification {
         status: Bad,
@@ -153,6 +156,9 @@ fn gpg_signing_roundtrip_explicit_key() {
         ),
         display: Some(
             "Someone Else (jj test signing key) <someone-else@example.com>",
+        ),
+        backend: Some(
+            "gpg",
         ),
     }
     "###);
@@ -172,24 +178,30 @@ fn unknown_key() {
     e+U6bvqw3pOBoI53Th35drQ0qPI+jAE=
     =kwsk
     -----END PGP SIGNATURE-----";
-    assert_debug_snapshot!(backend.verify(b"hello world", signature).unwrap(), @r###"
+    assert_debug_snapshot!(backend.verify(b"hello world", signature).unwrap(), @r#"
     Verification {
         status: Unknown,
         key: Some(
             "071FE3E324DD7333",
         ),
         display: None,
+        backend: Some(
+            "gpg",
+        ),
     }
-    "###);
-    assert_debug_snapshot!(backend.verify(b"so bad", signature).unwrap(), @r###"
+    "#);
+    assert_debug_snapshot!(backend.verify(b"so bad", signature).unwrap(), @r#"
     Verification {
         status: Unknown,
         key: Some(
             "071FE3E324DD7333",
         ),
         display: None,
+        backend: Some(
+            "gpg",
+        ),
     }
-    "###);
+    "#);
 }
 
 #[test]
