@@ -1305,6 +1305,24 @@ to the current parents may contain changes from multiple commits.
         Ok(expression.to_matcher())
     }
 
+    pub fn snapshot_options_with_start_tracking_matcher<'a>(
+        &self,
+        start_tracking_matcher: &'a dyn Matcher,
+    ) -> Result<SnapshotOptions<'a>, CommandError> {
+        let base_ignores = self.base_ignores()?;
+        let fsmonitor_settings = self.settings().fsmonitor_settings()?;
+        let max_new_file_size = self.settings().max_new_file_size()?;
+        let conflict_marker_style = self.env.conflict_marker_style();
+        Ok(SnapshotOptions {
+            base_ignores,
+            fsmonitor_settings,
+            progress: None,
+            start_tracking_matcher,
+            max_new_file_size,
+            conflict_marker_style,
+        })
+    }
+
     pub(crate) fn path_converter(&self) -> &RepoPathUiConverter {
         self.env.path_converter()
     }
@@ -1751,21 +1769,14 @@ to the current parents may contain changes from multiple commits.
             // committing the working copy.
             return Ok(());
         };
-        let base_ignores = self.base_ignores().map_err(snapshot_command_error)?;
         let auto_tracking_matcher = self
             .auto_tracking_matcher(ui)
             .map_err(snapshot_command_error)?;
+        let options = self
+            .snapshot_options_with_start_tracking_matcher(&auto_tracking_matcher)
+            .map_err(snapshot_command_error)?;
 
         // Compare working-copy tree and operation with repo's, and reload as needed.
-        let fsmonitor_settings = self
-            .settings()
-            .fsmonitor_settings()
-            .map_err(snapshot_command_error)?;
-        let max_new_file_size = self
-            .settings()
-            .max_new_file_size()
-            .map_err(snapshot_command_error)?;
-        let conflict_marker_style = self.env.conflict_marker_style();
         let command = self.env.command.clone();
         let mut locked_ws = self
             .workspace
@@ -1824,19 +1835,15 @@ See https://jj-vcs.github.io/jj/latest/working-copy/#stale-working-copy \
                 Err(e) => return Err(snapshot_command_error(e)),
             };
         self.user_repo = ReadonlyUserRepo::new(repo);
-        let progress = crate::progress::snapshot_progress(ui);
-        let (new_tree_id, stats) = locked_ws
-            .locked_wc()
-            .snapshot(&SnapshotOptions {
-                base_ignores,
-                fsmonitor_settings,
-                progress: progress.as_ref().map(|x| x as _),
-                start_tracking_matcher: &auto_tracking_matcher,
-                max_new_file_size,
-                conflict_marker_style,
-            })
-            .map_err(snapshot_command_error)?;
-        drop(progress);
+        let (new_tree_id, stats) = {
+            let mut options = options;
+            let progress = crate::progress::snapshot_progress(ui);
+            options.progress = progress.as_ref().map(|x| x as _);
+            locked_ws
+                .locked_wc()
+                .snapshot(&options)
+                .map_err(snapshot_command_error)?
+        };
         if new_tree_id != *wc_commit.tree_id() {
             let mut tx = start_repo_transaction(
                 &self.user_repo.repo,
