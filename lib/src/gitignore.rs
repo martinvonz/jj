@@ -279,7 +279,7 @@ mod tests {
 
     #[test]
     #[cfg(not(target_os = "windows"))]
-    fn teest_gitignore_backslash_path() {
+    fn test_gitignore_backslash_path() {
         assert!(!matches(b"/foo/bar", "/foo\\bar"));
         assert!(!matches(b"/foo/bar", "/foo/bar\\"));
 
@@ -296,7 +296,7 @@ mod tests {
     #[cfg(target_os = "windows")]
     /// ignore crate consider backslashes as a directory divider only on
     /// Windows.
-    fn teest_gitignore_backslash_path() {
+    fn test_gitignore_backslash_path() {
         assert!(matches(b"/foo/bar", "/foo\\bar"));
         assert!(matches(b"/foo/bar", "/foo/bar\\"));
 
