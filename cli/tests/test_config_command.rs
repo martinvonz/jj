@@ -203,7 +203,7 @@ fn test_config_list_layer() {
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     // Test with fresh new config file
     let user_config_path = test_env.config_path().join("config.toml");
-    test_env.set_config_path(user_config_path.clone());
+    test_env.set_config_path(&user_config_path);
     let repo_path = test_env.env_root().join("repo");
 
     // User
@@ -269,7 +269,7 @@ fn test_config_layer_override_default() {
     "###);
 
     // User
-    test_env.add_config(&format!("{config_key} = {value:?}\n", value = "user"));
+    test_env.add_config(format!("{config_key} = {value:?}\n", value = "user"));
     let stdout = test_env.jj_cmd_success(&repo_path, &["config", "list", config_key]);
     insta::assert_snapshot!(stdout, @r###"
     merge-tools.vimdiff.program = "user"
@@ -350,7 +350,7 @@ fn test_config_layer_override_env() {
     "###);
 
     // User
-    test_env.add_config(&format!("{config_key} = {value:?}\n", value = "user"));
+    test_env.add_config(format!("{config_key} = {value:?}\n", value = "user"));
     let stdout = test_env.jj_cmd_success(&repo_path, &["config", "list", config_key]);
     insta::assert_snapshot!(stdout, @r###"
     ui.editor = "user"
@@ -492,7 +492,7 @@ fn test_config_set_for_user() {
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     // Test with fresh new config file
     let user_config_path = test_env.config_path().join("config.toml");
-    test_env.set_config_path(user_config_path.clone());
+    test_env.set_config_path(&user_config_path);
     let repo_path = test_env.env_root().join("repo");
 
     test_env.jj_cmd_ok(
@@ -586,7 +586,7 @@ fn test_config_set_toml_types() {
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     // Test with fresh new config file
     let user_config_path = test_env.config_path().join("config.toml");
-    test_env.set_config_path(user_config_path.clone());
+    test_env.set_config_path(&user_config_path);
     let repo_path = test_env.env_root().join("repo");
 
     let set_value = |key, value| {
@@ -700,7 +700,7 @@ fn test_config_unset_table_like() {
     let mut test_env = TestEnvironment::default();
     // Test with fresh new config file
     let user_config_path = test_env.config_path().join("config.toml");
-    test_env.set_config_path(user_config_path.clone());
+    test_env.set_config_path(&user_config_path);
 
     std::fs::write(
         &user_config_path,
@@ -740,7 +740,7 @@ fn test_config_unset_for_user() {
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     // Test with fresh new config file
     let user_config_path = test_env.config_path().join("config.toml");
-    test_env.set_config_path(user_config_path.clone());
+    test_env.set_config_path(&user_config_path);
     let repo_path = test_env.env_root().join("repo");
 
     test_env.jj_cmd_ok(&repo_path, &["config", "set", "--user", "foo", "true"]);
@@ -820,7 +820,7 @@ fn test_config_edit_user_new_file() {
     let mut test_env = TestEnvironment::default();
     let user_config_path = test_env.config_path().join("config").join("file.toml");
     test_env.set_up_fake_editor(); // set $EDITOR, but added configuration is ignored
-    test_env.set_config_path(user_config_path.clone());
+    test_env.set_config_path(&user_config_path);
     assert!(!user_config_path.exists());
 
     test_env.jj_cmd_ok(test_env.env_root(), &["config", "edit", "--user"]);
@@ -856,7 +856,7 @@ fn test_config_path() {
 
     let user_config_path = test_env.env_root().join("config.toml");
     let repo_config_path = repo_path.join(PathBuf::from_iter([".jj", "repo", "config.toml"]));
-    test_env.set_config_path(user_config_path.clone());
+    test_env.set_config_path(&user_config_path);
 
     insta::assert_snapshot!(
         test_env.jj_cmd_success(&repo_path, &["config", "path", "--user"]),
@@ -1057,7 +1057,7 @@ fn test_config_conditional() {
     let repo2_path = test_env.home_dir().join("repo2");
     // Test with fresh new config file
     let user_config_path = test_env.env_root().join("config.toml");
-    test_env.set_config_path(user_config_path.clone());
+    test_env.set_config_path(&user_config_path);
     std::fs::write(
         &user_config_path,
         indoc! {"
@@ -1127,7 +1127,7 @@ fn test_config_conditional_without_home_dir() {
     let repo_path = test_env.env_root().join("repo");
     // Test with fresh new config file
     let user_config_path = test_env.env_root().join("config.toml");
-    test_env.set_config_path(user_config_path.clone());
+    test_env.set_config_path(&user_config_path);
     std::fs::write(
         &user_config_path,
         format!(
