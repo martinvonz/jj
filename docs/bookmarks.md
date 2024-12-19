@@ -31,24 +31,24 @@ does not provide a way to manually edit these recorded positions.
 
 A remote bookmark can be associated with a local bookmark of the same name. This
 is called a **tracked remote bookmark** (which maps to a Git remote branch when
-using the Git backend). When you pull a tracked bookmark from a remote, any
+using the Git backend). When you fetch a tracked bookmark from a remote, any
 changes compared to the current record of the remote's state will be propagated
 to the corresponding local bookmark, which will be created if it doesn't exist
 already.
 
-!!! note "Details: how `fetch` pulls bookmarks"
-
-    Let's say you run `jj git fetch --remote origin` and, during the fetch, `jj`
-    determines that the remote's `main` bookmark has been moved so that its target is
-    now ahead of the local record in `main@origin`.
-
-    `jj` will then update `main@origin` to the new target. If `main@origin` is
-    **tracked**, `jj` will also apply the change to the local bookmark `main`. If the
-    local target has also been moved compared to `main@origin` (probably because you
-    ran `jj bookmark set main`), then the two updates will be merged. If one is ahead
-    of the other, then that target will become the new target. Otherwise, the local
-    bookmark will become conflicted (see the ["Conflicts" section](#conflicts) below
-    for details).
+> #### Note on how `jj git fetch` propagates bookmarks
+> 
+> Let's say you run `jj git fetch --remote origin` and, during the fetch, `jj`
+> determines that the remote's `main` bookmark has been moved so that its target is
+> now ahead of the local record in `main@origin`.
+> 
+> `jj` will then update `main@origin` to the new target. If `main@origin` is
+> **tracked**, `jj` will also apply the change to the local bookmark `main`. If the
+> local target has also been moved compared to `main@origin` (probably because you
+> ran `jj bookmark set main`), then the two updates will be merged. If one is ahead
+> of the other, then that target will become the new target. Otherwise, the local
+> bookmark will become conflicted (see the ["Conflicts" section](#conflicts) below
+> for details).
 
 Most commands don't show the tracked remote bookmark if it has the same target as
 the local bookmark. The local bookmark (without `@<remote name>`) is considered the

@@ -286,43 +286,43 @@ version and the dependencies needed to build the docs. Install it like so:
 
 [uv]: https://docs.astral.sh/uv/
 
-=== "macOS/Linux"
+#### macOS/Linux
 
-    ``` { .shell .copy }
-    curl -LsSf https://astral.sh/uv/install.sh | sh
-    ```
+``` { .shell .copy }
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
 
-    !!! note
-        If you don't have `~/.local/bin` in your `PATH`, the installer will
-        modify your shell profile. To avoid it:
+> [!TIP]
+> If you don't have `~/.local/bin` in your `PATH`, the installer will
+> modify your shell profile. To avoid it:
+>
+> ``` { .shell .copy }
+> curl -LsSf https://astral.sh/uv/install.sh | env INSTALLER_NO_MODIFY_PATH=1 sh
+> ```
 
-        ``` { .shell .copy }
-        curl -LsSf https://astral.sh/uv/install.sh | env INSTALLER_NO_MODIFY_PATH=1 sh
-        ```
+#### Windows
 
-=== "Windows"
+``` { .shell .copy }
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
 
-    ``` { .shell .copy }
-    powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
-    ```
+#### Homebrew
 
-=== "Homebrew"
+``` { .shell .copy }
+brew install uv
+```
 
-    ``` { .shell .copy }
-    brew install uv
-    ```
+#### Cargo
 
-=== "Cargo"
+``` { .shell .copy }
+# This might take a while
+cargo install --git https://github.com/astral-sh/uv uv
+```
 
-    ``` { .shell .copy }
-    # This might take a while
-    cargo install --git https://github.com/astral-sh/uv uv
-    ```
+#### Other options
 
-=== "Other options"
-
-    * Directly download the binaries from GitHub: [uv releases](https://github.com/astral-sh/uv/releases).
-    * Even more options: [Installing uv](https://docs.astral.sh/uv/getting-started/installation/).
+* Directly download the binaries from GitHub: [uv releases](https://github.com/astral-sh/uv/releases).
+* Even more options: [Installing uv](https://docs.astral.sh/uv/getting-started/installation/).
 
 ### Build the docs
 
@@ -335,21 +335,19 @@ uv run mkdocs serve
 Open <http://127.0.0.1:8000> in your browser to see the docs.
 
 As you edit the `.md` files in `docs/`, the website should be rebuilt and
-reloaded in your browser automatically.
-
-!!! note "If the docs are not updating"
-    Check the terminal from which you ran `uv run mkdocs serve` for any build
-    errors or warnings. Warnings about `"GET /versions.json HTTP/1.1" code 404`
-    are expected and harmless.
+reloaded in your browser automatically. If the docs are not updating, check
+the terminal from which you ran `uv run mkdocs serve` for any build errors
+or warnings. Warnings about `"GET /versions.json HTTP/1.1" code 404` are
+expected and harmless.
 
 ## Building the entire website
 
-!!! tip
-    Building the entire website is not usually necessary. If you are editing
-    documentation, the previous section is enough.
-
-    These instructions are relevant if you are working on the versioning of the
-    documentation that we currently do with `mike`.
+> [!TIP]
+> Building the entire website is not usually necessary. If you are editing
+> documentation, the previous section is enough.
+> 
+> These instructions are relevant if you are working on the versioning of the
+> documentation that we currently do with `mike`.
 
 The full `jj` website includes the documentation for several `jj` versions
 (`prerelease`, latest release, and the older releases). The top-level
