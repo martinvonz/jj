@@ -68,17 +68,12 @@ impl ScopeCondition {
     }
 
     fn expand_paths(mut self, context: &ConfigResolutionContext) -> Result<Self, &'static str> {
+        // It might make some sense to compare paths in canonicalized form, but
+        // be careful to not resolve relative path patterns against cwd, which
+        // wouldn't be what the user would expect.
         for path in self.repositories.as_mut().into_iter().flatten() {
-            // TODO: might be better to compare paths in canonicalized form?
             if let Some(new_path) = expand_home(path, context.home_dir)? {
                 *path = new_path;
-            }
-            // TODO: better to skip relative paths instead of an error? The rule
-            // differs across platforms. "/" is relative path on Windows.
-            // Another option is to add "platforms = [..]" predicate and do path
-            // validation lazily.
-            if path.is_relative() {
-                return Err("Relative path in --when.repositories");
             }
         }
         Ok(self)
@@ -344,7 +339,6 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(windows))] // '/' is not absolute path on Windows
     fn test_resolve_repo_path() {
         let mut source_config = StackedConfig::empty();
         source_config.add_layer(new_user_layer(indoc! {"
@@ -417,13 +411,6 @@ mod tests {
         };
         assert_matches!(
             resolve(&new_config("--when.repositories = 0"), &context),
-            Err(ConfigGetError::Type { .. })
-        );
-        assert_matches!(
-            resolve(
-                &new_config("--when.repositories = ['relative/path']"),
-                &context
-            ),
             Err(ConfigGetError::Type { .. })
         );
     }
