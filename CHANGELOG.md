@@ -973,6 +973,8 @@ Thanks to the people who made this release happen!
 * `jj rebase -r` now accepts `--insert-after` and `--insert-before` options to
   customize the location of the rebased revisions.
 
+* `jj duplicate` now has a shortened alias `jj dup`. 
+
 ### Fixed bugs
 
 * Revsets now support `\`-escapes in string literal.

@@ -50,6 +50,7 @@ use crate::ui::Ui;
 /// children indicated by the arguments will be rebased onto the heads of the
 /// specified commits.
 #[derive(clap::Args, Clone, Debug)]
+#[command(visible_aliases = &["dup"])]
 pub(crate) struct DuplicateArgs {
     /// The revision(s) to duplicate (default: @)
     #[arg(
