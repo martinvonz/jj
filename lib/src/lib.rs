@@ -17,6 +17,8 @@
 #![warn(missing_docs)]
 #![deny(unused_must_use)]
 #![forbid(unsafe_code)]
+// Required for wasi symlink support.
+#![cfg_attr(target_os = "wasi", feature(wasi_ext))]
 
 // Needed so that proc macros can be used inside jj_lib and by external crates
 // that depend on it.
