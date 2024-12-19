@@ -556,7 +556,7 @@ impl CommandHelper {
     /// Returns true if the current operation is considered to be the head.
     pub fn is_at_head_operation(&self) -> bool {
         // TODO: should we accept --at-op=<head_id> as the head op? or should we
-        // make --at-op=@ imply --ignore-workign-copy (i.e. not at the head.)
+        // make --at-op=@ imply --ignore-working-copy (i.e. not at the head.)
         matches!(
             self.data.global_args.at_operation.as_deref(),
             None | Some("@")
