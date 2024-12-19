@@ -1256,4 +1256,13 @@ Condition keys:
 
 * `--when.repositories`: List of paths to match the repository path prefix.
 
+Paths should be absolute. Each path component (directory or file name, drive
+letter, etc.) is compared case-sensitively on all platforms. A path starting
+with `~` is expanded to the home directory. On Windows, directory separator may
+be either `\` or `/`. (Beware that `\` needs escape in double-quoted strings.)
+
+Use `jj root` to see the workspace root directory. Note that the repository path
+is in the main workspace if you're using multiple workspaces with `jj
+workspace`.
+
 If no conditions are specified, table is always enabled.
