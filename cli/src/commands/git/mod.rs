@@ -99,14 +99,6 @@ pub fn maybe_add_gitignore(workspace_command: &WorkspaceCommandHelper) -> Result
     }
 }
 
-fn get_single_remote(git_repo: &git2::Repository) -> Result<Option<String>, CommandError> {
-    let git_remotes = git_repo.remotes()?;
-    Ok(match git_remotes.len() {
-        1 => git_remotes.get(0).map(ToOwned::to_owned),
-        _ => None,
-    })
-}
-
 /// Sets repository level `trunk()` alias to the specified remote branch.
 fn write_repository_level_trunk_alias(
     ui: &Ui,

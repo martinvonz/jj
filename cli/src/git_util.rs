@@ -35,6 +35,8 @@ use jj_lib::op_store::RefTarget;
 use jj_lib::op_store::RemoteRef;
 use jj_lib::repo::ReadonlyRepo;
 use jj_lib::repo::Repo;
+use jj_lib::settings::ConfigResultExt as _;
+use jj_lib::settings::UserSettings;
 use jj_lib::store::Store;
 use jj_lib::str_util::StringPattern;
 use jj_lib::workspace::Workspace;
@@ -64,6 +66,14 @@ pub fn map_git_error(err: git2::Error) -> CommandError {
     } else {
         user_error(err)
     }
+}
+
+pub fn get_single_remote(git_repo: &git2::Repository) -> Result<Option<String>, CommandError> {
+    let git_remotes = git_repo.remotes()?;
+    Ok(match git_remotes.len() {
+        1 => git_remotes.get(0).map(ToOwned::to_owned),
+        _ => None,
+    })
 }
 
 pub fn get_git_repo(store: &Store) -> Result<git2::Repository, CommandError> {
@@ -456,22 +466,26 @@ export or their "parent" bookmarks."#,
     Ok(())
 }
 
+pub struct FetchArgs<'a> {
+    pub branch: &'a [StringPattern],
+    pub remotes: &'a [String],
+}
+
 pub fn git_fetch(
     ui: &mut Ui,
     tx: &mut WorkspaceCommandTransaction,
-    git_repo: &git2::Repository,
-    remotes: &[String],
-    branch: &[StringPattern],
+    repo: &git2::Repository,
+    args: &FetchArgs,
 ) -> Result<(), CommandError> {
     let git_settings = tx.settings().git_settings();
 
-    for remote in remotes {
+    for remote in args.remotes {
         let stats = with_remote_git_callbacks(ui, None, |cb| {
             git::fetch(
                 tx.repo_mut(),
-                git_repo,
+                repo,
                 remote,
-                branch,
+                args.branch,
                 cb,
                 &git_settings,
                 None,
@@ -479,7 +493,8 @@ pub fn git_fetch(
         })
         .map_err(|err| match err {
             GitFetchError::InvalidBranchPattern => {
-                if branch
+                if args
+                    .branch
                     .iter()
                     .any(|pattern| pattern.as_exact().is_some_and(|s| s.contains('*')))
                 {
@@ -500,8 +515,8 @@ pub fn git_fetch(
     warn_if_branches_not_found(
         ui,
         tx,
-        branch,
-        &remotes.iter().map(StringPattern::exact).collect_vec(),
+        args.branch,
+        &args.remotes.iter().map(StringPattern::exact).collect_vec(),
     )
 }
 
@@ -534,4 +549,42 @@ fn warn_if_branches_not_found(
     }
 
     Ok(())
+}
+
+const DEFAULT_REMOTE: &str = "origin";
+
+pub fn get_fetch_remotes(
+    ui: &Ui,
+    settings: &UserSettings,
+    repo: &git2::Repository,
+    remotes: &[String],
+    use_all_remotes: bool,
+) -> Result<Vec<String>, CommandError> {
+    if use_all_remotes {
+        Ok(repo
+            .remotes()?
+            .iter()
+            .filter_map(|x| x.map(ToOwned::to_owned))
+            .collect())
+    } else if !remotes.is_empty() {
+        Ok(remotes.to_vec())
+    } else {
+        const KEY: &str = "git.fetch";
+        if let Ok(remotes) = settings.get(KEY) {
+            Ok(remotes)
+        } else if let Some(remote) = settings.get_string(KEY).optional()? {
+            Ok(vec![remote])
+        } else if let Some(remote) = get_single_remote(repo)? {
+            // if nothing was explicitly configured, try to guess
+            if remote != DEFAULT_REMOTE {
+                writeln!(
+                    ui.hint_default(),
+                    "Fetching from the only existing remote: {remote}"
+                )?;
+            }
+            Ok(vec![remote])
+        } else {
+            Ok(vec![DEFAULT_REMOTE.to_owned()])
+        }
+    }
 }
