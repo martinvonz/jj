@@ -70,7 +70,7 @@ indexmap = { version = "2.7.0", features = ["serde"] }
 indoc = "2.0.4"
 insta = { version = "1.41.1", features = ["filters"] }
 itertools = "0.13.0"
-libc = { version = "0.2.168" }
+libc = { version = "0.2.169" }
 maplit = "1.0.2"
 minus = { version = "5.6.1", features = ["dynamic_output", "search"] }
 num_cpus = "1.16.0"
