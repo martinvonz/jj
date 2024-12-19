@@ -274,7 +274,7 @@ Thanks to the people who made this release happen!
 * New template functions `pad_start()`, `pad_end()`, `truncate_start()`, and
   `truncate_end()` are added.
 
-* Add a new template alias `bultin_log_compact_full_description()`.
+* Add a new template alias `builtin_log_compact_full_description()`.
 
 * Added the config settings `diff.color-words.context` and `diff.git.context` to
   control the default number of lines of context shown.
