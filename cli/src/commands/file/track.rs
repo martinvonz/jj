@@ -14,7 +14,6 @@
 
 use std::io::Write;
 
-use jj_lib::working_copy::SnapshotOptions;
 use tracing::instrument;
 
 use crate::cli_util::print_snapshot_stats;
@@ -45,22 +44,14 @@ pub(crate) fn cmd_file_track(
     args: &FileTrackArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let conflict_marker_style = workspace_command.env().conflict_marker_style();
     let matcher = workspace_command
         .parse_file_patterns(ui, &args.paths)?
         .to_matcher();
+    let options = workspace_command.snapshot_options_with_start_tracking_matcher(&matcher)?;
 
     let mut tx = workspace_command.start_transaction().into_inner();
-    let base_ignores = workspace_command.base_ignores()?;
     let (mut locked_ws, _wc_commit) = workspace_command.start_working_copy_mutation()?;
-    let (_tree_id, stats) = locked_ws.locked_wc().snapshot(&SnapshotOptions {
-        base_ignores,
-        fsmonitor_settings: command.settings().fsmonitor_settings()?,
-        progress: None,
-        start_tracking_matcher: &matcher,
-        max_new_file_size: command.settings().max_new_file_size()?,
-        conflict_marker_style,
-    })?;
+    let (_tree_id, stats) = locked_ws.locked_wc().snapshot(&options)?;
     let num_rebased = tx.repo_mut().rebase_descendants(command.settings())?;
     if num_rebased > 0 {
         writeln!(ui.status(), "Rebased {num_rebased} descendant commits")?;

@@ -19,7 +19,6 @@ use itertools::Itertools;
 use jj_lib::merge::Merge;
 use jj_lib::merged_tree::MergedTreeBuilder;
 use jj_lib::repo::Repo;
-use jj_lib::working_copy::SnapshotOptions;
 use tracing::instrument;
 
 use crate::cli_util::print_snapshot_stats;
@@ -52,15 +51,15 @@ pub(crate) fn cmd_file_untrack(
     args: &FileUntrackArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let conflict_marker_style = workspace_command.env().conflict_marker_style();
     let store = workspace_command.repo().store().clone();
     let matcher = workspace_command
         .parse_file_patterns(ui, &args.paths)?
         .to_matcher();
+    let auto_tracking_matcher = workspace_command.auto_tracking_matcher(ui)?;
+    let options =
+        workspace_command.snapshot_options_with_start_tracking_matcher(&auto_tracking_matcher)?;
 
     let mut tx = workspace_command.start_transaction().into_inner();
-    let base_ignores = workspace_command.base_ignores()?;
-    let auto_tracking_matcher = workspace_command.auto_tracking_matcher(ui)?;
     let (mut locked_ws, wc_commit) = workspace_command.start_working_copy_mutation()?;
     // Create a new tree without the unwanted files
     let mut tree_builder = MergedTreeBuilder::new(wc_commit.tree_id().clone());
@@ -78,14 +77,7 @@ pub(crate) fn cmd_file_untrack(
     locked_ws.locked_wc().reset(&new_commit)?;
     // Commit the working copy again so we can inform the user if paths couldn't be
     // untracked because they're not ignored.
-    let (wc_tree_id, stats) = locked_ws.locked_wc().snapshot(&SnapshotOptions {
-        base_ignores,
-        fsmonitor_settings: command.settings().fsmonitor_settings()?,
-        progress: None,
-        start_tracking_matcher: &auto_tracking_matcher,
-        max_new_file_size: command.settings().max_new_file_size()?,
-        conflict_marker_style,
-    })?;
+    let (wc_tree_id, stats) = locked_ws.locked_wc().snapshot(&options)?;
     if wc_tree_id != *new_commit.tree_id() {
         let wc_tree = store.get_root_tree(&wc_tree_id)?;
         let added_back = wc_tree.entries_matching(matcher.as_ref()).collect_vec();
