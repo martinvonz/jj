@@ -18,6 +18,8 @@ use indoc::indoc;
 use itertools::Itertools;
 use regex::Regex;
 
+use crate::common::fake_editor_path;
+use crate::common::to_toml_value;
 use crate::common::TestEnvironment;
 
 #[test]
@@ -203,7 +205,7 @@ fn test_config_list_layer() {
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     // Test with fresh new config file
     let user_config_path = test_env.config_path().join("config.toml");
-    test_env.set_config_path(user_config_path.clone());
+    test_env.set_config_path(&user_config_path);
     let repo_path = test_env.env_root().join("repo");
 
     // User
@@ -269,7 +271,10 @@ fn test_config_layer_override_default() {
     "###);
 
     // User
-    test_env.add_config(&format!("{config_key} = {value:?}\n", value = "user"));
+    test_env.add_config(format!(
+        "{config_key} = {value}\n",
+        value = to_toml_value("user")
+    ));
     let stdout = test_env.jj_cmd_success(&repo_path, &["config", "list", config_key]);
     insta::assert_snapshot!(stdout, @r###"
     merge-tools.vimdiff.program = "user"
@@ -278,7 +283,7 @@ fn test_config_layer_override_default() {
     // Repo
     std::fs::write(
         repo_path.join(".jj/repo/config.toml"),
-        format!("{config_key} = {value:?}\n", value = "repo"),
+        format!("{config_key} = {value}\n", value = to_toml_value("repo")),
     )
     .unwrap();
     let stdout = test_env.jj_cmd_success(&repo_path, &["config", "list", config_key]);
@@ -294,7 +299,7 @@ fn test_config_layer_override_default() {
             "list",
             config_key,
             "--config",
-            &format!("{config_key}={value:?}", value = "command-arg"),
+            &format!("{config_key}={value}", value = to_toml_value("command-arg")),
         ],
     );
     insta::assert_snapshot!(stdout, @r###"
@@ -310,7 +315,7 @@ fn test_config_layer_override_default() {
             config_key,
             "--include-overridden",
             "--config",
-            &format!("{config_key}={value:?}", value = "command-arg"),
+            &format!("{config_key}={value}", value = to_toml_value("command-arg")),
         ],
     );
     insta::assert_snapshot!(stdout, @r###"
@@ -350,7 +355,10 @@ fn test_config_layer_override_env() {
     "###);
 
     // User
-    test_env.add_config(&format!("{config_key} = {value:?}\n", value = "user"));
+    test_env.add_config(format!(
+        "{config_key} = {value}\n",
+        value = to_toml_value("user")
+    ));
     let stdout = test_env.jj_cmd_success(&repo_path, &["config", "list", config_key]);
     insta::assert_snapshot!(stdout, @r###"
     ui.editor = "user"
@@ -359,7 +367,7 @@ fn test_config_layer_override_env() {
     // Repo
     std::fs::write(
         repo_path.join(".jj/repo/config.toml"),
-        format!("{config_key} = {value:?}\n", value = "repo"),
+        format!("{config_key} = {value}\n", value = to_toml_value("repo")),
     )
     .unwrap();
     let stdout = test_env.jj_cmd_success(&repo_path, &["config", "list", config_key]);
@@ -382,7 +390,7 @@ fn test_config_layer_override_env() {
             "list",
             config_key,
             "--config",
-            &format!("{config_key}={value:?}", value = "command-arg"),
+            &format!("{config_key}={value}", value = to_toml_value("command-arg")),
         ],
     );
     insta::assert_snapshot!(stdout, @r###"
@@ -398,7 +406,7 @@ fn test_config_layer_override_env() {
             config_key,
             "--include-overridden",
             "--config",
-            &format!("{config_key}={value:?}", value = "command-arg"),
+            &format!("{config_key}={value}", value = to_toml_value("command-arg")),
         ],
     );
     insta::assert_snapshot!(stdout, @r###"
@@ -428,7 +436,10 @@ fn test_config_layer_workspace() {
     // Repo
     std::fs::write(
         main_path.join(".jj/repo/config.toml"),
-        format!("{config_key} = {value:?}\n", value = "main-repo"),
+        format!(
+            "{config_key} = {value}\n",
+            value = to_toml_value("main-repo")
+        ),
     )
     .unwrap();
     let stdout = test_env.jj_cmd_success(&main_path, &["config", "list", config_key]);
@@ -492,7 +503,7 @@ fn test_config_set_for_user() {
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     // Test with fresh new config file
     let user_config_path = test_env.config_path().join("config.toml");
-    test_env.set_config_path(user_config_path.clone());
+    test_env.set_config_path(&user_config_path);
     let repo_path = test_env.env_root().join("repo");
 
     test_env.jj_cmd_ok(
@@ -586,7 +597,7 @@ fn test_config_set_toml_types() {
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     // Test with fresh new config file
     let user_config_path = test_env.config_path().join("config.toml");
-    test_env.set_config_path(user_config_path.clone());
+    test_env.set_config_path(&user_config_path);
     let repo_path = test_env.env_root().join("repo");
 
     let set_value = |key, value| {
@@ -700,7 +711,7 @@ fn test_config_unset_table_like() {
     let mut test_env = TestEnvironment::default();
     // Test with fresh new config file
     let user_config_path = test_env.config_path().join("config.toml");
-    test_env.set_config_path(user_config_path.clone());
+    test_env.set_config_path(&user_config_path);
 
     std::fs::write(
         &user_config_path,
@@ -740,7 +751,7 @@ fn test_config_unset_for_user() {
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     // Test with fresh new config file
     let user_config_path = test_env.config_path().join("config.toml");
-    test_env.set_config_path(user_config_path.clone());
+    test_env.set_config_path(&user_config_path);
     let repo_path = test_env.env_root().join("repo");
 
     test_env.jj_cmd_ok(&repo_path, &["config", "set", "--user", "foo", "true"]);
@@ -819,8 +830,9 @@ fn test_config_edit_user() {
 fn test_config_edit_user_new_file() {
     let mut test_env = TestEnvironment::default();
     let user_config_path = test_env.config_path().join("config").join("file.toml");
-    test_env.set_up_fake_editor(); // set $EDITOR, but added configuration is ignored
-    test_env.set_config_path(user_config_path.clone());
+    test_env.set_up_fake_editor(); // set $EDIT_SCRIPT, but added configuration is ignored
+    test_env.add_env_var("EDITOR", fake_editor_path());
+    test_env.set_config_path(&user_config_path);
     assert!(!user_config_path.exists());
 
     test_env.jj_cmd_ok(test_env.env_root(), &["config", "edit", "--user"]);
@@ -856,7 +868,7 @@ fn test_config_path() {
 
     let user_config_path = test_env.env_root().join("config.toml");
     let repo_config_path = repo_path.join(PathBuf::from_iter([".jj", "repo", "config.toml"]));
-    test_env.set_config_path(user_config_path.clone());
+    test_env.set_config_path(&user_config_path);
 
     insta::assert_snapshot!(
         test_env.jj_cmd_success(&repo_path, &["config", "path", "--user"]),
@@ -1057,7 +1069,7 @@ fn test_config_conditional() {
     let repo2_path = test_env.home_dir().join("repo2");
     // Test with fresh new config file
     let user_config_path = test_env.env_root().join("config.toml");
-    test_env.set_config_path(user_config_path.clone());
+    test_env.set_config_path(&user_config_path);
     std::fs::write(
         &user_config_path,
         indoc! {"
@@ -1127,7 +1139,7 @@ fn test_config_conditional_without_home_dir() {
     let repo_path = test_env.env_root().join("repo");
     // Test with fresh new config file
     let user_config_path = test_env.env_root().join("config.toml");
-    test_env.set_config_path(user_config_path.clone());
+    test_env.set_config_path(&user_config_path);
     std::fs::write(
         &user_config_path,
         format!(
@@ -1137,7 +1149,7 @@ fn test_config_conditional_without_home_dir() {
                 --when.repositories = [{repo_path}]
                 foo = 'repo'
             "},
-            repo_path = toml_edit::Value::from(repo_path.to_str().unwrap())
+            repo_path = to_toml_value(repo_path.to_str().unwrap())
         ),
     )
     .unwrap();

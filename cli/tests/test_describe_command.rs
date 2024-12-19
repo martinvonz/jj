@@ -140,9 +140,15 @@ fn test_describe() {
     std::fs::write(&edit_script, "fail").unwrap();
     let stderr = test_env.jj_cmd_failure(&repo_path, &["describe"]);
     assert!(stderr.contains("exited with an error"));
+}
+
+#[test]
+fn test_describe_editor_env() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
 
     // Fails if the editor doesn't exist
-    std::fs::write(&edit_script, "").unwrap();
     let assert = test_env
         .jj_cmd(&repo_path, &["describe"])
         .env("EDITOR", "this-editor-does-not-exist")
