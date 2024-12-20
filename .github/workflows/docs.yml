@@ -23,7 +23,7 @@ jobs:
         with:
           python-version: 3.11
       - name: Install uv
-        uses: astral-sh/setup-uv@38f3f104447c67c051c4a08e39b64a148898af3a
+        uses: astral-sh/setup-uv@180f8b44399608a850e1db031fa65c77746566d3
         with:
           version: "0.5.1"
       - name: Install dependencies, compile and deploy docs
