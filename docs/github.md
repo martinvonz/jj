@@ -67,8 +67,10 @@ changes.
 ## Working in a Git co-located repository
 
 After doing `jj git init --colocate`, Git will be in a [detached HEAD
-state][detached], which is unusual, as Git mainly works with bookmarks. In a
-co-located repository, every `jj` command will automatically synchronize
+state][detached], which is unusual, as Git mainly works with named branches; jj
+does not.
+
+In a co-located repository, every `jj` command will automatically synchronize
 Jujutsu's view of the repo with Git's view. For example, `jj commit` updates the
 HEAD of the Git repository, enabling an incremental migration.
 
