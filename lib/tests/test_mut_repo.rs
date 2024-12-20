@@ -524,6 +524,7 @@ fn test_has_changed() {
     mut_repo.set_local_bookmark_target("main", RefTarget::normal(commit2.id().clone()));
     assert!(mut_repo.has_changes());
     mut_repo.set_local_bookmark_target("main", RefTarget::normal(commit1.id().clone()));
+    mut_repo.remove_head(commit2.id());
     assert!(!mut_repo.has_changes());
 
     mut_repo.set_remote_bookmark("main", "origin", normal_remote_ref(commit2.id()));

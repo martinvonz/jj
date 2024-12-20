@@ -899,6 +899,7 @@ impl MutableRepo {
     }
 
     pub fn has_changes(&self) -> bool {
+        self.view.ensure_clean(|v| self.enforce_view_invariants(v));
         !(self.parent_mapping.is_empty() && self.view() == &self.base_repo.view)
     }
 
@@ -1548,7 +1549,11 @@ impl MutableRepo {
     }
 
     pub fn set_local_bookmark_target(&mut self, name: &str, target: RefTarget) {
-        self.view_mut().set_local_bookmark_target(name, target);
+        let view = self.view_mut();
+        for id in target.added_ids() {
+            view.add_head(id);
+        }
+        view.set_local_bookmark_target(name, target);
     }
 
     pub fn merge_local_bookmark(
@@ -1561,7 +1566,7 @@ impl MutableRepo {
         let index = self.index.as_index();
         let self_target = view.get_local_bookmark(name);
         let new_target = merge_ref_targets(index, self_target, base_target, other_target);
-        view.set_local_bookmark_target(name, new_target);
+        self.set_local_bookmark_target(name, new_target);
     }
 
     pub fn get_remote_bookmark(&self, name: &str, remote_name: &str) -> RemoteRef {

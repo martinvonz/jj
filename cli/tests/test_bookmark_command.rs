@@ -1091,9 +1091,9 @@ fn test_bookmark_track_conflict() {
     insta::assert_snapshot!(stderr, @r###"
     Started tracking 1 remote bookmarks.
     main (conflicted):
-      + qpvuntsm e802c4f8 (empty) b
-      + qpvuntsm hidden 427890ea (empty) a
-      @origin (behind by 1 commits): qpvuntsm hidden 427890ea (empty) a
+      + qpvuntsm?? e802c4f8 (empty) b
+      + qpvuntsm?? 427890ea (empty) a
+      @origin (behind by 1 commits): qpvuntsm?? 427890ea (empty) a
     "###);
 }
 
