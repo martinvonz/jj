@@ -62,6 +62,10 @@ use crate::ui::Ui;
 /// bookmarks. Use `--all` to push all bookmarks. Use `--change` to generate
 /// bookmark names based on the change IDs of specific commits.
 ///
+/// Unlike in Git, the remote to push to is not derived from the tracked remote
+/// bookmarks. Use `--remote` to select the remote Git repository by name. There
+/// is no option to push to multiple remotes.
+///
 /// Before the command actually moves, creates, or deletes a remote bookmark, it
 /// makes several [safety checks]. If there is a problem, you may need to run
 /// `jj git fetch --remote <remote name>` and/or resolve some [bookmark
@@ -81,8 +85,6 @@ pub struct GitPushArgs {
     ///
     /// This defaults to the `git.push` setting. If that is not configured, and
     /// if there are multiple remotes, the remote named "origin" will be used.
-    /// Unlike in Git, the default remote is not derived from the tracked remote
-    /// bookmarks.
     #[arg(long, add = ArgValueCandidates::new(complete::git_remotes))]
     remote: Option<String>,
     /// Push only this bookmark, or bookmarks matching a pattern (can be
