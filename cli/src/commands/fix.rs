@@ -287,7 +287,7 @@ pub(crate) fn cmd_fix(
             if changes > 0 {
                 num_fixed_commits += 1;
                 let new_tree = tree_builder.write_tree(rewriter.mut_repo().store())?;
-                let builder = rewriter.reparent(command.settings())?;
+                let builder = rewriter.reparent(command.settings());
                 builder.set_tree_id(new_tree).write()?;
             }
             Ok(())

@@ -295,11 +295,10 @@ impl<'repo> CommitRewriter<'repo> {
 
     /// Rewrite the old commit onto the new parents without changing its
     /// contents. Returns a `CommitBuilder` for the new commit.
-    pub fn reparent(self, settings: &UserSettings) -> BackendResult<CommitBuilder<'repo>> {
-        Ok(self
-            .mut_repo
+    pub fn reparent(self, settings: &UserSettings) -> CommitBuilder<'repo> {
+        self.mut_repo
             .rewrite_commit(settings, &self.old_commit)
-            .set_parents(self.new_parents))
+            .set_parents(self.new_parents)
     }
 }
 
