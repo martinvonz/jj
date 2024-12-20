@@ -32,6 +32,9 @@ use crate::ui::Ui;
 /// last. If the destination revision cannot be determined unambiguously, the
 /// change will be left in the source revision.
 ///
+/// The source revision will be abandoned if all changes are absorbed into the
+/// destination revisions, and if the source revision has no description.
+///
 /// The modification made by `jj absorb` can be reviewed by `jj op show -p`.
 #[derive(clap::Args, Clone, Debug)]
 pub(crate) struct AbsorbArgs {
