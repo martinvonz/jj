@@ -30,12 +30,12 @@ be compiled from the same source code.
 
 #### From Source
 
-First make sure that you have a Rust version >= 1.76 and that the `cmake`,
-`libssl-dev`, `openssl`, `pkg-config`, and `build-essential` packages are
-installed by running something like this:
+First make sure that you have a Rust version >= 1.76 and that the `libssl-dev`,
+`openssl`, `pkg-config`, and `build-essential` packages are installed by running
+something like this:
 
 ```shell
-sudo apt-get install cmake libssl-dev openssl pkg-config build-essential
+sudo apt-get install libssl-dev openssl pkg-config build-essential
 ```
 
 Now run either:
@@ -139,7 +139,6 @@ these:
 
 ```shell
 xcode-select --install
-brew install cmake
 brew install openssl
 brew install pkg-config
 export PKG_CONFIG_PATH="$(brew --prefix)/opt/openssl@3/lib/pkgconfig"
@@ -181,14 +180,7 @@ sudo port install jujutsu
 
 ### Windows
 
-First make sure that you have a Rust version >= 1.76. You will also need
-`cmake`, which you can install by running this:
-
-```shell
-winget install cmake
-```
-
-Now run either:
+First make sure that you have a Rust version >= 1.76. Now run either:
 
 ```shell
 # To install the *prerelease* version from the main branch
