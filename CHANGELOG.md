@@ -63,6 +63,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * Adds a new template alias `commit_timestamp(commit)` which defaults to the
   committer date.
 
+* `jj describe` now respects a "scissor line" that ignores everything below. A
+  builtin template alias named `scissors` is added to insert a scissor line.
+  When editing multiple commits, scissors only ignore until the next
+  `JJ: describe` line.
+
 ### Fixed bugs
 
 * The `$NO_COLOR` environment variable must now be non-empty to be respected.

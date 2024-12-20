@@ -185,6 +185,10 @@ concat(
     "\nJJ: This commit contains the following changes:\n", "",
     indent("JJ:     ", diff.stat(72)),
   ),
+  surround(
+    scissors, "",
+    diff.git(),
+  ),
 )
 '''
 ```
