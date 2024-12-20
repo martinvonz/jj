@@ -56,6 +56,7 @@ fn test_log_with_no_template() {
     - description_placeholder
     - email_placeholder
     - name_placeholder
+    - scissors
     "#);
 }
 

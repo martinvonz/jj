@@ -346,5 +346,6 @@ fn test_evolog_with_no_template() {
     - description_placeholder
     - email_placeholder
     - name_placeholder
+    - scissors
     "#);
 }
