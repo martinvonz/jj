@@ -3210,14 +3210,96 @@ pub fn merge_args_with<'k, 'v, T, U>(
     pos_values.into_iter().map(|(_, value)| value).collect()
 }
 
-fn get_string_or_array(
+fn handle_shell_completion(
+    ui: &Ui,
+    app: &Command,
     config: &StackedConfig,
-    key: &'static str,
-) -> Result<Vec<String>, ConfigGetError> {
-    config
-        .get(key)
-        .map(|string| vec![string])
-        .or_else(|_| config.get::<Vec<String>>(key))
+    cwd: &Path,
+) -> Result<(), CommandError> {
+    let mut args = vec![];
+    // Take the first two arguments as is, they must be passed to clap_complete
+    // without any changes. They are usually "jj --".
+    args.extend(env::args_os().take(2));
+
+    // Make sure aliases are expanded before passing them to clap_complete. We
+    // skip the first two args ("jj" and "--") for alias resolution, then we
+    // stitch the args back together, like clap_complete expects them.
+    let orig_args = env::args_os().skip(2);
+    if orig_args.len() > 0 {
+        let arg_index: Option<usize> = env::var("_CLAP_COMPLETE_INDEX")
+            .ok()
+            .and_then(|s| s.parse().ok());
+        let resolved_aliases = if let Some(index) = arg_index {
+            // As of clap_complete 4.5.38, zsh completion script doesn't pad an
+            // empty arg at the complete position. If the args doesn't include a
+            // command name, the default command would be expanded at that
+            // position. Therefore, no other command names would be suggested.
+            // TODO: Maybe we should instead expand args[..index] + [""], adjust
+            // the index accordingly, strip the last "", and append remainder?
+            let pad_len = usize::saturating_sub(index + 1, orig_args.len());
+            let padded_args = orig_args.chain(iter::repeat(OsString::new()).take(pad_len));
+            expand_cmdline(ui, app, padded_args, config)?
+        } else {
+            expand_cmdline(ui, app, orig_args, config)?
+        };
+        args.extend(resolved_aliases.into_iter().map(OsString::from));
+    }
+    let ran_completion = clap_complete::CompleteEnv::with_factory(|| {
+        app.clone()
+            // for completing aliases
+            .allow_external_subcommands(true)
+    })
+    .try_complete(args.iter(), Some(cwd))?;
+    assert!(
+        ran_completion,
+        "This function should not be called without the COMPLETE variable set."
+    );
+    Ok(())
+}
+
+/// Expand the default command and aliases in the supplied command line.
+pub fn expand_cmdline(
+    ui: &Ui,
+    app: &Command,
+    cmdline: impl IntoIterator<Item = OsString>,
+    config: &StackedConfig,
+) -> Result<Vec<String>, CommandError> {
+    let mut string_args: Vec<String> = vec![];
+    for arg in cmdline {
+        if let Some(string_arg) = arg.to_str() {
+            string_args.push(string_arg.to_owned());
+        } else {
+            return Err(cli_error("Non-utf8 argument"));
+        }
+    }
+
+    let app = app
+        .clone()
+        .allow_external_subcommands(true)
+        .disable_help_flag(true)
+        // Do not stop parsing at -h/--help
+        .arg(
+            clap::Arg::new("help")
+                .short('h')
+                .long("help")
+                .global(true)
+                .action(ArgAction::SetTrue),
+        )
+        .disable_version_flag(true)
+        // Do not stop parsing at -V/--version
+        .arg(
+            clap::Arg::new("version")
+                .short('V')
+                .long("version")
+                .global(true)
+                .action(ArgAction::SetTrue),
+        )
+        .ignore_errors(true);
+
+    expand_cmdline_default(ui, config, &app, &mut string_args)?;
+    expand_cmdline_aliases(ui, config, &app, &mut string_args)?;
+
+    Ok(string_args)
 }
 
 /// Expand the default command in the supplied command line.
@@ -3259,6 +3341,16 @@ fn expand_cmdline_default(
     }
 
     Ok(())
+}
+
+fn get_string_or_array(
+    config: &StackedConfig,
+    key: &'static str,
+) -> Result<Vec<String>, ConfigGetError> {
+    config
+        .get(key)
+        .map(|string| vec![string])
+        .or_else(|_| config.get::<Vec<String>>(key))
 }
 
 /// Expand any aliases in the supplied command line.
@@ -3372,98 +3464,6 @@ fn parse_early_args(
         config_layers.push(layer);
     }
     Ok((args, config_layers))
-}
-
-fn handle_shell_completion(
-    ui: &Ui,
-    app: &Command,
-    config: &StackedConfig,
-    cwd: &Path,
-) -> Result<(), CommandError> {
-    let mut args = vec![];
-    // Take the first two arguments as is, they must be passed to clap_complete
-    // without any changes. They are usually "jj --".
-    args.extend(env::args_os().take(2));
-
-    // Make sure aliases are expanded before passing them to clap_complete. We
-    // skip the first two args ("jj" and "--") for alias resolution, then we
-    // stitch the args back together, like clap_complete expects them.
-    let orig_args = env::args_os().skip(2);
-    if orig_args.len() > 0 {
-        let arg_index: Option<usize> = env::var("_CLAP_COMPLETE_INDEX")
-            .ok()
-            .and_then(|s| s.parse().ok());
-        let resolved_aliases = if let Some(index) = arg_index {
-            // As of clap_complete 4.5.38, zsh completion script doesn't pad an
-            // empty arg at the complete position. If the args doesn't include a
-            // command name, the default command would be expanded at that
-            // position. Therefore, no other command names would be suggested.
-            // TODO: Maybe we should instead expand args[..index] + [""], adjust
-            // the index accordingly, strip the last "", and append remainder?
-            let pad_len = usize::saturating_sub(index + 1, orig_args.len());
-            let padded_args = orig_args.chain(iter::repeat(OsString::new()).take(pad_len));
-            expand_cmdline(ui, app, padded_args, config)?
-        } else {
-            expand_cmdline(ui, app, orig_args, config)?
-        };
-        args.extend(resolved_aliases.into_iter().map(OsString::from));
-    }
-    let ran_completion = clap_complete::CompleteEnv::with_factory(|| {
-        app.clone()
-            // for completing aliases
-            .allow_external_subcommands(true)
-    })
-    .try_complete(args.iter(), Some(cwd))?;
-    assert!(
-        ran_completion,
-        "This function should not be called without the COMPLETE variable set."
-    );
-    Ok(())
-}
-
-/// Expand the default command and aliases in the supplied command line.
-pub fn expand_cmdline(
-    ui: &Ui,
-    app: &Command,
-    cmdline: impl IntoIterator<Item = OsString>,
-    config: &StackedConfig,
-) -> Result<Vec<String>, CommandError> {
-    let mut string_args: Vec<String> = vec![];
-    for arg in cmdline {
-        if let Some(string_arg) = arg.to_str() {
-            string_args.push(string_arg.to_owned());
-        } else {
-            return Err(cli_error("Non-utf8 argument"));
-        }
-    }
-
-    let app = app
-        .clone()
-        .allow_external_subcommands(true)
-        .disable_help_flag(true)
-        // Do not stop parsing at -h/--help
-        .arg(
-            clap::Arg::new("help")
-                .short('h')
-                .long("help")
-                .global(true)
-                .action(ArgAction::SetTrue),
-        )
-        .disable_version_flag(true)
-        // Do not stop parsing at -V/--version
-        .arg(
-            clap::Arg::new("version")
-                .short('V')
-                .long("version")
-                .global(true)
-                .action(ArgAction::SetTrue),
-        )
-        .ignore_errors(true);
-
-    expand_cmdline_default(ui, config, &app, &mut string_args)?;
-    expand_cmdline_aliases(ui, config, &app, &mut string_args)?;
-
-    Ok(string_args)
 }
 
 fn parse_args(
