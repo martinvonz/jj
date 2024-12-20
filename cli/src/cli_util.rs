@@ -138,6 +138,7 @@ use jj_lib::workspace::Workspace;
 use jj_lib::workspace::WorkspaceLoadError;
 use jj_lib::workspace::WorkspaceLoader;
 use jj_lib::workspace::WorkspaceLoaderFactory;
+use serde::de;
 use tracing::instrument;
 use tracing_chrome::ChromeLayerBuilder;
 use tracing_subscriber::prelude::*;
@@ -3320,8 +3321,8 @@ fn expand_cmdline_default(
 
     // Resolve default command
     if matches.subcommand().is_none() {
-        let default_args = match get_string_or_array(config, "ui.default-command").optional()? {
-            Some(opt) => opt,
+        let default_args = match config.get::<CmdAlias>("ui.default-command").optional()? {
+            Some(opt) => opt.0,
             None => {
                 writeln!(
                     ui.hint_default(),
@@ -3341,16 +3342,6 @@ fn expand_cmdline_default(
     }
 
     Ok(())
-}
-
-fn get_string_or_array(
-    config: &StackedConfig,
-    key: &'static str,
-) -> Result<Vec<String>, ConfigGetError> {
-    config
-        .get(key)
-        .map(|string| vec![string])
-        .or_else(|_| config.get::<Vec<String>>(key))
 }
 
 /// Expand any aliases in the supplied command line.
@@ -3407,7 +3398,7 @@ fn expand_cmdline_aliases(
                     )));
                 }
 
-                let alias_definition = config.get::<Vec<String>>(["aliases", command_name])?;
+                let alias_definition = config.get::<CmdAlias>(["aliases", command_name])?.0;
 
                 assert!(cmdline.ends_with(&alias_args));
                 cmdline.truncate(cmdline.len() - 1 - alias_args.len());
@@ -3421,6 +3412,50 @@ fn expand_cmdline_aliases(
 
         // No more alias commands, or hit unknown option
         return Ok(());
+    }
+}
+
+/// A `Vec<String>` that can also be deserialized as a space-delimited string.
+struct CmdAlias(pub Vec<String>);
+
+impl<'de> de::Deserialize<'de> for CmdAlias {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: de::Deserializer<'de>,
+    {
+        struct Visitor;
+        impl<'de> de::Visitor<'de> for Visitor {
+            type Value = Vec<String>;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("a string or string sequence")
+            }
+
+            fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+            where
+                E: de::Error,
+            {
+                Ok(vec![v.to_owned()])
+            }
+
+            fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+            where
+                A: de::SeqAccess<'de>,
+            {
+                let mut args = Vec::new();
+                if let Some(size_hint) = seq.size_hint() {
+                    args.reserve_exact(size_hint);
+                }
+
+                while let Some(element) = seq.next_element()? {
+                    args.push(element);
+                }
+
+                Ok(args)
+            }
+        }
+
+        deserializer.deserialize_any(Visitor).map(CmdAlias)
     }
 }
 

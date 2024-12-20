@@ -35,6 +35,21 @@ fn test_alias_basic() {
 }
 
 #[test]
+fn test_alias_string() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    test_env.add_config(r#"aliases.l = "log""#);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["l", "-r", "@", "-T", "description"]);
+    insta::assert_snapshot!(stdout, @r"
+    @
+    │
+    ~
+    ");
+}
+
+#[test]
 fn test_alias_bad_name() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
@@ -224,23 +239,25 @@ fn test_alias_global_args_in_definition() {
 }
 
 #[test]
-fn test_alias_invalid_definition() {
+fn test_alias_non_list() {
     let test_env = TestEnvironment::default();
 
-    test_env.add_config(
-        r#"[aliases]
-    non-list = 5
-    non-string-list = [0]
-    "#,
-    );
+    test_env.add_config(r#"aliases.non-list = 5"#);
     let stderr = test_env.jj_cmd_failure(test_env.env_root(), &["non-list"]);
     insta::assert_snapshot!(stderr.replace('\\', "/"), @r"
     Config error: Invalid type or value for aliases.non-list
-    Caused by: invalid type: integer `5`, expected a sequence
+    Caused by: invalid type: integer `5`, expected a string or string sequence
 
     Hint: Check the config file: $TEST_ENV/config/config0002.toml
     For help, see https://jj-vcs.github.io/jj/latest/config/.
     ");
+}
+
+#[test]
+fn test_alias_non_string_list() {
+    let test_env = TestEnvironment::default();
+
+    test_env.add_config(r#"aliases.non-string-list = [0]"#);
     let stderr = test_env.jj_cmd_failure(test_env.env_root(), &["non-string-list"]);
     insta::assert_snapshot!(stderr, @r"
     Config error: Invalid type or value for aliases.non-string-list

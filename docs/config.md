@@ -582,9 +582,12 @@ You can define aliases for commands, including their arguments. For example:
 
 ```toml
 [aliases]
-# `jj l` shows commits on the working-copy commit's (anonymous) bookmark
+# `jj l` is a simple alias for `jj my-log`
+l = "my-log"
+
+# `jj my-log` shows commits on the working-copy commit's (anonymous) bookmark
 # compared to the `main` bookmark
-l = ["log", "-r", "(main..@):: | (main..@)-"]
+my-log = ["log", "-r", "(main..@):: | (main..@)-"]
 ```
 
 This alias syntax can only run a single jj command. However, you may want to
