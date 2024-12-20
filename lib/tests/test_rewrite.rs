@@ -264,7 +264,7 @@ fn test_rebase_descendants_backward() {
 }
 
 #[test]
-fn test_rebase_descendants_chain_becomes_bookmarky() {
+fn test_rebase_descendants_chain_becomes_branchy() {
     let settings = testutils::user_settings();
     let test_repo = TestRepo::init();
     let repo = &test_repo.repo;

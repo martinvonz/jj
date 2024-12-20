@@ -277,7 +277,7 @@ impl<T: Ord, ID: Hash + Eq + Clone, E> TopoOrderReverseLazyInner<T, ID, E> {
     }
 }
 
-/// Splits DAG at single fork point, and extracts bookmarky part as sub graph.
+/// Splits DAG at single fork point, and extracts branchy part as sub graph.
 ///
 /// ```text
 ///  o | C
@@ -1067,7 +1067,7 @@ mod tests {
     }
 
     #[test]
-    fn test_topo_order_reverse_cycle_to_bookmarky_sub_graph() {
+    fn test_topo_order_reverse_cycle_to_branchy_sub_graph() {
         // This graph:
         //  o D
         //  |\
