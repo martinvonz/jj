@@ -364,7 +364,7 @@ You can configure the template used when no `-T` is specified.
 # Use builtin log template
 log = "builtin_log_compact"
 # Use builtin op log template
-op_log = "builtin_log_compact"
+op_log = "builtin_op_log_compact"
 # Use builtin show template
 show = "builtin_log_detailed"
 ```
