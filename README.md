@@ -2,10 +2,10 @@
 
 # Jujutsu—a version control system
 
-![](https://img.shields.io/github/v/release/martinvonz/jj)
-![](https://img.shields.io/github/release-date/martinvonz/jj)
+[![Release](https://img.shields.io/github/v/release/martinvonz/jj)](https://github.com/jj-vcs/jj/releases)
+[![Release date](https://img.shields.io/github/release-date/martinvonz/jj)](https://github.com/jj-vcs/jj/releases)
 <br/>
-![](https://img.shields.io/github/license/martinvonz/jj)
+[![License](https://img.shields.io/github/license/martinvonz/jj)](https://github.com/jj-vcs/jj/blob/main/LICENSE)
 [![Discord](https://img.shields.io/discord/968932220549103686.svg?label=&logo=discord&logoColor=ffffff&color=7389D8&labelColor=6A7EC2)](https://discord.gg/dkmfj3aGQN)
 [![IRC](https://img.shields.io/badge/irc-%23jujutsu-blue.svg)](https://web.libera.chat/?channel=#jujutsu)
 
