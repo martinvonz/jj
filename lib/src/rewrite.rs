@@ -210,6 +210,8 @@ impl<'repo> CommitRewriter<'repo> {
     }
 
     /// Records the old commit as abandoned with the new parents.
+    ///
+    /// This is equivalent to `reparent(settings).abandon()`, but is cheaper.
     pub fn abandon(self) {
         let old_commit_id = self.old_commit.id().clone();
         let new_parents = self.new_parents;

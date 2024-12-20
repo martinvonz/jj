@@ -126,12 +126,7 @@ impl Commit {
     /// Returns whether commit's content is empty. Commit description is not
     /// taken into consideration.
     pub fn is_empty(&self, repo: &dyn Repo) -> BackendResult<bool> {
-        let parents: Vec<_> = self.parents().try_collect()?;
-        if let [parent] = &parents[..] {
-            return Ok(parent.tree_id() == self.tree_id());
-        }
-        let parent_tree = merge_commit_trees(repo, &parents)?;
-        Ok(*self.tree_id() == parent_tree.id())
+        is_backend_commit_empty(repo, &self.store, &self.data)
     }
 
     pub fn has_conflict(&self) -> BackendResult<bool> {
@@ -181,6 +176,23 @@ impl Commit {
             .map(|sig| self.store.signer().verify(&self.id, &sig.data, &sig.sig))
             .transpose()
     }
+}
+
+pub(crate) fn is_backend_commit_empty(
+    repo: &dyn Repo,
+    store: &Arc<Store>,
+    commit: &backend::Commit,
+) -> BackendResult<bool> {
+    if let [parent_id] = &*commit.parents {
+        return Ok(commit.root_tree == *store.get_commit(parent_id)?.tree_id());
+    }
+    let parents: Vec<_> = commit
+        .parents
+        .iter()
+        .map(|id| store.get_commit(id))
+        .try_collect()?;
+    let parent_tree = merge_commit_trees(repo, &parents)?;
+    Ok(commit.root_tree == parent_tree.id())
 }
 
 pub trait CommitIteratorExt<'c, I> {
