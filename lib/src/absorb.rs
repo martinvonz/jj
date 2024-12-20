@@ -279,7 +279,7 @@ pub fn absorb_hunks(
             // Remove selected hunks from the source commit by reparent()
             if rewriter.old_commit().id() == source.commit.id() {
                 // TODO: should we abandon the source if it's discardable?
-                rewriter.reparent(settings)?.write()?;
+                rewriter.reparent(settings).write()?;
                 num_rebased += 1;
                 return Ok(());
             }

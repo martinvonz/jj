@@ -1354,7 +1354,7 @@ impl MutableRepo {
         let mut num_reparented = 0;
         self.transform_descendants(settings, roots, |rewriter| {
             if rewriter.parents_changed() {
-                let builder = rewriter.reparent(settings)?;
+                let builder = rewriter.reparent(settings);
                 builder.write()?;
                 num_reparented += 1;
             }
