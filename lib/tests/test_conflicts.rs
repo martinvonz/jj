@@ -13,12 +13,15 @@
 // limitations under the License.
 
 use indoc::indoc;
+use itertools::Itertools;
 use jj_lib::backend::FileId;
+use jj_lib::conflicts::choose_materialized_conflict_marker_len;
 use jj_lib::conflicts::extract_as_single_hunk;
 use jj_lib::conflicts::materialize_merge_result_to_bytes;
 use jj_lib::conflicts::parse_conflict;
 use jj_lib::conflicts::update_from_content;
 use jj_lib::conflicts::ConflictMarkerStyle;
+use jj_lib::conflicts::MIN_CONFLICT_MARKER_LEN;
 use jj_lib::merge::Merge;
 use jj_lib::repo::Repo;
 use jj_lib::repo_path::RepoPath;
@@ -505,7 +508,7 @@ fn test_materialize_parse_roundtrip() {
 
     // The first add should always be from the left side
     insta::assert_debug_snapshot!(
-        parse_conflict(materialized.as_bytes(), conflict.num_sides()),
+        parse_conflict(materialized.as_bytes(), conflict.num_sides(), MIN_CONFLICT_MARKER_LEN),
         @r###"
     Some(
         [
@@ -588,10 +591,16 @@ fn test_materialize_parse_roundtrip_different_markers() {
     for materialize_style in all_styles {
         let materialized = materialize_conflict_string(store, path, &conflict, materialize_style);
         for parse_style in all_styles {
-            let parsed =
-                update_from_content(&conflict, store, path, materialized.as_bytes(), parse_style)
-                    .block_on()
-                    .unwrap();
+            let parsed = update_from_content(
+                &conflict,
+                store,
+                path,
+                materialized.as_bytes(),
+                parse_style,
+                MIN_CONFLICT_MARKER_LEN,
+            )
+            .block_on()
+            .unwrap();
 
             assert_eq!(
                 parsed, conflict,
@@ -628,7 +637,8 @@ fn test_materialize_conflict_no_newlines_at_eof() {
     // BUG(#3968): These conflict markers cannot be parsed
     insta::assert_debug_snapshot!(parse_conflict(
         materialized.as_bytes(),
-        conflict.num_sides()
+        conflict.num_sides(),
+        MIN_CONFLICT_MARKER_LEN
     ),@"None");
 }
 
@@ -795,7 +805,8 @@ line 3
 line 4
 line 5
 "},
-            2
+            2,
+            7
         ),
         None
     );
@@ -817,7 +828,8 @@ fn test_parse_conflict_simple() {
             >>>>>>>
             line 5
             "},
-            2
+            2,
+            7
         ),
         @r###"
     Some(
@@ -853,7 +865,8 @@ fn test_parse_conflict_simple() {
             >>>>>>> More and more text
             line 5
             "},
-            2
+            2,
+            7
         ),
         @r###"
     Some(
@@ -892,7 +905,8 @@ fn test_parse_conflict_simple() {
             >>>>>>> Random text
             line 5
             "},
-            2
+            2,
+            7
         ),
         @r#"
     Some(
@@ -931,7 +945,8 @@ fn test_parse_conflict_simple() {
             >>>>>>> Random text
             line 5
             "},
-            2
+            2,
+            7
         ),
         @r#"
     Some(
@@ -969,7 +984,8 @@ fn test_parse_conflict_simple() {
             >>>>>>> End
             line 5
             "},
-            2
+            2,
+            7
         ),
         @r#"
     Some(
@@ -1005,7 +1021,8 @@ fn test_parse_conflict_simple() {
             >>>>>>> End
             line 5
             "},
-            2
+            2,
+            7
         ),
         @r#"
     Some(
@@ -1027,8 +1044,8 @@ fn test_parse_conflict_simple() {
     )
     "#
     );
-    // The conflict markers are too long and shouldn't parse (though we may
-    // decide to change this in the future)
+    // The conflict markers are longer than the originally materialized markers, but
+    // we allow them to parse anyway
     insta::assert_debug_snapshot!(
         parse_conflict(indoc! {b"
             line 1
@@ -1043,9 +1060,28 @@ fn test_parse_conflict_simple() {
             >>>>>>>>>>>
             line 5
             "},
-            2
+            2,
+            7
         ),
-        @"None"
+        @r#"
+    Some(
+        [
+            Resolved(
+                "line 1\n",
+            ),
+            Conflicted(
+                [
+                    "line 2\nleft\nline 4\n",
+                    "line 2\nline 3\nline 4\n",
+                    "right\n",
+                ],
+            ),
+            Resolved(
+                "line 5\n",
+            ),
+        ],
+    )
+    "#
     );
 }
 
@@ -1071,7 +1107,8 @@ fn test_parse_conflict_multi_way() {
                 >>>>>>>
                 line 5
                 "},
-            3
+            3,
+            7
         ),
         @r###"
     Some(
@@ -1114,7 +1151,8 @@ fn test_parse_conflict_multi_way() {
             >>>>>>> Random text
             line 5
             "},
-            3
+            3,
+            7
         ),
         @r###"
     Some(
@@ -1160,7 +1198,8 @@ fn test_parse_conflict_multi_way() {
             >>>>>>> Random text
             line 5
             "},
-            3
+            3,
+            7
         ),
         @r#"
     Some(
@@ -1203,7 +1242,8 @@ fn test_parse_conflict_crlf_markers() {
             >>>>>>>\r
             line 5\r
             "},
-            2
+            2,
+            7
         ),
         @r#"
     Some(
@@ -1248,7 +1288,8 @@ fn test_parse_conflict_diff_stripped_whitespace() {
             >>>>>>>
             line 5
             "},
-            2
+            2,
+            7
         ),
         @r#"
     Some(
@@ -1290,7 +1331,8 @@ fn test_parse_conflict_wrong_arity() {
             >>>>>>>
             line 5
             "},
-            3
+            3,
+            7
         ),
         None
     );
@@ -1311,7 +1353,8 @@ fn test_parse_conflict_malformed_missing_removes() {
             >>>>>>>
             line 5
             "},
-            2
+            2,
+            7
         ),
         None
     );
@@ -1334,7 +1377,8 @@ fn test_parse_conflict_malformed_marker() {
             >>>>>>>
             line 5
             "},
-            2
+            2,
+            7
         ),
         None
     );
@@ -1358,7 +1402,8 @@ fn test_parse_conflict_malformed_diff() {
             >>>>>>>
             line 5
             "},
-            2
+            2,
+            7
         ),
         None
     );
@@ -1380,7 +1425,8 @@ fn test_parse_conflict_snapshot_missing_header() {
             >>>>>>>
             line 5
             "},
-            2
+            2,
+            7
         ),
         None
     );
@@ -1400,7 +1446,8 @@ fn test_parse_conflict_wrong_git_style() {
             >>>>>>>
             line 5
             "},
-            2
+            2,
+            7
         ),
         None
     );
@@ -1422,7 +1469,8 @@ fn test_parse_conflict_git_reordered_headers() {
             >>>>>>>
             line 5
             "},
-            2
+            2,
+            7
         ),
         None
     );
@@ -1448,7 +1496,8 @@ fn test_parse_conflict_git_too_many_sides() {
             >>>>>>>
             line 5
             "},
-            3
+            3,
+            7
         ),
         None
     );
@@ -1471,7 +1520,8 @@ fn test_parse_conflict_mixed_header_styles() {
             >>>>>>>
             line 5
             "},
-            2
+            2,
+            7
         ),
         None
     );
@@ -1489,7 +1539,8 @@ fn test_parse_conflict_mixed_header_styles() {
             >>>>>>>
             line 5
             "},
-            2
+            2,
+            7
         ),
         None
     );
@@ -1506,7 +1557,8 @@ fn test_parse_conflict_mixed_header_styles() {
             >>>>>>> Conflict 1 of 1 ends
             line 5
             "},
-            2
+            2,
+            7
         ),
         @r#"
     Some(
@@ -1541,7 +1593,8 @@ fn test_parse_conflict_mixed_header_styles() {
             >>>>>>> Side #2 (Conflict 1 of 1 ends)
             line 5
             "},
-            2
+            2,
+            7
         ),
         @r#"
     Some(
@@ -1584,9 +1637,16 @@ fn test_update_conflict_from_content() {
     let materialized =
         materialize_conflict_string(store, path, &conflict, ConflictMarkerStyle::Diff);
     let parse = |content| {
-        update_from_content(&conflict, store, path, content, ConflictMarkerStyle::Diff)
-            .block_on()
-            .unwrap()
+        update_from_content(
+            &conflict,
+            store,
+            path,
+            content,
+            ConflictMarkerStyle::Diff,
+            MIN_CONFLICT_MARKER_LEN,
+        )
+        .block_on()
+        .unwrap()
     };
     assert_eq!(parse(materialized.as_bytes()), conflict);
 
@@ -1634,9 +1694,16 @@ fn test_update_conflict_from_content_modify_delete() {
     let materialized =
         materialize_conflict_string(store, path, &conflict, ConflictMarkerStyle::Diff);
     let parse = |content| {
-        update_from_content(&conflict, store, path, content, ConflictMarkerStyle::Diff)
-            .block_on()
-            .unwrap()
+        update_from_content(
+            &conflict,
+            store,
+            path,
+            content,
+            ConflictMarkerStyle::Diff,
+            MIN_CONFLICT_MARKER_LEN,
+        )
+        .block_on()
+        .unwrap()
     };
     assert_eq!(parse(materialized.as_bytes()), conflict);
 
@@ -1690,9 +1757,16 @@ fn test_update_conflict_from_content_simplified_conflict() {
     let materialized_simplified =
         materialize_conflict_string(store, path, &simplified_conflict, ConflictMarkerStyle::Diff);
     let parse = |content| {
-        update_from_content(&conflict, store, path, content, ConflictMarkerStyle::Diff)
-            .block_on()
-            .unwrap()
+        update_from_content(
+            &conflict,
+            store,
+            path,
+            content,
+            ConflictMarkerStyle::Diff,
+            MIN_CONFLICT_MARKER_LEN,
+        )
+        .block_on()
+        .unwrap()
     };
     insta::assert_snapshot!(
         materialized,
@@ -1808,6 +1882,353 @@ fn test_update_conflict_from_content_simplified_conflict() {
             ]
         )
     );
+}
+
+#[test]
+fn test_update_conflict_from_content_with_long_markers() {
+    let test_repo = TestRepo::init();
+    let store = test_repo.repo.store();
+
+    // Create conflicts which contain conflict markers of varying lengths
+    let path = RepoPath::from_internal_string("dir/file");
+    let base_file_id = testutils::write_file(
+        store,
+        path,
+        indoc! {"
+            line 1
+            line 2
+            line 3
+        "},
+    );
+    let left_file_id = testutils::write_file(
+        store,
+        path,
+        indoc! {"
+            <<<< left 1
+            line 2
+            <<<<<<<<<<<< left 3
+        "},
+    );
+    let right_file_id = testutils::write_file(
+        store,
+        path,
+        indoc! {"
+            >>>>>>> right 1
+            line 2
+            >>>>>>>>>>>> right 3
+        "},
+    );
+    let conflict = Merge::from_removes_adds(
+        vec![Some(base_file_id.clone())],
+        vec![Some(left_file_id.clone()), Some(right_file_id.clone())],
+    );
+
+    // The conflict should be materialized using long conflict markers
+    let materialized_marker_len = choose_materialized_conflict_marker_len(
+        &extract_as_single_hunk(&conflict, store, path)
+            .block_on()
+            .unwrap(),
+    );
+    assert!(materialized_marker_len > MIN_CONFLICT_MARKER_LEN);
+    let materialized =
+        materialize_conflict_string(store, path, &conflict, ConflictMarkerStyle::Snapshot);
+    insta::assert_snapshot!(materialized, @r##"
+    <<<<<<<<<<<<<<<< Conflict 1 of 2
+    ++++++++++++++++ Contents of side #1
+    <<<< left 1
+    ---------------- Contents of base
+    line 1
+    ++++++++++++++++ Contents of side #2
+    >>>>>>> right 1
+    >>>>>>>>>>>>>>>> Conflict 1 of 2 ends
+    line 2
+    <<<<<<<<<<<<<<<< Conflict 2 of 2
+    ++++++++++++++++ Contents of side #1
+    <<<<<<<<<<<< left 3
+    ---------------- Contents of base
+    line 3
+    ++++++++++++++++ Contents of side #2
+    >>>>>>>>>>>> right 3
+    >>>>>>>>>>>>>>>> Conflict 2 of 2 ends
+    "##
+    );
+
+    // Parse the conflict markers using a different conflict marker style. This is
+    // to avoid the two versions of the file being obviously identical, so that we
+    // can test the actual parsing logic.
+    let parse = |conflict, content| {
+        update_from_content(
+            conflict,
+            store,
+            path,
+            content,
+            ConflictMarkerStyle::Diff,
+            materialized_marker_len,
+        )
+        .block_on()
+        .unwrap()
+    };
+    assert_eq!(parse(&conflict, materialized.as_bytes()), conflict);
+
+    // Test resolving the conflict, leaving some fake conflict markers which should
+    // not be parsed since they are too short
+    let resolved_file_contents = indoc! {"
+        <<<<<<<<<<<< not a real conflict!
+        ++++++++++++
+        left
+        ------------
+        base
+        ++++++++++++
+        right
+        >>>>>>>>>>>>
+    "};
+    let resolved_file_id = testutils::write_file(store, path, resolved_file_contents);
+    assert_eq!(
+        parse(&conflict, resolved_file_contents.as_bytes()),
+        Merge::normal(resolved_file_id)
+    );
+
+    // Resolve one of the conflicts, decreasing the minimum conflict marker length
+    let new_conflict_contents = indoc! {"
+        <<<<<<<<<<<<<<<< Conflict 1 of 2
+        ++++++++++++++++ Contents of side #1
+        <<<< left 1
+        ---------------- Contents of base
+        line 1
+        ++++++++++++++++ Contents of side #2
+        >>>>>>> right 1
+        >>>>>>>>>>>>>>>> Conflict 1 of 2 ends
+        line 2
+        line 3
+    "};
+
+    // Confirm that the new conflict parsed correctly
+    let new_conflict = parse(&conflict, new_conflict_contents.as_bytes());
+    assert_eq!(new_conflict.num_sides(), 2);
+    let new_conflict_terms = new_conflict
+        .iter()
+        .map(|id| {
+            let mut file = store.read_file(path, id.as_ref().unwrap()).unwrap();
+            let mut buf = String::new();
+            file.read_to_string(&mut buf).unwrap();
+            buf
+        })
+        .collect_vec();
+    let [new_left_side, new_base, new_right_side] = new_conflict_terms.as_slice() else {
+        unreachable!()
+    };
+    insta::assert_snapshot!(new_left_side, @r#"
+    <<<< left 1
+    line 2
+    line 3
+    "#);
+    insta::assert_snapshot!(new_base, @r#"
+    line 1
+    line 2
+    line 3
+    "#);
+    insta::assert_snapshot!(new_right_side, @r#"
+    >>>>>>> right 1
+    line 2
+    line 3
+    "#);
+
+    // The conflict markers should still parse in future snapshots even though
+    // they're now longer than necessary
+    assert_eq!(
+        parse(&new_conflict, new_conflict_contents.as_bytes()),
+        new_conflict
+    );
+
+    // If we add back the second conflict, it should still be parsed correctly
+    // (the fake conflict markers shouldn't be interpreted as conflict markers
+    // still, since they aren't the longest ones in the file).
+    assert_eq!(parse(&new_conflict, materialized.as_bytes()), conflict);
+
+    // If the new conflict is materialized again, it should have shorter
+    // conflict markers now
+    insta::assert_snapshot!(
+        materialize_conflict_string(store, path, &new_conflict, ConflictMarkerStyle::Snapshot),
+        @r##"
+    <<<<<<<<<<< Conflict 1 of 1
+    +++++++++++ Contents of side #1
+    <<<< left 1
+    ----------- Contents of base
+    line 1
+    +++++++++++ Contents of side #2
+    >>>>>>> right 1
+    >>>>>>>>>>> Conflict 1 of 1 ends
+    line 2
+    line 3
+    "##
+    );
+}
+
+#[test]
+fn test_update_from_content_malformed_conflict() {
+    let test_repo = TestRepo::init();
+    let store = test_repo.repo.store();
+
+    let path = RepoPath::from_internal_string("dir/file");
+    let base_file_id = testutils::write_file(
+        store,
+        path,
+        indoc! {"
+            line 1
+            line 2
+            line 3
+            line 4
+            line 5
+        "},
+    );
+    let left_file_id = testutils::write_file(
+        store,
+        path,
+        indoc! {"
+            line 1
+            line 2 left
+            line 3
+            line 4 left
+            line 5
+        "},
+    );
+    let right_file_id = testutils::write_file(
+        store,
+        path,
+        indoc! {"
+            line 1
+            line 2 right
+            line 3
+            line 4 right
+            line 5
+        "},
+    );
+    let conflict = Merge::from_removes_adds(
+        vec![Some(base_file_id.clone())],
+        vec![Some(left_file_id.clone()), Some(right_file_id.clone())],
+    );
+
+    // The conflict should be materialized with normal markers
+    let materialized_marker_len = choose_materialized_conflict_marker_len(
+        &extract_as_single_hunk(&conflict, store, path)
+            .block_on()
+            .unwrap(),
+    );
+    assert!(materialized_marker_len == MIN_CONFLICT_MARKER_LEN);
+
+    let materialized =
+        materialize_conflict_string(store, path, &conflict, ConflictMarkerStyle::Diff);
+    insta::assert_snapshot!(materialized, @r##"
+    line 1
+    <<<<<<< Conflict 1 of 2
+    %%%%%%% Changes from base to side #1
+    -line 2
+    +line 2 left
+    +++++++ Contents of side #2
+    line 2 right
+    >>>>>>> Conflict 1 of 2 ends
+    line 3
+    <<<<<<< Conflict 2 of 2
+    %%%%%%% Changes from base to side #1
+    -line 4
+    +line 4 left
+    +++++++ Contents of side #2
+    line 4 right
+    >>>>>>> Conflict 2 of 2 ends
+    line 5
+    "##
+    );
+
+    let parse = |conflict, content| {
+        update_from_content(
+            conflict,
+            store,
+            path,
+            content,
+            ConflictMarkerStyle::Diff,
+            materialized_marker_len,
+        )
+        .block_on()
+        .unwrap()
+    };
+    assert_eq!(parse(&conflict, materialized.as_bytes()), conflict);
+
+    // Make a change to the second conflict that causes it to become invalid
+    let new_conflict_contents = indoc! {"
+        line 1
+        <<<<<<< Conflict 1 of 2
+        %%%%%%% Changes from base to side #1
+        -line 2
+        +line 2 left
+        +++++++ Contents of side #2
+        line 2 right
+        >>>>>>> Conflict 1 of 2 ends
+        line 3
+        <<<<<<< Conflict 2 of 2
+        %%%%%%% Changes from base to side #1
+        -line 4
+        +line 4 left
+        line 4 right
+        >>>>>>> Conflict 2 of 2 ends
+        line 5
+    "};
+    // On the first snapshot, it will parse as a conflict containing conflict
+    // markers as text
+    let new_conflict = parse(&conflict, new_conflict_contents.as_bytes());
+    assert_eq!(new_conflict.num_sides(), 2);
+    let new_conflict_terms = new_conflict
+        .iter()
+        .map(|id| {
+            let mut file = store.read_file(path, id.as_ref().unwrap()).unwrap();
+            let mut buf = String::new();
+            file.read_to_string(&mut buf).unwrap();
+            buf
+        })
+        .collect_vec();
+    let [new_left_side, new_base, new_right_side] = new_conflict_terms.as_slice() else {
+        unreachable!()
+    };
+    insta::assert_snapshot!(new_left_side, @r##"
+    line 1
+    line 2 left
+    line 3
+    <<<<<<< Conflict 2 of 2
+    %%%%%%% Changes from base to side #1
+    -line 4
+    +line 4 left
+    line 4 right
+    >>>>>>> Conflict 2 of 2 ends
+    line 5
+    "##);
+    insta::assert_snapshot!(new_base, @r##"
+    line 1
+    line 2
+    line 3
+    <<<<<<< Conflict 2 of 2
+    %%%%%%% Changes from base to side #1
+    -line 4
+    +line 4 left
+    line 4 right
+    >>>>>>> Conflict 2 of 2 ends
+    line 5
+    "##);
+    insta::assert_snapshot!(new_right_side, @r##"
+    line 1
+    line 2 right
+    line 3
+    <<<<<<< Conflict 2 of 2
+    %%%%%%% Changes from base to side #1
+    -line 4
+    +line 4 left
+    line 4 right
+    >>>>>>> Conflict 2 of 2 ends
+    line 5
+    "##);
+
+    // Even though the file now contains markers of length 7, the materialized
+    // markers of length 7 are still parsed
+    let second_snapshot = parse(&new_conflict, new_conflict_contents.as_bytes());
+    assert_eq!(second_snapshot, new_conflict);
 }
 
 fn materialize_conflict_string(

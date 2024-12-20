@@ -24,12 +24,18 @@ enum FileType {
   GitSubmodule = 4;
 }
 
+message MaterializedConflictData {
+  // TODO: maybe we should store num_sides here as well
+  uint32 conflict_marker_len = 1;
+}
+
 message FileState {
   int64 mtime_millis_since_epoch = 1;
   uint64 size = 2;
   FileType file_type = 3;
   // Set only if file_type is Conflict
   bytes conflict_id = 4 [deprecated = true];
+  MaterializedConflictData materialized_conflict_data = 5;
 }
 
 message FileStateEntry {
