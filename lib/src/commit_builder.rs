@@ -24,6 +24,7 @@ use crate::backend::ChangeId;
 use crate::backend::CommitId;
 use crate::backend::MergedTreeId;
 use crate::backend::Signature;
+use crate::commit::is_backend_commit_empty;
 use crate::commit::Commit;
 use crate::repo::MutableRepo;
 use crate::repo::Repo;
@@ -73,6 +74,11 @@ impl CommitBuilder<'_> {
         self
     }
 
+    /// [`Commit::is_empty()`] for the new commit.
+    pub fn is_empty(&self) -> BackendResult<bool> {
+        self.inner.is_empty(self.mut_repo)
+    }
+
     pub fn change_id(&self) -> &ChangeId {
         self.inner.change_id()
     }
@@ -114,6 +120,11 @@ impl CommitBuilder<'_> {
         self
     }
 
+    /// [`Commit::is_discardable()`] for the new commit.
+    pub fn is_discardable(&self) -> BackendResult<bool> {
+        self.inner.is_discardable(self.mut_repo)
+    }
+
     pub fn sign_settings(&self) -> &SignSettings {
         self.inner.sign_settings()
     }
@@ -130,6 +141,12 @@ impl CommitBuilder<'_> {
 
     pub fn write(self) -> BackendResult<Commit> {
         self.inner.write(self.mut_repo)
+    }
+
+    /// Records the old commit as abandoned instead of writing new commit. This
+    /// is noop for the builder created by [`MutableRepo::new_commit()`].
+    pub fn abandon(self) {
+        self.inner.abandon(self.mut_repo);
     }
 }
 
@@ -254,6 +271,11 @@ impl DetachedCommitBuilder {
         self
     }
 
+    /// [`Commit::is_empty()`] for the new commit.
+    pub fn is_empty(&self, repo: &dyn Repo) -> BackendResult<bool> {
+        is_backend_commit_empty(repo, &self.store, &self.commit)
+    }
+
     pub fn change_id(&self) -> &ChangeId {
         &self.commit.change_id
     }
@@ -295,6 +317,11 @@ impl DetachedCommitBuilder {
         self
     }
 
+    /// [`Commit::is_discardable()`] for the new commit.
+    pub fn is_discardable(&self, repo: &dyn Repo) -> BackendResult<bool> {
+        Ok(self.description().is_empty() && self.is_empty(repo)?)
+    }
+
     pub fn sign_settings(&self) -> &SignSettings {
         &self.sign_settings
     }
@@ -327,6 +354,22 @@ impl DetachedCommitBuilder {
     /// configuration to create another commit later.
     pub fn write_hidden(&self) -> BackendResult<Commit> {
         write_to_store(&self.store, self.commit.clone(), &self.sign_settings)
+    }
+
+    /// Records the old commit as abandoned in the `mut_repo`.
+    ///
+    /// This is noop if there's no old commit that would be rewritten to the new
+    /// commit by `write()`.
+    pub fn abandon(self, mut_repo: &mut MutableRepo) {
+        let commit = self.commit;
+        if let Some(rewrite_source) = &self.rewrite_source {
+            if rewrite_source.change_id() == &commit.change_id {
+                mut_repo.record_abandoned_commit_with_parents(
+                    rewrite_source.id().clone(),
+                    commit.parents,
+                );
+            }
+        }
     }
 }
 
