@@ -1,0 +1,39 @@
+syntax = "proto3";
+
+package jj_api.objects;
+
+// Leaving this as a proto in case we come up with some sort of revset-style
+// syntax for operations.
+message OperationRef {
+  string id = 1;
+}
+
+enum Snapshot {
+  SNAPSHOT_UNSPECIFIED = 0;
+  NO_SNAPSHOT = 1;
+  SNAPSHOT = 2;
+}
+
+message GlobalOptions {
+  // Generally prefer providing working_dir over repo_path, since working_dir
+  // allows jj to infer the path if you're not at the repo root.
+  string working_dir = 1;
+  string repo_path = 2;
+
+  // Technically this could be a boolean, but this forces users to choose either
+  // SNAPSHOT or NO_SNAPSHOT.
+  Snapshot snapshot = 3;
+
+  OperationRef operation = 4;
+
+  // If true, user configuration will be loaded. In particular:
+  // * User revset aliases will be used
+  // * User template aliases will be used
+  bool use_user_config = 5;
+
+  // Path to additional config files.
+  // Will be applied after the user configuration, if use_user_config is set.
+  repeated string extra_configs = 6;
+
+  bool ignore_immutable = 7;
+}
