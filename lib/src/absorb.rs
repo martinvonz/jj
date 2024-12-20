@@ -260,7 +260,8 @@ fn combine_texts(text1: &[u8], text2: &[u8], selected_ranges: &[SelectedRange]) 
     .collect()
 }
 
-/// Merges selected trees into the specified commits.
+/// Merges selected trees into the specified commits. Abandons the source commit
+/// if it becomes discardable.
 pub fn absorb_hunks(
     repo: &mut MutableRepo,
     source: &AbsorbSource,
@@ -278,9 +279,13 @@ pub fn absorb_hunks(
         |rewriter| {
             // Remove selected hunks from the source commit by reparent()
             if rewriter.old_commit().id() == source.commit.id() {
-                // TODO: should we abandon the source if it's discardable?
-                rewriter.reparent(settings).write()?;
-                num_rebased += 1;
+                let commit_builder = rewriter.reparent(settings);
+                if commit_builder.is_discardable()? {
+                    commit_builder.abandon();
+                } else {
+                    commit_builder.write()?;
+                    num_rebased += 1;
+                }
                 return Ok(());
             }
             let Some(tree_builder) = selected_trees.remove(rewriter.old_commit().id()) else {

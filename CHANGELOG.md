@@ -34,6 +34,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * The deprecated `[alias]` config section is no longer respected. Move command
   aliases to the `[aliases]` section.
 
+* `jj absorb` now abandons the source commit if it becomes empty and has no
+  description.
+
 ### Deprecations
 
 * `--config-toml=TOML` is deprecated in favor of `--config=NAME=VALUE` and
