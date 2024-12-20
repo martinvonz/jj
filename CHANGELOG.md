@@ -34,6 +34,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * The deprecated `[alias]` config section is no longer respected. Move command
   aliases to the `[aliases]` section.
 
+* `jj resolve` will now attempt to resolve all conflicted files instead of
+  resolving the first conflicted file. To resolve a single file, pass a file
+  path to `jj resolve`.
+
 ### Deprecations
 
 * `--config-toml=TOML` is deprecated in favor of `--config=NAME=VALUE` and
