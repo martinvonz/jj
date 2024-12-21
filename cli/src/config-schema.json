@@ -362,6 +362,11 @@
                     "type": "string",
                     "description": "The remote to which commits are pushed",
                     "default": "origin"
+                },
+                "sign-on-push": {
+                    "type": "boolean",
+                    "description": "Whether jj should sign commits before pushing",
+                    "default": "false"
                 }
             }
         },

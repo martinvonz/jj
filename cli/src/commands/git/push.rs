@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::collections::HashMap;
 use std::collections::HashSet;
 use std::fmt;
 use std::io;
@@ -19,8 +20,11 @@ use std::io::Write;
 
 use clap::ArgGroup;
 use clap_complete::ArgValueCandidates;
+use indexmap::IndexSet;
 use itertools::Itertools;
 use jj_lib::backend::CommitId;
+use jj_lib::commit::Commit;
+use jj_lib::commit::CommitIteratorExt as _;
 use jj_lib::config::ConfigGetResultExt as _;
 use jj_lib::git;
 use jj_lib::git::GitBranchPushTargets;
@@ -34,6 +38,7 @@ use jj_lib::refs::LocalAndRemoteRef;
 use jj_lib::repo::Repo;
 use jj_lib::revset::RevsetExpression;
 use jj_lib::settings::UserSettings;
+use jj_lib::signing::SignBehavior;
 use jj_lib::str_util::StringPattern;
 use jj_lib::view::View;
 
@@ -295,8 +300,44 @@ pub fn cmd_git_push(
         return Ok(());
     }
 
-    validate_commits_ready_to_push(ui, &bookmark_updates, &remote, &tx, command, args)?;
+    let commits_to_sign =
+        validate_commits_ready_to_push(ui, &bookmark_updates, &remote, &tx, command, args)?;
+    let num_updated_signatures = commits_to_sign.len();
+    let (num_rebased_descendants, bookmark_updates) = sign_commits_before_push(
+        &mut tx,
+        bookmark_updates,
+        commits_to_sign,
+        command,
+        args.dry_run,
+    )?;
     if let Some(mut formatter) = ui.status_formatter() {
+        if num_updated_signatures > 0 {
+            if args.dry_run {
+                writeln!(
+                    formatter,
+                    "Dry-run requested, skipped updating signatures of {num_updated_signatures} \
+                     commits"
+                )?;
+                if num_rebased_descendants > 0 {
+                    writeln!(
+                        formatter,
+                        "Dry-run requested, skipped rebasing of {num_rebased_descendants} \
+                         descendant commits"
+                    )?;
+                }
+            } else {
+                writeln!(
+                    formatter,
+                    "Updated signatures of {num_updated_signatures} commits"
+                )?;
+                if num_rebased_descendants > 0 {
+                    writeln!(
+                        formatter,
+                        "Rebased {num_rebased_descendants} descendant commits"
+                    )?;
+                }
+            }
+        }
         writeln!(formatter, "Changes to push to {remote}:")?;
         print_commits_ready_to_push(formatter.as_mut(), tx.repo(), &bookmark_updates)?;
     }
@@ -335,7 +376,9 @@ pub fn cmd_git_push(
 }
 
 /// Validates that the commits that will be pushed are ready (have authorship
-/// information, are not conflicted, etc.)
+/// information, are not conflicted, etc.).
+///
+/// Returns the list of commits which need to be signed.
 fn validate_commits_ready_to_push(
     ui: &Ui,
     bookmark_updates: &[(String, BookmarkPushUpdate)],
@@ -343,7 +386,7 @@ fn validate_commits_ready_to_push(
     tx: &WorkspaceCommandTransaction,
     command: &CommandHelper,
     args: &GitPushArgs,
-) -> Result<(), CommandError> {
+) -> Result<Vec<Commit>, CommandError> {
     let workspace_helper = tx.base_workspace_helper();
     let repo = workspace_helper.repo();
 
@@ -370,6 +413,13 @@ fn validate_commits_ready_to_push(
     } else {
         Box::new(|_: &CommitId| Ok(false))
     };
+    let mut sign_settings = settings.sign_settings();
+    sign_settings.behavior = if settings.get_bool("git.sign-on-push").unwrap_or(false) {
+        SignBehavior::Own
+    } else {
+        SignBehavior::Keep
+    };
+    let mut commits_to_sign = vec![];
 
     for commit in workspace_helper
         .attach_revset_evaluator(commits_to_push)
@@ -419,8 +469,80 @@ fn validate_commits_ready_to_push(
             }
             return Err(error);
         }
+        if commit.is_signed() != sign_settings.should_sign(commit.store_commit()) {
+            commits_to_sign.push(commit);
+        }
     }
-    Ok(())
+    Ok(commits_to_sign)
+}
+
+/// Signs commits before pushing if configured to do so.
+///
+/// Returns the number of commits with rebased descendants and the updated list
+/// of bookmark names and corresponding [`BookmarkPushUpdate`]s.
+fn sign_commits_before_push(
+    tx: &mut WorkspaceCommandTransaction,
+    bookmark_updates: Vec<(String, BookmarkPushUpdate)>,
+    commits_to_sign: Vec<Commit>,
+    command: &CommandHelper,
+    dry_run: bool,
+) -> Result<(usize, Vec<(String, BookmarkPushUpdate)>), CommandError> {
+    let sign_behavior = if command
+        .settings()
+        .get_bool("git.sign-on-push")
+        .unwrap_or(false)
+    {
+        SignBehavior::Own
+    } else {
+        SignBehavior::Keep
+    };
+    let commit_ids: IndexSet<CommitId> = commits_to_sign.iter().ids().cloned().collect();
+    let mut old_to_new_commits_map: HashMap<CommitId, CommitId> = HashMap::new();
+    let mut num_rebased_descendants = 0;
+    tx.repo_mut().transform_descendants(
+        command.settings(),
+        commit_ids.iter().cloned().collect_vec(),
+        |rewriter| {
+            let old_commit_id = rewriter.old_commit().id().clone();
+            if commit_ids.contains(&old_commit_id) {
+                if !dry_run {
+                    let commit = rewriter
+                        .rebase(command.settings())?
+                        .set_sign_behavior(sign_behavior)
+                        .write()?;
+                    old_to_new_commits_map.insert(old_commit_id, commit.id().clone());
+                }
+            } else {
+                num_rebased_descendants += 1;
+                if !dry_run {
+                    let commit = rewriter.rebase(command.settings())?.write()?;
+                    old_to_new_commits_map.insert(old_commit_id, commit.id().clone());
+                }
+            }
+            Ok(())
+        },
+    )?;
+
+    let bookmark_updates = if dry_run {
+        bookmark_updates
+    } else {
+        bookmark_updates
+            .into_iter()
+            .map(|(bookmark_name, update)| {
+                (
+                    bookmark_name,
+                    BookmarkPushUpdate {
+                        old_target: update.old_target,
+                        new_target: update
+                            .new_target
+                            .map(|id| old_to_new_commits_map.get(&id).cloned().unwrap_or(id)),
+                    },
+                )
+            })
+            .collect_vec()
+    };
+
+    Ok((num_rebased_descendants, bookmark_updates))
 }
 
 fn print_commits_ready_to_push(

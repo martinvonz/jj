@@ -110,3 +110,10 @@
 "node current_operation" = { fg = "green", bold = true }
 "node immutable" = { fg = "bright cyan", bold = true }
 "node conflict" = { fg = "red", bold = true }
+
+"signature good" = "green"
+"signature unknown" = "bright black"
+"signature bad" = "red"
+"signature invalid" = "yellow"
+"signature key" = "blue"
+"signature display" = "yellow"

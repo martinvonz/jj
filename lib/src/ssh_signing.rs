@@ -251,7 +251,12 @@ impl SigningBackend for SshBackend {
                     Ok(_) => SigStatus::Good,
                     Err(_) => SigStatus::Bad,
                 };
-                Ok(Verification::new(status, None, Some(principal)))
+                Ok(Verification::new(
+                    status,
+                    None,
+                    Some(principal),
+                    Some(self.name().into()),
+                ))
             }
             _ => {
                 command
@@ -269,8 +274,14 @@ impl SigningBackend for SshBackend {
                         SigStatus::Unknown,
                         None,
                         Some("Signature OK. Unknown principal".into()),
+                        Some(self.name().into()),
                     )),
-                    Err(_) => Ok(Verification::new(SigStatus::Bad, None, None)),
+                    Err(_) => Ok(Verification::new(
+                        SigStatus::Bad,
+                        None,
+                        None,
+                        Some(self.name().into()),
+                    )),
                 }
             }
         }
