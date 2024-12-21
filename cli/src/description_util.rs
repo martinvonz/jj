@@ -5,6 +5,7 @@ use std::path::Path;
 use bstr::ByteVec as _;
 use indexmap::IndexMap;
 use indoc::indoc;
+use itertools::FoldWhile;
 use itertools::Itertools;
 use jj_lib::backend::CommitId;
 use jj_lib::commit::Commit;
@@ -28,8 +29,17 @@ where
 {
     let description = lines
         .into_iter()
-        .filter(|line| !line.as_ref().starts_with("JJ:"))
-        .fold(String::new(), |acc, line| acc + line.as_ref() + "\n");
+        .fold_while(String::new(), |acc, line| {
+            let line = line.as_ref();
+            if line == "JJ: ------------------------ >8 ------------------------" {
+                FoldWhile::Done(acc)
+            } else if line.starts_with("JJ:") {
+                FoldWhile::Continue(acc)
+            } else {
+                FoldWhile::Continue(acc + line + "\n")
+            }
+        })
+        .into_inner();
     text_util::complete_newline(description.trim_matches('\n'))
 }
 

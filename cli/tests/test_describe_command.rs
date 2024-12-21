@@ -387,6 +387,92 @@ fn test_describe_multiple_commits() {
 }
 
 #[test]
+fn test_describe_scissors() {
+    let mut test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    let edit_script = test_env.set_up_fake_editor();
+
+    // Initial setup
+    test_env.jj_cmd_ok(&repo_path, &["new"]);
+    test_env.jj_cmd_ok(&repo_path, &["new"]);
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @  c6349e79bbfd
+    ○  65b6b74e0897
+    ○  230dd059e1b0
+    ◆  000000000000
+    "###);
+
+    // ignore everything after the first scissor line
+    std::fs::write(
+        &edit_script,
+        indoc! {"
+            write
+            description from editor
+
+            content of message from editor
+            JJ: ------------------------ >8 ------------------------
+            content after scissors should not be included
+            JJ: ------------------------ >8 ------------------------
+            scissors ignore everything until EOF or next description
+        "},
+    )
+    .unwrap();
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["describe"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r#"
+    Working copy now at: kkmpptxz 99295466 (empty) description from editor
+    Parent commit      : rlvkpnrz 65b6b74e (empty) (no description set)
+    "#);
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r#"
+    @  992954665601 description from editor
+    │
+    │  content of message from editor
+    ○  65b6b74e0897
+    ○  230dd059e1b0
+    ◆  000000000000
+    "#);
+
+    // if editing multiple commits, should parse the "JJ: describe" lines first
+    // (don't need a pair of scissors)
+    std::fs::write(
+        &edit_script,
+        indoc! {"
+            write
+            JJ: describe 65b6b74e0897 -------
+            description from editor for @-
+
+            JJ: ------------------------ >8 ------------------------
+            content after scissors should not be included
+
+            JJ: describe 230dd059e1b0 -------
+            description from editor for @--
+
+            JJ: ------------------------ >8 ------------------------
+            each commit should skip their own scissors
+        "},
+    )
+    .unwrap();
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["describe", "@-", "@--"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r#"
+    Updated 2 commits
+    Rebased 1 descendant commits
+    Working copy now at: kkmpptxz 03320e8f (empty) description from editor
+    Parent commit      : rlvkpnrz 521d7685 (empty) description from editor for @-
+    "#);
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r#"
+    @  03320e8f9efb description from editor
+    │
+    │  content of message from editor
+    ○  521d7685230b description from editor for @-
+    ○  30015f8c395a description from editor for @--
+    ◆  000000000000
+    "#);
+}
+
+#[test]
 fn test_multiple_message_args() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
