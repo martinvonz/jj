@@ -91,6 +91,7 @@ pub fn cmd_bookmark_move(
     let repo = workspace_command.repo().clone();
 
     let target_commit = workspace_command.resolve_single_rev(ui, &args.to)?;
+    let is_hidden = target_commit.is_hidden(repo.as_ref())?;
     let matched_bookmarks = {
         let is_source_ref: Box<dyn Fn(&RefTarget) -> _> = if !args.from.is_empty() {
             let is_source_commit = workspace_command
@@ -166,6 +167,11 @@ pub fn cmd_bookmark_move(
             ui.hint_default(),
             "Specify bookmark by name to update just one of the bookmarks."
         )?;
+    }
+
+    // The commit was hidden, unhide it.
+    if is_hidden {
+        tx.repo_mut().add_head(&target_commit)?;
     }
 
     tx.finish(
