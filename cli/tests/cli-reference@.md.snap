@@ -79,6 +79,7 @@ This document contains the help content for the `jj` command-line program.
 * [`jj resolve`↴](#jj-resolve)
 * [`jj restore`↴](#jj-restore)
 * [`jj root`↴](#jj-root)
+* [`jj sign`↴](#jj-sign)
 * [`jj show`↴](#jj-show)
 * [`jj simplify-parents`↴](#jj-simplify-parents)
 * [`jj sparse`↴](#jj-sparse)
@@ -149,6 +150,7 @@ To get started, see the tutorial at https://jj-vcs.github.io/jj/latest/tutorial/
 * `resolve` — Resolve a conflicted file with an external merge tool
 * `restore` — Restore paths from another revision
 * `root` — Show the current workspace root directory
+* `sign` — Cryptographically sign a revision
 * `show` — Show commit description and changes in a revision
 * `simplify-parents` — Simplify parent edges for the specified revision(s)
 * `sparse` — Manage which paths from the working-copy commit are present in the working copy
@@ -1947,6 +1949,26 @@ See `jj diffedit` if you'd like to restore portions of files rather than entire 
 Show the current workspace root directory
 
 **Usage:** `jj root`
+
+
+
+## `jj sign`
+
+Cryptographically sign a revision
+
+**Usage:** `jj sign [OPTIONS] [KEY]`
+
+###### **Arguments:**
+
+* `<KEY>` — What key to use, depends on the configured signing backend
+
+###### **Options:**
+
+* `-r`, `--revision <REVISION>` — What revision to sign
+
+  Default value: `@`
+* `-f`, `--force` — Sign a commit that is not authored by you or was already signed
+* `-D`, `--drop` — Drop the signature, explicitly "un-signing" the commit
 
 
 
