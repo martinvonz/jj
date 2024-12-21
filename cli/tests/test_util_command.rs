@@ -31,8 +31,6 @@ fn test_util_config_schema() {
             "description": "User configuration for Jujutsu VCS. See https://jj-vcs.github.io/jj/latest/config/ for details",
             "properties": {
                 [...]
-            "fix": {
-                [...]
             }
         }
         "###);

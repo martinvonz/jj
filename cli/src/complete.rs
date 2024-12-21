@@ -23,7 +23,7 @@ use jj_lib::settings::UserSettings;
 use jj_lib::workspace::DefaultWorkspaceLoaderFactory;
 use jj_lib::workspace::WorkspaceLoaderFactory as _;
 
-use crate::cli_util::expand_args;
+use crate::cli_util::expand_cmdline;
 use crate::cli_util::find_workspace_dir;
 use crate::cli_util::GlobalArgs;
 use crate::command_error::user_error;
@@ -696,7 +696,7 @@ fn get_jj_command() -> Result<(JjBuilder, UserSettings), CommandError> {
     let mut config = config_env.resolve_config(&raw_config)?;
     // skip 2 because of the clap_complete prelude: jj -- jj <actual args...>
     let args = std::env::args_os().skip(2);
-    let args = expand_args(&ui, &app, args, &config)?;
+    let args = expand_cmdline(&ui, &app, args, &config)?;
     let arg_matches = app
         .clone()
         .disable_version_flag(true)

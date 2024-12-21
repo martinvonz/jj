@@ -51,6 +51,7 @@ use clap_complete::ArgValueCandidates;
 use indexmap::IndexMap;
 use indexmap::IndexSet;
 use indoc::writedoc;
+use itertools::Either;
 use itertools::Itertools;
 use jj_lib::backend::BackendResult;
 use jj_lib::backend::ChangeId;
@@ -137,6 +138,7 @@ use jj_lib::workspace::Workspace;
 use jj_lib::workspace::WorkspaceLoadError;
 use jj_lib::workspace::WorkspaceLoader;
 use jj_lib::workspace::WorkspaceLoaderFactory;
+use serde::de;
 use tracing::instrument;
 use tracing_chrome::ChromeLayerBuilder;
 use tracing_subscriber::prelude::*;
@@ -3222,41 +3224,119 @@ pub fn merge_args_with<'k, 'v, T, U>(
     pos_values.into_iter().map(|(_, value)| value).collect()
 }
 
-fn get_string_or_array(
+fn handle_shell_completion(
+    ui: &Ui,
+    app: &Command,
     config: &StackedConfig,
-    key: &'static str,
-) -> Result<Vec<String>, ConfigGetError> {
-    config
-        .get(key)
-        .map(|string| vec![string])
-        .or_else(|_| config.get::<Vec<String>>(key))
+    cwd: &Path,
+) -> Result<(), CommandError> {
+    let mut args = vec![];
+    // Take the first two arguments as is, they must be passed to clap_complete
+    // without any changes. They are usually "jj --".
+    args.extend(env::args_os().take(2));
+
+    // Make sure aliases are expanded before passing them to clap_complete. We
+    // skip the first two args ("jj" and "--") for alias resolution, then we
+    // stitch the args back together, like clap_complete expects them.
+    let orig_args = env::args_os().skip(2);
+    if orig_args.len() > 0 {
+        let arg_index: Option<usize> = env::var("_CLAP_COMPLETE_INDEX")
+            .ok()
+            .and_then(|s| s.parse().ok());
+        let resolved_aliases = if let Some(index) = arg_index {
+            // As of clap_complete 4.5.38, zsh completion script doesn't pad an
+            // empty arg at the complete position. If the args doesn't include a
+            // command name, the default command would be expanded at that
+            // position. Therefore, no other command names would be suggested.
+            // TODO: Maybe we should instead expand args[..index] + [""], adjust
+            // the index accordingly, strip the last "", and append remainder?
+            let pad_len = usize::saturating_sub(index + 1, orig_args.len());
+            let padded_args = orig_args.chain(iter::repeat(OsString::new()).take(pad_len));
+            expand_cmdline(ui, app, padded_args, config)?
+        } else {
+            expand_cmdline(ui, app, orig_args, config)?
+        };
+        args.extend(resolved_aliases.into_iter().map(OsString::from));
+    }
+    let ran_completion = clap_complete::CompleteEnv::with_factory(|| {
+        app.clone()
+            // for completing aliases
+            .allow_external_subcommands(true)
+    })
+    .try_complete(args.iter(), Some(cwd))?;
+    assert!(
+        ran_completion,
+        "This function should not be called without the COMPLETE variable set."
+    );
+    Ok(())
 }
 
-fn resolve_default_command(
+/// Expand the default command and aliases in the supplied command line.
+pub fn expand_cmdline(
+    ui: &Ui,
+    app: &Command,
+    cmdline: impl IntoIterator<Item = OsString>,
+    config: &StackedConfig,
+) -> Result<Vec<String>, CommandError> {
+    let mut string_args: Vec<String> = vec![];
+    for arg in cmdline {
+        if let Some(string_arg) = arg.to_str() {
+            string_args.push(string_arg.to_owned());
+        } else {
+            return Err(cli_error("Non-utf8 argument"));
+        }
+    }
+
+    let app = app
+        .clone()
+        .allow_external_subcommands(true)
+        .disable_help_flag(true)
+        // Do not stop parsing at -h/--help
+        .arg(
+            clap::Arg::new("help")
+                .short('h')
+                .long("help")
+                .global(true)
+                .action(ArgAction::SetTrue),
+        )
+        .disable_version_flag(true)
+        // Do not stop parsing at -V/--version
+        .arg(
+            clap::Arg::new("version")
+                .short('V')
+                .long("version")
+                .global(true)
+                .action(ArgAction::SetTrue),
+        )
+        .ignore_errors(true);
+
+    expand_cmdline_default(ui, config, &app, &mut string_args)?;
+    expand_cmdline_aliases(ui, config, &app, &mut string_args)?;
+
+    Ok(string_args)
+}
+
+/// Expand the default command in the supplied command line.
+fn expand_cmdline_default(
     ui: &Ui,
     config: &StackedConfig,
     app: &Command,
-    mut string_args: Vec<String>,
-) -> Result<Vec<String>, CommandError> {
-    const PRIORITY_FLAGS: &[&str] = &["--help", "-h", "--version", "-V"];
+    cmdline: &mut Vec<String>,
+) -> Result<(), CommandError> {
+    let Ok(matches) = app.clone().try_get_matches_from(&*cmdline) else {
+        return Ok(());
+    };
 
-    let has_priority_flag = string_args
-        .iter()
-        .any(|arg| PRIORITY_FLAGS.contains(&arg.as_str()));
-    if has_priority_flag {
-        return Ok(string_args);
+    // Do not substitute default command with the help or version flags.
+    if matches.get_flag("help") || matches.get_flag("version") {
+        return Ok(());
     }
 
-    let app_clone = app
-        .clone()
-        .allow_external_subcommands(true)
-        .ignore_errors(true);
-    let matches = app_clone.try_get_matches_from(&string_args).ok();
-
-    if let Some(matches) = matches {
-        if matches.subcommand_name().is_none() {
-            let args = get_string_or_array(config, "ui.default-command").optional()?;
-            if args.is_none() {
+    // Resolve default command
+    if matches.subcommand().is_none() {
+        let default_args = match config.get::<CmdAlias>("ui.default-command").optional()? {
+            Some(opt) => opt.0,
+            None => {
                 writeln!(
                     ui.hint_default(),
                     "Use `jj -h` for a list of available commands."
@@ -3265,24 +3345,26 @@ fn resolve_default_command(
                     ui.hint_no_heading(),
                     "Run `jj config set --user ui.default-command log` to disable this message."
                 )?;
-            }
-            let default_command = args.unwrap_or_else(|| vec!["log".to_string()]);
 
-            // Insert the default command directly after the path to the binary.
-            string_args.splice(1..1, default_command);
-        }
+                vec!["log".to_string()]
+            }
+        };
+
+        // Insert the default command directly after the path to the binary.
+        cmdline.splice(1..1, default_args).for_each(std::mem::drop);
     }
-    Ok(string_args)
+
+    Ok(())
 }
 
-fn resolve_aliases(
+/// Expand any aliases in the supplied command line.
+fn expand_cmdline_aliases(
     ui: &Ui,
     config: &StackedConfig,
     app: &Command,
-    mut string_args: Vec<String>,
-) -> Result<Vec<String>, CommandError> {
-    let defined_aliases: HashSet<_> = config.table_keys("aliases").collect();
-    let mut resolved_aliases = HashSet::new();
+    cmdline: &mut Vec<String>,
+) -> Result<(), CommandError> {
+    // Collect all the commands defined in clap.
     let mut real_commands = HashSet::new();
     for command in app.get_subcommands() {
         real_commands.insert(command.get_name());
@@ -3290,45 +3372,103 @@ fn resolve_aliases(
             real_commands.insert(alias);
         }
     }
-    for alias in defined_aliases.intersection(&real_commands).sorted() {
+
+    // Split aliases into user-defined and built-in ones.
+    let (defined_aliases, mut builtin_overrides): (HashSet<&str>, Vec<&str>) =
+        config.table_keys("aliases").partition_map(|name| {
+            if real_commands.contains(name) {
+                Either::Right(name)
+            } else {
+                Either::Left(name)
+            }
+        });
+
+    // Warn the user about any built-in overrides that will be ignored.
+    builtin_overrides.sort();
+    for alias in builtin_overrides {
         writeln!(
             ui.warning_default(),
             "Cannot define an alias that overrides the built-in command '{alias}'"
         )?;
     }
 
+    // Substitute aliases.
+    let mut resolved_aliases = HashSet::new();
     loop {
-        let app_clone = app.clone().allow_external_subcommands(true);
-        let matches = app_clone.try_get_matches_from(&string_args).ok();
-        if let Some((command_name, submatches)) = matches.as_ref().and_then(|m| m.subcommand()) {
-            if !real_commands.contains(command_name) {
-                let alias_name = command_name.to_string();
+        let matches = app.clone().try_get_matches_from(&*cmdline).ok();
+        if let Some((command_name, submatches)) = matches.as_ref().and_then(ArgMatches::subcommand)
+        {
+            if defined_aliases.contains(command_name) {
                 let alias_args = submatches
                     .get_many::<OsString>("")
                     .unwrap_or_default()
                     .map(|arg| arg.to_str().unwrap().to_string())
                     .collect_vec();
-                if resolved_aliases.contains(&*alias_name) {
+
+                if resolved_aliases.contains(command_name) {
                     return Err(user_error(format!(
-                        r#"Recursive alias definition involving "{alias_name}""#
+                        r#"Recursive alias definition involving "{command_name}""#
                     )));
                 }
-                if let Some(&alias_name) = defined_aliases.get(&*alias_name) {
-                    let alias_definition: Vec<String> = config.get(["aliases", alias_name])?;
-                    assert!(string_args.ends_with(&alias_args));
-                    string_args.truncate(string_args.len() - 1 - alias_args.len());
-                    string_args.extend(alias_definition);
-                    string_args.extend_from_slice(&alias_args);
-                    resolved_aliases.insert(alias_name);
-                    continue;
-                } else {
-                    // Not a real command and not an alias, so return what we've resolved so far
-                    return Ok(string_args);
-                }
+
+                let alias_definition = config.get::<CmdAlias>(["aliases", command_name])?.0;
+
+                assert!(cmdline.ends_with(&alias_args));
+                cmdline.truncate(cmdline.len() - 1 - alias_args.len());
+                cmdline.extend(alias_definition.iter().map(|s| s.to_owned()));
+                cmdline.extend_from_slice(&alias_args);
+
+                resolved_aliases.insert(command_name.to_string());
+                continue;
             }
         }
+
         // No more alias commands, or hit unknown option
-        return Ok(string_args);
+        return Ok(());
+    }
+}
+
+/// A `Vec<String>` that can also be deserialized as a space-delimited string.
+struct CmdAlias(pub Vec<String>);
+
+impl<'de> de::Deserialize<'de> for CmdAlias {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: de::Deserializer<'de>,
+    {
+        struct Visitor;
+        impl<'de> de::Visitor<'de> for Visitor {
+            type Value = Vec<String>;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("a string or string sequence")
+            }
+
+            fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+            where
+                E: de::Error,
+            {
+                Ok(vec![v.to_owned()])
+            }
+
+            fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+            where
+                A: de::SeqAccess<'de>,
+            {
+                let mut args = Vec::new();
+                if let Some(size_hint) = seq.size_hint() {
+                    args.reserve_exact(size_hint);
+                }
+
+                while let Some(element) = seq.next_element()? {
+                    args.push(element);
+                }
+
+                Ok(args)
+            }
+        }
+
+        deserializer.deserialize_any(Visitor).map(CmdAlias)
     }
 }
 
@@ -3372,72 +3512,6 @@ fn parse_early_args(
         config_layers.push(layer);
     }
     Ok((args, config_layers))
-}
-
-fn handle_shell_completion(
-    ui: &Ui,
-    app: &Command,
-    config: &StackedConfig,
-    cwd: &Path,
-) -> Result<(), CommandError> {
-    let mut args = vec![];
-    // Take the first two arguments as is, they must be passed to clap_complete
-    // without any changes. They are usually "jj --".
-    args.extend(env::args_os().take(2));
-
-    // Make sure aliases are expanded before passing them to clap_complete. We
-    // skip the first two args ("jj" and "--") for alias resolution, then we
-    // stitch the args back together, like clap_complete expects them.
-    let orig_args = env::args_os().skip(2);
-    if orig_args.len() > 0 {
-        let arg_index: Option<usize> = env::var("_CLAP_COMPLETE_INDEX")
-            .ok()
-            .and_then(|s| s.parse().ok());
-        let resolved_aliases = if let Some(index) = arg_index {
-            // As of clap_complete 4.5.38, zsh completion script doesn't pad an
-            // empty arg at the complete position. If the args doesn't include a
-            // command name, the default command would be expanded at that
-            // position. Therefore, no other command names would be suggested.
-            // TODO: Maybe we should instead expand args[..index] + [""], adjust
-            // the index accordingly, strip the last "", and append remainder?
-            let pad_len = usize::saturating_sub(index + 1, orig_args.len());
-            let padded_args = orig_args.chain(iter::repeat(OsString::new()).take(pad_len));
-            expand_args(ui, app, padded_args, config)?
-        } else {
-            expand_args(ui, app, orig_args, config)?
-        };
-        args.extend(resolved_aliases.into_iter().map(OsString::from));
-    }
-    let ran_completion = clap_complete::CompleteEnv::with_factory(|| {
-        app.clone()
-            // for completing aliases
-            .allow_external_subcommands(true)
-    })
-    .try_complete(args.iter(), Some(cwd))?;
-    assert!(
-        ran_completion,
-        "This function should not be called without the COMPLETE variable set."
-    );
-    Ok(())
-}
-
-pub fn expand_args(
-    ui: &Ui,
-    app: &Command,
-    args_os: impl IntoIterator<Item = OsString>,
-    config: &StackedConfig,
-) -> Result<Vec<String>, CommandError> {
-    let mut string_args: Vec<String> = vec![];
-    for arg_os in args_os {
-        if let Some(string_arg) = arg_os.to_str() {
-            string_args.push(string_arg.to_owned());
-        } else {
-            return Err(cli_error("Non-utf8 argument"));
-        }
-    }
-
-    let string_args = resolve_default_command(ui, config, app, string_args)?;
-    resolve_aliases(ui, config, app, string_args)
 }
 
 fn parse_args(
@@ -3670,7 +3744,7 @@ impl CliRunner {
             return handle_shell_completion(ui, &self.app, &config, &cwd);
         }
 
-        let string_args = expand_args(ui, &self.app, env::args_os(), &config)?;
+        let string_args = expand_cmdline(ui, &self.app, std::env::args_os(), &config)?;
         let (args, config_layers) = parse_early_args(&self.app, &string_args)?;
         if !config_layers.is_empty() {
             raw_config.as_mut().extend_layers(config_layers);
@@ -3712,7 +3786,7 @@ impl CliRunner {
         // If -R is specified, check if the expanded arguments differ. Aliases
         // can also be injected by --config, but that's obviously wrong.
         if args.global_args.repository.is_some() {
-            let new_string_args = expand_args(ui, &self.app, env::args_os(), &config).ok();
+            let new_string_args = expand_cmdline(ui, &self.app, env::args_os(), &config).ok();
             if new_string_args.as_ref() != Some(&string_args) {
                 writeln!(
                     ui.warning_default(),

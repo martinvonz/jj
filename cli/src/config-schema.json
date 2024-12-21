@@ -181,17 +181,20 @@
             "properties": {
                 "fsmonitor": {
                     "type": "string",
-                    "enum": ["none", "watchman"],
+                    "enum": [
+                        "none",
+                        "watchman"
+                    ],
                     "description": "Whether to use an external filesystem monitor, useful for large repos"
                 },
                 "watchman": {
                     "type": "object",
                     "properties": {
-                      "register_snapshot_trigger": {
-                        "type": "boolean",
-                        "default": false,
-                        "description": "Whether to use triggers to monitor for changes in the background."
-                      }
+                        "register_snapshot_trigger": {
+                            "type": "boolean",
+                            "default": false,
+                            "description": "Whether to use triggers to monitor for changes in the background."
+                        }
                     }
                 }
             }
@@ -226,14 +229,14 @@
                     "pattern": "^#[0-9a-fA-F]{6}$"
                 },
                 "colors": {
-                  "oneOf": [
-                    {
-                        "$ref": "#/properties/colors/definitions/colorNames"
-                    },
-                    {
-                        "$ref": "#/properties/colors/definitions/hexColor"
-                    }
-                  ]
+                    "oneOf": [
+                        {
+                            "$ref": "#/properties/colors/definitions/colorNames"
+                        },
+                        {
+                            "$ref": "#/properties/colors/definitions/hexColor"
+                        }
+                    ]
                 },
                 "basicFormatterLabels": {
                     "enum": [
@@ -381,12 +384,12 @@
                         }
                     },
                     "diff-invocation-mode": {
-                      "description": "Invoke the tool with directories or individual files",
-                      "enum": [
-                        "dir",
-                        "file-by-file"
-                      ],
-                      "default": "dir"
+                        "description": "Invoke the tool with directories or individual files",
+                        "enum": [
+                            "dir",
+                            "file-by-file"
+                        ],
+                        "default": "dir"
                     },
                     "edit-args": {
                         "type": "array",
@@ -473,10 +476,17 @@
             "type": "object",
             "description": "Custom subcommand aliases to be supported by the jj command",
             "additionalProperties": {
-                "type": "array",
-                "items": {
-                    "type": "string"
-                }
+                "anyOf": [
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "type": "string"
+                    }
+                ]
             }
         },
         "snapshot": {
@@ -529,7 +539,11 @@
             "properties": {
                 "backend": {
                     "type": "string",
-                    "enum": ["gpg", "none", "ssh"],
+                    "enum": [
+                        "gpg",
+                        "none",
+                        "ssh"
+                    ],
                     "description": "The backend to use for signing commits. The string `none` disables signing.",
                     "default": "none"
                 },
@@ -581,7 +595,7 @@
                 }
             }
         },
-    "fix": {
+        "fix": {
             "type": "object",
             "description": "Settings for jj fix",
             "properties": {
