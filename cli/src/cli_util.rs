@@ -1459,9 +1459,19 @@ to the current parents may contain changes from multiple commits.
     ) -> Result<MergeEditor, MergeToolConfigError> {
         let conflict_marker_style = self.env.conflict_marker_style();
         if let Some(name) = tool_name {
-            MergeEditor::with_name(name, self.settings(), conflict_marker_style)
+            MergeEditor::with_name(
+                name,
+                self.settings(),
+                self.path_converter(),
+                conflict_marker_style,
+            )
         } else {
-            MergeEditor::from_settings(ui, self.settings(), conflict_marker_style)
+            MergeEditor::from_settings(
+                ui,
+                self.settings(),
+                self.path_converter(),
+                conflict_marker_style,
+            )
         }
     }
 
