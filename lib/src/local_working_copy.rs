@@ -1236,7 +1236,9 @@ impl FileSnapshotter<'_> {
                 && !self.start_tracking_matcher.matches(&path)
             {
                 // Leave the file untracked
-                // TODO: Report this path to the caller
+                self.untracked_paths_tx
+                    .send((path, UntrackedReason::FileNotAutoTracked))
+                    .ok();
                 Ok(None)
             } else {
                 let metadata = entry.metadata().map_err(|err| SnapshotError::Other {
