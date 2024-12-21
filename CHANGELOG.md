@@ -1089,6 +1089,9 @@ Thanks to the people who made this release happen!
 * New function `working_copies()` for revsets to show the working copy commits
   of all workspaces.
 
+* Add templater support for rendering commit signatures and added new builtin templates which
+  show commit signatures.
+
 ### Fixed bugs
 
 None.
