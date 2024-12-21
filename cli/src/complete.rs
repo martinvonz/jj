@@ -684,7 +684,7 @@ fn get_jj_command() -> Result<(JjBuilder, UserSettings), CommandError> {
     let mut raw_config = config_from_environment(default_config_layers());
     let ui = Ui::with_config(raw_config.as_ref()).expect("default config should be valid");
     let cwd = std::env::current_dir()
-        .and_then(|cwd| cwd.canonicalize())
+        .and_then(dunce::canonicalize)
         .map_err(user_error)?;
     let mut config_env = ConfigEnv::from_environment()?;
     let maybe_cwd_workspace_loader = DefaultWorkspaceLoaderFactory.create(find_workspace_dir(&cwd));

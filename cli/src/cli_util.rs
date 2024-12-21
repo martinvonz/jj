@@ -3643,7 +3643,7 @@ impl CliRunner {
         // `cwd` is canonicalized for consistency with `Workspace::workspace_root()` and
         // to easily compute relative paths between them.
         let cwd = env::current_dir()
-            .and_then(|cwd| cwd.canonicalize())
+            .and_then(dunce::canonicalize)
             .map_err(|_| {
                 user_error_with_hint(
                     "Could not determine current directory",
@@ -3692,7 +3692,7 @@ impl CliRunner {
         let maybe_workspace_loader = if let Some(path) = &args.global_args.repository {
             // TODO: maybe path should be canonicalized by WorkspaceLoader?
             let abs_path = cwd.join(path);
-            let abs_path = abs_path.canonicalize().unwrap_or(abs_path);
+            let abs_path = dunce::canonicalize(&abs_path).unwrap_or(abs_path);
             // Invalid -R path is an error. No need to proceed.
             let loader = self
                 .workspace_loader_factory

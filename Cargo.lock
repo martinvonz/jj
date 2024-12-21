@@ -2012,6 +2012,7 @@ dependencies = [
  "clru",
  "criterion",
  "digest",
+ "dunce",
  "either",
  "futures 0.3.31",
  "git2",

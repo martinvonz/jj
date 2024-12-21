@@ -258,10 +258,9 @@ pub struct ConfigEnv {
 impl ConfigEnv {
     /// Initializes configuration loader based on environment variables.
     pub fn from_environment() -> Result<Self, ConfigEnvError> {
-        // Canonicalize home as we do canonicalize cwd in CliRunner.
-        // TODO: Maybe better to switch to dunce::canonicalize() and remove
-        // canonicalization of cwd, home, etc.?
-        let home_dir = dirs::home_dir().map(|path| path.canonicalize().unwrap_or(path));
+        // Canonicalize home as we do canonicalize cwd in CliRunner. $HOME might
+        // point to symlink.
+        let home_dir = dirs::home_dir().map(|path| dunce::canonicalize(&path).unwrap_or(path));
         let env = UnresolvedConfigEnv {
             config_dir: dirs::config_dir(),
             home_dir: home_dir.clone(),

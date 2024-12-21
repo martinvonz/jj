@@ -17,7 +17,6 @@ use std::io;
 use std::io::Write;
 use std::num::NonZeroU32;
 use std::path::Path;
-use std::path::PathBuf;
 
 use jj_lib::git;
 use jj_lib::git::GitFetchError;
@@ -128,8 +127,7 @@ pub fn cmd_git_clone(
 
     // Canonicalize because fs::remove_dir_all() doesn't seem to like e.g.
     // `/some/path/.`
-    let canonical_wc_path: PathBuf = wc_path
-        .canonicalize()
+    let canonical_wc_path = dunce::canonicalize(&wc_path)
         .map_err(|err| user_error_with_message(format!("Failed to create {wc_path_str}"), err))?;
     let clone_result = do_git_clone(
         ui,

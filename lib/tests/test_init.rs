@@ -28,7 +28,7 @@ use testutils::TestWorkspace;
 
 fn canonicalize(input: &Path) -> (PathBuf, PathBuf) {
     let uncanonical = input.join("..").join(input.file_name().unwrap());
-    let canonical = uncanonical.canonicalize().unwrap();
+    let canonical = dunce::canonicalize(&uncanonical).unwrap();
     (canonical, uncanonical)
 }
 

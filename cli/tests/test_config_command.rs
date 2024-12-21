@@ -1149,7 +1149,8 @@ fn test_config_conditional_without_home_dir() {
                 --when.repositories = [{repo_path}]
                 foo = 'repo'
             "},
-            repo_path = to_toml_value(repo_path.to_str().unwrap())
+            // "\\?\" paths shouldn't be required on Windows
+            repo_path = to_toml_value(dunce::simplified(&repo_path).to_str().unwrap())
         ),
     )
     .unwrap();
