@@ -186,7 +186,7 @@ impl ReadonlyRepo {
         index_store_initializer: &IndexStoreInitializer,
         submodule_store_initializer: &SubmoduleStoreInitializer,
     ) -> Result<Arc<ReadonlyRepo>, RepoInitError> {
-        let repo_path = repo_path.canonicalize().context(repo_path)?;
+        let repo_path = dunce::canonicalize(repo_path).context(repo_path)?;
 
         let store_path = repo_path.join("store");
         fs::create_dir(&store_path).context(&store_path)?;

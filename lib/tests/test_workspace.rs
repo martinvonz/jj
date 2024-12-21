@@ -71,9 +71,12 @@ fn test_init_additional_workspace() {
     assert_eq!(ws2.workspace_id(), &ws2_id);
     assert_eq!(
         *ws2.repo_path(),
-        workspace.repo_path().canonicalize().unwrap()
+        dunce::canonicalize(workspace.repo_path()).unwrap()
     );
-    assert_eq!(*ws2.workspace_root(), ws2_root.canonicalize().unwrap());
+    assert_eq!(
+        *ws2.workspace_root(),
+        dunce::canonicalize(&ws2_root).unwrap()
+    );
     let same_workspace = Workspace::load(
         &settings,
         &ws2_root,
@@ -85,7 +88,7 @@ fn test_init_additional_workspace() {
     assert_eq!(same_workspace.workspace_id(), &ws2_id);
     assert_eq!(
         *same_workspace.repo_path(),
-        workspace.repo_path().canonicalize().unwrap()
+        dunce::canonicalize(workspace.repo_path()).unwrap()
     );
     assert_eq!(same_workspace.workspace_root(), ws2.workspace_root());
 }

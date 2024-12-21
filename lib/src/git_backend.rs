@@ -206,7 +206,7 @@ impl GitBackend {
     ) -> Result<Self, Box<GitBackendInitError>> {
         let canonical_workspace_root = {
             let path = store_path.join(workspace_root);
-            path.canonicalize()
+            dunce::canonicalize(&path)
                 .context(&path)
                 .map_err(GitBackendInitError::Path)?
         };
@@ -472,9 +472,9 @@ impl GitBackend {
 pub fn canonicalize_git_repo_path(path: &Path) -> io::Result<PathBuf> {
     if path.ends_with(".git") {
         let workdir = path.parent().unwrap();
-        workdir.canonicalize().map(|dir| dir.join(".git"))
+        dunce::canonicalize(workdir).map(|dir| dir.join(".git"))
     } else {
-        path.canonicalize()
+        dunce::canonicalize(path)
     }
 }
 
@@ -806,8 +806,8 @@ fn run_git_gc(git_dir: &Path) -> Result<(), GitGcError> {
     let mut git = Command::new("git");
     git.arg("--git-dir=."); // turn off discovery
     git.arg("gc");
-    // Don't specify it by GIT_DIR/--git-dir. On Windows, the "\\?\" path might
-    // not be supported by git.
+    // Don't specify it by GIT_DIR/--git-dir. On Windows, the path could be
+    // canonicalized as UNC path, which wouldn't be supported by git.
     git.current_dir(git_dir);
     // TODO: pass output to UI layer instead of printing directly here
     let status = git.status().map_err(GitGcError::GcCommand)?;

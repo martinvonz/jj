@@ -161,7 +161,7 @@ impl Workspace {
         working_copy: Box<dyn WorkingCopy>,
         repo_loader: RepoLoader,
     ) -> Result<Workspace, PathError> {
-        let workspace_root = workspace_root.canonicalize().context(workspace_root)?;
+        let workspace_root = dunce::canonicalize(workspace_root).context(workspace_root)?;
         Ok(Self::new_no_canonicalize(
             workspace_root,
             repo_path,
@@ -224,7 +224,7 @@ impl Workspace {
             // ReadonlyRepo::init(). workspace_root will be canonicalized by
             // Workspace::new(), but it's not yet here.
             let store_relative_workspace_root =
-                if let Ok(workspace_root) = workspace_root.canonicalize() {
+                if let Ok(workspace_root) = dunce::canonicalize(workspace_root) {
                     crate::file_util::relative_path(store_path, &workspace_root)
                 } else {
                     workspace_root.to_owned()
@@ -259,7 +259,7 @@ impl Workspace {
             // ReadonlyRepo::init(). workspace_root will be canonicalized by
             // Workspace::new(), but it's not yet here.
             let store_relative_git_repo_path = match (
-                workspace_root.canonicalize(),
+                dunce::canonicalize(workspace_root),
                 crate::git_backend::canonicalize_git_repo_path(git_repo_path),
             ) {
                 (Ok(workspace_root), Ok(git_repo_path))
@@ -359,7 +359,7 @@ impl Workspace {
     ) -> Result<(Self, Arc<ReadonlyRepo>), WorkspaceInitError> {
         let jj_dir = create_jj_dir(workspace_root)?;
 
-        let repo_dir = repo_path.canonicalize().context(repo_path)?;
+        let repo_dir = dunce::canonicalize(repo_path).context(repo_path)?;
         let repo_file_path = jj_dir.join("repo");
         let mut repo_file = File::create(&repo_file_path).context(&repo_file_path)?;
         repo_file
@@ -566,10 +566,7 @@ impl DefaultWorkspaceLoader {
             let buf = fs::read(&repo_dir).context(&repo_dir)?;
             let repo_path_str =
                 String::from_utf8(buf).map_err(|_| WorkspaceLoadError::NonUnicodePath)?;
-            repo_dir = jj_dir
-                .join(&repo_path_str)
-                .canonicalize()
-                .context(&repo_path_str)?;
+            repo_dir = dunce::canonicalize(jj_dir.join(&repo_path_str)).context(&repo_path_str)?;
             if !repo_dir.is_dir() {
                 return Err(WorkspaceLoadError::RepoDoesNotExist(repo_dir));
             }

@@ -56,7 +56,7 @@ impl Default for TestEnvironment {
         testutils::hermetic_libgit2();
 
         let tmp_dir = testutils::new_temp_dir();
-        let env_root = tmp_dir.path().canonicalize().unwrap();
+        let env_root = dunce::canonicalize(tmp_dir.path()).unwrap();
         let home_dir = env_root.join("home");
         std::fs::create_dir(&home_dir).unwrap();
         let config_dir = env_root.join("config");

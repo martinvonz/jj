@@ -40,6 +40,7 @@ chrono = { workspace = true }
 chrono-english = { workspace = true }
 clru = { workspace = true }
 digest = { workspace = true }
+dunce = { workspace = true }
 either = { workspace = true }
 futures = { workspace = true }
 git2 = { workspace = true, optional = true }

@@ -85,10 +85,10 @@ pub fn is_colocated_git_workspace(workspace: &Workspace, repo: &ReadonlyRepo) ->
     }
     // Colocated workspace should have ".git" directory, file, or symlink. Compare
     // its parent as the git_workdir might be resolved from the real ".git" path.
-    let Ok(dot_git_path) = workspace.workspace_root().join(".git").canonicalize() else {
+    let Ok(dot_git_path) = dunce::canonicalize(workspace.workspace_root().join(".git")) else {
         return false;
     };
-    git_workdir.canonicalize().ok().as_deref() == dot_git_path.parent()
+    dunce::canonicalize(git_workdir).ok().as_deref() == dot_git_path.parent()
 }
 
 fn terminal_get_username(ui: &Ui, url: &str) -> Option<String> {

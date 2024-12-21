@@ -2852,9 +2852,6 @@ impl LogContentFormat {
 }
 
 pub fn run_ui_editor(settings: &UserSettings, edit_path: &Path) -> Result<(), CommandError> {
-    // Work around UNC paths not being well supported on Windows (no-op for
-    // non-Windows): https://github.com/jj-vcs/jj/issues/3986
-    let edit_path = dunce::simplified(edit_path);
     let editor: CommandNameAndArgs = settings.get("ui.editor")?;
     let mut cmd = editor.to_command();
     cmd.arg(edit_path);
@@ -3643,7 +3640,7 @@ impl CliRunner {
         // `cwd` is canonicalized for consistency with `Workspace::workspace_root()` and
         // to easily compute relative paths between them.
         let cwd = env::current_dir()
-            .and_then(|cwd| cwd.canonicalize())
+            .and_then(dunce::canonicalize)
             .map_err(|_| {
                 user_error_with_hint(
                     "Could not determine current directory",
@@ -3692,7 +3689,7 @@ impl CliRunner {
         let maybe_workspace_loader = if let Some(path) = &args.global_args.repository {
             // TODO: maybe path should be canonicalized by WorkspaceLoader?
             let abs_path = cwd.join(path);
-            let abs_path = abs_path.canonicalize().unwrap_or(abs_path);
+            let abs_path = dunce::canonicalize(&abs_path).unwrap_or(abs_path);
             // Invalid -R path is an error. No need to proceed.
             let loader = self
                 .workspace_loader_factory
