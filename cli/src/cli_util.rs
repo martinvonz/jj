@@ -2852,9 +2852,6 @@ impl LogContentFormat {
 }
 
 pub fn run_ui_editor(settings: &UserSettings, edit_path: &Path) -> Result<(), CommandError> {
-    // Work around UNC paths not being well supported on Windows (no-op for
-    // non-Windows): https://github.com/jj-vcs/jj/issues/3986
-    let edit_path = dunce::simplified(edit_path);
     let editor: CommandNameAndArgs = settings.get("ui.editor")?;
     let mut cmd = editor.to_command();
     cmd.arg(edit_path);
